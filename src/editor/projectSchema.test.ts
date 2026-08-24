@@ -34,9 +34,9 @@ function shapedBinding() {
 }
 
 describe('parseProject', () => {
-  it('migrates legacy projects to schema v8 and normalizes element flags', () => {
+  it('migrates legacy projects to schema v9 and normalizes element flags', () => {
     const project = parseProject(legacyProject(), fallback)
-    expect(project.schemaVersion).toBe(8)
+    expect(project.schemaVersion).toBe(9)
     expect(project.elements[0]).toMatchObject({ visible: true, locked: false })
     expect(project.guides).toEqual([])
   })
@@ -60,6 +60,31 @@ describe('parseProject', () => {
     expect(project.elements[0].parametricRow?.topologyOverride).toEqual({
       changeParentIds: ['p3', 'p8'],
     })
+  })
+
+  it('preserves a valid mixed row sequence', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 9
+    raw.elements[0].parametricRow = {
+      ...shapedBinding(),
+      sequence: { items: [
+        { symbolId: 'single', count: 3 },
+        { symbolId: 'chain', count: 1 },
+        { symbolId: 'double', count: 1 },
+      ] },
+    }
+    const project = parseProject(raw, fallback)
+    expect(project.elements[0].parametricRow?.sequence?.items).toHaveLength(3)
+  })
+
+  it('rejects malformed mixed row sequences', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 9
+    raw.elements[0].parametricRow = {
+      ...shapedBinding(),
+      sequence: { items: [{ symbolId: 'single', count: 0 }] },
+    }
+    expect(() => parseProject(raw, fallback)).toThrow('Invalid row sequence item')
   })
 
   it('rejects malformed topology parent ids', () => {
@@ -95,13 +120,13 @@ describe('parseProject', () => {
   })
 
   it('rejects unknown guide types', () => {
-    const raw = { ...legacyProject(), schemaVersion: 8, guides: [{ id: 'x', type: 'mystery', visible: true }] }
+    const raw = { ...legacyProject(), schemaVersion: 9, guides: [{ id: 'x', type: 'mystery', visible: true }] }
     expect(() => parseProject(raw, fallback)).toThrow('Unknown guide type')
   })
 
   it('rejects malformed parametric row shaping', () => {
     const raw = legacyProject() as any
-    raw.schemaVersion = 8
+    raw.schemaVersion = 9
     raw.elements[0].parametricRow = {
       ...shapedBinding(),
       shaping: { kind: 'magic', count: 6, baseCount: 6 },
