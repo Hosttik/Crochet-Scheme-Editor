@@ -1,7 +1,19 @@
 import type { Guide, ParametricRowBinding, StitchElement } from '../types'
-import { generateGuideRowPlacements, rowPlacementsToElements } from './rowGenerator'
+import {
+  generateGuideRowPlacements,
+  resolveGuideRowCount,
+  rowPlacementsToElements,
+} from './rowGenerator'
 
 export type ParametricIdFactory = () => string
+
+export type PatternRowSummary = {
+  id: string
+  binding: ParametricRowBinding
+  stitchCount: number
+  firstElementIndex: number
+  displayOrder: number
+}
 
 function uniqueBindings(elements: StitchElement[]) {
   const bindings = new Map<string, ParametricRowBinding>()
@@ -14,6 +26,38 @@ function uniqueBindings(elements: StitchElement[]) {
 
 export function rowElements(elements: StitchElement[], rowId: string) {
   return elements.filter((element) => element.parametricRow?.id === rowId)
+}
+
+export function patternRows(elements: StitchElement[]): PatternRowSummary[] {
+  const summaries = uniqueBindings(elements).map((binding) => {
+    const firstElementIndex = elements.findIndex((element) => element.parametricRow?.id === binding.id)
+    return {
+      id: binding.id,
+      binding,
+      stitchCount: rowElements(elements, binding.id).length,
+      firstElementIndex,
+      displayOrder: 0,
+    }
+  })
+
+  summaries.sort((left, right) => {
+    const leftOrder = left.binding.patternOrder
+    const rightOrder = right.binding.patternOrder
+    if (leftOrder != null && rightOrder != null && leftOrder !== rightOrder) return leftOrder - rightOrder
+    if (leftOrder != null && rightOrder == null) return -1
+    if (leftOrder == null && rightOrder != null) return 1
+    return left.firstElementIndex - right.firstElementIndex
+  })
+
+  return summaries.map((summary, index) => ({ ...summary, displayOrder: index + 1 }))
+}
+
+export function nextPatternOrder(elements: StitchElement[]) {
+  const rows = patternRows(elements)
+  const explicitOrders = rows
+    .map((row) => row.binding.patternOrder)
+    .filter((value): value is number => Number.isFinite(value))
+  return Math.max(rows.length, ...explicitOrders, 0) + 1
 }
 
 export function parametricRowFromSelection(
@@ -114,6 +158,42 @@ export function updateParametricRow(
       : element,
   )
   return reconcileParametricRows(rebound, guides, idFactory)
+}
+
+export function createNextPatternRow(
+  elements: StitchElement[],
+  guides: Guide[],
+  parent: ParametricRowBinding,
+  countIncrement: number,
+  idFactory: ParametricIdFactory,
+) {
+  const guide = guides.find((item) => item.id === parent.guideId)
+  if (!guide || guide.type === 'grid') return null
+
+  const baseCount = resolveGuideRowCount(guide, parent.options)
+  const radialStep = guide.type === 'radial-grid' ? Math.max(1, guide.ringSpacing) : 40
+  const binding: ParametricRowBinding = {
+    id: idFactory(),
+    guideId: parent.guideId,
+    symbolId: parent.symbolId,
+    patternOrder: nextPatternOrder(elements),
+    parentRowId: parent.id,
+    options: {
+      ...parent.options,
+      distributionMode: 'count',
+      count: Math.max(1, Math.min(500, baseCount + countIncrement)),
+      radialOffset: parent.options.radialOffset + radialStep,
+    },
+  }
+
+  const placements = generateGuideRowPlacements(guide, binding.options)
+  const generated = rowPlacementsToElements(
+    placements,
+    binding.symbolId,
+    () => idFactory(),
+  ).map((element) => ({ ...element, parametricRow: binding }))
+
+  return { binding, elements: generated }
 }
 
 export function deleteParametricRow(elements: StitchElement[], rowId: string) {
