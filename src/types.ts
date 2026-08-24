@@ -22,6 +22,10 @@ export type RowShaping = {
   baseCount: number
 }
 
+export type RowTopologyOverride = {
+  changeParentIds: string[]
+}
+
 export type ParametricRowBinding = {
   id: string
   guideId: string
@@ -30,6 +34,7 @@ export type ParametricRowBinding = {
   patternOrder?: number
   parentRowId?: string
   shaping?: RowShaping
+  topologyOverride?: RowTopologyOverride
 }
 
 export type StitchElement = {
@@ -95,7 +100,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
   metadata: {
     title: string
     updatedAt: string
