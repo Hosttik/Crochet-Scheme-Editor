@@ -2,9 +2,9 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
-## v1.4
+## v1.5
 
-The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping and editable stitch-to-stitch topology between adjacent rows.
+The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology and mixed stitch rapports inside one row.
 
 ### Editing
 
@@ -37,14 +37,16 @@ The editor combines an SVG canvas with a document model that understands guides,
 - topology connection lines for the selected child row
 - click a +/− marker and move that increase/decrease to a neighboring parent stitch
 - reset manual topology back to evenly distributed positions
-- manual topology keeps row count and geometry unchanged and participates in Undo/Redo + autosave
-- written RU/EN instructions list exact manual increase positions or decrease pairs
-- TXT and Markdown pattern export
+- mixed row rapports such as `3 SC, 1 CH, 1 DC`, repeated across the actual row count
+- rapport steps can change stitch type, count and order without changing row geometry/topology
+- mixed composition is inherited by newly generated child rows
+- written RU/EN instructions generate exact rapport repeats and honest partial remainders
+- TXT and Markdown pattern export includes all stitch abbreviations used by mixed rows
 
 ### Persistence and export
 
-- project JSON schema v8; v1-v7 remain loadable through runtime validation/migration
-- topology parent ids and manual topology overrides are persisted and validated
+- project JSON schema v9; v1-v8 remain loadable through runtime validation/migration
+- topology parent ids, manual topology overrides and mixed row sequences are persisted and validated
 - local multi-project storage in IndexedDB
 - automatic migration of the legacy single autosave into the first local project
 - autosave per active project
@@ -53,7 +55,7 @@ The editor combines an SVG canvas with a document model that understands guides,
 
 ## Engineering baseline
 
-Core geometry, snapping, guide manipulation, selection, row generation, shaping, stitch topology, project validation, history and written-pattern generation live in pure modules outside the React rendering layer.
+Core geometry, snapping, guide manipulation, selection, row generation, shaping, row-sequence expansion, stitch topology, project validation, history and written-pattern generation live in pure modules outside the React rendering layer.
 
 Every pull request runs:
 
@@ -98,9 +100,10 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - snapping
 - selection and viewport geometry
 - parametric crochet rows and shaping semantics
+- cyclic mixed-row rapport semantics
 - explicit and editable stitch topology
 - generated written instructions
 - local persistence
 - rendering and React UI
 
-The next domain milestone is mixed row semantics: multiple stitch types and operations inside one row, richer repeat groups, and validation that compares the written pattern with the actual topology graph.
+The next domain milestone is richer crochet operations inside rapports: explicit increase/decrease operations as sequence steps, nested repeat groups and turning/joined/spiral row semantics.
