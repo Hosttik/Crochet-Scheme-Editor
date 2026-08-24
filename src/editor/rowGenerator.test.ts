@@ -3,6 +3,7 @@ import type { ArcGuide, RadialGridGuide } from '../types'
 import {
   generateGuideRowPlacements,
   resolveGuideRowCount,
+  rowPlacementsToElements,
   type GuideRowOptions,
 } from './rowGenerator'
 
@@ -105,5 +106,29 @@ describe('guide row generator', () => {
       { ...baseOptions, distributionMode: 'spacing', spacing: 50, ringIndex: 1, radialOffset: 50 },
     )
     expect(withOffset).toBeGreaterThan(withoutOffset)
+  })
+
+  it('converts placements to preview or persisted stitch elements without changing geometry', () => {
+    const placements = generateGuideRowPlacements(
+      radial,
+      { ...baseOptions, count: 3, rotationOffset: 12 },
+    )
+    const elements = rowPlacementsToElements(
+      placements,
+      'double',
+      (_placement, index) => `preview-${index}`,
+    )
+
+    expect(elements).toHaveLength(3)
+    expect(elements[0]).toMatchObject({
+      id: 'preview-0',
+      symbolId: 'double',
+      x: placements[0].x,
+      y: placements[0].y,
+      rotation: placements[0].rotation,
+      visible: true,
+      locked: false,
+    })
+    expect(elements[2].id).toBe('preview-2')
   })
 })
