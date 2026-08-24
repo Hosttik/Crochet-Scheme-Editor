@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { SnappingSettings, StitchElement, Viewport } from '../types'
+import type { ArcGuide, SnappingSettings, StitchElement, Viewport } from '../types'
 import {
   anchorWorldPosition,
   buildSnapCandidates,
@@ -24,6 +24,17 @@ const target: StitchElement = {
   rotation: 0,
 }
 
+const arc: ArcGuide = {
+  id: 'arc-1',
+  type: 'arc',
+  center: { x: 100, y: 100 },
+  radius: 50,
+  startAngle: 0,
+  endAngle: 180,
+  divisions: 4,
+  visible: true,
+}
+
 function proposed(overrides: Partial<StitchElement> = {}): StitchElement {
   return {
     id: 'moving',
@@ -37,7 +48,7 @@ function proposed(overrides: Partial<StitchElement> = {}): StitchElement {
 
 describe('buildSnapCandidates', () => {
   it('includes top, center and bottom when vertex snapping is enabled', () => {
-    const candidates = buildSnapCandidates([target], null, true)
+    const candidates = buildSnapCandidates([target], [], null, true)
 
     expect(candidates.map((candidate) => candidate.targetAnchor)).toEqual([
       'top',
@@ -46,15 +57,22 @@ describe('buildSnapCandidates', () => {
     ])
   })
 
-  it('includes only center when vertex snapping is disabled', () => {
-    const candidates = buildSnapCandidates([target], null, false)
+  it('includes only center for stitches when vertex snapping is disabled', () => {
+    const candidates = buildSnapCandidates([target], [], null, false)
 
     expect(candidates).toHaveLength(1)
     expect(candidates[0]?.targetAnchor).toBe('center')
   })
 
   it('never creates candidates from the moving element itself', () => {
-    expect(buildSnapCandidates([target], target.id, true)).toEqual([])
+    expect(buildSnapCandidates([target], [], target.id, true)).toEqual([])
+  })
+
+  it('adds guide snap points to the same candidate set', () => {
+    const candidates = buildSnapCandidates([], [arc], null, true)
+
+    expect(candidates).toHaveLength(5)
+    expect(candidates.every((candidate) => candidate.targetType === 'guide')).toBe(true)
   })
 })
 
@@ -64,6 +82,7 @@ describe('solveSnap', () => {
     const result = solveSnap(
       moving,
       [target],
+      [],
       { ...settings, enabled: false },
       viewport,
       null,
@@ -78,7 +97,7 @@ describe('solveSnap', () => {
   })
 
   it('aligns the selected source anchor with the nearest target anchor', () => {
-    const result = solveSnap(proposed(), [target], settings, viewport, null)
+    const result = solveSnap(proposed(), [target], [], settings, viewport, null)
 
     expect(result.candidate?.targetAnchor).toBe('center')
     expect(result.x).toBeCloseTo(100)
@@ -89,10 +108,11 @@ describe('solveSnap', () => {
   })
 
   it('uses screen-space distance for the snap threshold', () => {
-    const moving = proposed({ y: 78 }) // bottom anchor is 6 document units from target center
+    const moving = proposed({ y: 78 })
     const result = solveSnap(
       moving,
       [target],
+      [],
       { ...settings, snapToVertices: false },
       { ...viewport, zoom: 2 },
       null,
@@ -106,6 +126,7 @@ describe('solveSnap', () => {
     const result = solveSnap(
       proposed({ y: 84 }),
       [rotatedTarget],
+      [],
       { ...settings, snapToVertices: false, orientationMode: 'along' },
       viewport,
       null,
@@ -123,6 +144,7 @@ describe('solveSnap', () => {
     const result = solveSnap(
       proposed({ y: 84 }),
       [rotatedTarget],
+      [],
       { ...settings, snapToVertices: false, orientationMode: 'perpendicular' },
       viewport,
       null,
@@ -131,10 +153,30 @@ describe('solveSnap', () => {
     expect(result.rotation).toBe(120)
   })
 
+  it('snaps to a guide point and uses its tangent for along orientation', () => {
+    const moving = proposed({ x: 150, y: 83 })
+    const result = solveSnap(
+      moving,
+      [],
+      [arc],
+      { ...settings, orientationMode: 'along' },
+      viewport,
+      null,
+    )
+
+    expect(result.candidate?.targetType).toBe('guide')
+    expect(result.candidate?.targetId).toBe('arc-1')
+    expect(result.rotation).toBeCloseTo(90)
+    const snappedElement = { ...moving, ...result }
+    expect(anchorWorldPosition(snappedElement, 'bottom').x).toBeCloseTo(150)
+    expect(anchorWorldPosition(snappedElement, 'bottom').y).toBeCloseTo(100)
+  })
+
   it('keeps a locked candidate inside the wider release threshold', () => {
     const result = solveSnap(
-      proposed({ y: 100 }), // source anchor is 16px from target center
+      proposed({ y: 100 }),
       [target],
+      [],
       { ...settings, snapToVertices: false },
       viewport,
       'target:center',
@@ -145,8 +187,9 @@ describe('solveSnap', () => {
 
   it('releases a locked candidate after leaving the hysteresis radius', () => {
     const result = solveSnap(
-      proposed({ y: 103 }), // source anchor is 19px from target center
+      proposed({ y: 103 }),
       [target],
+      [],
       { ...settings, snapToVertices: false },
       viewport,
       'target:center',
