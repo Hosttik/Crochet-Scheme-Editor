@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { ArcGuide, ParametricRowBinding, StitchElement } from '../types'
 import {
+  createNextPatternRow,
   deleteParametricRow,
   expandIdsToParametricRows,
+  nextPatternOrder,
+  patternRows,
   reconcileParametricRows,
   updateParametricRow,
 } from './parametricRows'
@@ -33,23 +36,23 @@ const binding: ParametricRowBinding = {
   },
 }
 
-function row(count = 3): StitchElement[] {
+function row(count = 3, rowBinding = binding): StitchElement[] {
   return Array.from({ length: count }, (_, index) => ({
-    id: `existing-${index}`,
-    symbolId: 'single',
+    id: `${rowBinding.id}-${index}`,
+    symbolId: rowBinding.symbolId,
     x: index,
     y: index,
     rotation: 0,
     visible: index !== 1,
     locked: index === 1,
-    parametricRow: binding,
+    parametricRow: rowBinding,
   }))
 }
 
 describe('parametric rows', () => {
   it('rebuilds geometry and preserves existing ids and flags', () => {
     const result = reconcileParametricRows(row(), [guide], () => 'new-id')
-    expect(result.map((element) => element.id)).toEqual(['existing-0', 'existing-1', 'existing-2'])
+    expect(result.map((element) => element.id)).toEqual(['row-1-0', 'row-1-1', 'row-1-2'])
     expect(result[0].x).toBeCloseTo(100)
     expect(result[0].y).toBeCloseTo(0)
     expect(result[1].visible).toBe(false)
@@ -68,9 +71,9 @@ describe('parametric rows', () => {
     )
     expect(result).toHaveLength(5)
     expect(result.slice(0, 3).map((element) => element.id)).toEqual([
-      'existing-0',
-      'existing-1',
-      'existing-2',
+      'row-1-0',
+      'row-1-1',
+      'row-1-2',
     ])
     expect(result.slice(3).map((element) => element.id)).toEqual(['new-1', 'new-2'])
   })
@@ -78,7 +81,7 @@ describe('parametric rows', () => {
   it('drops trailing children when the row shrinks', () => {
     const nextBinding = { ...binding, options: { ...binding.options, count: 2 } }
     const result = updateParametricRow(row(4), [guide], binding.id, nextBinding, () => 'unused')
-    expect(result.map((element) => element.id)).toEqual(['existing-0', 'existing-1'])
+    expect(result.map((element) => element.id)).toEqual(['row-1-0', 'row-1-1'])
   })
 
   it('follows guide geometry changes', () => {
@@ -99,13 +102,42 @@ describe('parametric rows', () => {
       ...row(),
       { id: 'manual', symbolId: 'single', x: 0, y: 0, rotation: 0 },
     ]
-    expect(new Set(expandIdsToParametricRows(elements, ['existing-1', 'manual']))).toEqual(
-      new Set(['existing-0', 'existing-1', 'existing-2', 'manual']),
+    expect(new Set(expandIdsToParametricRows(elements, ['row-1-1', 'manual']))).toEqual(
+      new Set(['row-1-0', 'row-1-1', 'row-1-2', 'manual']),
     )
   })
 
   it('deletes the whole row as one logical object', () => {
     const manual: StitchElement = { id: 'manual', symbolId: 'single', x: 0, y: 0, rotation: 0 }
     expect(deleteParametricRow([...row(), manual], binding.id)).toEqual([manual])
+  })
+
+  it('sorts pattern rows by explicit pattern order', () => {
+    const second = { ...binding, id: 'row-2', patternOrder: 2 }
+    const first = { ...binding, id: 'row-0', patternOrder: 1 }
+    const summaries = patternRows([...row(2, second), ...row(4, first)])
+    expect(summaries.map((summary) => summary.id)).toEqual(['row-0', 'row-2'])
+    expect(summaries.map((summary) => summary.stitchCount)).toEqual([4, 2])
+    expect(summaries.map((summary) => summary.displayOrder)).toEqual([1, 2])
+    expect(nextPatternOrder([...row(2, second), ...row(4, first)])).toBe(3)
+  })
+
+  it('creates the next row from its parent with a count increase and outward offset', () => {
+    let serial = 0
+    const parent = { ...binding, patternOrder: 1 }
+    const result = createNextPatternRow(
+      row(3, parent),
+      [guide],
+      parent,
+      6,
+      () => `id-${++serial}`,
+    )
+    expect(result).not.toBeNull()
+    expect(result!.binding.parentRowId).toBe(parent.id)
+    expect(result!.binding.patternOrder).toBe(2)
+    expect(result!.binding.options.count).toBe(9)
+    expect(result!.binding.options.radialOffset).toBe(40)
+    expect(result!.elements).toHaveLength(9)
+    expect(result!.elements.every((element) => element.parametricRow?.id === result!.binding.id)).toBe(true)
   })
 })
