@@ -159,7 +159,7 @@ export const UI = {
     guideCount: 'guides',
     language: 'Language',
   },
-} as const
+}
 
 const symbolNames: Record<string, Record<Locale, string>> = {
   chain: { ru: 'Воздушная петля', en: 'Chain' },
