@@ -4,6 +4,7 @@ import App from './App'
 import './styles.css'
 import './guides.css'
 import './selection.css'
+import './layers.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

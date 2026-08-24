@@ -1,9 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { GuideRenderer } from './editor/GuideRenderer'
+import { LayersPanel } from './editor/LayersPanel'
 import { StitchLayer } from './editor/StitchLayer'
+import {
+  bringForward as bringElementsForward,
+  bringToFront as bringElementsToFront,
+  isElementLocked,
+  isElementVisible,
+  normalizeElements,
+  normalizeProject,
+  sendBackward as sendElementsBackward,
+  sendToBack as sendElementsToBack,
+} from './editor/document'
 import type { GuideManipulationMode } from './editor/guideManipulation'
 import { clamp, screenToDocument } from './editor/geometry'
+import { loadAutosave, saveAutosave } from './editor/persistence'
 import {
   idsInMarquee,
   normalizeRect,
@@ -41,6 +53,7 @@ const DEFAULT_SNAPPING: SnappingSettings = {
 }
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
 const DUPLICATE_OFFSET = 24
+const AUTOSAVE_DELAY_MS = 650
 const SYMBOL_SIZES = Object.fromEntries(
   SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
 )
@@ -76,6 +89,7 @@ type HistoryState = {
   past: DocumentSnapshot[]
   future: DocumentSnapshot[]
 }
+type AutosaveState = 'loading' | 'saving' | 'saved' | 'error'
 
 function createId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
@@ -161,6 +175,21 @@ function serializeSvg(elements: StitchElement[], emptyLabel: string) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" width="${width}" height="${height}"><rect x="${left}" y="${top}" width="${width}" height="${height}" fill="white"/>${content}</svg>`
 }
 
+function buildProject(
+  title: string,
+  elements: StitchElement[],
+  guides: Guide[],
+  snapping: SnappingSettings,
+): CrochetProject {
+  return {
+    schemaVersion: 3,
+    metadata: { title, updatedAt: new Date().toISOString() },
+    elements: normalizeElements(elements),
+    guides,
+    settings: { snapping },
+  }
+}
+
 function initialLocale(): Locale {
   if (typeof window === 'undefined') return DEFAULT_LOCALE
   const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY)
@@ -179,6 +208,13 @@ function uniqueIds(ids: string[]) {
   return [...new Set(ids)]
 }
 
+function sameOrder(left: StitchElement[], right: StitchElement[]) {
+  return (
+    left.length === right.length &&
+    left.every((element, index) => element.id === right[index]?.id)
+  )
+}
+
 function App() {
   const svgRef = useRef<SVGSVGElement>(null)
   const loadInputRef = useRef<HTMLInputElement>(null)
@@ -188,6 +224,8 @@ function App() {
   const guideManipulationSnapshotRef = useRef<DocumentSnapshot | null>(null)
   const clipboardRef = useRef<StitchElement[]>([])
   const pasteSerialRef = useRef(1)
+  const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const autosaveRevisionRef = useRef(0)
 
   const [locale, setLocale] = useState<Locale>(initialLocale)
   const t = UI[locale]
@@ -206,12 +244,65 @@ function App() {
   const [rotate, setRotate] = useState<RotateState | null>(null)
   const [pan, setPan] = useState<PanState | null>(null)
   const [status, setStatus] = useState<string>(UI[DEFAULT_LOCALE].ready)
+  const [hydrated, setHydrated] = useState(false)
+  const [autosaveState, setAutosaveState] = useState<AutosaveState>('loading')
 
   useEffect(() => {
     window.localStorage.setItem(LOCALE_STORAGE_KEY, locale)
     document.documentElement.lang = locale
-    setStatus(UI[locale].ready)
-  }, [locale])
+    if (hydrated) setStatus(UI[locale].ready)
+  }, [hydrated, locale])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const restore = async () => {
+      try {
+        const saved = await loadAutosave()
+        if (cancelled) return
+        if (saved) {
+          const project = normalizeProject(saved, DEFAULT_SNAPPING)
+          setElements(project.elements)
+          setGuides(project.guides ?? [])
+          setSnapping(project.settings.snapping)
+          setStatus(UI[locale].autosaveRestored)
+        }
+        setAutosaveState('saved')
+      } catch {
+        if (!cancelled) setAutosaveState('error')
+      } finally {
+        if (!cancelled) setHydrated(true)
+      }
+    }
+
+    void restore()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!hydrated) return
+
+    const revision = ++autosaveRevisionRef.current
+    setAutosaveState('saving')
+    const timeout = window.setTimeout(() => {
+      const project = buildProject(t.projectTitle, elements, guides, snapping)
+      const task = autosaveQueueRef.current
+        .catch(() => undefined)
+        .then(() => saveAutosave(project))
+      autosaveQueueRef.current = task
+      void task
+        .then(() => {
+          if (autosaveRevisionRef.current === revision) setAutosaveState('saved')
+        })
+        .catch(() => {
+          if (autosaveRevisionRef.current === revision) setAutosaveState('error')
+        })
+    }, AUTOSAVE_DELAY_MS)
+
+    return () => window.clearTimeout(timeout)
+  }, [elements, guides, hydrated, snapping, t.projectTitle])
 
   const primaryId = selectedIds.at(-1) ?? null
   const selectedElement = useMemo(
@@ -225,6 +316,7 @@ function App() {
     () => guides.find((guide) => guide.id === selectedGuideId) ?? null,
     [guides, selectedGuideId],
   )
+  const visibleElements = useMemo(() => elements.filter(isElementVisible), [elements])
   const groupedSymbols = useMemo(() => {
     const groups = new Map<string, typeof SYMBOLS>()
     for (const symbol of SYMBOLS) {
@@ -301,12 +393,20 @@ function App() {
     setStatus(t.statusRedo)
   }, [clearElementSelection, currentSnapshot, history, t.statusRedo])
 
+  const unlockedSelectedIds = useCallback(() => {
+    const selected = new Set(selectedIds)
+    return elements
+      .filter((element) => selected.has(element.id) && !isElementLocked(element))
+      .map((element) => element.id)
+  }, [elements, selectedIds])
+
   const deleteSelected = useCallback(() => {
     if (selectedIds.length) {
-      const selected = new Set(selectedIds)
-      commitElements(elements.filter((element) => !selected.has(element.id)))
-      clearElementSelection()
-      setStatus(selectedIds.length > 1 ? t.elementsDeleted : t.elementDeleted)
+      const deletable = new Set(unlockedSelectedIds())
+      if (!deletable.size) return
+      commitElements(elements.filter((element) => !deletable.has(element.id)))
+      setSelectedIds((current) => current.filter((id) => !deletable.has(id)))
+      setStatus(deletable.size > 1 ? t.elementsDeleted : t.elementDeleted)
       return
     }
     if (selectedGuideId) {
@@ -315,27 +415,27 @@ function App() {
       setStatus(t.guideDeleted)
     }
   }, [
-    clearElementSelection,
     commitElements,
     commitGuides,
     elements,
     guides,
     selectedGuideId,
-    selectedIds,
+    selectedIds.length,
     t.elementDeleted,
     t.elementsDeleted,
     t.guideDeleted,
+    unlockedSelectedIds,
   ])
 
   const copySelection = useCallback(() => {
-    if (!selectedIds.length) return
-    const selected = new Set(selectedIds)
+    const copyIds = new Set(unlockedSelectedIds())
+    if (!copyIds.size) return
     clipboardRef.current = elements
-      .filter((element) => selected.has(element.id))
+      .filter((element) => copyIds.has(element.id))
       .map((element) => ({ ...element }))
     pasteSerialRef.current = 1
     setStatus(`${t.copied}: ${clipboardRef.current.length}`)
-  }, [elements, selectedIds, t.copied])
+  }, [elements, t.copied, unlockedSelectedIds])
 
   const pasteSelection = useCallback(() => {
     if (!clipboardRef.current.length) return
@@ -346,6 +446,7 @@ function App() {
       id: createId(),
       x: element.x + offset,
       y: element.y + offset,
+      locked: false,
     }))
     commitElements([...elements, ...pasted])
     setSelectedIds(pasted.map((element) => element.id))
@@ -355,29 +456,94 @@ function App() {
   }, [commitElements, elements, t.pasted])
 
   const duplicateSelection = useCallback(() => {
-    if (!selectedIds.length) return
-    const selected = new Set(selectedIds)
+    const duplicateIds = new Set(unlockedSelectedIds())
+    if (!duplicateIds.size) return
     const duplicated = elements
-      .filter((element) => selected.has(element.id))
+      .filter((element) => duplicateIds.has(element.id))
       .map((element) => ({
         ...element,
         id: createId(),
         x: element.x + DUPLICATE_OFFSET,
         y: element.y + DUPLICATE_OFFSET,
+        locked: false,
       }))
     commitElements([...elements, ...duplicated])
     setSelectedIds(duplicated.map((element) => element.id))
     setSelectedGuideId(null)
     setStatus(`${t.duplicated}: ${duplicated.length}`)
-  }, [commitElements, elements, selectedIds, t.duplicated])
+  }, [commitElements, elements, t.duplicated, unlockedSelectedIds])
 
   const selectAll = useCallback(() => {
-    if (!elements.length) return
-    setSelectedIds(elements.map((element) => element.id))
+    const selectable = elements.filter(
+      (element) => isElementVisible(element) && !isElementLocked(element),
+    )
+    if (!selectable.length) return
+    setSelectedIds(selectable.map((element) => element.id))
     setSelectedGuideId(null)
     setTool({ type: 'select' })
-    setStatus(`${t.selectedCount}: ${elements.length}`)
+    setStatus(`${t.selectedCount}: ${selectable.length}`)
   }, [elements, t.selectedCount])
+
+  const handleLayerSelect = useCallback((id: string, additive: boolean) => {
+    const element = elements.find((item) => item.id === id)
+    if (!element || isElementLocked(element)) return
+    setSelectedGuideId(null)
+    setTool({ type: 'select' })
+    setSelectedIds((current) => {
+      if (!additive) return [id]
+      return current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    })
+  }, [elements])
+
+  const toggleElementVisible = useCallback((id: string) => {
+    const element = elements.find((item) => item.id === id)
+    if (!element) return
+    commitElements(
+      elements.map((item) =>
+        item.id === id ? { ...item, visible: !isElementVisible(item) } : item,
+      ),
+    )
+    setStatus(t.visibilityChanged)
+  }, [commitElements, elements, t.visibilityChanged])
+
+  const toggleElementLocked = useCallback((id: string) => {
+    const element = elements.find((item) => item.id === id)
+    if (!element) return
+    const nextLocked = !isElementLocked(element)
+    commitElements(
+      elements.map((item) => item.id === id ? { ...item, locked: nextLocked } : item),
+    )
+    if (nextLocked) setSelectedIds((current) => current.filter((item) => item !== id))
+    setStatus(t.lockChanged)
+  }, [commitElements, elements, t.lockChanged])
+
+  const reorderSelection = useCallback((
+    operation: (items: StitchElement[], ids: string[]) => StitchElement[],
+  ) => {
+    const ids = unlockedSelectedIds()
+    if (!ids.length) return
+    const next = operation(elements, ids)
+    if (sameOrder(elements, next)) return
+    commitElements(next)
+    setStatus(t.layerChanged)
+  }, [commitElements, elements, t.layerChanged, unlockedSelectedIds])
+
+  const bringSelectionForward = useCallback(
+    () => reorderSelection(bringElementsForward),
+    [reorderSelection],
+  )
+  const sendSelectionBackward = useCallback(
+    () => reorderSelection(sendElementsBackward),
+    [reorderSelection],
+  )
+  const bringSelectionToFront = useCallback(
+    () => reorderSelection(bringElementsToFront),
+    [reorderSelection],
+  )
+  const sendSelectionToBack = useCallback(
+    () => reorderSelection(sendElementsToBack),
+    [reorderSelection],
+  )
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -478,10 +644,12 @@ function App() {
       x: documentPoint.x,
       y: documentPoint.y,
       rotation: 0,
+      visible: true,
+      locked: false,
     }
     const solved = solveSnap(
       proposed,
-      elements,
+      visibleElements,
       guides,
       snapping,
       viewport,
@@ -508,10 +676,12 @@ function App() {
         x: point.x,
         y: point.y,
         rotation: 0,
+        visible: true,
+        locked: false,
       }
       const solved = solveSnap(
         proposed,
-        elements,
+        visibleElements,
         guides,
         snapping,
         viewport,
@@ -589,7 +759,7 @@ function App() {
         y: reference.y + rawDelta.y,
       }
       const snapElements = drag.startSnapshot.elements.filter(
-        (element) => !selectedSet.has(element.id),
+        (element) => !selectedSet.has(element.id) && isElementVisible(element),
       )
       const solved = solveSnap(
         proposedReference,
@@ -606,7 +776,7 @@ function App() {
       interactionMovedRef.current = Math.hypot(delta.x, delta.y) > 0.5
       setElements(
         drag.startSnapshot.elements.map((element) => {
-          if (!selectedSet.has(element.id)) return element
+          if (!selectedSet.has(element.id) || isElementLocked(element)) return element
           const moved = { ...element, x: element.x + delta.x, y: element.y + delta.y }
           return drag.selectedIds.length === 1 && element.id === reference.id
             ? { ...moved, rotation: solved.rotation }
@@ -661,7 +831,10 @@ function App() {
           marquee.current.x - marquee.start.x,
           marquee.current.y - marquee.start.y,
         ) > 2 / viewport.zoom
-        const hits = moved ? idsInMarquee(elements, rect, SYMBOL_SIZES) : []
+        const selectable = elements.filter(
+          (element) => isElementVisible(element) && !isElementLocked(element),
+        )
+        const hits = moved ? idsInMarquee(selectable, rect, SYMBOL_SIZES) : []
         const next = uniqueIds([...marquee.baseIds, ...hits])
         setSelectedIds(next)
         if (next.length) setStatus(`${t.selectedCount}: ${next.length}`)
@@ -674,7 +847,12 @@ function App() {
     event: ReactPointerEvent<SVGGElement>,
     element: StitchElement,
   ) => {
-    if (tool.type !== 'select' || event.button !== 0 || spacePressedRef.current) return
+    if (
+      tool.type !== 'select' ||
+      event.button !== 0 ||
+      spacePressedRef.current ||
+      isElementLocked(element)
+    ) return
     event.stopPropagation()
 
     const alreadySelected = selectedIds.includes(element.id)
@@ -707,7 +885,7 @@ function App() {
     event: ReactPointerEvent<SVGCircleElement>,
     element: StitchElement,
   ) => {
-    if (event.button !== 0 || spacePressedRef.current) return
+    if (event.button !== 0 || spacePressedRef.current || isElementLocked(element)) return
     event.preventDefault()
     event.stopPropagation()
     const point = clientToDocument(event.clientX, event.clientY)
@@ -761,8 +939,8 @@ function App() {
   )
 
   const rotateSelected = (delta: number) => {
-    if (!selectedIds.length) return
-    const selected = new Set(selectedIds)
+    const selected = new Set(unlockedSelectedIds())
+    if (!selected.size) return
     commitElements(
       elements.map((element) =>
         selected.has(element.id)
@@ -833,30 +1011,25 @@ function App() {
   }
 
   const saveProject = () => {
-    const project: CrochetProject = {
-      schemaVersion: 2,
-      metadata: { title: t.projectTitle, updatedAt: new Date().toISOString() },
-      elements,
-      guides,
-      settings: { snapping },
-    }
+    const project = buildProject(t.projectTitle, elements, guides, snapping)
     downloadText('crochet-scheme.json', JSON.stringify(project, null, 2), 'application/json')
     setStatus(t.projectSaved)
   }
 
   const loadProject = async (file: File) => {
     try {
-      const project = JSON.parse(await file.text()) as CrochetProject
+      const raw = JSON.parse(await file.text()) as CrochetProject
       if (
-        (project.schemaVersion !== 1 && project.schemaVersion !== 2) ||
-        !Array.isArray(project.elements)
+        ![1, 2, 3].includes(raw.schemaVersion) ||
+        !Array.isArray(raw.elements)
       ) {
         throw new Error(t.unsupportedProject)
       }
+      const project = normalizeProject(raw, DEFAULT_SNAPPING)
       setHistory({ past: [currentSnapshot()], future: [] })
       setElements(project.elements)
-      setGuides(Array.isArray(project.guides) ? project.guides : [])
-      setSnapping(project.settings?.snapping ?? DEFAULT_SNAPPING)
+      setGuides(project.guides ?? [])
+      setSnapping(project.settings.snapping)
       clearElementSelection()
       setSelectedGuideId(null)
       setTool({ type: 'select' })
@@ -871,7 +1044,11 @@ function App() {
   }
 
   const exportSvg = () => {
-    downloadText('crochet-scheme.svg', serializeSvg(elements, t.emptySvg), 'image/svg+xml')
+    downloadText(
+      'crochet-scheme.svg',
+      serializeSvg(visibleElements, t.emptySvg),
+      'image/svg+xml',
+    )
     setStatus(t.svgExported)
   }
 
@@ -884,6 +1061,22 @@ function App() {
   const marqueeRect: Rect | null = marquee
     ? normalizeRect(marquee.start, marquee.current)
     : null
+  const autosaveLabel =
+    autosaveState === 'loading' ? t.autosaveLoading
+      : autosaveState === 'saving' ? t.autosaveSaving
+        : autosaveState === 'error' ? t.autosaveError
+          : t.autosaveSaved
+
+  if (!hydrated) {
+    return (
+      <div className="app-loading">
+        <div className="app-loading-card">
+          <strong>{t.brandTitle}</strong>
+          <span>{t.autosaveLoading}</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="app-shell">
@@ -897,6 +1090,7 @@ function App() {
         </div>
 
         <div className="topbar-actions">
+          <span className={`autosave-indicator ${autosaveState}`}>{autosaveLabel}</span>
           <div className="language-switch" aria-label={t.language}>
             <button className={`ghost-button ${locale === 'ru' ? 'active-lang' : ''}`} onClick={() => setLocale('ru')}>RU</button>
             <button className={`ghost-button ${locale === 'en' ? 'active-lang' : ''}`} onClick={() => setLocale('en')}>EN</button>
@@ -963,6 +1157,19 @@ function App() {
             </div>
           )}
         </section>
+
+        <LayersPanel
+          elements={elements}
+          selectedIds={selectedIds}
+          locale={locale}
+          onSelect={handleLayerSelect}
+          onToggleVisible={toggleElementVisible}
+          onToggleLocked={toggleElementLocked}
+          onBringForward={bringSelectionForward}
+          onSendBackward={sendSelectionBackward}
+          onBringToFront={bringSelectionToFront}
+          onSendToBack={sendSelectionToBack}
+        />
 
         <section className="panel-section symbols-section">
           <div className="section-title-row"><h2>{t.stitches}</h2><span className="muted-text">{SYMBOLS.length}</span></div>
@@ -1133,6 +1340,10 @@ function App() {
               <div className="selection-actions">
                 <button onClick={copySelection}>{t.copy}</button>
                 <button onClick={duplicateSelection}>{t.duplicate}</button>
+              </div>
+              <div className="layer-selection-controls">
+                <button onClick={() => toggleElementVisible(selectedElement.id)}>{isElementVisible(selectedElement) ? t.hideLayer : t.showLayer}</button>
+                <button onClick={() => toggleElementLocked(selectedElement.id)}>{t.lockLayer}</button>
               </div>
               <button className="danger-button" onClick={deleteSelected}>{t.delete}</button>
             </div>

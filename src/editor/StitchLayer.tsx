@@ -1,6 +1,7 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph } from '../symbols'
 import type { AnchorName, StitchElement } from '../types'
+import { isElementLocked, isElementVisible } from './document'
 import { selectionAabb, type Rect } from './selection'
 
 const SYMBOL_SIZES = Object.fromEntries(
@@ -32,10 +33,11 @@ export function StitchLayer({
     element: StitchElement,
   ) => void
 }) {
+  const visibleElements = elements.filter(isElementVisible)
   const selectedSet = new Set(selectedIds)
   const groupBounds =
     selectedIds.length > 1
-      ? selectionAabb(elements, selectedIds, SYMBOL_SIZES)
+      ? selectionAabb(visibleElements, selectedIds, SYMBOL_SIZES)
       : null
 
   return (
@@ -52,7 +54,8 @@ export function StitchLayer({
         />
       )}
 
-      {elements.map((element) => {
+      {visibleElements.map((element) => {
+        const locked = isElementLocked(element)
         const selected = selectedSet.has(element.id)
         const primary = selected && element.id === primaryId
         const definition = SYMBOL_BY_ID.get(element.symbolId)
@@ -64,8 +67,9 @@ export function StitchLayer({
           <g
             key={element.id}
             transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
-            className={`stitch-element ${selected ? 'selected' : ''}`}
-            onPointerDown={(event) => onElementPointerDown(event, element)}
+            className={`stitch-element ${selected ? 'selected' : ''} ${locked ? 'locked' : ''}`}
+            pointerEvents={locked ? 'none' : undefined}
+            onPointerDown={locked ? undefined : (event) => onElementPointerDown(event, element)}
           >
             {selected && (
               <rect
@@ -82,7 +86,7 @@ export function StitchLayer({
               <SymbolGlyph symbolId={element.symbolId} />
             </g>
 
-            {primary && selectedIds.length === 1 && definition && (
+            {primary && selectedIds.length === 1 && definition && !locked && (
               <>
                 {(['top', 'center', 'bottom'] as AnchorName[]).map((anchor) => (
                   <circle
