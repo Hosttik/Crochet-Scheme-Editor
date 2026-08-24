@@ -90,3 +90,36 @@ test('edits a mixed stitch rapport and restores it from autosave', async ({ page
   await expect(page.getByText('Смешанный раппорт', { exact: true })).toBeVisible()
   await expect(page.getByText(/\(2 СБН, 1 ССН\) × 4 = 12/)).toBeVisible()
 })
+
+test('compiles a semantic rapport into stitch types and exact topology', async ({ page }) => {
+  await page.goto('/Crochet-Scheme-Editor/')
+
+  await page.getByRole('button', { name: /Радиальная/ }).click()
+  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
+  await expect(page.getByText('Ряд 1', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Без изменений' }).click()
+  await expect(page.getByText('Ряд 2', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Семантический', exact: true }).click()
+  await expect(page.getByText('Семантический раппорт', { exact: true })).toBeVisible()
+  await expect(page.locator('.rich-rapport-leaf')).toHaveCount(1)
+
+  await page.locator('.rich-rapport-leaf').first().locator('input').fill('11')
+  await page.getByRole('button', { name: '+ Шаг', exact: true }).click()
+  await expect(page.locator('.rich-rapport-leaf')).toHaveCount(2)
+  await page.locator('.rich-rapport-leaf').nth(1).locator('select').first().selectOption('increase')
+
+  await expect(page.locator('.rich-program-metrics')).toContainText('12 / 12')
+  await expect(page.locator('.rich-program-metrics')).toContainText('13')
+  await expect(page.getByText(/Ряд 2: 11 СБН, прибавка \(СБН\) = 13/)).toBeVisible()
+  await expect(page.locator('.stitch-topology-link')).toHaveCount(13)
+
+  await page.waitForTimeout(900)
+  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
+  await page.reload()
+
+  await expect(page.getByText('Семантический раппорт', { exact: true })).toBeVisible()
+  await expect(page.getByText(/Ряд 2: 11 СБН, прибавка \(СБН\) = 13/)).toBeVisible()
+  await page.getByText('Ряд 2', { exact: true }).click()
+  await expect(page.locator('.stitch-topology-link')).toHaveCount(13)
+})
