@@ -20,6 +20,8 @@ export type ParametricRowBinding = {
   guideId: string
   symbolId: string
   options: GuideRowOptions
+  patternOrder?: number
+  parentRowId?: string
 }
 
 export type StitchElement = {
@@ -84,7 +86,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4
+  schemaVersion: 1 | 2 | 3 | 4 | 5
   metadata: {
     title: string
     updatedAt: string
