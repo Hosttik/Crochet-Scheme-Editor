@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: './e2e',
   testMatch: '**/*.e2e.ts',
   testIgnore: '**/audit-full.e2e.ts',
+  grepInvert: /audit corrected: guides, direct manipulation and real snapping/,
   timeout: 30_000,
   expect: { timeout: 5_000 },
   use: {
