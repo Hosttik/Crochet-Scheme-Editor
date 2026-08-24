@@ -231,7 +231,7 @@ function buildProject(
   snapping: SnappingSettings,
 ): CrochetProject {
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     metadata: { title, updatedAt: new Date().toISOString() },
     elements: normalizeElements(elements),
     guides,
@@ -474,7 +474,11 @@ function App() {
     if (selectedIds.length) {
       const deletable = new Set(expandIdsToParametricRows(elements, unlockedSelectedIds()))
       if (!deletable.size) return
-      commitElements(elements.filter((element) => !deletable.has(element.id)))
+      commitElements(reconcileParametricRows(
+        elements.filter((element) => !deletable.has(element.id)),
+        guides,
+        createId,
+      ))
       setSelectedIds((current) => current.filter((id) => !deletable.has(id)))
       setStatus(deletable.size > 1 ? t.elementsDeleted : t.elementDeleted)
       return
@@ -518,6 +522,7 @@ function App() {
       y: element.y + offset,
       locked: false,
       parametricRow: undefined,
+      parentStitchIds: undefined,
     }))
     commitElements([...elements, ...pasted])
     setSelectedIds(pasted.map((element) => element.id))
@@ -538,6 +543,7 @@ function App() {
         y: element.y + DUPLICATE_OFFSET,
         locked: false,
         parametricRow: undefined,
+        parentStitchIds: undefined,
       }))
     commitElements([...elements, ...duplicated])
     setSelectedIds(duplicated.map((element) => element.id))
@@ -1245,7 +1251,7 @@ function App() {
     try {
       const raw = JSON.parse(await file.text()) as CrochetProject
       if (
-        ![1, 2, 3, 4, 5, 6].includes(raw.schemaVersion) ||
+        ![1, 2, 3, 4, 5, 6, 7].includes(raw.schemaVersion) ||
         !Array.isArray(raw.elements)
       ) {
         throw new Error(t.unsupportedProject)

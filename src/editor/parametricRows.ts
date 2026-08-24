@@ -123,10 +123,18 @@ function reconcileTopology(elements: StitchElement[]) {
 
     const parents = rowElements(next, binding.parentRowId)
     const children = rowElements(next, binding.id)
-    const linked = parents.length
-      ? applyRowTopology(children, parents, binding.shaping)
-      : children.map((element) => ({ ...element, parentStitchIds: undefined }))
-    next = replaceRowBlock(next, binding.id, linked)
+    if (!parents.length) {
+      const detachedChildren = children.map((element) => ({
+        ...element,
+        parentStitchIds: undefined,
+        parametricRow: element.parametricRow
+          ? { ...element.parametricRow, parentRowId: undefined, shaping: undefined }
+          : undefined,
+      }))
+      next = replaceRowBlock(next, binding.id, detachedChildren)
+      continue
+    }
+    next = replaceRowBlock(next, binding.id, applyRowTopology(children, parents, binding.shaping))
   }
   return next
 }
