@@ -85,7 +85,7 @@ describe('pattern instructions', () => {
 
   it('formats rich topology operations and nested repeat groups from the AST', () => {
     const rich: ParametricRowBinding = {
-      ...binding('row-2', 36, undefined, 'row-1'),
+      ...binding('row-2', 56, undefined, 'row-1'),
       program: {
         repeat: 4,
         items: [
@@ -101,8 +101,8 @@ describe('pattern instructions', () => {
         ],
       },
     }
-    expect(formatPatternRowInstruction(rich, 2, 52, 'ru')).toBe(
-      'Ряд 2: [(2 СБН, прибавка (СБН)) × 3, 2 ВП] × 4 = 52',
+    expect(formatPatternRowInstruction(rich, 2, 56, 'ru')).toBe(
+      'Ряд 2: [(2 СБН, прибавка (СБН)) × 3, 2 ВП] × 4 = 56',
     )
   })
 
