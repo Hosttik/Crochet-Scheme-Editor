@@ -1,0 +1,131 @@
+.pattern-rows-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.pattern-rows-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pattern-rows-heading strong {
+  font-size: 12px;
+  color: #3f4943;
+}
+
+.pattern-rows-heading span {
+  min-width: 24px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: #edf5f0;
+  color: #35654f;
+  font-size: 9px;
+  text-align: center;
+}
+
+.pattern-rows-empty,
+.pattern-rows-hint {
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.45;
+  color: #7c827d;
+}
+
+.pattern-rows-list {
+  display: grid;
+  gap: 7px;
+}
+
+.pattern-row-card {
+  border: 1px solid #dfdcd5;
+  border-radius: 9px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.pattern-row-card.active {
+  border-color: #7fa792;
+  box-shadow: 0 0 0 2px rgba(95, 139, 118, .08);
+}
+
+.pattern-row-main {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  padding: 9px 10px;
+  border: 0;
+  background: transparent;
+  color: #343a36;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pattern-row-main:hover {
+  background: #f7f9f7;
+}
+
+.pattern-row-number {
+  grid-row: 1 / span 2;
+  align-self: center;
+  min-width: 42px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #edf5f0;
+  color: #426d59;
+  font-size: 9px;
+  text-align: center;
+}
+
+.pattern-row-main strong {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.pattern-row-main small {
+  font-size: 8px;
+  color: #828780;
+}
+
+.pattern-row-next-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  border-top: 1px solid #e9e6e0;
+  background: #f7faf8;
+}
+
+.pattern-row-next-actions > span {
+  font-size: 8px;
+  color: #69736d;
+}
+
+.pattern-row-next-actions > div {
+  display: flex;
+  gap: 5px;
+}
+
+.pattern-row-next-actions button {
+  min-width: 34px;
+  padding: 5px 7px;
+  border: 1px solid #cfd9d3;
+  border-radius: 6px;
+  background: #fff;
+  color: #466653;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.pattern-row-next-actions button:hover {
+  background: #edf5f0;
+}
+
+.pattern-rows-hint {
+  padding: 8px 9px;
+  border-radius: 7px;
+  background: #f4f7f4;
+}

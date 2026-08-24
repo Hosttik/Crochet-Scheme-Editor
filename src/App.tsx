@@ -3,6 +3,7 @@ import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent }
 import { GuideRenderer } from './editor/GuideRenderer'
 import { GuideRowGeneratorPanel } from './editor/GuideRowGeneratorPanel'
 import { ParametricRowEditorPanel } from './editor/ParametricRowEditorPanel'
+import { PatternRowsPanel } from './editor/PatternRowsPanel'
 import { LayersPanel } from './editor/LayersPanel'
 import { StitchLayer } from './editor/StitchLayer'
 import {
@@ -19,8 +20,10 @@ import type { GuideManipulationMode } from './editor/guideManipulation'
 import { clamp, screenToDocument } from './editor/geometry'
 import { loadAutosave, saveAutosave } from './editor/persistence'
 import {
+  createNextPatternRow,
   deleteParametricRow,
   expandIdsToParametricRows,
+  nextPatternOrder,
   parametricRowFromSelection,
   reconcileParametricRows,
   rowElements,
@@ -193,7 +196,7 @@ function buildProject(
   snapping: SnappingSettings,
 ): CrochetProject {
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     metadata: { title, updatedAt: new Date().toISOString() },
     elements: normalizeElements(elements),
     guides,
@@ -1062,13 +1065,52 @@ function App() {
 
   const handleGenerateGuideRow = (generated: StitchElement[]) => {
     if (!generated.length) return
-    commitElements([...elements, ...generated])
-    setSelectedIds(generated.map((element) => element.id))
+    const generatedBinding = generated.find((element) => element.parametricRow)?.parametricRow
+    let prepared = generated
+    if (generatedBinding && generatedBinding.patternOrder == null) {
+      const patternOrder = nextPatternOrder(elements)
+      prepared = generated.map((element) =>
+        element.parametricRow
+          ? { ...element, parametricRow: { ...element.parametricRow, patternOrder } }
+          : element,
+      )
+    }
+    commitElements([...elements, ...prepared])
+    setSelectedIds(prepared.map((element) => element.id))
     setSelectedGuideId(null)
     setTool({ type: 'select' })
     setPreview(null)
     setSnapTarget(null)
-    setStatus(`${locale === 'ru' ? 'Создан ряд' : 'Row generated'}: ${generated.length}`)
+    setStatus((locale === 'ru' ? 'Создан ряд' : 'Row generated') + ': ' + prepared.length)
+  }
+
+  const handleSelectPatternRow = (rowId: string) => {
+    const ids = rowElements(elements, rowId).map((element) => element.id)
+    if (!ids.length) return
+    setSelectedIds(ids)
+    setSelectedGuideId(null)
+    setTool({ type: 'select' })
+    setPreview(null)
+    setSnapTarget(null)
+    setStatus((locale === 'ru' ? 'Выбран ряд' : 'Row selected') + ': ' + ids.length)
+  }
+
+  const handleCreateNextPatternRow = (rowId: string, countIncrement: number) => {
+    const parent = rowElements(elements, rowId)[0]?.parametricRow
+    if (!parent) return
+    const created = createNextPatternRow(elements, guides, parent, countIncrement, createId)
+    if (!created) {
+      setStatus(locale === 'ru' ? 'Для ряда не найдена совместимая направляющая' : 'No compatible guide found for this row')
+      return
+    }
+    commitElements([...elements, ...created.elements])
+    setSelectedIds(created.elements.map((element) => element.id))
+    setSelectedGuideId(null)
+    setTool({ type: 'select' })
+    setPreview(null)
+    setSnapTarget(null)
+    const order = created.binding.patternOrder ?? nextPatternOrder(elements)
+    setStatus((locale === 'ru' ? 'Создан следующий ряд' : 'Next row created') + ' ' + order + ': ' + created.elements.length)
   }
 
   const handleUpdateParametricRow = (binding: ParametricRowBinding) => {
@@ -1095,7 +1137,7 @@ function App() {
     try {
       const raw = JSON.parse(await file.text()) as CrochetProject
       if (
-        ![1, 2, 3, 4].includes(raw.schemaVersion) ||
+        ![1, 2, 3, 4, 5].includes(raw.schemaVersion) ||
         !Array.isArray(raw.elements)
       ) {
         throw new Error(t.unsupportedProject)
@@ -1393,6 +1435,16 @@ function App() {
             <span>{t.snapRadius} <strong>{snapping.tolerancePx}px</strong></span>
             <input type="range" min="6" max="24" value={snapping.tolerancePx} disabled={!snapping.enabled} onChange={(event) => setSnapping((value) => ({ ...value, tolerancePx: Number(event.target.value) }))} />
           </label>
+        </section>
+
+        <section className="panel-section">
+          <PatternRowsPanel
+            elements={elements}
+            locale={locale}
+            selectedRowId={selectedParametricRow?.id ?? null}
+            onSelect={handleSelectPatternRow}
+            onCreateNext={handleCreateNextPatternRow}
+          />
         </section>
 
         <section className="panel-section">

@@ -5,7 +5,7 @@ export const DEFAULT_LOCALE: Locale = 'ru'
 export const UI = {
   ru: {
     brandTitle: 'Редактор схем вязания',
-    brandSubtitle: 'Векторный редактор схем · MVP 0.8',
+    brandSubtitle: 'Векторный редактор схем · MVP 0.9',
     undo: 'Отменить',
     redo: 'Повторить',
     saveJson: 'Сохранить JSON',
@@ -118,7 +118,7 @@ export const UI = {
   },
   en: {
     brandTitle: 'Crochet Scheme Editor',
-    brandSubtitle: 'Vector pattern workspace · MVP 0.8',
+    brandSubtitle: 'Vector pattern workspace · MVP 0.9',
     undo: 'Undo',
     redo: 'Redo',
     saveJson: 'Save JSON',
