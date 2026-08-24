@@ -1,0 +1,97 @@
+.guide-row-generator {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e3dfd7;
+  display: grid;
+  gap: 10px;
+}
+
+.guide-row-generator-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.guide-row-generator-heading strong {
+  font-size: 11px;
+  color: #3f4943;
+}
+
+.guide-row-generator-heading span {
+  min-width: 24px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: #edf5f0;
+  color: #35654f;
+  font-size: 9px;
+  text-align: center;
+}
+
+.row-generator-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.row-generator-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  font-size: 9px;
+  color: #777a74;
+}
+
+.row-generator-field input,
+.row-generator-field select {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid #d8d4cc;
+  border-radius: 7px;
+  background: #fff;
+  color: #303531;
+  font-size: 10px;
+  outline: none;
+}
+
+.row-generator-field input:focus,
+.row-generator-field select:focus {
+  border-color: #6f9a86;
+  box-shadow: 0 0 0 2px rgba(78, 122, 103, .08);
+}
+
+.row-generator-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.row-generator-fieldset legend {
+  margin-bottom: 5px;
+  font-size: 9px;
+  color: #777a74;
+}
+
+.row-generator-result,
+.row-generator-hint {
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.row-generator-result {
+  color: #4f5d55;
+}
+
+.row-generator-hint {
+  padding: 8px 9px;
+  border-radius: 7px;
+  background: #f4f7f4;
+  color: #7c827d;
+}
+
+.row-generator-submit {
+  width: 100%;
+  min-height: 34px;
+}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { GuideRenderer } from './editor/GuideRenderer'
+import { GuideRowGeneratorPanel } from './editor/GuideRowGeneratorPanel'
 import { LayersPanel } from './editor/LayersPanel'
 import { StitchLayer } from './editor/StitchLayer'
 import {
@@ -1010,6 +1011,17 @@ function App() {
     )
   }
 
+  const handleGenerateGuideRow = (generated: StitchElement[]) => {
+    if (!generated.length) return
+    commitElements([...elements, ...generated])
+    setSelectedIds(generated.map((element) => element.id))
+    setSelectedGuideId(null)
+    setTool({ type: 'select' })
+    setPreview(null)
+    setSnapTarget(null)
+    setStatus(`${locale === 'ru' ? 'Создан ряд' : 'Row generated'}: ${generated.length}`)
+  }
+
   const saveProject = () => {
     const project = buildProject(t.projectTitle, elements, guides, snapping)
     downloadText('crochet-scheme.json', JSON.stringify(project, null, 2), 'application/json')
@@ -1402,6 +1414,12 @@ function App() {
                   <NumberField label={t.startAngle} value={selectedGuide.startAngle} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, startAngle: value } : guide)} />
                 </div>
               )}
+
+              <GuideRowGeneratorPanel
+                guide={selectedGuide}
+                locale={locale}
+                onGenerate={handleGenerateGuideRow}
+              />
 
               <p className="guide-note">{t.guideNote}</p>
               <button className="danger-button" onClick={deleteSelected}>{t.deleteGuide}</button>
