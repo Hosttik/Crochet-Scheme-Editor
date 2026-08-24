@@ -23,15 +23,14 @@ export function parametricRowFromSelection(
   if (!selectedIds.length) return null
   const selected = new Set(selectedIds)
   const selectedElements = elements.filter((element) => selected.has(element.id))
-  const rowIds = new Set(
-    selectedElements
-      .map((element) => element.parametricRow?.id)
-      .filter((value): value is string => Boolean(value)),
-  )
+  if (
+    selectedElements.length !== selectedIds.length ||
+    selectedElements.some((element) => !element.parametricRow)
+  ) return null
+
+  const rowIds = new Set(selectedElements.map((element) => element.parametricRow!.id))
   if (rowIds.size !== 1) return null
-  const rowId = [...rowIds][0]
-  const binding = selectedElements.find((element) => element.parametricRow?.id === rowId)?.parametricRow
-  return binding ?? null
+  return selectedElements[0]?.parametricRow ?? null
 }
 
 export function expandIdsToParametricRows(elements: StitchElement[], ids: string[]) {
