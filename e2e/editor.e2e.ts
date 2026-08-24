@@ -139,16 +139,13 @@ test('persists joined and turning row construction semantics', async ({ page }) 
   await expect(page.locator('.row-construction-path')).toHaveCount(1)
   await expect(page.getByText(/2 ВП подъёма \(вне счёта ряда\); 12 СБН = 12; замкнутый круг ↻; замкнуть СС/)).toBeVisible()
 
-  await page.getByRole('button', { name: 'Без изменений' }).click()
+  await page.locator('.pattern-row-next-actions').getByRole('button', { name: 'Без изменений' }).click()
   await expect(page.getByText('Ряд 2', { exact: true })).toBeVisible()
   await expect(page.getByText(/замкнутый круг ↻; замкнуть СС/).last()).toBeVisible()
 
   await page.getByRole('button', { name: 'Поворотный', exact: true }).click()
-  await expect(page.locator('.row-construction-status strong')).toHaveText('↻').catch(async () => {
-    await expect(page.locator('.row-construction-status strong')).toHaveText('→')
-  })
   await expect(page.locator('.row-construction-status strong')).toHaveText('→')
-  await page.getByRole('button', { name: 'Без изменений' }).click()
+  await page.locator('.pattern-row-next-actions').getByRole('button', { name: 'Без изменений' }).click()
 
   await expect(page.getByText('Ряд 3', { exact: true })).toBeVisible()
   await expect(page.locator('.row-construction-status strong')).toHaveText('←')
