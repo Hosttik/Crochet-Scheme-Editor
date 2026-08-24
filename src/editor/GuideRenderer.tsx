@@ -1,9 +1,32 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import type { Guide } from '../types'
+import type { Guide, Point } from '../types'
+import {
+  applyGuideManipulation,
+  gridRotationHandle,
+  gridRotationStemPoint,
+  guideCenter,
+  guideResizeHandle,
+  type GuideManipulationMode,
+} from './guideManipulation'
 import { arcRenderPoints, gridLocalBounds, guideSnapPoints } from './guides'
 
 function pointsAttribute(points: { x: number; y: number }[]) {
   return points.map((point) => `${point.x},${point.y}`).join(' ')
+}
+
+type Props = {
+  guide: Guide
+  selected: boolean
+  zoom: number
+  onPointerDown: (event: ReactPointerEvent<SVGGElement>, guide: Guide) => void
+  clientToDocument: (clientX: number, clientY: number) => Point
+  onManipulationStart: () => void
+  onManipulationPreview: (guide: Guide) => void
+  onManipulationEnd: (
+    mode: GuideManipulationMode,
+    moved: boolean,
+    cancelled: boolean,
+  ) => void
 }
 
 export function GuideRenderer({
@@ -11,20 +34,101 @@ export function GuideRenderer({
   selected,
   zoom,
   onPointerDown,
-}: {
-  guide: Guide
-  selected: boolean
-  zoom: number
-  onPointerDown: (event: ReactPointerEvent<SVGGElement>, guide: Guide) => void
-}) {
+  clientToDocument,
+  onManipulationStart,
+  onManipulationPreview,
+  onManipulationEnd,
+}: Props) {
   if (!guide.visible) return null
 
   const snapPoints = selected ? guideSnapPoints(guide) : []
+  const center = guideCenter(guide)
+  const resizeHandle = selected ? guideResizeHandle(guide) : null
+  const rotationHandle = selected ? gridRotationHandle(guide) : null
+  const rotationStem = selected ? gridRotationStemPoint(guide) : null
+
+  const startInteraction = (
+    event: ReactPointerEvent<SVGElement>,
+    mode: GuideManipulationMode,
+  ) => {
+    if (event.button !== 0) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    onPointerDown(event as unknown as ReactPointerEvent<SVGGElement>, guide)
+
+    const pointerId = event.pointerId
+    const startClient = { x: event.clientX, y: event.clientY }
+    const startPointer = clientToDocument(event.clientX, event.clientY)
+    let moved = false
+    let finished = false
+
+    onManipulationStart()
+
+    const cleanup = () => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+      window.removeEventListener('pointercancel', handleCancel)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+
+    const finish = (cancelled: boolean) => {
+      if (finished) return
+      finished = true
+      cleanup()
+
+      if (cancelled) {
+        onManipulationPreview(guide)
+      }
+      onManipulationEnd(mode, moved, cancelled)
+    }
+
+    const handleMove = (nativeEvent: PointerEvent) => {
+      if (nativeEvent.pointerId !== pointerId) return
+
+      if (
+        Math.hypot(
+          nativeEvent.clientX - startClient.x,
+          nativeEvent.clientY - startClient.y,
+        ) > 1
+      ) {
+        moved = true
+      }
+
+      const currentPointer = clientToDocument(
+        nativeEvent.clientX,
+        nativeEvent.clientY,
+      )
+      onManipulationPreview(
+        applyGuideManipulation(guide, mode, startPointer, currentPointer),
+      )
+    }
+
+    const handleUp = (nativeEvent: PointerEvent) => {
+      if (nativeEvent.pointerId === pointerId) finish(false)
+    }
+
+    const handleCancel = (nativeEvent: PointerEvent) => {
+      if (nativeEvent.pointerId === pointerId) finish(true)
+    }
+
+    const handleKeyDown = (nativeEvent: KeyboardEvent) => {
+      if (nativeEvent.key === 'Escape') {
+        nativeEvent.preventDefault()
+        finish(true)
+      }
+    }
+
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp)
+    window.addEventListener('pointercancel', handleCancel)
+    window.addEventListener('keydown', handleKeyDown)
+  }
 
   return (
     <g
       className={`guide-layer guide-${guide.type} ${selected ? 'selected' : ''}`}
-      onPointerDown={(event) => onPointerDown(event, guide)}
+      onPointerDown={(event) => startInteraction(event, 'move')}
     >
       {guide.type === 'arc' && (
         <polyline
@@ -113,6 +217,61 @@ export function GuideRenderer({
           vectorEffect="non-scaling-stroke"
         />
       ))}
+
+      {selected && (
+        <g className="guide-manipulation-ui">
+          {resizeHandle && (
+            <>
+              <line
+                x1={center.x}
+                y1={center.y}
+                x2={resizeHandle.x}
+                y2={resizeHandle.y}
+                className="guide-handle-link"
+                vectorEffect="non-scaling-stroke"
+              />
+              <circle
+                cx={resizeHandle.x}
+                cy={resizeHandle.y}
+                r={7 / zoom}
+                className="guide-handle guide-resize-handle"
+                vectorEffect="non-scaling-stroke"
+                onPointerDown={(event) => startInteraction(event, 'resize')}
+              />
+            </>
+          )}
+
+          {rotationHandle && rotationStem && (
+            <>
+              <line
+                x1={rotationStem.x}
+                y1={rotationStem.y}
+                x2={rotationHandle.x}
+                y2={rotationHandle.y}
+                className="guide-handle-link"
+                vectorEffect="non-scaling-stroke"
+              />
+              <circle
+                cx={rotationHandle.x}
+                cy={rotationHandle.y}
+                r={7 / zoom}
+                className="guide-handle guide-rotate-handle"
+                vectorEffect="non-scaling-stroke"
+                onPointerDown={(event) => startInteraction(event, 'rotate')}
+              />
+            </>
+          )}
+
+          <circle
+            cx={center.x}
+            cy={center.y}
+            r={7 / zoom}
+            className="guide-handle guide-move-handle"
+            vectorEffect="non-scaling-stroke"
+            onPointerDown={(event) => startInteraction(event, 'move')}
+          />
+        </g>
+      )}
     </g>
   )
 }
