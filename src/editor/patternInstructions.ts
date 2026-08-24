@@ -1,7 +1,7 @@
 import { SYMBOL_BY_ID } from '../symbols'
 import { symbolName, type Locale } from '../i18n'
 import type { ParametricRowBinding, RowShaping, StitchElement } from '../types'
-import { patternRows } from './parametricRows'
+import { patternRows, rowElements } from './parametricRows'
 
 export type PatternInstructionRow = {
   rowId: string
@@ -31,6 +31,9 @@ const COPY = {
     decrease: 'убавка',
     decreases: 'убавок',
     evenly: 'равномерных',
+    atStitches: 'прибавки в петли',
+    acrossPairs: 'убавки на парах',
+    marked: 'по отмеченным позициям',
     title: 'Схема вязания',
     abbreviations: 'Сокращения',
   },
@@ -41,6 +44,9 @@ const COPY = {
     decrease: 'decrease',
     decreases: 'decreases',
     evenly: 'evenly spaced',
+    atStitches: 'increases in stitches',
+    acrossPairs: 'decreases across pairs',
+    marked: 'at marked positions',
     title: 'Crochet pattern',
     abbreviations: 'Abbreviations',
   },
@@ -74,7 +80,7 @@ function compactShapingBody(
   locale: Locale,
 ) {
   const shaping = binding.shaping
-  if (!shaping || shaping.count <= 0) return null
+  if (!shaping || shaping.count <= 0 || binding.topologyOverride) return null
 
   const base = Math.max(1, Math.round(shaping.baseCount))
   const changes = Math.max(1, Math.round(shaping.count))
@@ -94,6 +100,32 @@ function compactShapingBody(
   return `(${plainCount} ${stitch}, ${action}) × ${changes} = ${targetCount}`
 }
 
+function manualTopologyBody(
+  binding: ParametricRowBinding,
+  targetCount: number,
+  locale: Locale,
+  parentPositions?: number[],
+) {
+  const shaping = binding.shaping
+  const topology = binding.topologyOverride
+  if (!shaping || !topology) return null
+
+  const copy = COPY[locale]
+  const stitch = stitchAbbreviation(binding.symbolId, locale)
+  const base = Math.max(1, Math.round(shaping.baseCount))
+  if (!parentPositions || parentPositions.length !== shaping.count) {
+    const action = actionLabel(shaping, binding.symbolId, locale, true)
+    return `${base} ${stitch}, ${shaping.count} ${action} ${copy.marked} = ${targetCount}`
+  }
+
+  if (shaping.kind === 'increase') {
+    return `${base} ${stitch}; ${copy.atStitches} ${parentPositions.join(', ')} = ${targetCount}`
+  }
+
+  const pairs = parentPositions.map((second) => `${Math.max(1, second - 1)}–${second}`)
+  return `${base} ${stitch}; ${copy.acrossPairs} ${pairs.join(', ')} = ${targetCount}`
+}
+
 function fallbackShapingBody(
   binding: ParametricRowBinding,
   targetCount: number,
@@ -106,9 +138,7 @@ function fallbackShapingBody(
   const changes = Math.max(1, Math.round(shaping.count))
   const action = actionLabel(shaping, binding.symbolId, locale, true)
   const base = Math.max(1, Math.round(shaping.baseCount))
-  return locale === 'ru'
-    ? `${base} ${stitch}, ${changes} ${copy.evenly} ${action} = ${targetCount}`
-    : `${base} ${stitch}, ${changes} ${copy.evenly} ${action} = ${targetCount}`
+  return `${base} ${stitch}, ${changes} ${copy.evenly} ${action} = ${targetCount}`
 }
 
 export function formatPatternRowInstruction(
@@ -116,9 +146,11 @@ export function formatPatternRowInstruction(
   rowNumber: number,
   stitchCount: number,
   locale: Locale,
+  parentPositions?: number[],
 ) {
   const prefix = `${COPY[locale].row} ${rowNumber}: `
-  const shaped = compactShapingBody(binding, stitchCount, locale)
+  const shaped = manualTopologyBody(binding, stitchCount, locale, parentPositions)
+    ?? compactShapingBody(binding, stitchCount, locale)
     ?? fallbackShapingBody(binding, stitchCount, locale)
   if (shaped) return prefix + shaped
 
@@ -133,21 +165,36 @@ export function generatePatternInstructions(
   const rows = patternRows(elements)
   const rowNumberById = new Map(rows.map((row) => [row.id, row.displayOrder]))
 
-  return rows.map((row) => ({
-    rowId: row.id,
-    rowNumber: row.displayOrder,
-    symbolId: row.binding.symbolId,
-    stitchCount: row.stitchCount,
-    parentRowNumber: row.binding.parentRowId
-      ? rowNumberById.get(row.binding.parentRowId)
-      : undefined,
-    text: formatPatternRowInstruction(
-      row.binding,
-      row.displayOrder,
-      row.stitchCount,
-      locale,
-    ),
-  }))
+  return rows.map((row) => {
+    let parentPositions: number[] | undefined
+    if (row.binding.topologyOverride && row.binding.parentRowId) {
+      const parents = rowElements(elements, row.binding.parentRowId)
+      const indexById = new Map(parents.map((parent, index) => [parent.id, index + 1]))
+      const positions = row.binding.topologyOverride.changeParentIds
+        .map((id) => indexById.get(id))
+        .filter((position): position is number => position !== undefined)
+      if (positions.length === row.binding.topologyOverride.changeParentIds.length) {
+        parentPositions = positions
+      }
+    }
+
+    return {
+      rowId: row.id,
+      rowNumber: row.displayOrder,
+      symbolId: row.binding.symbolId,
+      stitchCount: row.stitchCount,
+      parentRowNumber: row.binding.parentRowId
+        ? rowNumberById.get(row.binding.parentRowId)
+        : undefined,
+      text: formatPatternRowInstruction(
+        row.binding,
+        row.displayOrder,
+        row.stitchCount,
+        locale,
+        parentPositions,
+      ),
+    }
+  })
 }
 
 export function usedPatternAbbreviations(elements: StitchElement[], locale: Locale) {

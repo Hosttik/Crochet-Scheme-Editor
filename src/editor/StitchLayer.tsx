@@ -2,8 +2,8 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph } from '../symbols'
 import type { AnchorName, StitchElement } from '../types'
 import { isElementLocked, isElementVisible } from './document'
-import { rowShapingMarkers } from './rowShaping'
 import { selectionAabb, type Rect } from './selection'
+import { topologyChangeMarkers, type TopologyChangeMarker } from './topology'
 import './rowShaping.css'
 import './topology.css'
 
@@ -18,8 +18,10 @@ export function StitchLayer({
   zoom,
   sourceAnchor,
   marquee,
+  selectedTopologyParentId,
   onElementPointerDown,
   onRotatePointerDown,
+  onTopologyMarkerPointerDown,
 }: {
   elements: StitchElement[]
   selectedIds: string[]
@@ -27,6 +29,7 @@ export function StitchLayer({
   zoom: number
   sourceAnchor: AnchorName
   marquee: Rect | null
+  selectedTopologyParentId?: string | null
   onElementPointerDown: (
     event: ReactPointerEvent<SVGGElement>,
     element: StitchElement,
@@ -35,10 +38,15 @@ export function StitchLayer({
     event: ReactPointerEvent<SVGCircleElement>,
     element: StitchElement,
   ) => void
+  onTopologyMarkerPointerDown?: (
+    event: ReactPointerEvent<SVGGElement>,
+    marker: TopologyChangeMarker,
+  ) => void
 }) {
   const visibleElements = elements.filter(isElementVisible)
   const selectedSet = new Set(selectedIds)
-  const shapingMarkers = rowShapingMarkers(elements)
+  const changeMarkers = topologyChangeMarkers(elements)
+  const markerByChildId = new Map(changeMarkers.map((marker) => [marker.childId, marker]))
   const elementById = new Map(visibleElements.map((element) => [element.id, element]))
   const selectedElements = elements.filter((element) => selectedSet.has(element.id))
   const selectedRowIds = new Set(
@@ -162,28 +170,35 @@ export function StitchLayer({
       })}
 
       {visibleElements.map((element) => {
-        const shaping = shapingMarkers.get(element.id)
-        if (!shaping) return null
+        const marker = markerByChildId.get(element.id)
+        if (!marker) return null
         const selected = selectedSet.has(element.id)
+        const editable = Boolean(topologyRowId && element.parametricRow?.id === topologyRowId)
+        const active = editable && marker.parentId === selectedTopologyParentId
         const markerX = element.x + 13 / zoom
         const markerY = element.y - 13 / zoom
         return (
           <g
             key={`shaping:${element.id}`}
             transform={`translate(${markerX} ${markerY})`}
-            className={`row-shaping-marker ${shaping} ${selected ? 'selected' : ''}`}
-            pointerEvents="none"
-            aria-hidden="true"
+            className={`row-shaping-marker ${marker.kind} ${selected ? 'selected' : ''} ${editable ? 'editable' : ''} ${active ? 'topology-active' : ''}`}
+            pointerEvents={editable ? 'all' : 'none'}
+            aria-hidden={editable ? undefined : true}
+            role={editable ? 'button' : undefined}
+            onPointerDown={editable && onTopologyMarkerPointerDown
+              ? (event) => onTopologyMarkerPointerDown(event, marker)
+              : undefined}
           >
-            <circle r={7 / zoom} vectorEffect="non-scaling-stroke" />
+            <circle r={(active ? 9 : 7) / zoom} vectorEffect="non-scaling-stroke" />
             <text
               x="0"
               y={0.5 / zoom}
               fontSize={10 / zoom}
               textAnchor="middle"
               dominantBaseline="central"
+              pointerEvents="none"
             >
-              {shaping === 'increase' ? '+' : '−'}
+              {marker.kind === 'increase' ? '+' : '−'}
             </text>
           </g>
         )

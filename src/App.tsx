@@ -7,6 +7,7 @@ import { PatternRowsPanel } from './editor/PatternRowsPanel'
 import { ProjectManagerPanel } from './editor/ProjectManagerPanel'
 import { LayersPanel } from './editor/LayersPanel'
 import { StitchLayer } from './editor/StitchLayer'
+import { TopologyEditorPanel } from './editor/TopologyEditorPanel'
 import {
   bringForward as bringElementsForward,
   bringToFront as bringElementsToFront,
@@ -52,6 +53,7 @@ import {
   type Rect,
 } from './editor/selection'
 import { solveSnap, type SnapCandidate } from './editor/snapping'
+import type { TopologyChangeMarker } from './editor/topology'
 import {
   DEFAULT_LOCALE,
   UI,
@@ -231,7 +233,7 @@ function buildProject(
   snapping: SnappingSettings,
 ): CrochetProject {
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     metadata: { title, updatedAt: new Date().toISOString() },
     elements: normalizeElements(elements),
     guides,
@@ -288,6 +290,7 @@ function App() {
   const [tool, setTool] = useState<Tool>({ type: 'select' })
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectedGuideId, setSelectedGuideId] = useState<string | null>(null)
+  const [selectedTopologyParentId, setSelectedTopologyParentId] = useState<string | null>(null)
   const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT)
   const [snapping, setSnapping] = useState<SnappingSettings>(DEFAULT_SNAPPING)
   const [preview, setPreview] = useState<StitchElement | null>(null)
@@ -383,6 +386,10 @@ function App() {
     () => parametricRowFromSelection(elements, selectedIds),
     [elements, selectedIds],
   )
+  const selectedParametricRowId = selectedParametricRow?.id ?? null
+  useEffect(() => {
+    setSelectedTopologyParentId(null)
+  }, [selectedParametricRowId])
   const selectedParametricGuide = useMemo(
     () => selectedParametricRow
       ? guides.find((guide) => guide.id === selectedParametricRow.guideId) ?? null
@@ -926,6 +933,16 @@ function App() {
     }
   }
 
+  const handleTopologyMarkerPointerDown = (
+    event: ReactPointerEvent<SVGGElement>,
+    marker: TopologyChangeMarker,
+  ) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setSelectedTopologyParentId(marker.parentId)
+    setStatus(locale === 'ru' ? 'Выбрана позиция изменения' : 'Topology change selected')
+  }
+
   const handleElementPointerDown = (
     event: ReactPointerEvent<SVGGElement>,
     element: StitchElement,
@@ -1251,7 +1268,7 @@ function App() {
     try {
       const raw = JSON.parse(await file.text()) as CrochetProject
       if (
-        ![1, 2, 3, 4, 5, 6, 7].includes(raw.schemaVersion) ||
+        ![1, 2, 3, 4, 5, 6, 7, 8].includes(raw.schemaVersion) ||
         !Array.isArray(raw.elements)
       ) {
         throw new Error(t.unsupportedProject)
@@ -1536,8 +1553,10 @@ function App() {
               zoom={viewport.zoom}
               sourceAnchor={snapping.sourceAnchor}
               marquee={marqueeRect}
+              selectedTopologyParentId={selectedTopologyParentId}
               onElementPointerDown={handleElementPointerDown}
               onRotatePointerDown={handleRotatePointerDown}
+              onTopologyMarkerPointerDown={handleTopologyMarkerPointerDown}
             />
 
             {preview && (
@@ -1614,14 +1633,24 @@ function App() {
           <div className="section-title-row"><h2>{t.selection}</h2></div>
 
           {selectedParametricRow && selectedParametricGuide ? (
-            <ParametricRowEditorPanel
-              binding={selectedParametricRow}
-              guide={selectedParametricGuide}
-              locale={locale}
-              parentStitchCount={selectedParametricParentCount}
-              onChange={handleUpdateParametricRow}
-              onDelete={() => handleDeleteParametricRow(selectedParametricRow.id)}
-            />
+            <>
+              <ParametricRowEditorPanel
+                binding={selectedParametricRow}
+                guide={selectedParametricGuide}
+                locale={locale}
+                parentStitchCount={selectedParametricParentCount}
+                onChange={handleUpdateParametricRow}
+                onDelete={() => handleDeleteParametricRow(selectedParametricRow.id)}
+              />
+              <TopologyEditorPanel
+                elements={elements}
+                binding={selectedParametricRow}
+                locale={locale}
+                selectedParentId={selectedTopologyParentId}
+                onSelectParentId={setSelectedTopologyParentId}
+                onChange={handleUpdateParametricRow}
+              />
+            </>
           ) : selectedElement ? (
             <div className="selection-card">
               <div className="selection-preview">
