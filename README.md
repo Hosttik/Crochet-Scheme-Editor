@@ -46,9 +46,11 @@ npm run build
 
 ## GitHub Pages
 
+GitHub Pages is configured to use **GitHub Actions** as its publishing source.
+
 Every push to `main` triggers `.github/workflows/deploy-pages.yml`.
 
-Expected URL:
+Published URL:
 
 https://hosttik.github.io/Crochet-Scheme-Editor/
 
