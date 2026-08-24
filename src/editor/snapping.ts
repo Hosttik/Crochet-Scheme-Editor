@@ -1,6 +1,7 @@
 import { SYMBOL_BY_ID } from '../symbols'
 import type {
   AnchorName,
+  Guide,
   OrientationMode,
   Point,
   SnappingSettings,
@@ -8,6 +9,7 @@ import type {
   Viewport,
 } from '../types'
 import { distance, rotatePoint } from './geometry'
+import { buildGuideSnapPoints } from './guides'
 
 export const RELEASE_TOLERANCE_PX = 18
 
@@ -15,7 +17,8 @@ export type SnapCandidate = {
   key: string
   point: Point
   targetId: string
-  targetAnchor: AnchorName
+  targetType: 'stitch' | 'guide'
+  targetAnchor?: AnchorName
   targetRotation: number
 }
 
@@ -37,7 +40,7 @@ export function anchorWorldPosition(element: StitchElement, anchorName: AnchorNa
   }
 }
 
-export function buildSnapCandidates(
+export function buildElementSnapCandidates(
   elements: StitchElement[],
   excludedId: string | null,
   snapToVertices: boolean,
@@ -51,10 +54,33 @@ export function buildSnapCandidates(
       key: `${element.id}:${anchor}`,
       point: anchorWorldPosition(element, anchor),
       targetId: element.id,
+      targetType: 'stitch' as const,
       targetAnchor: anchor,
       targetRotation: element.rotation,
     }))
   })
+}
+
+export function buildSnapCandidates(
+  elements: StitchElement[],
+  guides: Guide[],
+  excludedId: string | null,
+  snapToVertices: boolean,
+): SnapCandidate[] {
+  const elementCandidates = buildElementSnapCandidates(
+    elements,
+    excludedId,
+    snapToVertices,
+  )
+  const guideCandidates = buildGuideSnapPoints(guides).map((candidate) => ({
+    key: candidate.key,
+    point: candidate.point,
+    targetId: candidate.guideId,
+    targetType: 'guide' as const,
+    targetRotation: candidate.targetRotation,
+  }))
+
+  return [...elementCandidates, ...guideCandidates]
 }
 
 export function orientationFromCandidate(
@@ -70,6 +96,7 @@ export function orientationFromCandidate(
 export function solveSnap(
   proposed: StitchElement,
   elements: StitchElement[],
+  guides: Guide[],
   settings: SnappingSettings,
   viewport: Viewport,
   lockedKey: string | null,
@@ -83,7 +110,12 @@ export function solveSnap(
     }
   }
 
-  const candidates = buildSnapCandidates(elements, proposed.id, settings.snapToVertices)
+  const candidates = buildSnapCandidates(
+    elements,
+    guides,
+    proposed.id,
+    settings.snapToVertices,
+  )
   if (!candidates.length) {
     return {
       x: proposed.x,
