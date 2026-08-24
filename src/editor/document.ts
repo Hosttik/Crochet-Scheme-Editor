@@ -1,4 +1,5 @@
 import type { CrochetProject, SnappingSettings, StitchElement } from '../types'
+import { parseProject } from './projectSchema'
 
 export function isElementVisible(element: StitchElement) {
   return element.visible !== false
@@ -24,18 +25,7 @@ export function normalizeProject(
   project: CrochetProject,
   fallbackSnapping: SnappingSettings,
 ): CrochetProject {
-  return {
-    schemaVersion: 6,
-    metadata: {
-      title: project.metadata?.title ?? 'Crochet scheme',
-      updatedAt: project.metadata?.updatedAt ?? new Date().toISOString(),
-    },
-    elements: normalizeElements(Array.isArray(project.elements) ? project.elements : []),
-    guides: Array.isArray(project.guides) ? project.guides : [],
-    settings: {
-      snapping: project.settings?.snapping ?? fallbackSnapping,
-    },
-  }
+  return parseProject(project, fallbackSnapping)
 }
 
 function selectedSet(ids: string[]) {
