@@ -97,7 +97,7 @@ app = replaceOnce(
 app = replaceOnce(
   app,
   `    event.stopPropagation()\n\n    const alreadySelected = selectedIds.includes(element.id)`,
-  `    event.stopPropagation()\n\n    if (element.parametricRow) {\n      const rowIds = rowElements(elements, element.parametricRow.id).map((item) => item.id)\n      const rowSet = new Set(rowIds)\n      const rowAlreadySelected = rowIds.every((id) => selectedIds.includes(id))\n      setSelectedIds(\n        event.shiftKey\n          ? rowAlreadySelected\n            ? selectedIds.filter((id) => !rowSet.has(id))\n            : uniqueIds([...selectedIds, ...rowIds])\n          : rowIds,\n      )\n      setSelectedGuideId(null)\n      setTool({ type: 'select' })\n      setStatus(\\`${locale === 'ru' ? 'Выбран параметрический ряд' : 'Parametric row selected'}: \\${rowIds.length}\\`)\n      return\n    }\n\n    const alreadySelected = selectedIds.includes(element.id)`,
+  `    event.stopPropagation()\n\n    if (element.parametricRow) {\n      const rowIds = rowElements(elements, element.parametricRow.id).map((item) => item.id)\n      const rowSet = new Set(rowIds)\n      const rowAlreadySelected = rowIds.every((id) => selectedIds.includes(id))\n      setSelectedIds(\n        event.shiftKey\n          ? rowAlreadySelected\n            ? selectedIds.filter((id) => !rowSet.has(id))\n            : uniqueIds([...selectedIds, ...rowIds])\n          : rowIds,\n      )\n      setSelectedGuideId(null)\n      setTool({ type: 'select' })\n      setStatus((locale === 'ru' ? 'Выбран параметрический ряд' : 'Parametric row selected') + ': ' + rowIds.length)\n      return\n    }\n\n    const alreadySelected = selectedIds.includes(element.id)`,
   'parametric row pointer selection',
 )
 
