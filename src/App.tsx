@@ -4,6 +4,7 @@ import { GuideRenderer } from './editor/GuideRenderer'
 import { GuideRowGeneratorPanel } from './editor/GuideRowGeneratorPanel'
 import { ParametricRowEditorPanel } from './editor/ParametricRowEditorPanel'
 import { PatternRowsPanel } from './editor/PatternRowsPanel'
+import { ProjectManagerPanel } from './editor/ProjectManagerPanel'
 import { LayersPanel } from './editor/LayersPanel'
 import { StitchLayer } from './editor/StitchLayer'
 import {
@@ -18,7 +19,19 @@ import {
 } from './editor/document'
 import type { GuideManipulationMode } from './editor/guideManipulation'
 import { clamp, screenToDocument } from './editor/geometry'
-import { loadAutosave, saveAutosave } from './editor/persistence'
+import { emptyHistory, pushHistory, redoHistory, undoHistory } from './editor/history'
+import {
+  createLocalProject,
+  deleteLocalProject,
+  duplicateLocalProject,
+  getActiveProjectId,
+  listLocalProjects,
+  loadAutosave,
+  loadLocalProject,
+  saveAutosave,
+  setActiveProjectId as persistActiveProjectId,
+} from './editor/persistence'
+import { viewportForElements } from './editor/viewportFit'
 import {
   createNextPatternRow,
   createPatternIncreaseSequence,
@@ -143,16 +156,36 @@ function NumberField({
   max?: number
   step?: number
 }) {
+  const [draft, setDraft] = useState(String(Number.isFinite(value) ? value : 0))
+  useEffect(() => setDraft(String(Number.isFinite(value) ? value : 0)), [value])
+
+  const commit = () => {
+    const parsed = Number(draft)
+    if (!Number.isFinite(parsed)) {
+      setDraft(String(value))
+      return
+    }
+    if (parsed !== value) onChange(parsed)
+  }
+
   return (
     <label className="number-field">
       <span>{label}</span>
       <input
         type="number"
-        value={Number.isFinite(value) ? value : 0}
+        value={draft}
         min={min}
         max={max}
         step={step}
-        onChange={(event) => onChange(Number(event.target.value))}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur()
+          if (event.key === 'Escape') {
+            setDraft(String(value))
+            event.currentTarget.blur()
+          }
+        }}
       />
     </label>
   )
@@ -244,9 +277,13 @@ function App() {
 
   const [locale, setLocale] = useState<Locale>(initialLocale)
   const t = UI[locale]
+  const [activeProjectId, setActiveProjectIdState] = useState(getActiveProjectId)
+  const [projectTitle, setProjectTitle] = useState(UI[DEFAULT_LOCALE].projectTitle)
+  const [leftCollapsed, setLeftCollapsed] = useState(false)
+  const [rightCollapsed, setRightCollapsed] = useState(false)
   const [elements, setElements] = useState<StitchElement[]>([])
   const [guides, setGuides] = useState<Guide[]>([])
-  const [history, setHistory] = useState<HistoryState>({ past: [], future: [] })
+  const [history, setHistory] = useState<HistoryState>(emptyHistory<DocumentSnapshot>())
   const [tool, setTool] = useState<Tool>({ type: 'select' })
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectedGuideId, setSelectedGuideId] = useState<string | null>(null)
@@ -277,10 +314,15 @@ function App() {
         if (cancelled) return
         if (saved) {
           const project = normalizeProject(saved, DEFAULT_SNAPPING)
+          setProjectTitle(project.metadata.title)
           setElements(reconcileParametricRows(project.elements, project.guides ?? [], createId))
           setGuides(project.guides ?? [])
           setSnapping(project.settings.snapping)
           setStatus(UI[locale].autosaveRestored)
+        } else {
+          const initial = buildProject(UI[locale].projectTitle, [], [], DEFAULT_SNAPPING)
+          await saveAutosave(initial)
+          setProjectTitle(initial.metadata.title)
         }
         setAutosaveState('saved')
       } catch {
@@ -302,7 +344,7 @@ function App() {
     const revision = ++autosaveRevisionRef.current
     setAutosaveState('saving')
     const timeout = window.setTimeout(() => {
-      const project = buildProject(t.projectTitle, elements, guides, snapping)
+      const project = buildProject(projectTitle, elements, guides, snapping)
       const task = autosaveQueueRef.current
         .catch(() => undefined)
         .then(() => saveAutosave(project))
@@ -317,7 +359,7 @@ function App() {
     }, AUTOSAVE_DELAY_MS)
 
     return () => window.clearTimeout(timeout)
-  }, [elements, guides, hydrated, snapping, t.projectTitle])
+  }, [elements, guides, hydrated, projectTitle, snapping])
 
   useEffect(() => {
     if (!hydrated) return
@@ -379,10 +421,7 @@ function App() {
     [elements, guides],
   )
   const recordSnapshot = useCallback((before: DocumentSnapshot) => {
-    setHistory((current) => ({
-      past: [...current.past.slice(-99), before],
-      future: [],
-    }))
+    setHistory((current) => pushHistory(current, before))
   }, [])
   const commitElements = useCallback(
     (next: StitchElement[]) => {
@@ -402,28 +441,22 @@ function App() {
   const clearElementSelection = useCallback(() => setSelectedIds([]), [])
 
   const undo = useCallback(() => {
-    const previous = history.past.at(-1)
-    if (!previous) return
-    setHistory({
-      past: history.past.slice(0, -1),
-      future: [currentSnapshot(), ...history.future].slice(0, 100),
-    })
-    setElements(previous.elements)
-    setGuides(previous.guides)
+    const step = undoHistory(history, currentSnapshot())
+    if (!step) return
+    setHistory(step.history)
+    setElements(step.value.elements)
+    setGuides(step.value.guides)
     clearElementSelection()
     setSelectedGuideId(null)
     setStatus(t.statusUndo)
   }, [clearElementSelection, currentSnapshot, history, t.statusUndo])
 
   const redo = useCallback(() => {
-    const next = history.future[0]
-    if (!next) return
-    setHistory({
-      past: [...history.past, currentSnapshot()].slice(-100),
-      future: history.future.slice(1),
-    })
-    setElements(next.elements)
-    setGuides(next.guides)
+    const step = redoHistory(history, currentSnapshot())
+    if (!step) return
+    setHistory(step.history)
+    setElements(step.value.elements)
+    setGuides(step.value.guides)
     clearElementSelection()
     setSelectedGuideId(null)
     setStatus(t.statusRedo)
@@ -1153,8 +1186,56 @@ function App() {
     setStatus(locale === 'ru' ? 'Параметрический ряд удалён' : 'Parametric row deleted')
   }
 
+  const openLocalProjectDocument = (project: CrochetProject, id: string) => {
+    const normalized = normalizeProject(project, DEFAULT_SNAPPING)
+    persistActiveProjectId(id)
+    setActiveProjectIdState(id)
+    setProjectTitle(normalized.metadata.title)
+    setHistory(emptyHistory<DocumentSnapshot>())
+    setElements(reconcileParametricRows(normalized.elements, normalized.guides ?? [], createId))
+    setGuides(normalized.guides ?? [])
+    setSnapping(normalized.settings.snapping)
+    clearElementSelection()
+    setSelectedGuideId(null)
+    setTool({ type: 'select' })
+    setPreview(null)
+    setSnapTarget(null)
+  }
+
+  const handleOpenLocalProject = async (id: string) => {
+    const project = await loadLocalProject(id)
+    if (project) openLocalProjectDocument(project, id)
+  }
+
+  const handleNewLocalProject = async () => {
+    const existing = await listLocalProjects()
+    const base = locale === 'ru' ? 'Новая схема' : 'New pattern'
+    const title = base + ' ' + (existing.length + 1)
+    const project = buildProject(title, [], [], DEFAULT_SNAPPING)
+    const id = await createLocalProject(project)
+    openLocalProjectDocument(project, id)
+  }
+
+  const handleDuplicateLocalProject = async () => {
+    const title = projectTitle + (locale === 'ru' ? ' — копия' : ' — copy')
+    const project = buildProject(projectTitle, elements, guides, snapping)
+    const id = await duplicateLocalProject(project, title)
+    const copy = await loadLocalProject(id)
+    if (copy) openLocalProjectDocument(copy, id)
+  }
+
+  const handleDeleteLocalProject = async (id: string) => {
+    await deleteLocalProject(id)
+    const remaining = await listLocalProjects()
+    if (remaining[0]) {
+      await handleOpenLocalProject(remaining[0].id)
+    } else {
+      await handleNewLocalProject()
+    }
+  }
+
   const saveProject = () => {
-    const project = buildProject(t.projectTitle, elements, guides, snapping)
+    const project = buildProject(projectTitle, elements, guides, snapping)
     downloadText('crochet-scheme.json', JSON.stringify(project, null, 2), 'application/json')
     setStatus(t.projectSaved)
   }
@@ -1169,6 +1250,7 @@ function App() {
         throw new Error(t.unsupportedProject)
       }
       const project = normalizeProject(raw, DEFAULT_SNAPPING)
+      setProjectTitle(project.metadata.title)
       setHistory({ past: [currentSnapshot()], future: [] })
       setElements(reconcileParametricRows(project.elements, project.guides ?? [], createId))
       setGuides(project.guides ?? [])
@@ -1196,6 +1278,19 @@ function App() {
   }
 
   const resetView = () => setViewport(DEFAULT_VIEWPORT)
+  const fitAll = () => {
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const next = viewportForElements(visibleElements, SYMBOL_SIZES, rect.width, rect.height)
+    if (next) setViewport(next)
+  }
+  const fitSelection = () => {
+    if (!selectedIds.length) return
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const next = viewportForElements(visibleElements, SYMBOL_SIZES, rect.width, rect.height, selectedIds)
+    if (next) setViewport(next)
+  }
   const anchorLabels: Record<AnchorName, string> = {
     top: t.top,
     center: t.center,
@@ -1222,7 +1317,7 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${leftCollapsed ? 'left-collapsed' : ''} ${rightCollapsed ? 'right-collapsed' : ''}`}>
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">C</div>
@@ -1273,6 +1368,17 @@ function App() {
             <span>↖</span>{t.selectMove}<kbd>Esc</kbd>
           </button>
         </section>
+
+        <ProjectManagerPanel
+          locale={locale}
+          activeProjectId={activeProjectId}
+          currentTitle={projectTitle}
+          onRename={setProjectTitle}
+          onOpen={handleOpenLocalProject}
+          onNew={handleNewLocalProject}
+          onDuplicate={handleDuplicateLocalProject}
+          onDelete={handleDeleteLocalProject}
+        />
 
         <section className="panel-section guide-section">
           <div className="section-title-row"><h2>{t.guides}</h2><span className="muted-text">{guides.length}</span></div>
@@ -1346,10 +1452,33 @@ function App() {
       </aside>
 
       <main className="workspace">
+        <button
+          className="sidebar-toggle left"
+          aria-label={locale === 'ru' ? 'Свернуть левую панель' : 'Toggle left sidebar'}
+          onClick={() => setLeftCollapsed((value) => !value)}
+        >{leftCollapsed ? '›' : '‹'}</button>
+        <button
+          className="sidebar-toggle right"
+          aria-label={locale === 'ru' ? 'Свернуть правую панель' : 'Toggle right sidebar'}
+          onClick={() => setRightCollapsed((value) => !value)}
+        >{rightCollapsed ? '‹' : '›'}</button>
+
         <div className="canvas-toolbar">
           <button onClick={() => setViewport((value) => ({ ...value, zoom: clamp(value.zoom / 1.2, 0.1, 5) }))}>−</button>
           <button className="zoom-readout" onClick={resetView}>{Math.round(viewport.zoom * 100)}%</button>
           <button onClick={() => setViewport((value) => ({ ...value, zoom: clamp(value.zoom * 1.2, 0.1, 5) }))}>+</button>
+          <button
+            className="fit-button"
+            aria-label={locale === 'ru' ? 'Вместить всю схему' : 'Fit all'}
+            onClick={fitAll}
+            disabled={!visibleElements.length}
+          >{locale === 'ru' ? 'Всё' : 'All'}</button>
+          <button
+            className="fit-button"
+            aria-label={locale === 'ru' ? 'Вместить выделение' : 'Fit selection'}
+            onClick={fitSelection}
+            disabled={!selectedIds.length}
+          >{locale === 'ru' ? 'Выбор' : 'Sel'}</button>
           <span className="canvas-hint">{t.zoomHint}</span>
         </div>
 
