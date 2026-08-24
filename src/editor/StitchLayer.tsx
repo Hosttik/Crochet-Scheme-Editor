@@ -2,6 +2,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph } from '../symbols'
 import type { AnchorName, StitchElement } from '../types'
 import { isElementLocked, isElementVisible } from './document'
+import { RowConstructionOverlay } from './RowConstructionOverlay'
 import { selectionAabb, type Rect } from './selection'
 import { topologyChangeMarkers, type TopologyChangeMarker } from './topology'
 import './rowShaping.css'
@@ -87,6 +88,8 @@ export function StitchLayer({
           ))}
         </g>
       )}
+
+      <RowConstructionOverlay elements={visibleElements} selectedIds={selectedIds} zoom={zoom} />
 
       {groupBounds && (
         <rect

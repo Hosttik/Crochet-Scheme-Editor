@@ -31,6 +31,10 @@ function positiveInteger(value: unknown, max: number) {
   return finite(value) && Number.isInteger(value) && value >= 1 && value <= max
 }
 
+function nonNegativeInteger(value: unknown, max: number) {
+  return finite(value) && Number.isInteger(value) && value >= 0 && value <= max
+}
+
 function optionalBoolean(value: unknown) {
   return value === undefined || typeof value === 'boolean'
 }
@@ -90,6 +94,24 @@ function validateRowProgram(value: unknown) {
   }
 }
 
+function validateRowConstruction(value: unknown) {
+  if (value === undefined) return
+  if (
+    !isRecord(value) ||
+    !['spiral', 'joined', 'turning'].includes(String(value.mode)) ||
+    !['along', 'reverse'].includes(String(value.direction)) ||
+    !nonNegativeInteger(value.startChainCount, 10) ||
+    typeof value.joinWithSlipStitch !== 'boolean'
+  ) throw new ProjectValidationError('Invalid row construction')
+
+  if (value.mode === 'spiral' && (value.startChainCount !== 0 || value.joinWithSlipStitch !== false)) {
+    throw new ProjectValidationError('Invalid spiral construction')
+  }
+  if (value.mode === 'turning' && value.joinWithSlipStitch !== false) {
+    throw new ProjectValidationError('Invalid turning construction')
+  }
+}
+
 function parseParametricRow(value: unknown): ParametricRowBinding | undefined {
   if (value === undefined) return undefined
   if (!isRecord(value)) throw new ProjectValidationError('Invalid parametric row binding')
@@ -124,6 +146,7 @@ function parseParametricRow(value: unknown): ParametricRowBinding | undefined {
   }
   validateRowSequence(value.sequence)
   validateRowProgram(value.program)
+  validateRowConstruction(value.construction)
   if (value.program !== undefined && value.sequence !== undefined) {
     throw new ProjectValidationError('Row cannot contain both sequence and rich program')
   }
@@ -184,7 +207,7 @@ function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSett
 
 export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): CrochetProject {
   if (!isRecord(raw)) throw new ProjectValidationError('Project must be an object')
-  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 10) throw new ProjectValidationError('Unsupported project schema')
+  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 11) throw new ProjectValidationError('Unsupported project schema')
   if (!Array.isArray(raw.elements)) throw new ProjectValidationError('Project elements are missing')
   if (raw.guides !== undefined && !Array.isArray(raw.guides)) throw new ProjectValidationError('Project guides are invalid')
 
@@ -194,7 +217,7 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
   const guides = (raw.guides ?? []).map(parseGuide)
 
   return {
-    schemaVersion: 10,
+    schemaVersion: 11,
     metadata: {
       title: typeof metadata.title === 'string' && metadata.title.trim() ? metadata.title : 'Crochet scheme',
       updatedAt: typeof metadata.updatedAt === 'string' ? metadata.updatedAt : new Date().toISOString(),

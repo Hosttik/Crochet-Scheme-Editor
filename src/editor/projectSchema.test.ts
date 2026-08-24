@@ -34,9 +34,9 @@ function shapedBinding() {
 }
 
 describe('parseProject', () => {
-  it('migrates legacy projects to schema v10 and normalizes element flags', () => {
+  it('migrates legacy projects to schema v11 and normalizes element flags', () => {
     const project = parseProject(legacyProject(), fallback)
-    expect(project.schemaVersion).toBe(10)
+    expect(project.schemaVersion).toBe(11)
     expect(project.elements[0]).toMatchObject({ visible: true, locked: false })
     expect(project.guides).toEqual([])
   })
@@ -100,6 +100,38 @@ describe('parseProject', () => {
     }
     const project = parseProject(raw, fallback)
     expect(project.elements[0].parametricRow?.program?.items).toHaveLength(2)
+  })
+
+  it('preserves valid schema v11 row construction semantics', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 11
+    raw.elements[0].parametricRow = {
+      ...shapedBinding(),
+      construction: {
+        mode: 'joined', direction: 'reverse', startChainCount: 2, joinWithSlipStitch: true,
+      },
+    }
+    const project = parseProject(raw, fallback)
+    expect(project.elements[0].parametricRow?.construction).toEqual({
+      mode: 'joined', direction: 'reverse', startChainCount: 2, joinWithSlipStitch: true,
+    })
+  })
+
+  it('rejects malformed row construction semantics', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 11
+    raw.elements[0].parametricRow = {
+      ...shapedBinding(),
+      construction: {
+        mode: 'spiral', direction: 'along', startChainCount: 2, joinWithSlipStitch: true,
+      },
+    }
+    expect(() => parseProject(raw, fallback)).toThrow('Invalid spiral construction')
+
+    raw.elements[0].parametricRow.construction = {
+      mode: 'turning', direction: 'sideways', startChainCount: 1, joinWithSlipStitch: false,
+    }
+    expect(() => parseProject(raw, fallback)).toThrow('Invalid row construction')
   })
 
   it('rejects malformed mixed row sequences', () => {
@@ -187,13 +219,13 @@ describe('parseProject', () => {
   })
 
   it('rejects unknown guide types', () => {
-    const raw = { ...legacyProject(), schemaVersion: 10, guides: [{ id: 'x', type: 'mystery', visible: true }] }
+    const raw = { ...legacyProject(), schemaVersion: 11, guides: [{ id: 'x', type: 'mystery', visible: true }] }
     expect(() => parseProject(raw, fallback)).toThrow('Unknown guide type')
   })
 
   it('rejects malformed parametric row shaping', () => {
     const raw = legacyProject() as any
-    raw.schemaVersion = 10
+    raw.schemaVersion = 11
     raw.elements[0].parametricRow = {
       ...shapedBinding(),
       shaping: { kind: 'magic', count: 6, baseCount: 6 },

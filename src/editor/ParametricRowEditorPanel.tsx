@@ -9,6 +9,7 @@ import type {
   RowShapingKind,
 } from '../types'
 import { resolveGuideRowCount } from './rowGenerator'
+import { RowConstructionEditor } from './RowConstructionEditor'
 import { RowSequenceEditor } from './RowSequenceEditor'
 import {
   createRowShaping,
@@ -190,6 +191,8 @@ export function ParametricRowEditorPanel({
         parentStitchCount={parentStitchCount}
         onChange={onChange}
       />
+
+      <RowConstructionEditor binding={binding} locale={locale} onChange={onChange} />
 
       <fieldset className="row-generator-fieldset row-shaping-fieldset" disabled={!shapingBase}>
         <legend>{copy.shaping}</legend>

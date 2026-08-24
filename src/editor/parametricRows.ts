@@ -4,6 +4,7 @@ import {
   resolveGuideRowCount,
   rowPlacementsToElements,
 } from './rowGenerator'
+import { nextRowConstruction } from './rowConstruction'
 import { createRowShaping, targetCountForRowShaping } from './rowShaping'
 import {
   applyCompiledProgram,
@@ -281,6 +282,7 @@ export function createNextPatternRow(
     guideId: parent.guideId,
     symbolId: parent.symbolId,
     sequence: parent.sequence,
+    construction: nextRowConstruction(parent.construction),
     patternOrder: nextPatternOrder(elements),
     parentRowId: parent.id,
     shaping,

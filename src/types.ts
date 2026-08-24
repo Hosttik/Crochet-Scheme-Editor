@@ -5,6 +5,8 @@ export type OrientationMode = 'none' | 'along' | 'perpendicular'
 export type RowDistributionMode = 'count' | 'spacing'
 export type RowOrientation = 'tangent' | 'radial' | 'fixed'
 export type RowShapingKind = 'increase' | 'decrease'
+export type RowConstructionMode = 'spiral' | 'joined' | 'turning'
+export type RowWorkDirection = 'along' | 'reverse'
 
 export type GuideRowOptions = {
   distributionMode: RowDistributionMode
@@ -54,6 +56,13 @@ export type RowProgram = {
   items: RowProgramItem[]
 }
 
+export type RowConstruction = {
+  mode: RowConstructionMode
+  direction: RowWorkDirection
+  startChainCount: number
+  joinWithSlipStitch: boolean
+}
+
 export type ParametricRowBinding = {
   id: string
   guideId: string
@@ -65,6 +74,7 @@ export type ParametricRowBinding = {
   topologyOverride?: RowTopologyOverride
   sequence?: RowSequence
   program?: RowProgram
+  construction?: RowConstruction
 }
 
 export type StitchElement = {
@@ -130,7 +140,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11
   metadata: {
     title: string
     updatedAt: string

@@ -3,6 +3,7 @@ import { symbolName, type Locale } from '../i18n'
 import type { StitchElement } from '../types'
 import { PatternInstructionsPanel } from './PatternInstructionsPanel'
 import { patternRows } from './parametricRows'
+import { rowConstructionDirectionSymbol, rowConstructionLabel } from './rowConstruction'
 import { rowProgramMetrics } from './rowProgram'
 import { rowHasMixedSequence, rowSequenceCycleInfo } from './rowSequence'
 import { maxRowShapingChanges } from './rowShaping'
@@ -89,6 +90,7 @@ export function PatternRowsPanel({
                 : undefined
               const active = row.id === selectedRowId
               const shaping = row.binding.shaping
+              const construction = row.binding.construction
               const rich = Boolean(row.binding.program)
               const mixed = !rich && rowHasMixedSequence(row.binding)
               const cycle = rowSequenceCycleInfo(row.binding.sequence, row.stitchCount)
@@ -111,6 +113,9 @@ export function PatternRowsPanel({
                       {row.stitchCount} {copy.stitches}
                       {rich ? ` · ${programMetrics.consumedParents} ${copy.consumes}` : ''}
                       {mixed ? ` · ${copy.rapport} ${cycle.templateLength}` : ''}
+                      {construction
+                        ? ` · ${rowConstructionLabel(construction, locale)} ${rowConstructionDirectionSymbol(construction)}`
+                        : ''}
                       {parentNumber ? ` · ${copy.from} ${parentNumber}` : ''}
                     </small>
                     {shaping && (
