@@ -102,32 +102,45 @@ export function rowProgramMetrics(program?: RowProgram) {
   return { consumedParents, producedChildren }
 }
 
+export function rowProgramSymbolIds(program?: RowProgram) {
+  const symbols: string[] = []
+  for (const leaf of rowProgramLeaves(program)) {
+    const producedPerOperation = leaf.kind === 'increase' ? 2 : 1
+    for (let index = 0; index < leaf.count * producedPerOperation; index += 1) {
+      symbols.push(leaf.symbolId)
+    }
+  }
+  return symbols
+}
+
 function appendLeaf(
   leaf: RowProgramLeaf,
   parents: StitchElement[] | undefined,
-  state: { parentIndex: number; symbolIds: string[]; parentGroups: string[][] },
+  state: { parentIndex: number; parentGroups: string[][] },
 ) {
   for (let index = 0; index < leaf.count; index += 1) {
     if (leaf.kind === 'stitch') {
-      state.symbolIds.push(leaf.symbolId)
-      if (parents) state.parentGroups.push([parents[state.parentIndex]?.id].filter(Boolean) as string[])
+      if (parents) {
+        const id = parents[state.parentIndex]?.id
+        state.parentGroups.push(id ? [id] : [])
+      }
       state.parentIndex += 1
       continue
     }
     if (leaf.kind === 'increase') {
-      const parentId = parents?.[state.parentIndex]?.id
-      state.symbolIds.push(leaf.symbolId, leaf.symbolId)
       if (parents) {
-        const group = parentId ? [parentId] : []
+        const id = parents[state.parentIndex]?.id
+        const group = id ? [id] : []
         state.parentGroups.push(group, group)
       }
       state.parentIndex += 1
       continue
     }
-    const first = parents?.[state.parentIndex]?.id
-    const second = parents?.[state.parentIndex + 1]?.id
-    state.symbolIds.push(leaf.symbolId)
-    if (parents) state.parentGroups.push([first, second].filter(Boolean) as string[])
+    if (parents) {
+      const first = parents[state.parentIndex]?.id
+      const second = parents[state.parentIndex + 1]?.id
+      state.parentGroups.push([first, second].filter((id): id is string => Boolean(id)))
+    }
     state.parentIndex += 2
   }
 }
@@ -149,12 +162,13 @@ export function compileRowProgram(
   }
 
   const metrics = rowProgramMetrics(normalized)
+  const symbolIds = rowProgramSymbolIds(normalized)
   const requiresParents = rowProgramHasTopologyOperations(normalized)
   if (requiresParents && !parents?.length) {
     return {
       valid: false,
       ...metrics,
-      symbolIds: [],
+      symbolIds,
       parentGroups: [],
       reason: 'missing-parent',
     }
@@ -163,18 +177,18 @@ export function compileRowProgram(
     return {
       valid: false,
       ...metrics,
-      symbolIds: [],
+      symbolIds,
       parentGroups: [],
       reason: 'parent-count-mismatch',
     }
   }
 
-  const state = { parentIndex: 0, symbolIds: [] as string[], parentGroups: [] as string[][] }
+  const state = { parentIndex: 0, parentGroups: [] as string[][] }
   for (const leaf of rowProgramLeaves(normalized)) appendLeaf(leaf, parents, state)
   return {
     valid: true,
     ...metrics,
-    symbolIds: state.symbolIds,
+    symbolIds,
     parentGroups: state.parentGroups,
   }
 }
@@ -183,11 +197,11 @@ export function applyCompiledProgram(
   children: StitchElement[],
   compiled: CompiledRowProgram,
 ) {
-  if (!compiled.valid || compiled.producedChildren !== children.length) return children
+  if (compiled.producedChildren !== children.length) return children
   return children.map((child, index) => ({
     ...child,
     symbolId: compiled.symbolIds[index] ?? child.symbolId,
-    parentStitchIds: compiled.parentGroups[index]?.length
+    parentStitchIds: compiled.valid && compiled.parentGroups[index]?.length
       ? compiled.parentGroups[index]
       : undefined,
   }))
