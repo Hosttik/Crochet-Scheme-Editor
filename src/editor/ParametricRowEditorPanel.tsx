@@ -6,8 +6,14 @@ import type {
   ParametricRowBinding,
   RowDistributionMode,
   RowOrientation,
+  RowShapingKind,
 } from '../types'
 import { resolveGuideRowCount } from './rowGenerator'
+import {
+  createRowShaping,
+  maxRowShapingChanges,
+  targetCountForRowShaping,
+} from './rowShaping'
 import './rowGenerator.css'
 
 const COPY = {
@@ -15,6 +21,14 @@ const COPY = {
     title: 'Параметрический ряд',
     linked: 'Связан с направляющей',
     stitch: 'Элемент',
+    shaping: 'Формирование ряда',
+    shapingNone: 'Без изменений',
+    increase: 'Прибавки',
+    decrease: 'Убавки',
+    shapingCount: 'Количество изменений',
+    shapingBase: 'Предыдущий ряд',
+    shapingHint: 'Прибавки или убавки распределяются равномерно. Маркеры +/− показывают позиции на холсте.',
+    noParent: 'Для первого ряда shaping задаётся через создание следующего ряда.',
     distribution: 'Распределение',
     countMode: 'Количество',
     spacingMode: 'Примерный шаг',
@@ -35,6 +49,14 @@ const COPY = {
     title: 'Parametric row',
     linked: 'Linked to guide',
     stitch: 'Stitch',
+    shaping: 'Row shaping',
+    shapingNone: 'No shaping',
+    increase: 'Increases',
+    decrease: 'Decreases',
+    shapingCount: 'Number of changes',
+    shapingBase: 'Previous row',
+    shapingHint: 'Increases or decreases are distributed evenly. +/− markers show their positions on the canvas.',
+    noParent: 'For the first row, shaping starts when you create the next row.',
     distribution: 'Distribution',
     countMode: 'Count',
     spacingMode: 'Approx. spacing',
@@ -57,23 +79,76 @@ export function ParametricRowEditorPanel({
   binding,
   guide,
   locale,
+  parentStitchCount,
   onChange,
   onDelete,
 }: {
   binding: ParametricRowBinding
   guide: Guide
   locale: Locale
+  parentStitchCount?: number
   onChange: (binding: ParametricRowBinding) => void
   onDelete: () => void
 }) {
   const copy = COPY[locale]
   const options = binding.options
   const resolvedCount = resolveGuideRowCount(guide, options)
+  const shapingBase = parentStitchCount ?? binding.shaping?.baseCount
 
   const patchOptions = (patch: Partial<GuideRowOptions>) => {
+    const manualDistributionChange =
+      Object.prototype.hasOwnProperty.call(patch, 'count') ||
+      patch.distributionMode === 'spacing'
     onChange({
       ...binding,
+      shaping: manualDistributionChange ? undefined : binding.shaping,
       options: { ...binding.options, ...patch },
+    })
+  }
+
+  const applyShaping = (kind: RowShapingKind | null) => {
+    if (!shapingBase) return
+    if (!kind) {
+      onChange({
+        ...binding,
+        shaping: undefined,
+        options: {
+          ...binding.options,
+          distributionMode: 'count',
+          count: shapingBase,
+        },
+      })
+      return
+    }
+
+    const max = maxRowShapingChanges(shapingBase, kind)
+    if (!max) return
+    const requested = binding.shaping?.kind === kind ? binding.shaping.count : Math.min(6, max)
+    const shaping = createRowShaping(shapingBase, kind, requested)
+    if (!shaping) return
+    onChange({
+      ...binding,
+      shaping,
+      options: {
+        ...binding.options,
+        distributionMode: 'count',
+        count: targetCountForRowShaping(shapingBase, kind, shaping.count),
+      },
+    })
+  }
+
+  const updateShapingCount = (value: number) => {
+    if (!shapingBase || !binding.shaping) return
+    const shaping = createRowShaping(shapingBase, binding.shaping.kind, value)
+    if (!shaping) return
+    onChange({
+      ...binding,
+      shaping,
+      options: {
+        ...binding.options,
+        distributionMode: 'count',
+        count: targetCountForRowShaping(shapingBase, shaping.kind, shaping.count),
+      },
     })
   }
 
@@ -98,6 +173,52 @@ export function ParametricRowEditorPanel({
           ))}
         </select>
       </label>
+
+      <fieldset className="row-generator-fieldset row-shaping-fieldset" disabled={!shapingBase}>
+        <legend>{copy.shaping}</legend>
+        {shapingBase ? (
+          <>
+            <p className="row-shaping-base">{copy.shapingBase}: <strong>{shapingBase}</strong></p>
+            <div className="segmented-control">
+              <button
+                className={!binding.shaping ? 'active' : ''}
+                onClick={() => applyShaping(null)}
+              >
+                {copy.shapingNone}
+              </button>
+              <button
+                className={binding.shaping?.kind === 'increase' ? 'active' : ''}
+                disabled={maxRowShapingChanges(shapingBase, 'increase') === 0}
+                onClick={() => applyShaping('increase')}
+              >
+                {copy.increase}
+              </button>
+              <button
+                className={binding.shaping?.kind === 'decrease' ? 'active' : ''}
+                disabled={maxRowShapingChanges(shapingBase, 'decrease') === 0}
+                onClick={() => applyShaping('decrease')}
+              >
+                {copy.decrease}
+              </button>
+            </div>
+            {binding.shaping && (
+              <label className="row-generator-field row-shaping-count-field">
+                <span>{copy.shapingCount}</span>
+                <input
+                  type="number"
+                  min="1"
+                  max={maxRowShapingChanges(shapingBase, binding.shaping.kind)}
+                  value={binding.shaping.count}
+                  onChange={(event) => updateShapingCount(Number(event.target.value) || 1)}
+                />
+              </label>
+            )}
+            <p className="row-generator-hint">{copy.shapingHint}</p>
+          </>
+        ) : (
+          <p className="row-generator-hint">{copy.noParent}</p>
+        )}
+      </fieldset>
 
       <fieldset className="row-generator-fieldset">
         <legend>{copy.distribution}</legend>
