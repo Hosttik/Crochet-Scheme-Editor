@@ -64,3 +64,29 @@ test('edits explicit parent-child topology and restores it with undo', async ({ 
   await expect(page.locator('.topology-change-button').first()).toContainText('+ 2')
   await expect(page.locator('.stitch-topology-link')).toHaveCount(18)
 })
+
+test('edits a mixed stitch rapport and restores it from autosave', async ({ page }) => {
+  await page.goto('/Crochet-Scheme-Editor/')
+
+  await page.getByRole('button', { name: /Радиальная/ }).click()
+  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
+  await expect(page.getByText('Ряд 1', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Раппорт', exact: true }).click()
+  await expect(page.locator('.row-sequence-item')).toHaveCount(2)
+  await expect(page.getByText('Смешанный раппорт', { exact: true })).toBeVisible()
+  await expect(page.getByText(/\(3 СБН, 1 ВП\) × 3 = 12/)).toBeVisible()
+
+  await page.locator('.row-sequence-item select').nth(1).selectOption('double')
+  await expect(page.getByText(/\(3 СБН, 1 ССН\) × 3 = 12/)).toBeVisible()
+
+  await page.locator('.row-sequence-item input').first().fill('2')
+  await expect(page.getByText(/\(2 СБН, 1 ССН\) × 4 = 12/)).toBeVisible()
+
+  await page.waitForTimeout(900)
+  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
+  await page.reload()
+
+  await expect(page.getByText('Смешанный раппорт', { exact: true })).toBeVisible()
+  await expect(page.getByText(/\(2 СБН, 1 ССН\) × 4 = 12/)).toBeVisible()
+})

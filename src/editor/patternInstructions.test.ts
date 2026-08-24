@@ -55,6 +55,48 @@ describe('pattern instructions', () => {
     expect(formatPatternRowInstruction(first, 1, 6, 'ru')).toBe('Ряд 1: 6 СБН = 6')
   })
 
+  it('formats a mixed rapport as an exact repeat', () => {
+    const mixed = {
+      ...binding('row-1', 30),
+      sequence: { items: [
+        { symbolId: 'single', count: 3 },
+        { symbolId: 'chain', count: 1 },
+        { symbolId: 'double', count: 1 },
+      ] },
+    }
+    expect(formatPatternRowInstruction(mixed, 1, 30, 'ru')).toBe(
+      'Ряд 1: (3 СБН, 1 ВП, 1 ССН) × 6 = 30',
+    )
+  })
+
+  it('shows a mixed rapport remainder instead of inventing a full repeat', () => {
+    const mixed = {
+      ...binding('row-1', 12),
+      sequence: { items: [
+        { symbolId: 'single', count: 3 },
+        { symbolId: 'chain', count: 1 },
+        { symbolId: 'double', count: 1 },
+      ] },
+    }
+    expect(formatPatternRowInstruction(mixed, 1, 12, 'ru')).toBe(
+      'Ряд 1: (3 СБН, 1 ВП, 1 ССН) × 2 + 2 СБН = 12',
+    )
+  })
+
+  it('keeps shaping as topology semantics alongside a mixed rapport', () => {
+    const mixed = {
+      ...binding('row-2', 30, { kind: 'increase', count: 6, baseCount: 24 }, 'row-1'),
+      sequence: { items: [
+        { symbolId: 'single', count: 3 },
+        { symbolId: 'chain', count: 1 },
+        { symbolId: 'double', count: 1 },
+      ] },
+    }
+    expect(formatPatternRowInstruction(mixed, 2, 30, 'ru')).toBe(
+      'Ряд 2: (3 СБН, 1 ВП, 1 ССН) × 6; 6 равномерных прибавок = 30',
+    )
+  })
+
   it('formats evenly divisible increases as a compact repeat', () => {
     const third = binding(
       'row-3',
@@ -131,16 +173,24 @@ describe('pattern instructions', () => {
       { kind: 'increase', count: 6, baseCount: 6 },
       'row-1',
     )
-    const elements = [...row(second, 12), ...row(first, 6)]
+    const mixedSecond = {
+      ...second,
+      sequence: { items: [
+        { symbolId: 'single', count: 2 },
+        { symbolId: 'double', count: 1 },
+      ] },
+    }
+    const elements = [...row(mixedSecond, 12), ...row(first, 6)]
     const instructions = generatePatternInstructions(elements, 'ru')
     expect(instructions.map((item) => item.text)).toEqual([
       'Ряд 1: 6 СБН = 6',
-      'Ряд 2: 6 прибавок = 12',
+      'Ряд 2: (2 СБН, 1 ССН) × 4; 6 равномерных прибавок = 12',
     ])
     expect(instructions[1].parentRowNumber).toBe(1)
 
     const markdown = patternInstructionsMarkdown(elements, 'ru')
     expect(markdown).toContain('# Схема вязания')
     expect(markdown).toContain('**СБН** — Столбик без накида')
+    expect(markdown).toContain('**ССН** — Столбик с накидом')
   })
 })
