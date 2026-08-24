@@ -25,6 +25,10 @@ function nonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
 }
 
+function positiveInteger(value: unknown, max: number) {
+  return finite(value) && Number.isInteger(value) && value >= 1 && value <= max
+}
+
 function optionalBoolean(value: unknown) {
   return value === undefined || typeof value === 'boolean'
 }
@@ -48,12 +52,49 @@ function validateRowSequence(value: unknown) {
     if (
       !isRecord(item) ||
       !nonEmptyString(item.symbolId) ||
-      !finite(item.count) ||
-      !Number.isInteger(item.count) ||
-      item.count < 1 ||
-      item.count > 500
+      !positiveInteger(item.count, 500)
     ) {
       throw new ProjectValidationError('Invalid row sequence item')
+    }
+  }
+}
+
+function validateProgramLeaf(value: unknown) {
+  if (!isRecord(value)) throw new ProjectValidationError('Invalid row program leaf')
+  if (
+    !['stitch', 'increase', 'decrease'].includes(String(value.kind)) ||
+    !nonEmptyString(value.symbolId) ||
+    !positiveInteger(value.count, 500)
+  ) {
+    throw new ProjectValidationError('Invalid row program leaf')
+  }
+}
+
+function validateRowProgram(value: unknown) {
+  if (value === undefined) return
+  if (
+    !isRecord(value) ||
+    !positiveInteger(value.repeat, 100) ||
+    !Array.isArray(value.items) ||
+    value.items.length === 0 ||
+    value.items.length > 50
+  ) {
+    throw new ProjectValidationError('Invalid row program')
+  }
+  for (const item of value.items) {
+    if (!isRecord(item)) throw new ProjectValidationError('Invalid row program item')
+    if (item.kind === 'group') {
+      if (
+        !positiveInteger(item.repeat, 100) ||
+        !Array.isArray(item.items) ||
+        item.items.length === 0 ||
+        item.items.length > 50
+      ) {
+        throw new ProjectValidationError('Invalid row program group')
+      }
+      item.items.forEach(validateProgramLeaf)
+    } else {
+      validateProgramLeaf(item)
     }
   }
 }
@@ -104,6 +145,13 @@ function parseParametricRow(value: unknown): ParametricRowBinding | undefined {
     }
   }
   validateRowSequence(value.sequence)
+  validateRowProgram(value.program)
+  if (value.program !== undefined && value.sequence !== undefined) {
+    throw new ProjectValidationError('Row cannot contain both sequence and rich program')
+  }
+  if (value.program !== undefined && (value.shaping !== undefined || value.topologyOverride !== undefined)) {
+    throw new ProjectValidationError('Rich row program owns shaping and topology')
+  }
   return value as unknown as ParametricRowBinding
 }
 
@@ -171,7 +219,7 @@ function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSett
 
 export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): CrochetProject {
   if (!isRecord(raw)) throw new ProjectValidationError('Project must be an object')
-  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 9) {
+  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 10) {
     throw new ProjectValidationError('Unsupported project schema')
   }
   if (!Array.isArray(raw.elements)) throw new ProjectValidationError('Project elements are missing')
@@ -185,7 +233,7 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
   const guides = (raw.guides ?? []).map(parseGuide)
 
   return {
-    schemaVersion: 9,
+    schemaVersion: 10,
     metadata: {
       title: typeof metadata.title === 'string' && metadata.title.trim() ? metadata.title : 'Crochet scheme',
       updatedAt: typeof metadata.updatedAt === 'string' ? metadata.updatedAt : new Date().toISOString(),
