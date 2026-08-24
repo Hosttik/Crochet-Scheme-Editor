@@ -13,17 +13,33 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: 24
-
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-
       - name: Typecheck, test and build
         run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: verify
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Build preview
+        run: npx vite build
+      - name: Run Playwright E2E
+        run: npm run test:e2e
 
   smoke-pages:
     runs-on: ubuntu-latest

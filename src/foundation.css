@@ -1,0 +1,47 @@
+.app-shell {
+  --left-panel-width: 286px;
+  --right-panel-width: 300px;
+  grid-template-columns: var(--left-panel-width) minmax(0, 1fr) var(--right-panel-width);
+  transition: grid-template-columns .18s ease;
+}
+
+.app-shell.left-collapsed { --left-panel-width: 0px; }
+.app-shell.right-collapsed { --right-panel-width: 0px; }
+.app-shell.left-collapsed .left-sidebar,
+.app-shell.right-collapsed .right-sidebar {
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.sidebar { transition: opacity .14s ease; }
+
+.sidebar-toggle {
+  position: absolute;
+  top: 50%;
+  z-index: 12;
+  width: 24px;
+  height: 48px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  border: 1px solid #d7d3cb;
+  background: rgba(255,255,255,.94);
+  color: #5d625d;
+  box-shadow: 0 3px 12px rgba(45, 41, 35, .08);
+  font-size: 16px;
+}
+.sidebar-toggle.left { left: 6px; border-radius: 0 8px 8px 0; }
+.sidebar-toggle.right { right: 6px; border-radius: 8px 0 0 8px; }
+.sidebar-toggle:hover { background: #fff; color: #2f5e4d; }
+
+.canvas-toolbar .fit-button { font-size: 10px; min-width: 42px; }
+
+@media (max-width: 1100px) {
+  .app-shell {
+    --left-panel-width: 240px;
+    --right-panel-width: 260px;
+  }
+  .app-shell.left-collapsed { --left-panel-width: 0px; }
+  .app-shell.right-collapsed { --right-panel-width: 0px; }
+}
