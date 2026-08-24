@@ -123,3 +123,43 @@ test('compiles a semantic rapport into stitch types and exact topology', async (
   await page.getByText('Ряд 2', { exact: true }).click()
   await expect(page.locator('.stitch-topology-link')).toHaveCount(13)
 })
+
+test('persists joined and turning row construction semantics', async ({ page }) => {
+  await page.goto('/Crochet-Scheme-Editor/')
+
+  await page.getByRole('button', { name: /Радиальная/ }).click()
+  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
+  await expect(page.getByText('Ряд 1', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Замкнутый', exact: true }).click()
+  await expect(page.locator('.row-construction-status strong')).toHaveText('↻')
+  await page.getByLabel('ВП подъёма').fill('2')
+  await expect(page.getByLabel('Замыкать соединительным столбиком')).toBeChecked()
+  await expect(page.locator('.row-construction-marker')).toHaveCount(2)
+  await expect(page.locator('.row-construction-path')).toHaveCount(1)
+  await expect(page.getByText(/2 ВП подъёма \(вне счёта ряда\); 12 СБН = 12; замкнутый круг ↻; замкнуть СС/)).toBeVisible()
+
+  await page.getByRole('button', { name: 'Без изменений' }).click()
+  await expect(page.getByText('Ряд 2', { exact: true })).toBeVisible()
+  await expect(page.getByText(/замкнутый круг ↻; замкнуть СС/).last()).toBeVisible()
+
+  await page.getByRole('button', { name: 'Поворотный', exact: true }).click()
+  await expect(page.locator('.row-construction-status strong')).toHaveText('↻').catch(async () => {
+    await expect(page.locator('.row-construction-status strong')).toHaveText('→')
+  })
+  await expect(page.locator('.row-construction-status strong')).toHaveText('→')
+  await page.getByRole('button', { name: 'Без изменений' }).click()
+
+  await expect(page.getByText('Ряд 3', { exact: true })).toBeVisible()
+  await expect(page.locator('.row-construction-status strong')).toHaveText('←')
+  await expect(page.getByText(/поворотный ряд ←; повернуть работу/).last()).toBeVisible()
+  await expect(page.locator('.row-construction-marker')).toHaveCount(2)
+
+  await page.waitForTimeout(900)
+  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
+  await page.reload()
+
+  await page.getByText('Ряд 3', { exact: true }).click()
+  await expect(page.locator('.row-construction-status strong')).toHaveText('←')
+  await expect(page.getByText(/поворотный ряд ←; повернуть работу/).last()).toBeVisible()
+})
