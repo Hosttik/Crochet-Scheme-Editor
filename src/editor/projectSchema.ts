@@ -70,6 +70,20 @@ function parseParametricRow(value: unknown): ParametricRowBinding | undefined {
       throw new ProjectValidationError('Invalid row shaping')
     }
   }
+  if (value.topologyOverride !== undefined) {
+    if (!isRecord(value.topologyOverride) || !Array.isArray(value.topologyOverride.changeParentIds)) {
+      throw new ProjectValidationError('Invalid topology override')
+    }
+    const ids = value.topologyOverride.changeParentIds
+    if (
+      ids.length === 0 ||
+      !ids.every(nonEmptyString) ||
+      new Set(ids).size !== ids.length ||
+      value.shaping === undefined
+    ) {
+      throw new ProjectValidationError('Invalid topology override')
+    }
+  }
   return value as unknown as ParametricRowBinding
 }
 
@@ -137,7 +151,7 @@ function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSett
 
 export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): CrochetProject {
   if (!isRecord(raw)) throw new ProjectValidationError('Project must be an object')
-  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 7) {
+  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 8) {
     throw new ProjectValidationError('Unsupported project schema')
   }
   if (!Array.isArray(raw.elements)) throw new ProjectValidationError('Project elements are missing')
@@ -151,7 +165,7 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
   const guides = (raw.guides ?? []).map(parseGuide)
 
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     metadata: {
       title: typeof metadata.title === 'string' && metadata.title.trim() ? metadata.title : 'Crochet scheme',
       updatedAt: typeof metadata.updatedAt === 'string' ? metadata.updatedAt : new Date().toISOString(),
