@@ -5,7 +5,7 @@ export const DEFAULT_LOCALE: Locale = 'ru'
 export const UI = {
   ru: {
     brandTitle: 'Редактор схем вязания',
-    brandSubtitle: 'Векторный редактор схем · MVP 0.6',
+    brandSubtitle: 'Векторный редактор схем · MVP 0.7',
     undo: 'Отменить',
     redo: 'Повторить',
     saveJson: 'Сохранить JSON',
@@ -74,7 +74,7 @@ export const UI = {
     help1: 'Тяните рамку по пустому холсту для группового выделения; Shift + клик добавляет или убирает элемент.',
     help2: 'Панель «Слои» управляет порядком, видимостью и блокировкой элементов.',
     help3: 'Ctrl/Cmd+C — копировать, Ctrl/Cmd+V — вставить, Ctrl/Cmd+D — дублировать, Ctrl/Cmd+A — выбрать все доступные элементы.',
-    help4: 'Направляющие можно перемещать, менять их радиус и вращать прямо на холсте.',
+    help4: 'Выберите дугу или радиальную сетку, чтобы автоматически создать целый ряд элементов по направляющей.',
     help5: 'Колесо мыши меняет масштаб; Space + перетаскивание перемещает холст.',
     help6: 'Проект автоматически сохраняется в браузере и восстанавливается при следующем открытии.',
     ready: 'Готово',
@@ -118,7 +118,7 @@ export const UI = {
   },
   en: {
     brandTitle: 'Crochet Scheme Editor',
-    brandSubtitle: 'Vector pattern workspace · MVP 0.6',
+    brandSubtitle: 'Vector pattern workspace · MVP 0.7',
     undo: 'Undo',
     redo: 'Redo',
     saveJson: 'Save JSON',
@@ -187,7 +187,7 @@ export const UI = {
     help1: 'Drag a marquee on empty canvas for group selection; Shift + click adds or removes a stitch.',
     help2: 'The Layers panel controls stacking order, visibility and locking.',
     help3: 'Ctrl/Cmd+C copies, Ctrl/Cmd+V pastes, Ctrl/Cmd+D duplicates and Ctrl/Cmd+A selects all available stitches.',
-    help4: 'Guides can still be moved, resized and rotated directly on the canvas.',
+    help4: 'Select an Arc or Radial guide to generate an entire stitch row automatically along it.',
     help5: 'Mouse wheel zooms; Space + drag pans.',
     help6: 'The project is automatically saved in the browser and restored next time.',
     ready: 'Ready',
