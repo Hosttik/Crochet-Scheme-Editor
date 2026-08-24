@@ -45,7 +45,7 @@ describe('layer ordering', () => {
 })
 
 describe('project migration', () => {
-  it('upgrades legacy stitch visibility and lock flags to schema v6', () => {
+  it('upgrades legacy stitch visibility and lock flags to schema v7', () => {
     const legacy = {
       schemaVersion: 2,
       metadata: { title: 'Legacy', updatedAt: '2026-01-01T00:00:00.000Z' },
@@ -55,21 +55,25 @@ describe('project migration', () => {
     } as CrochetProject
 
     const migrated = normalizeProject(legacy, snapping)
-    expect(migrated.schemaVersion).toBe(6)
+    expect(migrated.schemaVersion).toBe(7)
     expect(migrated.elements[0]).toMatchObject({ visible: true, locked: false })
   })
 
-  it('preserves explicit hidden and locked flags', () => {
+  it('preserves explicit hidden, locked and topology fields', () => {
     const project: CrochetProject = {
-      schemaVersion: 5,
+      schemaVersion: 7,
       metadata: { title: 'Current', updatedAt: '2026-01-01T00:00:00.000Z' },
-      elements: [{ ...element('a'), visible: false, locked: true }],
+      elements: [{ ...element('a'), visible: false, locked: true, parentStitchIds: ['parent'] }],
       guides: [],
       settings: { snapping },
     }
 
     const migrated = normalizeProject(project, snapping)
-    expect(migrated.schemaVersion).toBe(6)
-    expect(migrated.elements[0]).toMatchObject({ visible: false, locked: true })
+    expect(migrated.schemaVersion).toBe(7)
+    expect(migrated.elements[0]).toMatchObject({
+      visible: false,
+      locked: true,
+      parentStitchIds: ['parent'],
+    })
   })
 })
