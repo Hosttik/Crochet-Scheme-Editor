@@ -2,7 +2,7 @@
 
 Browser-based vector editor for crochet diagrams.
 
-## MVP 0.1
+## MVP 0.2
 
 Current functionality:
 
@@ -23,6 +23,12 @@ Current functionality:
 - vector SVG export
 - automatic GitHub Pages deployment from `main`
 
+## Engineering baseline
+
+Geometry and snapping are implemented as pure modules outside the React UI. The snapping engine has unit coverage for candidate generation, anchor alignment, screen-space tolerance, orientation modes, self-exclusion and hysteresis.
+
+Every pull request runs strict TypeScript checks (including Vite client/CSS imports), unit tests and the Vite production build.
+
 ## Local development
 
 ```bash
@@ -30,9 +36,11 @@ npm install
 npm run dev
 ```
 
-Production build:
+Verification commands:
 
 ```bash
+npm run typecheck
+npm test
 npm run build
 ```
 
@@ -46,17 +54,14 @@ https://hosttik.github.io/Crochet-Scheme-Editor/
 
 The Vite production base path is `/Crochet-Scheme-Editor/`.
 
-> GitHub Pages from a private repository requires a GitHub plan that supports private-repository Pages. The published Pages site is normally public even when the source repository is private.
-
 ## Architecture
 
-The document model, stitch definitions and SVG renderer are separate concepts. The SVG DOM is a rendering layer rather than the source of truth. Stitch instances are represented semantically by symbol ID, position and rotation, which leaves room for radial guides, advanced snapping, pattern automation and AI-generated operations later.
+The document model, stitch definitions, geometry engine, snapping engine and SVG renderer are separate concepts. The SVG DOM is a rendering layer rather than the source of truth. Stitch instances are represented semantically by symbol ID, position and rotation, which leaves room for radial guides, advanced snapping, pattern automation and AI-generated operations later.
 
 ## Next technical milestones
 
-1. Extract geometry and snapping from `App.tsx` into pure modules.
-2. Restore strict typecheck as a required CI step.
-3. Add custom arc, rectangular grid and radial grid guides.
-4. Expand the stitch symbol library to the full target notation set.
-5. Add multi-select, copy/paste and better rotation handles.
-6. Add PDF export.
+1. Add custom arc, rectangular grid and radial grid guides.
+2. Expand the stitch symbol library to the full target notation set.
+3. Add multi-select, copy/paste and better rotation handles.
+4. Add project schema validation and migrations.
+5. Add PDF export.
