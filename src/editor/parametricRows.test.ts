@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ArcGuide, ParametricRowBinding, StitchElement } from '../types'
 import {
   createNextPatternRow,
+  createPatternIncreaseSequence,
   deleteParametricRow,
   expandIdsToParametricRows,
   nextPatternOrder,
@@ -122,11 +123,15 @@ describe('parametric rows', () => {
     expect(nextPatternOrder([...row(2, second), ...row(4, first)])).toBe(3)
   })
 
-  it('creates the next row from its parent with a count increase and outward offset', () => {
+  it('creates six semantic increases from 6 to 12 stitches', () => {
     let serial = 0
-    const parent = { ...binding, patternOrder: 1 }
+    const parent: ParametricRowBinding = {
+      ...binding,
+      patternOrder: 1,
+      options: { ...binding.options, count: 6 },
+    }
     const result = createNextPatternRow(
-      row(3, parent),
+      row(6, parent),
       [guide],
       parent,
       6,
@@ -135,9 +140,52 @@ describe('parametric rows', () => {
     expect(result).not.toBeNull()
     expect(result!.binding.parentRowId).toBe(parent.id)
     expect(result!.binding.patternOrder).toBe(2)
-    expect(result!.binding.options.count).toBe(9)
+    expect(result!.binding.shaping).toEqual({ kind: 'increase', count: 6, baseCount: 6 })
+    expect(result!.binding.options.count).toBe(12)
     expect(result!.binding.options.radialOffset).toBe(40)
-    expect(result!.elements).toHaveLength(9)
-    expect(result!.elements.every((element) => element.parametricRow?.id === result!.binding.id)).toBe(true)
+    expect(result!.elements).toHaveLength(12)
+  })
+
+  it('creates six semantic decreases from 24 to 18 stitches', () => {
+    let serial = 0
+    const parent: ParametricRowBinding = {
+      ...binding,
+      options: { ...binding.options, count: 24 },
+    }
+    const result = createNextPatternRow(
+      row(24, parent),
+      [guide],
+      parent,
+      -6,
+      () => `id-${++serial}`,
+    )
+    expect(result!.binding.shaping).toEqual({ kind: 'decrease', count: 6, baseCount: 24 })
+    expect(result!.elements).toHaveLength(18)
+  })
+
+  it('builds a 6 → 12 → 18 → 24 → 30 increase sequence', () => {
+    let serial = 0
+    const parent: ParametricRowBinding = {
+      ...binding,
+      patternOrder: 1,
+      options: { ...binding.options, count: 6 },
+    }
+    const source = row(6, parent)
+    const result = createPatternIncreaseSequence(
+      source,
+      [guide],
+      parent,
+      6,
+      4,
+      () => `seq-${++serial}`,
+    )
+    expect(result.rows.map((item) => item.elements.length)).toEqual([12, 18, 24, 30])
+    expect(result.rows.map((item) => item.binding.parentRowId)).toEqual([
+      parent.id,
+      result.rows[0].binding.id,
+      result.rows[1].binding.id,
+      result.rows[2].binding.id,
+    ])
+    expect(result.rows.map((item) => item.binding.patternOrder)).toEqual([2, 3, 4, 5])
   })
 })
