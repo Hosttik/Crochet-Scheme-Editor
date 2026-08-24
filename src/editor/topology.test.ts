@@ -104,7 +104,7 @@ describe('stitch topology', () => {
     expect(automatic.changeParentIds).toEqual(['p3', 'p7'])
     expect(shiftTopologyChange(parents, shaping, automatic, 'p3', 1)).not.toBeNull()
 
-    const crowded = { changeParentIds: ['p2', 'p4'] }
+    const crowded = { changeParentIds: ['p2', 'p3'] }
     expect(buildParentGroups(parents, 6, shaping, crowded)).toEqual([[], [], [], [], [], []])
   })
 
