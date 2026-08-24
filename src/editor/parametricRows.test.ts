@@ -163,6 +163,60 @@ describe('parametric rows', () => {
     expect(result!.elements).toHaveLength(18)
   })
 
+  it('keeps a valid manual topology override while rebuilding the row', () => {
+    const parent: ParametricRowBinding = {
+      ...binding,
+      id: 'parent-row',
+      patternOrder: 1,
+      options: { ...binding.options, count: 8 },
+    }
+    const child: ParametricRowBinding = {
+      ...binding,
+      id: 'child-row',
+      patternOrder: 2,
+      parentRowId: parent.id,
+      shaping: { kind: 'increase', count: 2, baseCount: 8 },
+      topologyOverride: { changeParentIds: ['parent-row-4', 'parent-row-7'] },
+      options: { ...binding.options, count: 10, radialOffset: 40 },
+    }
+    const result = reconcileParametricRows(
+      [...row(8, parent), ...row(10, child)],
+      [guide],
+      () => 'unused',
+    )
+    const rebuilt = result.filter((element) => element.parametricRow?.id === child.id)
+    expect(rebuilt[0].parametricRow?.topologyOverride).toEqual(child.topologyOverride)
+    expect(rebuilt.filter((element, index) =>
+      index > 0 && element.parentStitchIds?.[0] === rebuilt[index - 1].parentStitchIds?.[0],
+    )).toHaveLength(2)
+  })
+
+  it('drops an invalid manual override when the parent stitch count changes', () => {
+    const parent: ParametricRowBinding = {
+      ...binding,
+      id: 'parent-row',
+      patternOrder: 1,
+      options: { ...binding.options, count: 7 },
+    }
+    const child: ParametricRowBinding = {
+      ...binding,
+      id: 'child-row',
+      patternOrder: 2,
+      parentRowId: parent.id,
+      shaping: { kind: 'increase', count: 2, baseCount: 8 },
+      topologyOverride: { changeParentIds: ['parent-row-3', 'parent-row-7'] },
+      options: { ...binding.options, count: 10, radialOffset: 40 },
+    }
+    const result = reconcileParametricRows(
+      [...row(7, parent), ...row(10, child)],
+      [guide],
+      () => 'unused',
+    )
+    const rebuilt = result.filter((element) => element.parametricRow?.id === child.id)
+    expect(rebuilt[0].parametricRow?.topologyOverride).toBeUndefined()
+    expect(rebuilt.every((element) => element.parentStitchIds === undefined)).toBe(true)
+  })
+
   it('builds a 6 → 12 → 18 → 24 → 30 increase sequence', () => {
     let serial = 0
     const parent: ParametricRowBinding = {
