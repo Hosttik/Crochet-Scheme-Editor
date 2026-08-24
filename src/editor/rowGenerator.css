@@ -73,6 +73,29 @@
   color: #777a74;
 }
 
+.row-shaping-fieldset {
+  display: grid;
+  gap: 7px;
+  padding: 9px;
+  border: 1px solid #dfe8e2;
+  border-radius: 8px;
+  background: #f8fbf9;
+}
+
+.row-shaping-fieldset:disabled {
+  opacity: .7;
+}
+
+.row-shaping-base {
+  margin: 0;
+  font-size: 9px;
+  color: #627068;
+}
+
+.row-shaping-count-field {
+  margin-top: 2px;
+}
+
 .row-generator-result,
 .row-generator-hint,
 .row-generator-preview-hint {
