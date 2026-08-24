@@ -32,7 +32,7 @@ test('places a stitch, restores autosave and manages local projects', async ({ p
   await expect(page.locator('.project-select option')).toHaveCount(2)
 })
 
-test('renders explicit parent-child topology for a shaped row', async ({ page }) => {
+test('edits explicit parent-child topology and restores it with undo', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
 
   await page.getByRole('button', { name: /Радиальная/ }).click()
@@ -43,5 +43,24 @@ test('renders explicit parent-child topology for a shaped row', async ({ page })
   await page.getByRole('button', { name: '+6 прибавок' }).click()
 
   await expect(page.getByText('Ряд 2', { exact: true })).toBeVisible()
+  await expect(page.locator('.stitch-topology-link')).toHaveCount(18)
+  await expect(page.locator('.topology-mode-badge')).toHaveText('Равномерно')
+  await expect(page.locator('.topology-change-button')).toHaveCount(6)
+  await expect(page.locator('.topology-change-button').first()).toContainText('+ 2')
+  await expect(page.locator('.row-shaping-marker.editable')).toHaveCount(6)
+
+  await page.locator('.row-shaping-marker.editable').first().click()
+  await expect(page.locator('.topology-change-button.active')).toHaveCount(1)
+  await page.getByTitle('Сдвинуть вправо').click()
+
+  await expect(page.locator('.topology-mode-badge')).toHaveText('Вручную')
+  await expect(page.locator('.topology-change-button').first()).toContainText('+ 3')
+  await expect(page.locator('.stitch-topology-link')).toHaveCount(18)
+  await expect(page.getByText(/прибавки в петли 3, 4, 6, 8, 10, 12/)).toBeVisible()
+
+  await page.getByRole('button', { name: 'Отменить' }).click()
+  await page.getByText('Ряд 2', { exact: true }).click()
+  await expect(page.locator('.topology-mode-badge')).toHaveText('Равномерно')
+  await expect(page.locator('.topology-change-button').first()).toContainText('+ 2')
   await expect(page.locator('.stitch-topology-link')).toHaveCount(18)
 })
