@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { RowShaping, StitchElement } from '../types'
-import { applyRowTopology, buildParentGroups, topologyLinks } from './topology'
+import {
+  applyRowTopology,
+  automaticTopologyOverride,
+  buildParentGroups,
+  shiftTopologyChange,
+  topologyChangeMarkers,
+  topologyLinks,
+  topologyOverrideIsCustom,
+} from './topology'
 
 function stitches(count: number, prefix: string): StitchElement[] {
   return Array.from({ length: count }, (_, index) => ({
@@ -73,5 +81,57 @@ describe('stitch topology', () => {
       { childId: 'c0', parentIds: ['p0'] },
       { childId: 'c1', parentIds: ['p1'] },
     ])
+  })
+
+  it('moves an increase from one parent stitch to its neighbor', () => {
+    const parents = stitches(8, 'p')
+    const shaping: RowShaping = { kind: 'increase', count: 2, baseCount: 8 }
+    const automatic = automaticTopologyOverride(parents, shaping)!
+    expect(automatic.changeParentIds).toEqual(['p3', 'p7'])
+
+    const moved = shiftTopologyChange(parents, shaping, automatic, 'p3', 1)!
+    expect(moved.changeParentIds).toEqual(['p4', 'p7'])
+    expect(topologyOverrideIsCustom(parents, shaping, moved)).toBe(true)
+    expect(buildParentGroups(parents, 10, shaping, moved).slice(3, 7)).toEqual([
+      ['p3'], ['p4'], ['p4'], ['p5'],
+    ])
+  })
+
+  it('prevents decrease overrides from overlapping neighboring pairs', () => {
+    const parents = stitches(8, 'p')
+    const shaping: RowShaping = { kind: 'decrease', count: 2, baseCount: 8 }
+    const automatic = automaticTopologyOverride(parents, shaping)!
+    expect(automatic.changeParentIds).toEqual(['p3', 'p7'])
+    expect(shiftTopologyChange(parents, shaping, automatic, 'p3', 1)).not.toBeNull()
+
+    const crowded = { changeParentIds: ['p2', 'p4'] }
+    expect(buildParentGroups(parents, 6, shaping, crowded)).toEqual([[], [], [], [], [], []])
+  })
+
+  it('derives editable change markers from resolved topology', () => {
+    const parents = stitches(4, 'p')
+    const binding = {
+      id: 'row-2',
+      guideId: 'guide-1',
+      symbolId: 'single',
+      parentRowId: 'row-1',
+      shaping: { kind: 'increase' as const, count: 1, baseCount: 4 },
+      options: {
+        distributionMode: 'count' as const,
+        count: 5,
+        spacing: 20,
+        orientation: 'radial' as const,
+        rotationOffset: 0,
+        radialOffset: 40,
+        ringIndex: 1,
+      },
+    }
+    const children = applyRowTopology(
+      stitches(5, 'c').map((child) => ({ ...child, parametricRow: binding })),
+      parents,
+      binding.shaping,
+    )
+    const markers = topologyChangeMarkers(children, binding.id)
+    expect(markers).toEqual([{ childId: 'c4', parentId: 'p3', kind: 'increase' }])
   })
 })
