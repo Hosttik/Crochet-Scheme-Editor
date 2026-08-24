@@ -20,11 +20,26 @@ function legacyProject() {
 }
 
 describe('parseProject', () => {
-  it('migrates legacy projects to schema v6 and normalizes element flags', () => {
+  it('migrates legacy projects to schema v7 and normalizes element flags', () => {
     const project = parseProject(legacyProject(), fallback)
-    expect(project.schemaVersion).toBe(6)
+    expect(project.schemaVersion).toBe(7)
     expect(project.elements[0]).toMatchObject({ visible: true, locked: false })
     expect(project.guides).toEqual([])
+  })
+
+  it('preserves valid topology parent ids', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 7
+    raw.elements[0].parentStitchIds = ['parent-1', 'parent-2']
+    const project = parseProject(raw, fallback)
+    expect(project.elements[0].parentStitchIds).toEqual(['parent-1', 'parent-2'])
+  })
+
+  it('rejects malformed topology parent ids', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 7
+    raw.elements[0].parentStitchIds = ['parent-1', '']
+    expect(() => parseProject(raw, fallback)).toThrow(ProjectValidationError)
   })
 
   it('rejects malformed stitch coordinates', () => {
@@ -34,13 +49,13 @@ describe('parseProject', () => {
   })
 
   it('rejects unknown guide types', () => {
-    const raw = { ...legacyProject(), schemaVersion: 6, guides: [{ id: 'x', type: 'mystery', visible: true }] }
+    const raw = { ...legacyProject(), schemaVersion: 7, guides: [{ id: 'x', type: 'mystery', visible: true }] }
     expect(() => parseProject(raw, fallback)).toThrow('Unknown guide type')
   })
 
   it('rejects malformed parametric row shaping', () => {
     const raw = legacyProject() as any
-    raw.schemaVersion = 6
+    raw.schemaVersion = 7
     raw.elements[0].parametricRow = {
       id: 'row-1',
       guideId: 'g',
