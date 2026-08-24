@@ -2,6 +2,7 @@ import { SYMBOL_BY_ID } from '../symbols'
 import { symbolName, type Locale } from '../i18n'
 import type { StitchElement } from '../types'
 import { patternRows } from './parametricRows'
+import { maxRowShapingChanges } from './rowShaping'
 import './patternRows.css'
 
 const COPY = {
@@ -11,11 +12,14 @@ const COPY = {
     row: 'Ряд',
     stitches: 'элементов',
     from: 'из ряда',
+    increases: 'прибавок',
+    decreases: 'убавок',
     next: 'Следующий ряд',
-    same: '+0',
-    plus6: '+6',
-    plus12: '+12',
-    hint: 'Кнопки создают следующий ряд наружу от выбранного и увеличивают количество элементов.',
+    same: 'Без изменений',
+    plus6: '+6 прибавок',
+    minus6: '−6 убавок',
+    sequence: 'Серия +6 ×4',
+    hint: 'Прибавки и убавки распределяются равномерно по ряду. Серия создаёт четыре следующих ряда одной операцией.',
   },
   en: {
     title: 'Rows',
@@ -23,11 +27,14 @@ const COPY = {
     row: 'Row',
     stitches: 'stitches',
     from: 'from row',
+    increases: 'increases',
+    decreases: 'decreases',
     next: 'Next row',
-    same: '+0',
-    plus6: '+6',
-    plus12: '+12',
-    hint: 'Buttons create the next row outward from the selected row and increase its stitch count.',
+    same: 'No shaping',
+    plus6: '+6 increases',
+    minus6: '−6 decreases',
+    sequence: '+6 ×4 sequence',
+    hint: 'Increases and decreases are distributed evenly around the row. Sequence creates four next rows as one operation.',
   },
 } as const
 
@@ -37,12 +44,14 @@ export function PatternRowsPanel({
   selectedRowId,
   onSelect,
   onCreateNext,
+  onCreateSequence,
 }: {
   elements: StitchElement[]
   locale: Locale
   selectedRowId: string | null
   onSelect: (rowId: string) => void
   onCreateNext: (rowId: string, countIncrement: number) => void
+  onCreateSequence: (rowId: string) => void
 }) {
   const copy = COPY[locale]
   const rows = patternRows(elements)
@@ -66,6 +75,9 @@ export function PatternRowsPanel({
                 ? rowNumberById.get(row.binding.parentRowId)
                 : undefined
               const active = row.id === selectedRowId
+              const shaping = row.binding.shaping
+              const canIncrease6 = maxRowShapingChanges(row.stitchCount, 'increase') >= 6
+              const canDecrease6 = maxRowShapingChanges(row.stitchCount, 'decrease') >= 6
 
               return (
                 <div key={row.id} className={`pattern-row-card ${active ? 'active' : ''}`}>
@@ -76,15 +88,37 @@ export function PatternRowsPanel({
                       {row.stitchCount} {copy.stitches}
                       {parentNumber ? ` · ${copy.from} ${parentNumber}` : ''}
                     </small>
+                    {shaping && (
+                      <span className={`pattern-row-shaping ${shaping.kind}`}>
+                        {shaping.count} {shaping.kind === 'increase' ? copy.increases : copy.decreases}
+                      </span>
+                    )}
                   </button>
 
                   {active && (
                     <div className="pattern-row-next-actions">
                       <span>{copy.next}</span>
-                      <div>
+                      <div className="pattern-row-shaping-actions">
                         <button onClick={() => onCreateNext(row.id, 0)}>{copy.same}</button>
-                        <button onClick={() => onCreateNext(row.id, 6)}>{copy.plus6}</button>
-                        <button onClick={() => onCreateNext(row.id, 12)}>{copy.plus12}</button>
+                        <button
+                          onClick={() => onCreateNext(row.id, 6)}
+                          disabled={!canIncrease6}
+                        >
+                          {copy.plus6}
+                        </button>
+                        <button
+                          onClick={() => onCreateNext(row.id, -6)}
+                          disabled={!canDecrease6}
+                        >
+                          {copy.minus6}
+                        </button>
+                        <button
+                          className="pattern-sequence-button"
+                          onClick={() => onCreateSequence(row.id)}
+                          disabled={!canIncrease6}
+                        >
+                          {copy.sequence}
+                        </button>
                       </div>
                     </div>
                   )}
