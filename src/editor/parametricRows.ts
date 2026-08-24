@@ -1,9 +1,10 @@
-import type { Guide, ParametricRowBinding, StitchElement } from '../types'
+import type { Guide, ParametricRowBinding, RowShapingKind, StitchElement } from '../types'
 import {
   generateGuideRowPlacements,
   resolveGuideRowCount,
   rowPlacementsToElements,
 } from './rowGenerator'
+import { createRowShaping, targetCountForRowShaping } from './rowShaping'
 
 export type ParametricIdFactory = () => string
 
@@ -161,6 +162,12 @@ export function updateParametricRow(
   return reconcileParametricRows(rebound, guides, idFactory)
 }
 
+function shapingKindFromIncrement(countIncrement: number): RowShapingKind | null {
+  if (countIncrement > 0) return 'increase'
+  if (countIncrement < 0) return 'decrease'
+  return null
+}
+
 export function createNextPatternRow(
   elements: StitchElement[],
   guides: Guide[],
@@ -172,6 +179,13 @@ export function createNextPatternRow(
   if (!guide || guide.type === 'grid') return null
 
   const baseCount = resolveGuideRowCount(guide, parent.options)
+  const shapingKind = shapingKindFromIncrement(countIncrement)
+  const shaping = shapingKind
+    ? createRowShaping(baseCount, shapingKind, Math.abs(countIncrement))
+    : undefined
+  const targetCount = shaping
+    ? targetCountForRowShaping(baseCount, shaping.kind, shaping.count)
+    : baseCount
   const radialStep = guide.type === 'radial-grid' ? Math.max(1, guide.ringSpacing) : 40
   const binding: ParametricRowBinding = {
     id: idFactory(),
@@ -179,10 +193,11 @@ export function createNextPatternRow(
     symbolId: parent.symbolId,
     patternOrder: nextPatternOrder(elements),
     parentRowId: parent.id,
+    shaping,
     options: {
       ...parent.options,
       distributionMode: 'count',
-      count: Math.max(1, Math.min(500, baseCount + countIncrement)),
+      count: targetCount,
       radialOffset: parent.options.radialOffset + radialStep,
     },
   }
@@ -195,6 +210,38 @@ export function createNextPatternRow(
   ).map((element) => ({ ...element, parametricRow: binding }))
 
   return { binding, elements: generated }
+}
+
+export function createPatternIncreaseSequence(
+  elements: StitchElement[],
+  guides: Guide[],
+  parent: ParametricRowBinding,
+  increaseCount: number,
+  steps: number,
+  idFactory: ParametricIdFactory,
+) {
+  let working = [...elements]
+  let currentParent = parent
+  const createdRows: Array<{ binding: ParametricRowBinding; elements: StitchElement[] }> = []
+
+  for (let index = 0; index < Math.max(0, Math.round(steps)); index += 1) {
+    const created = createNextPatternRow(
+      working,
+      guides,
+      currentParent,
+      Math.abs(increaseCount),
+      idFactory,
+    )
+    if (!created) break
+    createdRows.push(created)
+    working = [...working, ...created.elements]
+    currentParent = created.binding
+  }
+
+  return {
+    rows: createdRows,
+    elements: createdRows.flatMap((row) => row.elements),
+  }
 }
 
 export function deleteParametricRow(elements: StitchElement[], rowId: string) {
