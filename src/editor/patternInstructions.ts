@@ -1,7 +1,13 @@
 import { SYMBOL_BY_ID } from '../symbols'
 import { symbolName, type Locale } from '../i18n'
-import type { ParametricRowBinding, RowShaping, StitchElement } from '../types'
+import type { ParametricRowBinding, RowSequenceItem, RowShaping, StitchElement } from '../types'
 import { patternRows, rowElements } from './parametricRows'
+import {
+  normalizeRowSequence,
+  rowHasMixedSequence,
+  rowSequenceCycleInfo,
+  rowSequenceRunsForCount,
+} from './rowSequence'
 
 export type PatternInstructionRow = {
   rowId: string
@@ -72,6 +78,61 @@ function actionLabel(
   return locale === 'ru'
     ? `${generic} (${abbreviation})`
     : `${abbreviation} ${generic}`
+}
+
+function formatSequenceRuns(items: RowSequenceItem[], locale: Locale) {
+  return items
+    .map((item) => `${item.count} ${stitchAbbreviation(item.symbolId, locale)}`)
+    .join(', ')
+}
+
+function mixedSequenceComposition(
+  binding: ParametricRowBinding,
+  targetCount: number,
+  locale: Locale,
+) {
+  if (!rowHasMixedSequence(binding)) return null
+  const sequence = normalizeRowSequence(binding.sequence)
+  if (!sequence) return null
+
+  const cycle = rowSequenceCycleInfo(sequence, targetCount)
+  const template = formatSequenceRuns(sequence.items, locale)
+  const parts: string[] = []
+  if (cycle.repeats === 1) parts.push(template)
+  else if (cycle.repeats > 1) parts.push(`(${template}) × ${cycle.repeats}`)
+  if (cycle.remainder) {
+    const remainder = rowSequenceRunsForCount(sequence, cycle.remainder, binding.symbolId)
+    parts.push(formatSequenceRuns(remainder, locale))
+  }
+  return parts.join(' + ') || formatSequenceRuns(
+    rowSequenceRunsForCount(sequence, targetCount, binding.symbolId),
+    locale,
+  )
+}
+
+function mixedShapingDetail(
+  binding: ParametricRowBinding,
+  locale: Locale,
+  parentPositions?: number[],
+) {
+  const shaping = binding.shaping
+  if (!shaping) return null
+  const copy = COPY[locale]
+
+  if (binding.topologyOverride) {
+    if (!parentPositions || parentPositions.length !== shaping.count) {
+      const generic = shaping.kind === 'increase' ? copy.increases : copy.decreases
+      return `${shaping.count} ${generic} ${copy.marked}`
+    }
+    if (shaping.kind === 'increase') {
+      return `${copy.atStitches} ${parentPositions.join(', ')}`
+    }
+    const pairs = parentPositions.map((second) => `${Math.max(1, second - 1)}–${second}`)
+    return `${copy.acrossPairs} ${pairs.join(', ')}`
+  }
+
+  const generic = shaping.kind === 'increase' ? copy.increases : copy.decreases
+  return `${shaping.count} ${copy.evenly} ${generic}`
 }
 
 function compactShapingBody(
@@ -149,6 +210,12 @@ export function formatPatternRowInstruction(
   parentPositions?: number[],
 ) {
   const prefix = `${COPY[locale].row} ${rowNumber}: `
+  const composition = mixedSequenceComposition(binding, stitchCount, locale)
+  if (composition) {
+    const shaping = mixedShapingDetail(binding, locale, parentPositions)
+    return `${prefix}${composition}${shaping ? `; ${shaping}` : ''} = ${stitchCount}`
+  }
+
   const shaped = manualTopologyBody(binding, stitchCount, locale, parentPositions)
     ?? compactShapingBody(binding, stitchCount, locale)
     ?? fallbackShapingBody(binding, stitchCount, locale)
@@ -202,14 +269,16 @@ export function usedPatternAbbreviations(elements: StitchElement[], locale: Loca
   const result: Array<{ abbreviation: string; name: string }> = []
 
   for (const row of patternRows(elements)) {
-    const symbolId = row.binding.symbolId
-    if (seen.has(symbolId)) continue
-    seen.add(symbolId)
-    const definition = SYMBOL_BY_ID.get(symbolId)
-    result.push({
-      abbreviation: stitchAbbreviation(symbolId, locale),
-      name: symbolName(symbolId, definition?.name ?? symbolId, locale),
-    })
+    const symbolIds = row.binding.sequence?.items.map((item) => item.symbolId) ?? [row.binding.symbolId]
+    for (const symbolId of symbolIds) {
+      if (seen.has(symbolId)) continue
+      seen.add(symbolId)
+      const definition = SYMBOL_BY_ID.get(symbolId)
+      result.push({
+        abbreviation: stitchAbbreviation(symbolId, locale),
+        name: symbolName(symbolId, definition?.name ?? symbolId, locale),
+      })
+    }
   }
 
   return result
