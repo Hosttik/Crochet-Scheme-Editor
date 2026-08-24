@@ -5,31 +5,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch-pattern-v09:
-    if: github.head_ref == 'feature/pattern-rows-v09' && github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v6
-        with:
-          ref: feature/pattern-rows-v09
-      - name: Apply guarded integration patch
-        run: node scripts/apply-pattern-rows-v09.mjs
-      - name: Commit integration
-        run: |
-          if git diff --quiet; then
-            echo "No integration changes needed"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/App.tsx src/i18n.ts
-          git commit -m "Integrate pattern rows into editor"
-          git push origin HEAD:feature/pattern-rows-v09
-
   verify:
     runs-on: ubuntu-latest
     steps:
