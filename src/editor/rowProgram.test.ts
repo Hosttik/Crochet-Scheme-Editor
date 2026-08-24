@@ -46,15 +46,26 @@ describe('rich row program', () => {
     expect(compiled.parentGroups.slice(0, 4)).toEqual([
       ['p1'], ['p2'], ['p3'], ['p3'],
     ])
-    expect(compiled.parentGroups[8]).toEqual(['p8', 'p9'])
-    expect(compiled.symbolIds[7]).toBe('chain')
-    expect(compiled.symbolIds[8]).toBe('double')
+    expect(compiled.parentGroups[8]).toEqual(['p7'])
+    expect(compiled.parentGroups[9]).toEqual(['p8', 'p9'])
+    expect(compiled.symbolIds[8]).toBe('chain')
+    expect(compiled.symbolIds[9]).toBe('double')
   })
 
   it('rejects topology programs when parent consumption does not match the parent row', () => {
     const compiled = compileRowProgram(program, parents(17))
     expect(compiled.valid).toBe(false)
     expect(compiled.reason).toBe('parent-count-mismatch')
+  })
+
+  it('rejects programs that would materialize more than 500 children', () => {
+    const compiled = compileRowProgram({
+      repeat: 100,
+      items: [{ kind: 'increase', symbolId: 'single', count: 500 }],
+    })
+    expect(compiled.valid).toBe(false)
+    expect(compiled.reason).toBe('too-many-children')
+    expect(compiled.symbolIds).toEqual([])
   })
 
   it('allows stitch-only programs without a parent row', () => {
