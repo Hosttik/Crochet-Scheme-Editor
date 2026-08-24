@@ -9,6 +9,7 @@ import type {
   StitchElement,
 } from '../types'
 import { patternRows, rowElements } from './parametricRows'
+import { rowConstructionInstructionParts } from './rowConstruction'
 import { normalizeRowProgram, rowProgramMetrics } from './rowProgram'
 import {
   normalizeRowSequence,
@@ -246,6 +247,17 @@ function fallbackShapingBody(
   return `${base} ${stitch}, ${changes} ${copy.evenly} ${action} = ${targetCount}`
 }
 
+function constructionAwareInstruction(
+  binding: ParametricRowBinding,
+  rowNumber: number,
+  body: string,
+  locale: Locale,
+) {
+  const construction = rowConstructionInstructionParts(binding.construction, locale)
+  const details = [...construction.prefix, body, ...construction.suffix]
+  return `${COPY[locale].row} ${rowNumber}: ${details.join('; ')}`
+}
+
 export function formatPatternRowInstruction(
   binding: ParametricRowBinding,
   rowNumber: number,
@@ -253,23 +265,34 @@ export function formatPatternRowInstruction(
   locale: Locale,
   parentPositions?: number[],
 ) {
-  const prefix = `${COPY[locale].row} ${rowNumber}: `
   const program = richProgramComposition(binding, stitchCount, locale)
-  if (program) return `${prefix}${program} = ${stitchCount}`
+  if (program) {
+    return constructionAwareInstruction(binding, rowNumber, `${program} = ${stitchCount}`, locale)
+  }
 
   const composition = mixedSequenceComposition(binding, stitchCount, locale)
   if (composition) {
     const shaping = mixedShapingDetail(binding, locale, parentPositions)
-    return `${prefix}${composition}${shaping ? `; ${shaping}` : ''} = ${stitchCount}`
+    return constructionAwareInstruction(
+      binding,
+      rowNumber,
+      `${composition}${shaping ? `; ${shaping}` : ''} = ${stitchCount}`,
+      locale,
+    )
   }
 
   const shaped = manualTopologyBody(binding, stitchCount, locale, parentPositions)
     ?? compactShapingBody(binding, stitchCount, locale)
     ?? fallbackShapingBody(binding, stitchCount, locale)
-  if (shaped) return prefix + shaped
+  if (shaped) return constructionAwareInstruction(binding, rowNumber, shaped, locale)
 
   const stitch = stitchAbbreviation(binding.symbolId, locale)
-  return `${prefix}${stitchCount} ${stitch} = ${stitchCount}`
+  return constructionAwareInstruction(
+    binding,
+    rowNumber,
+    `${stitchCount} ${stitch} = ${stitchCount}`,
+    locale,
+  )
 }
 
 export function generatePatternInstructions(
@@ -331,6 +354,9 @@ export function usedPatternAbbreviations(elements: StitchElement[], locale: Loca
     const symbolIds = richIds.length
       ? richIds
       : row.binding.sequence?.items.map((item) => item.symbolId) ?? [row.binding.symbolId]
+    if ((row.binding.construction?.startChainCount ?? 0) > 0) symbolIds.push('chain')
+    if (row.binding.construction?.joinWithSlipStitch) symbolIds.push('slip')
+
     for (const symbolId of symbolIds) {
       if (seen.has(symbolId)) continue
       seen.add(symbolId)
