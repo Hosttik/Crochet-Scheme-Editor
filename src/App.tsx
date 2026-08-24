@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { GuideRenderer } from './editor/GuideRenderer'
+import { StitchLayer } from './editor/StitchLayer'
 import type { GuideManipulationMode } from './editor/guideManipulation'
 import { clamp, screenToDocument } from './editor/geometry'
+import {
+  idsInMarquee,
+  normalizeRect,
+  pointerAngle,
+  rotationFromPointer,
+  type Rect,
+} from './editor/selection'
 import { solveSnap, type SnapCandidate } from './editor/snapping'
 import {
   DEFAULT_LOCALE,
@@ -32,19 +40,37 @@ const DEFAULT_SNAPPING: SnappingSettings = {
   tolerancePx: 12,
 }
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
+const DUPLICATE_OFFSET = 24
+const SYMBOL_SIZES = Object.fromEntries(
+  SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
+)
 
 type Tool = { type: 'select' } | { type: 'place'; symbolId: string }
 type DocumentSnapshot = { elements: StitchElement[]; guides: Guide[] }
-type DragState = {
-  pointerId: number
-  elementId: string
-  pointerOffset: Point
-  startSnapshot: DocumentSnapshot
-}
 type PanState = {
   pointerId: number
   startPointer: Point
   startViewport: Viewport
+}
+type DragState = {
+  pointerId: number
+  referenceId: string
+  selectedIds: string[]
+  startPointer: Point
+  startSnapshot: DocumentSnapshot
+}
+type MarqueeState = {
+  pointerId: number
+  start: Point
+  current: Point
+  baseIds: string[]
+}
+type RotateState = {
+  pointerId: number
+  elementId: string
+  startRotation: number
+  startPointerAngle: number
+  startSnapshot: DocumentSnapshot
 }
 type HistoryState = {
   past: DocumentSnapshot[]
@@ -118,7 +144,6 @@ function serializeSvg(elements: StitchElement[], emptyLabel: string) {
       bottom: element.y + half,
     }
   })
-
   const padding = 36
   const left = Math.min(...bounds.map((item) => item.left)) - padding
   const right = Math.max(...bounds.map((item) => item.right)) + padding
@@ -142,13 +167,27 @@ function initialLocale(): Locale {
   return stored === 'ru' || stored === 'en' ? stored : DEFAULT_LOCALE
 }
 
+function isEditingTarget(target: EventTarget | null) {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement
+  )
+}
+
+function uniqueIds(ids: string[]) {
+  return [...new Set(ids)]
+}
+
 function App() {
   const svgRef = useRef<SVGSVGElement>(null)
   const loadInputRef = useRef<HTMLInputElement>(null)
   const snapLockRef = useRef<string | null>(null)
   const spacePressedRef = useRef(false)
-  const didDragRef = useRef(false)
+  const interactionMovedRef = useRef(false)
   const guideManipulationSnapshotRef = useRef<DocumentSnapshot | null>(null)
+  const clipboardRef = useRef<StitchElement[]>([])
+  const pasteSerialRef = useRef(1)
 
   const [locale, setLocale] = useState<Locale>(initialLocale)
   const t = UI[locale]
@@ -156,15 +195,17 @@ function App() {
   const [guides, setGuides] = useState<Guide[]>([])
   const [history, setHistory] = useState<HistoryState>({ past: [], future: [] })
   const [tool, setTool] = useState<Tool>({ type: 'select' })
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectedGuideId, setSelectedGuideId] = useState<string | null>(null)
   const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT)
   const [snapping, setSnapping] = useState<SnappingSettings>(DEFAULT_SNAPPING)
   const [preview, setPreview] = useState<StitchElement | null>(null)
   const [snapTarget, setSnapTarget] = useState<SnapCandidate | null>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
+  const [marquee, setMarquee] = useState<MarqueeState | null>(null)
+  const [rotate, setRotate] = useState<RotateState | null>(null)
   const [pan, setPan] = useState<PanState | null>(null)
-  const [status, setStatus] = useState(UI[DEFAULT_LOCALE].ready)
+  const [status, setStatus] = useState<string>(UI[DEFAULT_LOCALE].ready)
 
   useEffect(() => {
     window.localStorage.setItem(LOCALE_STORAGE_KEY, locale)
@@ -172,9 +213,13 @@ function App() {
     setStatus(UI[locale].ready)
   }, [locale])
 
+  const primaryId = selectedIds.at(-1) ?? null
   const selectedElement = useMemo(
-    () => elements.find((element) => element.id === selectedId) ?? null,
-    [elements, selectedId],
+    () =>
+      selectedIds.length === 1
+        ? elements.find((element) => element.id === primaryId) ?? null
+        : null,
+    [elements, primaryId, selectedIds.length],
   )
   const selectedGuide = useMemo(
     () => guides.find((guide) => guide.id === selectedGuideId) ?? null,
@@ -192,15 +237,12 @@ function App() {
     const rect = svgRef.current?.getBoundingClientRect()
     return { x: clientX - (rect?.left ?? 0), y: clientY - (rect?.top ?? 0) }
   }, [])
-
   const toDocumentPoint = useCallback(
     (screen: Point) => screenToDocument(screen, viewport),
     [viewport],
   )
-
   const clientToDocument = useCallback(
-    (clientX: number, clientY: number) =>
-      toDocumentPoint(localPoint(clientX, clientY)),
+    (clientX: number, clientY: number) => toDocumentPoint(localPoint(clientX, clientY)),
     [localPoint, toDocumentPoint],
   )
 
@@ -229,6 +271,8 @@ function App() {
     [currentSnapshot, recordSnapshot],
   )
 
+  const clearElementSelection = useCallback(() => setSelectedIds([]), [])
+
   const undo = useCallback(() => {
     const previous = history.past.at(-1)
     if (!previous) return
@@ -238,10 +282,10 @@ function App() {
     })
     setElements(previous.elements)
     setGuides(previous.guides)
-    setSelectedId(null)
+    clearElementSelection()
     setSelectedGuideId(null)
     setStatus(t.statusUndo)
-  }, [currentSnapshot, history, t.statusUndo])
+  }, [clearElementSelection, currentSnapshot, history, t.statusUndo])
 
   const redo = useCallback(() => {
     const next = history.future[0]
@@ -252,16 +296,17 @@ function App() {
     })
     setElements(next.elements)
     setGuides(next.guides)
-    setSelectedId(null)
+    clearElementSelection()
     setSelectedGuideId(null)
     setStatus(t.statusRedo)
-  }, [currentSnapshot, history, t.statusRedo])
+  }, [clearElementSelection, currentSnapshot, history, t.statusRedo])
 
   const deleteSelected = useCallback(() => {
-    if (selectedId) {
-      commitElements(elements.filter((element) => element.id !== selectedId))
-      setSelectedId(null)
-      setStatus(t.elementDeleted)
+    if (selectedIds.length) {
+      const selected = new Set(selectedIds)
+      commitElements(elements.filter((element) => !selected.has(element.id)))
+      clearElementSelection()
+      setStatus(selectedIds.length > 1 ? t.elementsDeleted : t.elementDeleted)
       return
     }
     if (selectedGuideId) {
@@ -269,7 +314,70 @@ function App() {
       setSelectedGuideId(null)
       setStatus(t.guideDeleted)
     }
-  }, [commitElements, commitGuides, elements, guides, selectedGuideId, selectedId, t.elementDeleted, t.guideDeleted])
+  }, [
+    clearElementSelection,
+    commitElements,
+    commitGuides,
+    elements,
+    guides,
+    selectedGuideId,
+    selectedIds,
+    t.elementDeleted,
+    t.elementsDeleted,
+    t.guideDeleted,
+  ])
+
+  const copySelection = useCallback(() => {
+    if (!selectedIds.length) return
+    const selected = new Set(selectedIds)
+    clipboardRef.current = elements
+      .filter((element) => selected.has(element.id))
+      .map((element) => ({ ...element }))
+    pasteSerialRef.current = 1
+    setStatus(`${t.copied}: ${clipboardRef.current.length}`)
+  }, [elements, selectedIds, t.copied])
+
+  const pasteSelection = useCallback(() => {
+    if (!clipboardRef.current.length) return
+    const offset = DUPLICATE_OFFSET * pasteSerialRef.current
+    pasteSerialRef.current += 1
+    const pasted = clipboardRef.current.map((element) => ({
+      ...element,
+      id: createId(),
+      x: element.x + offset,
+      y: element.y + offset,
+    }))
+    commitElements([...elements, ...pasted])
+    setSelectedIds(pasted.map((element) => element.id))
+    setSelectedGuideId(null)
+    setTool({ type: 'select' })
+    setStatus(`${t.pasted}: ${pasted.length}`)
+  }, [commitElements, elements, t.pasted])
+
+  const duplicateSelection = useCallback(() => {
+    if (!selectedIds.length) return
+    const selected = new Set(selectedIds)
+    const duplicated = elements
+      .filter((element) => selected.has(element.id))
+      .map((element) => ({
+        ...element,
+        id: createId(),
+        x: element.x + DUPLICATE_OFFSET,
+        y: element.y + DUPLICATE_OFFSET,
+      }))
+    commitElements([...elements, ...duplicated])
+    setSelectedIds(duplicated.map((element) => element.id))
+    setSelectedGuideId(null)
+    setStatus(`${t.duplicated}: ${duplicated.length}`)
+  }, [commitElements, elements, selectedIds, t.duplicated])
+
+  const selectAll = useCallback(() => {
+    if (!elements.length) return
+    setSelectedIds(elements.map((element) => element.id))
+    setSelectedGuideId(null)
+    setTool({ type: 'select' })
+    setStatus(`${t.selectedCount}: ${elements.length}`)
+  }, [elements, t.selectedCount])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -277,36 +385,69 @@ function App() {
         spacePressedRef.current = true
         if (event.target === document.body) event.preventDefault()
       }
-      if (
-        (event.key === 'Delete' || event.key === 'Backspace') &&
-        !(event.target instanceof HTMLInputElement)
-      ) {
+
+      const editing = isEditingTarget(event.target)
+      if (!editing && (event.key === 'Delete' || event.key === 'Backspace')) {
         event.preventDefault()
         deleteSelected()
       }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
-        event.preventDefault()
-        if (event.shiftKey) redo()
-        else undo()
+
+      if (!editing && (event.metaKey || event.ctrlKey)) {
+        const key = event.key.toLowerCase()
+        if (key === 'z') {
+          event.preventDefault()
+          if (event.shiftKey) redo()
+          else undo()
+        } else if (key === 'c') {
+          event.preventDefault()
+          copySelection()
+        } else if (key === 'v') {
+          event.preventDefault()
+          pasteSelection()
+        } else if (key === 'd') {
+          event.preventDefault()
+          duplicateSelection()
+        } else if (key === 'a') {
+          event.preventDefault()
+          selectAll()
+        }
       }
+
       if (event.key === 'Escape') {
+        if (drag) setElements(drag.startSnapshot.elements)
+        if (rotate) setElements(rotate.startSnapshot.elements)
         setTool({ type: 'select' })
         setPreview(null)
         setSnapTarget(null)
         setDrag(null)
+        setRotate(null)
+        setMarquee(null)
         snapLockRef.current = null
+        interactionMovedRef.current = false
       }
     }
+
     const onKeyUp = (event: KeyboardEvent) => {
       if (event.code === 'Space') spacePressedRef.current = false
     }
+
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
     return () => {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
     }
-  }, [deleteSelected, redo, undo])
+  }, [
+    copySelection,
+    deleteSelected,
+    drag,
+    duplicateSelection,
+    pasteSelection,
+    redo,
+    rotate,
+    selectAll,
+    undo,
+  ])
 
   const handleWheel = (event: ReactWheelEvent<SVGSVGElement>) => {
     event.preventDefault()
@@ -358,8 +499,8 @@ function App() {
       return
     }
     if (event.button !== 0) return
-    const point = toDocumentPoint(localPoint(event.clientX, event.clientY))
 
+    const point = toDocumentPoint(localPoint(event.clientX, event.clientY))
     if (tool.type === 'place') {
       const proposed: StitchElement = {
         id: createId(),
@@ -383,20 +524,27 @@ function App() {
         rotation: solved.rotation,
       }
       commitElements([...elements, placed])
-      setSelectedId(placed.id)
+      setSelectedIds([placed.id])
       setSelectedGuideId(null)
       const definition = SYMBOL_BY_ID.get(placed.symbolId)
       setStatus(`${t.placed}: ${symbolName(placed.symbolId, definition?.name ?? placed.symbolId, locale)}`)
       return
     }
-    setSelectedId(null)
+
+    event.currentTarget.setPointerCapture(event.pointerId)
     setSelectedGuideId(null)
+    setMarquee({
+      pointerId: event.pointerId,
+      start: point,
+      current: point,
+      baseIds: event.shiftKey ? selectedIds : [],
+    })
   }
 
   const handleCanvasPointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
     const screen = localPoint(event.clientX, event.clientY)
     const activePan = pan
-    if (activePan && activePan.pointerId === event.pointerId) {
+    if (activePan?.pointerId === event.pointerId) {
       setViewport({
         ...activePan.startViewport,
         panX: activePan.startViewport.panX + screen.x - activePan.startPointer.x,
@@ -406,19 +554,46 @@ function App() {
     }
 
     const documentPoint = toDocumentPoint(screen)
-    const activeDrag = drag
-    if (activeDrag && activeDrag.pointerId === event.pointerId) {
-      const original = elements.find((element) => element.id === activeDrag.elementId)
+    if (rotate?.pointerId === event.pointerId) {
+      const original = rotate.startSnapshot.elements.find((element) => element.id === rotate.elementId)
       if (!original) return
-      didDragRef.current = true
-      const proposed: StitchElement = {
-        ...original,
-        x: documentPoint.x - activeDrag.pointerOffset.x,
-        y: documentPoint.y - activeDrag.pointerOffset.y,
+      const angle = rotationFromPointer(
+        rotate.startRotation,
+        rotate.startPointerAngle,
+        pointerAngle({ x: original.x, y: original.y }, documentPoint),
+        event.shiftKey,
+      )
+      interactionMovedRef.current = Math.abs(angle - rotate.startRotation) > 0.1
+      setElements(
+        rotate.startSnapshot.elements.map((element) =>
+          element.id === rotate.elementId ? { ...element, rotation: angle } : element,
+        ),
+      )
+      return
+    }
+
+    if (drag?.pointerId === event.pointerId) {
+      const selectedSet = new Set(drag.selectedIds)
+      const reference = drag.startSnapshot.elements.find(
+        (element) => element.id === drag.referenceId,
+      )
+      if (!reference) return
+
+      const rawDelta = {
+        x: documentPoint.x - drag.startPointer.x,
+        y: documentPoint.y - drag.startPointer.y,
       }
+      const proposedReference: StitchElement = {
+        ...reference,
+        x: reference.x + rawDelta.x,
+        y: reference.y + rawDelta.y,
+      }
+      const snapElements = drag.startSnapshot.elements.filter(
+        (element) => !selectedSet.has(element.id),
+      )
       const solved = solveSnap(
-        proposed,
-        elements,
+        proposedReference,
+        snapElements,
         guides,
         snapping,
         viewport,
@@ -426,34 +601,72 @@ function App() {
       )
       snapLockRef.current = solved.candidate?.key ?? null
       setSnapTarget(solved.candidate)
-      setElements((current) =>
-        current.map((element) =>
-          element.id === activeDrag.elementId
-            ? { ...element, x: solved.x, y: solved.y, rotation: solved.rotation }
-            : element,
-        ),
+
+      const delta = { x: solved.x - reference.x, y: solved.y - reference.y }
+      interactionMovedRef.current = Math.hypot(delta.x, delta.y) > 0.5
+      setElements(
+        drag.startSnapshot.elements.map((element) => {
+          if (!selectedSet.has(element.id)) return element
+          const moved = { ...element, x: element.x + delta.x, y: element.y + delta.y }
+          return drag.selectedIds.length === 1 && element.id === reference.id
+            ? { ...moved, rotation: solved.rotation }
+            : moved
+        }),
       )
       return
     }
+
+    if (marquee?.pointerId === event.pointerId) {
+      setMarquee({ ...marquee, current: documentPoint })
+      return
+    }
+
     updatePreview(documentPoint)
   }
 
-  const handleCanvasPointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
-    const activePan = pan
-    if (activePan && activePan.pointerId === event.pointerId) {
+  const finishPointerInteraction = (event: ReactPointerEvent<SVGSVGElement>, cancelled = false) => {
+    if (pan?.pointerId === event.pointerId) {
       setPan(null)
       return
     }
-    const activeDrag = drag
-    if (activeDrag && activeDrag.pointerId === event.pointerId) {
-      if (didDragRef.current) {
-        recordSnapshot(activeDrag.startSnapshot)
-        setStatus(t.elementMoved)
+
+    if (rotate?.pointerId === event.pointerId) {
+      if (cancelled) setElements(rotate.startSnapshot.elements)
+      else if (interactionMovedRef.current) {
+        recordSnapshot(rotate.startSnapshot)
+        setStatus(t.elementRotated)
       }
-      didDragRef.current = false
+      setRotate(null)
+      interactionMovedRef.current = false
+      return
+    }
+
+    if (drag?.pointerId === event.pointerId) {
+      if (cancelled) setElements(drag.startSnapshot.elements)
+      else if (interactionMovedRef.current) {
+        recordSnapshot(drag.startSnapshot)
+        setStatus(drag.selectedIds.length > 1 ? t.elementsMoved : t.elementMoved)
+      }
       setDrag(null)
       setSnapTarget(null)
       snapLockRef.current = null
+      interactionMovedRef.current = false
+      return
+    }
+
+    if (marquee?.pointerId === event.pointerId) {
+      if (!cancelled) {
+        const rect = normalizeRect(marquee.start, marquee.current)
+        const moved = Math.hypot(
+          marquee.current.x - marquee.start.x,
+          marquee.current.y - marquee.start.y,
+        ) > 2 / viewport.zoom
+        const hits = moved ? idsInMarquee(elements, rect, SYMBOL_SIZES) : []
+        const next = uniqueIds([...marquee.baseIds, ...hits])
+        setSelectedIds(next)
+        if (next.length) setStatus(`${t.selectedCount}: ${next.length}`)
+      }
+      setMarquee(null)
     }
   }
 
@@ -463,21 +676,52 @@ function App() {
   ) => {
     if (tool.type !== 'select' || event.button !== 0 || spacePressedRef.current) return
     event.stopPropagation()
-    const documentPoint = toDocumentPoint(localPoint(event.clientX, event.clientY))
-    setSelectedId(element.id)
+
+    const alreadySelected = selectedIds.includes(element.id)
+    if (event.shiftKey && alreadySelected) {
+      setSelectedIds(selectedIds.filter((id) => id !== element.id))
+      return
+    }
+
+    const nextSelection = event.shiftKey
+      ? uniqueIds([...selectedIds, element.id])
+      : alreadySelected
+        ? selectedIds
+        : [element.id]
+
+    setSelectedIds(nextSelection)
     setSelectedGuideId(null)
     setDrag({
       pointerId: event.pointerId,
-      elementId: element.id,
-      pointerOffset: {
-        x: documentPoint.x - element.x,
-        y: documentPoint.y - element.y,
-      },
+      referenceId: element.id,
+      selectedIds: nextSelection,
+      startPointer: clientToDocument(event.clientX, event.clientY),
       startSnapshot: currentSnapshot(),
     })
-    didDragRef.current = false
+    interactionMovedRef.current = false
     svgRef.current?.setPointerCapture(event.pointerId)
     snapLockRef.current = null
+  }
+
+  const handleRotatePointerDown = (
+    event: ReactPointerEvent<SVGCircleElement>,
+    element: StitchElement,
+  ) => {
+    if (event.button !== 0 || spacePressedRef.current) return
+    event.preventDefault()
+    event.stopPropagation()
+    const point = clientToDocument(event.clientX, event.clientY)
+    setSelectedIds([element.id])
+    setSelectedGuideId(null)
+    setRotate({
+      pointerId: event.pointerId,
+      elementId: element.id,
+      startRotation: element.rotation,
+      startPointerAngle: pointerAngle({ x: element.x, y: element.y }, point),
+      startSnapshot: currentSnapshot(),
+    })
+    interactionMovedRef.current = false
+    svgRef.current?.setPointerCapture(event.pointerId)
   }
 
   const handleGuidePointerDown = (
@@ -487,7 +731,7 @@ function App() {
     if (tool.type !== 'select' || event.button !== 0 || spacePressedRef.current) return
     event.stopPropagation()
     setSelectedGuideId(guide.id)
-    setSelectedId(null)
+    clearElementSelection()
     setStatus(`${guideLabel(guide, locale)} ${t.selected}`)
   }
 
@@ -508,7 +752,6 @@ function App() {
       const before = guideManipulationSnapshotRef.current
       guideManipulationSnapshotRef.current = null
       if (cancelled || !moved || !before) return
-
       recordSnapshot(before)
       if (mode === 'move') setStatus(t.guideMoved)
       else if (mode === 'resize') setStatus(t.guideResized)
@@ -518,10 +761,11 @@ function App() {
   )
 
   const rotateSelected = (delta: number) => {
-    if (!selectedElement) return
+    if (!selectedIds.length) return
+    const selected = new Set(selectedIds)
     commitElements(
       elements.map((element) =>
-        element.id === selectedElement.id
+        selected.has(element.id)
           ? { ...element, rotation: element.rotation + delta }
           : element,
       ),
@@ -575,7 +819,7 @@ function App() {
 
     commitGuides([...guides, guide])
     setSelectedGuideId(id)
-    setSelectedId(null)
+    clearElementSelection()
     setTool({ type: 'select' })
     setPreview(null)
     setStatus(`${guideLabel(guide, locale)} ${t.added}`)
@@ -613,7 +857,7 @@ function App() {
       setElements(project.elements)
       setGuides(Array.isArray(project.guides) ? project.guides : [])
       setSnapping(project.settings?.snapping ?? DEFAULT_SNAPPING)
-      setSelectedId(null)
+      clearElementSelection()
       setSelectedGuideId(null)
       setTool({ type: 'select' })
       setPreview(null)
@@ -637,6 +881,9 @@ function App() {
     center: t.center,
     bottom: t.bottom,
   }
+  const marqueeRect: Rect | null = marquee
+    ? normalizeRect(marquee.start, marquee.current)
+    : null
 
   return (
     <div className="app-shell">
@@ -651,26 +898,12 @@ function App() {
 
         <div className="topbar-actions">
           <div className="language-switch" aria-label={t.language}>
-            <button
-              className={`ghost-button ${locale === 'ru' ? 'active-lang' : ''}`}
-              onClick={() => setLocale('ru')}
-            >
-              RU
-            </button>
-            <button
-              className={`ghost-button ${locale === 'en' ? 'active-lang' : ''}`}
-              onClick={() => setLocale('en')}
-            >
-              EN
-            </button>
+            <button className={`ghost-button ${locale === 'ru' ? 'active-lang' : ''}`} onClick={() => setLocale('ru')}>RU</button>
+            <button className={`ghost-button ${locale === 'en' ? 'active-lang' : ''}`} onClick={() => setLocale('en')}>EN</button>
           </div>
           <span className="toolbar-separator" />
-          <button className="ghost-button" onClick={undo} disabled={!history.past.length}>
-            {t.undo}
-          </button>
-          <button className="ghost-button" onClick={redo} disabled={!history.future.length}>
-            {t.redo}
-          </button>
+          <button className="ghost-button" onClick={undo} disabled={!history.past.length}>{t.undo}</button>
+          <button className="ghost-button" onClick={redo} disabled={!history.future.length}>{t.redo}</button>
           <span className="toolbar-separator" />
           <button className="ghost-button" onClick={saveProject}>{t.saveJson}</button>
           <button className="ghost-button" onClick={() => loadInputRef.current?.click()}>{t.load}</button>
@@ -691,10 +924,7 @@ function App() {
 
       <aside className="sidebar left-sidebar">
         <section className="panel-section compact-section">
-          <div className="section-title-row">
-            <h2>{t.tools}</h2>
-            <span className="badge">P0</span>
-          </div>
+          <div className="section-title-row"><h2>{t.tools}</h2><span className="badge">P0</span></div>
           <button
             className={`tool-button ${tool.type === 'select' ? 'active' : ''}`}
             onClick={() => {
@@ -703,17 +933,12 @@ function App() {
               setSnapTarget(null)
             }}
           >
-            <span>↖</span>
-            {t.selectMove}
-            <kbd>Esc</kbd>
+            <span>↖</span>{t.selectMove}<kbd>Esc</kbd>
           </button>
         </section>
 
         <section className="panel-section guide-section">
-          <div className="section-title-row">
-            <h2>{t.guides}</h2>
-            <span className="muted-text">{guides.length}</span>
-          </div>
+          <div className="section-title-row"><h2>{t.guides}</h2><span className="muted-text">{guides.length}</span></div>
           <div className="guide-add-grid">
             <button onClick={() => addGuide('arc')}><strong>⌒</strong><span>{t.arc}</span></button>
             <button onClick={() => addGuide('grid')}><strong>▦</strong><span>{t.grid}</span></button>
@@ -728,7 +953,7 @@ function App() {
                   onClick={() => {
                     setTool({ type: 'select' })
                     setSelectedGuideId(guide.id)
-                    setSelectedId(null)
+                    clearElementSelection()
                   }}
                 >
                   <span className={`visibility-dot ${guide.visible ? '' : 'hidden'}`} />
@@ -740,10 +965,7 @@ function App() {
         </section>
 
         <section className="panel-section symbols-section">
-          <div className="section-title-row">
-            <h2>{t.stitches}</h2>
-            <span className="muted-text">{SYMBOLS.length}</span>
-          </div>
+          <div className="section-title-row"><h2>{t.stitches}</h2><span className="muted-text">{SYMBOLS.length}</span></div>
           {groupedSymbols.map(([category, symbols]) => (
             <div className="symbol-group" key={category}>
               <h3>{categoryName(category, locale)}</h3>
@@ -758,13 +980,11 @@ function App() {
                       title={label}
                       onClick={() => {
                         setTool({ type: 'place', symbolId: symbol.id })
-                        setSelectedId(null)
+                        clearElementSelection()
                         setSelectedGuideId(null)
                       }}
                     >
-                      <svg viewBox="-24 -38 48 76" aria-hidden="true">
-                        <g className="symbol-glyph"><SymbolGlyph symbolId={symbol.id} /></g>
-                      </svg>
+                      <svg viewBox="-24 -38 48 76" aria-hidden="true"><g className="symbol-glyph"><SymbolGlyph symbolId={symbol.id} /></g></svg>
                       <span>{label}</span>
                     </button>
                   )
@@ -789,8 +1009,8 @@ function App() {
           onWheel={handleWheel}
           onPointerDown={handleCanvasPointerDown}
           onPointerMove={handleCanvasPointerMove}
-          onPointerUp={handleCanvasPointerUp}
-          onPointerCancel={handleCanvasPointerUp}
+          onPointerUp={(event) => finishPointerInteraction(event)}
+          onPointerCancel={(event) => finishPointerInteraction(event, true)}
           onContextMenu={(event) => event.preventDefault()}
         >
           <defs>
@@ -823,40 +1043,16 @@ function App() {
               />
             ))}
 
-            {elements.map((element) => {
-              const selected = element.id === selectedId
-              const definition = SYMBOL_BY_ID.get(element.symbolId)
-              return (
-                <g
-                  key={element.id}
-                  transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
-                  className={`stitch-element ${selected ? 'selected' : ''}`}
-                  onPointerDown={(event) => handleElementPointerDown(event, element)}
-                >
-                  {selected && (
-                    <rect
-                      x={-(definition?.width ?? 30) / 2 - 8}
-                      y={-(definition?.height ?? 30) / 2 - 8}
-                      width={(definition?.width ?? 30) + 16}
-                      height={(definition?.height ?? 30) + 16}
-                      rx="5"
-                      className="selection-box"
-                    />
-                  )}
-                  <g className="symbol-glyph"><SymbolGlyph symbolId={element.symbolId} /></g>
-                  {selected && definition && (['top', 'center', 'bottom'] as AnchorName[]).map((anchor) => (
-                    <circle
-                      key={anchor}
-                      cx={definition.anchors[anchor].x}
-                      cy={definition.anchors[anchor].y}
-                      r={4 / viewport.zoom}
-                      className={`anchor-dot ${snapping.sourceAnchor === anchor ? 'source-anchor' : ''}`}
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  ))}
-                </g>
-              )
-            })}
+            <StitchLayer
+              elements={elements}
+              selectedIds={selectedIds}
+              primaryId={primaryId}
+              zoom={viewport.zoom}
+              sourceAnchor={snapping.sourceAnchor}
+              marquee={marqueeRect}
+              onElementPointerDown={handleElementPointerDown}
+              onRotatePointerDown={handleRotatePointerDown}
+            />
 
             {preview && (
               <g transform={`translate(${preview.x} ${preview.y}) rotate(${preview.rotation})`} className="preview-stitch">
@@ -865,10 +1061,7 @@ function App() {
             )}
 
             {snapTarget && (
-              <g
-                className={`snap-indicator ${snapTarget.targetType === 'guide' ? 'guide-target' : ''}`}
-                transform={`translate(${snapTarget.point.x} ${snapTarget.point.y})`}
-              >
+              <g className={`snap-indicator ${snapTarget.targetType === 'guide' ? 'guide-target' : ''}`} transform={`translate(${snapTarget.point.x} ${snapTarget.point.y})`}>
                 <circle r={8 / viewport.zoom} vectorEffect="non-scaling-stroke" />
                 <circle r={2.5 / viewport.zoom} vectorEffect="non-scaling-stroke" />
               </g>
@@ -878,7 +1071,7 @@ function App() {
 
         <div className="statusbar">
           <span>{status}</span>
-          <span>{elements.length} {t.stitchCount} · {guides.length} {t.guideCount}</span>
+          <span>{elements.length} {t.stitchCount} · {guides.length} {t.guideCount}{selectedIds.length ? ` · ${selectedIds.length} ${t.selectedShort}` : ''}</span>
         </div>
       </main>
 
@@ -887,22 +1080,14 @@ function App() {
           <div className="section-title-row"><h2>{t.snapping}</h2></div>
           <label className="toggle-row">
             <span><strong>{t.allowSnapping}</strong><small>{t.snappingHint}</small></span>
-            <input
-              type="checkbox"
-              checked={snapping.enabled}
-              onChange={(event) => setSnapping((value) => ({ ...value, enabled: event.target.checked }))}
-            />
+            <input type="checkbox" checked={snapping.enabled} onChange={(event) => setSnapping((value) => ({ ...value, enabled: event.target.checked }))} />
           </label>
 
           <fieldset disabled={!snapping.enabled}>
             <legend>{t.snapPoint}</legend>
             <div className="segmented-control">
               {(['top', 'center', 'bottom'] as AnchorName[]).map((anchor) => (
-                <button
-                  key={anchor}
-                  className={snapping.sourceAnchor === anchor ? 'active' : ''}
-                  onClick={() => setSnapping((value) => ({ ...value, sourceAnchor: anchor }))}
-                >
+                <button key={anchor} className={snapping.sourceAnchor === anchor ? 'active' : ''} onClick={() => setSnapping((value) => ({ ...value, sourceAnchor: anchor }))}>
                   {anchorLabels[anchor]}
                 </button>
               ))}
@@ -911,13 +1096,7 @@ function App() {
 
           <fieldset disabled={!snapping.enabled}>
             <legend>{t.orientation}</legend>
-            <select
-              value={snapping.orientationMode}
-              onChange={(event) => setSnapping((value) => ({
-                ...value,
-                orientationMode: event.target.value as OrientationMode,
-              }))}
-            >
+            <select value={snapping.orientationMode} onChange={(event) => setSnapping((value) => ({ ...value, orientationMode: event.target.value as OrientationMode }))}>
               <option value="none">{t.keepCurrent}</option>
               <option value="along">{t.alongTarget}</option>
               <option value="perpendicular">{t.perpendicular}</option>
@@ -926,23 +1105,11 @@ function App() {
 
           <label className="toggle-row compact-toggle">
             <span>{t.snapToVertices}</span>
-            <input
-              type="checkbox"
-              checked={snapping.snapToVertices}
-              disabled={!snapping.enabled}
-              onChange={(event) => setSnapping((value) => ({ ...value, snapToVertices: event.target.checked }))}
-            />
+            <input type="checkbox" checked={snapping.snapToVertices} disabled={!snapping.enabled} onChange={(event) => setSnapping((value) => ({ ...value, snapToVertices: event.target.checked }))} />
           </label>
           <label className="range-row">
             <span>{t.snapRadius} <strong>{snapping.tolerancePx}px</strong></span>
-            <input
-              type="range"
-              min="6"
-              max="24"
-              value={snapping.tolerancePx}
-              disabled={!snapping.enabled}
-              onChange={(event) => setSnapping((value) => ({ ...value, tolerancePx: Number(event.target.value) }))}
-            />
+            <input type="range" min="6" max="24" value={snapping.tolerancePx} disabled={!snapping.enabled} onChange={(event) => setSnapping((value) => ({ ...value, tolerancePx: Number(event.target.value) }))} />
           </label>
         </section>
 
@@ -955,11 +1122,7 @@ function App() {
                 <svg viewBox="-30 -42 60 84"><g className="symbol-glyph"><SymbolGlyph symbolId={selectedElement.symbolId} /></g></svg>
               </div>
               <div>
-                <strong>{symbolName(
-                  selectedElement.symbolId,
-                  SYMBOL_BY_ID.get(selectedElement.symbolId)?.name ?? selectedElement.symbolId,
-                  locale,
-                )}</strong>
+                <strong>{symbolName(selectedElement.symbolId, SYMBOL_BY_ID.get(selectedElement.symbolId)?.name ?? selectedElement.symbolId, locale)}</strong>
                 <small>x {Math.round(selectedElement.x)} · y {Math.round(selectedElement.y)}</small>
                 <small>{Math.round(selectedElement.rotation)}°</small>
               </div>
@@ -967,22 +1130,32 @@ function App() {
                 <button onClick={() => rotateSelected(-15)}>−15°</button>
                 <button onClick={() => rotateSelected(15)}>+15°</button>
               </div>
+              <div className="selection-actions">
+                <button onClick={copySelection}>{t.copy}</button>
+                <button onClick={duplicateSelection}>{t.duplicate}</button>
+              </div>
+              <button className="danger-button" onClick={deleteSelected}>{t.delete}</button>
+            </div>
+          ) : selectedIds.length > 1 ? (
+            <div className="multi-selection-card">
+              <strong>{t.selectedCount}: {selectedIds.length}</strong>
+              <small>{t.groupMoveHint}</small>
+              <div className="rotation-controls">
+                <button onClick={() => rotateSelected(-15)}>−15°</button>
+                <button onClick={() => rotateSelected(15)}>+15°</button>
+              </div>
+              <div className="selection-actions">
+                <button onClick={copySelection}>{t.copy}</button>
+                <button onClick={duplicateSelection}>{t.duplicate}</button>
+              </div>
               <button className="danger-button" onClick={deleteSelected}>{t.delete}</button>
             </div>
           ) : selectedGuide ? (
             <div className="guide-editor">
-              <div className="guide-editor-heading">
-                <strong>{guideLabel(selectedGuide, locale)}</strong>
-                <span>{selectedGuide.type}</span>
-              </div>
-
+              <div className="guide-editor-heading"><strong>{guideLabel(selectedGuide, locale)}</strong><span>{selectedGuide.type}</span></div>
               <label className="toggle-row compact-toggle">
                 <span>{t.visible}</span>
-                <input
-                  type="checkbox"
-                  checked={selectedGuide.visible}
-                  onChange={(event) => updateSelectedGuide((guide) => ({ ...guide, visible: event.target.checked }))}
-                />
+                <input type="checkbox" checked={selectedGuide.visible} onChange={(event) => updateSelectedGuide((guide) => ({ ...guide, visible: event.target.checked }))} />
               </label>
 
               {selectedGuide.type === 'arc' && (

@@ -1,0 +1,75 @@
+.marquee-selection {
+  fill: rgba(47, 94, 77, .08);
+  stroke: #2f5e4d;
+  stroke-width: 1.2;
+  stroke-dasharray: 5 4;
+}
+
+.group-selection-box {
+  fill: rgba(47, 94, 77, .035);
+  stroke: #2f5e4d;
+  stroke-width: 1.2;
+  stroke-dasharray: 7 4;
+}
+
+.stitch-rotation-link {
+  stroke: #3f8367;
+  stroke-width: 1.2;
+  stroke-dasharray: 3 3;
+}
+
+.stitch-rotation-handle {
+  fill: #fff;
+  stroke: #2f7659;
+  stroke-width: 1.5;
+  cursor: grab;
+}
+
+.stitch-rotation-handle:hover {
+  fill: #e6f1eb;
+}
+
+.stitch-rotation-handle:active {
+  cursor: grabbing;
+}
+
+.selection-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.selection-actions button,
+.multi-selection-card .rotation-controls button {
+  padding: 7px;
+  border: 1px solid #ddd9d1;
+  background: #fff;
+  font-size: 10px;
+}
+
+.selection-actions button:hover,
+.multi-selection-card .rotation-controls button:hover {
+  background: #f3f5f2;
+}
+
+.multi-selection-card {
+  display: grid;
+  gap: 10px;
+}
+
+.multi-selection-card > strong {
+  font-size: 12px;
+}
+
+.multi-selection-card > small {
+  color: #83867f;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.multi-selection-card .rotation-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
