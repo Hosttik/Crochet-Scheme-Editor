@@ -3,6 +3,7 @@ import { symbolName, type Locale } from '../i18n'
 import type { StitchElement } from '../types'
 import { PatternInstructionsPanel } from './PatternInstructionsPanel'
 import { patternRows } from './parametricRows'
+import { rowProgramMetrics } from './rowProgram'
 import { rowHasMixedSequence, rowSequenceCycleInfo } from './rowSequence'
 import { maxRowShapingChanges } from './rowShaping'
 import './patternRows.css'
@@ -17,13 +18,16 @@ const COPY = {
     increases: 'прибавок',
     decreases: 'убавок',
     mixed: 'Смешанный раппорт',
+    semantic: 'Семантический раппорт',
+    consumes: 'родителей',
     rapport: 'раппорт',
     next: 'Следующий ряд',
     same: 'Без изменений',
     plus6: '+6 прибавок',
     minus6: '−6 убавок',
     sequence: 'Серия +6 ×4',
-    hint: 'Следующий ряд наследует состав/раппорт. Прибавки и убавки меняют topology, но не типы stitches внутри раппорта.',
+    richNextHint: 'Быстрые shaping-действия отключены: topology этого ряда задаётся самой программой.',
+    hint: 'Обычный раппорт наследуется следующим рядом. Семантический раппорт сам задаёт состав и topology.',
   },
   en: {
     title: 'Rows',
@@ -34,13 +38,16 @@ const COPY = {
     increases: 'increases',
     decreases: 'decreases',
     mixed: 'Mixed rapport',
+    semantic: 'Semantic rapport',
+    consumes: 'parents',
     rapport: 'rapport',
     next: 'Next row',
     same: 'No shaping',
     plus6: '+6 increases',
     minus6: '−6 decreases',
     sequence: '+6 ×4 sequence',
-    hint: 'The next row inherits its stitch composition/rapport. Shaping changes topology without replacing rapport stitch types.',
+    richNextHint: 'Quick shaping actions are disabled because this row topology is owned by its program.',
+    hint: 'A simple rapport is inherited by the next row. A semantic rapport owns both composition and topology.',
   },
 } as const
 
@@ -82,22 +89,27 @@ export function PatternRowsPanel({
                 : undefined
               const active = row.id === selectedRowId
               const shaping = row.binding.shaping
-              const mixed = rowHasMixedSequence(row.binding)
+              const rich = Boolean(row.binding.program)
+              const mixed = !rich && rowHasMixedSequence(row.binding)
               const cycle = rowSequenceCycleInfo(row.binding.sequence, row.stitchCount)
-              const canIncrease6 = maxRowShapingChanges(row.stitchCount, 'increase') >= 6
-              const canDecrease6 = maxRowShapingChanges(row.stitchCount, 'decrease') >= 6
+              const programMetrics = rowProgramMetrics(row.binding.program)
+              const canIncrease6 = !rich && maxRowShapingChanges(row.stitchCount, 'increase') >= 6
+              const canDecrease6 = !rich && maxRowShapingChanges(row.stitchCount, 'decrease') >= 6
 
               return (
                 <div key={row.id} className={`pattern-row-card ${active ? 'active' : ''}`}>
                   <button className="pattern-row-main" onClick={() => onSelect(row.id)}>
                     <span className="pattern-row-number">{copy.row} {row.displayOrder}</span>
                     <strong>
-                      {mixed
-                        ? copy.mixed
-                        : symbolName(row.binding.symbolId, definition?.name ?? row.binding.symbolId, locale)}
+                      {rich
+                        ? copy.semantic
+                        : mixed
+                          ? copy.mixed
+                          : symbolName(row.binding.symbolId, definition?.name ?? row.binding.symbolId, locale)}
                     </strong>
                     <small>
                       {row.stitchCount} {copy.stitches}
+                      {rich ? ` · ${programMetrics.consumedParents} ${copy.consumes}` : ''}
                       {mixed ? ` · ${copy.rapport} ${cycle.templateLength}` : ''}
                       {parentNumber ? ` · ${copy.from} ${parentNumber}` : ''}
                     </small>
@@ -111,28 +123,32 @@ export function PatternRowsPanel({
                   {active && (
                     <div className="pattern-row-next-actions">
                       <span>{copy.next}</span>
-                      <div className="pattern-row-shaping-actions">
-                        <button onClick={() => onCreateNext(row.id, 0)}>{copy.same}</button>
-                        <button
-                          onClick={() => onCreateNext(row.id, 6)}
-                          disabled={!canIncrease6}
-                        >
-                          {copy.plus6}
-                        </button>
-                        <button
-                          onClick={() => onCreateNext(row.id, -6)}
-                          disabled={!canDecrease6}
-                        >
-                          {copy.minus6}
-                        </button>
-                        <button
-                          className="pattern-sequence-button"
-                          onClick={() => onCreateSequence(row.id)}
-                          disabled={!canIncrease6}
-                        >
-                          {copy.sequence}
-                        </button>
-                      </div>
+                      {rich ? (
+                        <small>{copy.richNextHint}</small>
+                      ) : (
+                        <div className="pattern-row-shaping-actions">
+                          <button onClick={() => onCreateNext(row.id, 0)}>{copy.same}</button>
+                          <button
+                            onClick={() => onCreateNext(row.id, 6)}
+                            disabled={!canIncrease6}
+                          >
+                            {copy.plus6}
+                          </button>
+                          <button
+                            onClick={() => onCreateNext(row.id, -6)}
+                            disabled={!canDecrease6}
+                          >
+                            {copy.minus6}
+                          </button>
+                          <button
+                            className="pattern-sequence-button"
+                            onClick={() => onCreateSequence(row.id)}
+                            disabled={!canIncrease6}
+                          >
+                            {copy.sequence}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
