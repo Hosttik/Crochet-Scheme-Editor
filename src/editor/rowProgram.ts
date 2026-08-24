@@ -8,6 +8,7 @@ import type {
 
 const MAX_COUNT = 500
 const MAX_REPEAT = 100
+const MAX_CHILDREN = 500
 
 export type CompiledRowProgram = {
   valid: boolean
@@ -15,7 +16,7 @@ export type CompiledRowProgram = {
   producedChildren: number
   symbolIds: string[]
   parentGroups: string[][]
-  reason?: 'missing-parent' | 'parent-count-mismatch' | 'empty-program'
+  reason?: 'missing-parent' | 'parent-count-mismatch' | 'empty-program' | 'too-many-children'
 }
 
 function clampCount(value: number, max = MAX_COUNT) {
@@ -66,50 +67,79 @@ export function rowProgramHasTopologyOperations(program?: RowProgram) {
     : item.kind !== 'stitch')
 }
 
-export function rowProgramLeaves(program?: RowProgram): RowProgramLeaf[] {
-  const normalized = normalizeRowProgram(program)
-  if (!normalized) return []
-  const root: RowProgramLeaf[] = []
-  for (let rootRepeat = 0; rootRepeat < normalized.repeat; rootRepeat += 1) {
-    for (const item of normalized.items) {
-      if (item.kind === 'group') {
-        for (let repeat = 0; repeat < item.repeat; repeat += 1) {
-          root.push(...item.items)
-        }
-      } else {
-        root.push(item)
-      }
-    }
+function leafMetrics(leaf: RowProgramLeaf) {
+  if (leaf.kind === 'stitch') {
+    return { consumedParents: leaf.count, producedChildren: leaf.count }
   }
-  return root
+  if (leaf.kind === 'increase') {
+    return { consumedParents: leaf.count, producedChildren: leaf.count * 2 }
+  }
+  return { consumedParents: leaf.count * 2, producedChildren: leaf.count }
+}
+
+function itemMetrics(item: RowProgramItem) {
+  if (item.kind !== 'group') return leafMetrics(item)
+  const group = item.items.reduce(
+    (result, leaf) => {
+      const metrics = leafMetrics(leaf)
+      return {
+        consumedParents: result.consumedParents + metrics.consumedParents,
+        producedChildren: result.producedChildren + metrics.producedChildren,
+      }
+    },
+    { consumedParents: 0, producedChildren: 0 },
+  )
+  return {
+    consumedParents: group.consumedParents * item.repeat,
+    producedChildren: group.producedChildren * item.repeat,
+  }
 }
 
 export function rowProgramMetrics(program?: RowProgram) {
-  let consumedParents = 0
-  let producedChildren = 0
-  for (const leaf of rowProgramLeaves(program)) {
-    if (leaf.kind === 'stitch') {
-      consumedParents += leaf.count
-      producedChildren += leaf.count
-    } else if (leaf.kind === 'increase') {
-      consumedParents += leaf.count
-      producedChildren += leaf.count * 2
-    } else {
-      consumedParents += leaf.count * 2
-      producedChildren += leaf.count
+  const normalized = normalizeRowProgram(program)
+  if (!normalized) return { consumedParents: 0, producedChildren: 0 }
+  const root = normalized.items.reduce(
+    (result, item) => {
+      const metrics = itemMetrics(item)
+      return {
+        consumedParents: result.consumedParents + metrics.consumedParents,
+        producedChildren: result.producedChildren + metrics.producedChildren,
+      }
+    },
+    { consumedParents: 0, producedChildren: 0 },
+  )
+  return {
+    consumedParents: root.consumedParents * normalized.repeat,
+    producedChildren: root.producedChildren * normalized.repeat,
+  }
+}
+
+function forEachMaterializedLeaf(program: RowProgram, callback: (leaf: RowProgramLeaf) => void) {
+  for (let rootRepeat = 0; rootRepeat < program.repeat; rootRepeat += 1) {
+    for (const item of program.items) {
+      if (item.kind === 'group') {
+        for (let repeat = 0; repeat < item.repeat; repeat += 1) {
+          item.items.forEach(callback)
+        }
+      } else {
+        callback(item)
+      }
     }
   }
-  return { consumedParents, producedChildren }
 }
 
 export function rowProgramSymbolIds(program?: RowProgram) {
+  const normalized = normalizeRowProgram(program)
+  if (!normalized) return []
+  const metrics = rowProgramMetrics(normalized)
+  if (metrics.producedChildren > MAX_CHILDREN) return []
   const symbols: string[] = []
-  for (const leaf of rowProgramLeaves(program)) {
+  forEachMaterializedLeaf(normalized, (leaf) => {
     const producedPerOperation = leaf.kind === 'increase' ? 2 : 1
     for (let index = 0; index < leaf.count * producedPerOperation; index += 1) {
       symbols.push(leaf.symbolId)
     }
-  }
+  })
   return symbols
 }
 
@@ -162,6 +192,16 @@ export function compileRowProgram(
   }
 
   const metrics = rowProgramMetrics(normalized)
+  if (metrics.producedChildren > MAX_CHILDREN) {
+    return {
+      valid: false,
+      ...metrics,
+      symbolIds: [],
+      parentGroups: [],
+      reason: 'too-many-children',
+    }
+  }
+
   const symbolIds = rowProgramSymbolIds(normalized)
   const requiresParents = rowProgramHasTopologyOperations(normalized)
   if (requiresParents && !parents?.length) {
@@ -184,7 +224,7 @@ export function compileRowProgram(
   }
 
   const state = { parentIndex: 0, parentGroups: [] as string[][] }
-  for (const leaf of rowProgramLeaves(normalized)) appendLeaf(leaf, parents, state)
+  forEachMaterializedLeaf(normalized, (leaf) => appendLeaf(leaf, parents, state))
   return {
     valid: true,
     ...metrics,
