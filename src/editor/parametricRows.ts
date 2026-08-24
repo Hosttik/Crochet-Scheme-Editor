@@ -5,7 +5,7 @@ import {
   rowPlacementsToElements,
 } from './rowGenerator'
 import { createRowShaping, targetCountForRowShaping } from './rowShaping'
-import { applyRowTopology } from './topology'
+import { applyRowTopology, isTopologyOverrideValid } from './topology'
 
 export type ParametricIdFactory = () => string
 
@@ -113,10 +113,17 @@ function reconcileTopology(elements: StitchElement[]) {
   let next = [...elements]
   for (const binding of uniqueBindings(next)) {
     if (!binding.parentRowId) {
+      const unlinkedBinding = binding.topologyOverride
+        ? { ...binding, topologyOverride: undefined }
+        : binding
       next = replaceRowBlock(
         next,
         binding.id,
-        rowElements(next, binding.id).map((element) => ({ ...element, parentStitchIds: undefined })),
+        rowElements(next, binding.id).map((element) => ({
+          ...element,
+          parentStitchIds: undefined,
+          parametricRow: unlinkedBinding,
+        })),
       )
       continue
     }
@@ -128,13 +135,33 @@ function reconcileTopology(elements: StitchElement[]) {
         ...element,
         parentStitchIds: undefined,
         parametricRow: element.parametricRow
-          ? { ...element.parametricRow, parentRowId: undefined, shaping: undefined }
+          ? {
+              ...element.parametricRow,
+              parentRowId: undefined,
+              shaping: undefined,
+              topologyOverride: undefined,
+            }
           : undefined,
       }))
       next = replaceRowBlock(next, binding.id, detachedChildren)
       continue
     }
-    next = replaceRowBlock(next, binding.id, applyRowTopology(children, parents, binding.shaping))
+
+    const topologyOverride = isTopologyOverrideValid(parents, binding.shaping, binding.topologyOverride)
+      ? binding.topologyOverride
+      : undefined
+    const resolvedBinding = topologyOverride === binding.topologyOverride
+      ? binding
+      : { ...binding, topologyOverride: undefined }
+    const reboundChildren = children.map((element) => ({
+      ...element,
+      parametricRow: resolvedBinding,
+    }))
+    next = replaceRowBlock(
+      next,
+      binding.id,
+      applyRowTopology(reboundChildren, parents, binding.shaping, topologyOverride),
+    )
   }
   return next
 }
@@ -289,6 +316,7 @@ export function deleteParametricRow(elements: StitchElement[], rowId: string) {
         ...binding,
         parentRowId: undefined,
         shaping: undefined,
+        topologyOverride: undefined,
       },
     }
   })
