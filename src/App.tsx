@@ -29,6 +29,7 @@ import {
   loadAutosave,
   loadLocalProject,
   saveAutosave,
+  saveLocalProject,
   setActiveProjectId as persistActiveProjectId,
 } from './editor/persistence'
 import { viewportForElements } from './editor/viewportFit'
@@ -347,7 +348,7 @@ function App() {
       const project = buildProject(projectTitle, elements, guides, snapping)
       const task = autosaveQueueRef.current
         .catch(() => undefined)
-        .then(() => saveAutosave(project))
+        .then(() => saveLocalProject(activeProjectId, project))
       autosaveQueueRef.current = task
       void task
         .then(() => {
@@ -359,7 +360,7 @@ function App() {
     }, AUTOSAVE_DELAY_MS)
 
     return () => window.clearTimeout(timeout)
-  }, [elements, guides, hydrated, projectTitle, snapping])
+  }, [activeProjectId, elements, guides, hydrated, projectTitle, snapping])
 
   useEffect(() => {
     if (!hydrated) return
