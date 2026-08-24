@@ -103,6 +103,26 @@ describe('pattern instructions', () => {
     )
   })
 
+  it('describes manual increase positions instead of claiming they are even', () => {
+    const manual = {
+      ...binding('row-2', 10, { kind: 'increase', count: 2, baseCount: 8 }, 'row-1'),
+      topologyOverride: { changeParentIds: ['row-1-4', 'row-1-7'] },
+    }
+    expect(formatPatternRowInstruction(manual, 2, 10, 'ru', [5, 8])).toBe(
+      'Ряд 2: 8 СБН; прибавки в петли 5, 8 = 10',
+    )
+  })
+
+  it('describes manual decrease pairs explicitly', () => {
+    const manual = {
+      ...binding('row-2', 6, { kind: 'decrease', count: 2, baseCount: 8 }, 'row-1'),
+      topologyOverride: { changeParentIds: ['row-1-3', 'row-1-7'] },
+    }
+    expect(formatPatternRowInstruction(manual, 2, 6, 'ru', [4, 8])).toBe(
+      'Ряд 2: 8 СБН; убавки на парах 3–4, 7–8 = 6',
+    )
+  })
+
   it('generates rows in pattern order and a markdown abbreviation legend', () => {
     const first = binding('row-1', 6)
     const second = binding(
