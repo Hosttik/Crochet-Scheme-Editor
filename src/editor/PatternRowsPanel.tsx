@@ -1,6 +1,7 @@
 import { SYMBOL_BY_ID } from '../symbols'
 import { symbolName, type Locale } from '../i18n'
 import type { StitchElement } from '../types'
+import { PatternInstructionsPanel } from './PatternInstructionsPanel'
 import { patternRows } from './parametricRows'
 import { maxRowShapingChanges } from './rowShaping'
 import './patternRows.css'
@@ -129,6 +130,13 @@ export function PatternRowsPanel({
           <p className="pattern-rows-hint">{copy.hint}</p>
         </>
       )}
+
+      <PatternInstructionsPanel
+        elements={elements}
+        locale={locale}
+        selectedRowId={selectedRowId}
+        onSelectRow={onSelect}
+      />
     </section>
   )
 }
