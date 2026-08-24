@@ -74,7 +74,8 @@
 }
 
 .row-generator-result,
-.row-generator-hint {
+.row-generator-hint,
+.row-generator-preview-hint {
   margin: 0;
   font-size: 9px;
   line-height: 1.45;
@@ -82,6 +83,14 @@
 
 .row-generator-result {
   color: #4f5d55;
+}
+
+.row-generator-preview-hint {
+  padding: 7px 9px;
+  border: 1px dashed #9db8aa;
+  border-radius: 7px;
+  background: #f1f7f3;
+  color: #4f7563;
 }
 
 .row-generator-hint {
@@ -94,4 +103,18 @@
 .row-generator-submit {
   width: 100%;
   min-height: 34px;
+}
+
+.row-generator-live-preview {
+  pointer-events: none;
+}
+
+.row-generator-preview-stitch {
+  opacity: .34;
+  color: #4d8069;
+  pointer-events: none;
+}
+
+.row-generator-preview-stitch .symbol-glyph {
+  filter: drop-shadow(0 0 2px rgba(77, 128, 105, .2));
 }
