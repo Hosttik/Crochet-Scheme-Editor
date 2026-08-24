@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { GuideRenderer } from './editor/GuideRenderer'
+import type { GuideManipulationMode } from './editor/guideManipulation'
 import { clamp, screenToDocument } from './editor/geometry'
 import { solveSnap, type SnapCandidate } from './editor/snapping'
 import {
@@ -147,6 +148,7 @@ function App() {
   const snapLockRef = useRef<string | null>(null)
   const spacePressedRef = useRef(false)
   const didDragRef = useRef(false)
+  const guideManipulationSnapshotRef = useRef<DocumentSnapshot | null>(null)
 
   const [locale, setLocale] = useState<Locale>(initialLocale)
   const t = UI[locale]
@@ -195,6 +197,13 @@ function App() {
     (screen: Point) => screenToDocument(screen, viewport),
     [viewport],
   )
+
+  const clientToDocument = useCallback(
+    (clientX: number, clientY: number) =>
+      toDocumentPoint(localPoint(clientX, clientY)),
+    [localPoint, toDocumentPoint],
+  )
+
   const currentSnapshot = useCallback(
     (): DocumentSnapshot => ({ elements, guides }),
     [elements, guides],
@@ -481,6 +490,32 @@ function App() {
     setSelectedId(null)
     setStatus(`${guideLabel(guide, locale)} ${t.selected}`)
   }
+
+  const handleGuideManipulationStart = useCallback(() => {
+    guideManipulationSnapshotRef.current = currentSnapshot()
+    setPreview(null)
+    setSnapTarget(null)
+  }, [currentSnapshot])
+
+  const handleGuideManipulationPreview = useCallback((nextGuide: Guide) => {
+    setGuides((current) =>
+      current.map((guide) => (guide.id === nextGuide.id ? nextGuide : guide)),
+    )
+  }, [])
+
+  const handleGuideManipulationEnd = useCallback(
+    (mode: GuideManipulationMode, moved: boolean, cancelled: boolean) => {
+      const before = guideManipulationSnapshotRef.current
+      guideManipulationSnapshotRef.current = null
+      if (cancelled || !moved || !before) return
+
+      recordSnapshot(before)
+      if (mode === 'move') setStatus(t.guideMoved)
+      else if (mode === 'resize') setStatus(t.guideResized)
+      else setStatus(t.guideRotated)
+    },
+    [recordSnapshot, t.guideMoved, t.guideResized, t.guideRotated],
+  )
 
   const rotateSelected = (delta: number) => {
     if (!selectedElement) return
@@ -781,6 +816,10 @@ function App() {
                 selected={guide.id === selectedGuideId}
                 zoom={viewport.zoom}
                 onPointerDown={handleGuidePointerDown}
+                clientToDocument={clientToDocument}
+                onManipulationStart={handleGuideManipulationStart}
+                onManipulationPreview={handleGuideManipulationPreview}
+                onManipulationEnd={handleGuideManipulationEnd}
               />
             ))}
 
