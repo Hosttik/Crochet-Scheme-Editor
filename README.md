@@ -27,7 +27,7 @@ Current functionality:
 
 Geometry and snapping are implemented as pure modules outside the React UI. The snapping engine has unit coverage for candidate generation, anchor alignment, screen-space tolerance, orientation modes, self-exclusion and hysteresis.
 
-Every pull request runs strict TypeScript checks, unit tests and the Vite production build.
+Every pull request runs strict TypeScript checks (including Vite client/CSS imports), unit tests and the Vite production build.
 
 ## Local development
 
