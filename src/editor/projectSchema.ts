@@ -2,9 +2,11 @@ import type {
   CrochetProject,
   Guide,
   ParametricRowBinding,
+  RowProgram,
   SnappingSettings,
   StitchElement,
 } from '../types'
+import { rowProgramMetrics } from './rowProgram'
 
 export class ProjectValidationError extends Error {
   constructor(message: string) {
@@ -23,6 +25,10 @@ function finite(value: unknown): value is number {
 
 function nonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
+}
+
+function positiveInteger(value: unknown, max: number) {
+  return finite(value) && Number.isInteger(value) && value >= 1 && value <= max
 }
 
 function optionalBoolean(value: unknown) {
@@ -45,16 +51,42 @@ function validateRowSequence(value: unknown) {
     throw new ProjectValidationError('Invalid row sequence')
   }
   for (const item of value.items) {
-    if (
-      !isRecord(item) ||
-      !nonEmptyString(item.symbolId) ||
-      !finite(item.count) ||
-      !Number.isInteger(item.count) ||
-      item.count < 1 ||
-      item.count > 500
-    ) {
+    if (!isRecord(item) || !nonEmptyString(item.symbolId) || !positiveInteger(item.count, 500)) {
       throw new ProjectValidationError('Invalid row sequence item')
     }
+  }
+}
+
+function validateProgramLeaf(value: unknown) {
+  if (!isRecord(value)) throw new ProjectValidationError('Invalid row program leaf')
+  if (
+    !['stitch', 'increase', 'decrease'].includes(String(value.kind)) ||
+    !nonEmptyString(value.symbolId) ||
+    !positiveInteger(value.count, 500)
+  ) throw new ProjectValidationError('Invalid row program leaf')
+}
+
+function validateRowProgram(value: unknown) {
+  if (value === undefined) return
+  if (
+    !isRecord(value) || !positiveInteger(value.repeat, 100) ||
+    !Array.isArray(value.items) || value.items.length === 0 || value.items.length > 50
+  ) throw new ProjectValidationError('Invalid row program')
+
+  for (const item of value.items) {
+    if (!isRecord(item)) throw new ProjectValidationError('Invalid row program item')
+    if (item.kind === 'group') {
+      if (
+        !positiveInteger(item.repeat, 100) || !Array.isArray(item.items) ||
+        item.items.length === 0 || item.items.length > 50
+      ) throw new ProjectValidationError('Invalid row program group')
+      item.items.forEach(validateProgramLeaf)
+    } else validateProgramLeaf(item)
+  }
+
+  const metrics = rowProgramMetrics(value as unknown as RowProgram)
+  if (metrics.producedChildren > 500 || metrics.consumedParents > 500) {
+    throw new ProjectValidationError('Rich row program exceeds editor limits')
   }
 }
 
@@ -71,39 +103,33 @@ function parseParametricRow(value: unknown): ParametricRowBinding | undefined {
     !finite(options.count) || !finite(options.spacing) ||
     (options.orientation !== 'tangent' && options.orientation !== 'radial' && options.orientation !== 'fixed') ||
     !finite(options.rotationOffset) || !finite(options.radialOffset) || !finite(options.ringIndex)
-  ) {
-    throw new ProjectValidationError('Invalid parametric row options')
-  }
-  if (value.patternOrder !== undefined && !finite(value.patternOrder)) {
-    throw new ProjectValidationError('Invalid row order')
-  }
-  if (value.parentRowId !== undefined && !nonEmptyString(value.parentRowId)) {
-    throw new ProjectValidationError('Invalid parent row id')
-  }
+  ) throw new ProjectValidationError('Invalid parametric row options')
+  if (value.patternOrder !== undefined && !finite(value.patternOrder)) throw new ProjectValidationError('Invalid row order')
+  if (value.parentRowId !== undefined && !nonEmptyString(value.parentRowId)) throw new ProjectValidationError('Invalid parent row id')
   if (value.shaping !== undefined) {
     if (!isRecord(value.shaping)) throw new ProjectValidationError('Invalid row shaping')
     if (
       (value.shaping.kind !== 'increase' && value.shaping.kind !== 'decrease') ||
       !finite(value.shaping.count) || !finite(value.shaping.baseCount)
-    ) {
-      throw new ProjectValidationError('Invalid row shaping')
-    }
+    ) throw new ProjectValidationError('Invalid row shaping')
   }
   if (value.topologyOverride !== undefined) {
     if (!isRecord(value.topologyOverride) || !Array.isArray(value.topologyOverride.changeParentIds)) {
       throw new ProjectValidationError('Invalid topology override')
     }
     const ids = value.topologyOverride.changeParentIds
-    if (
-      ids.length === 0 ||
-      !ids.every(nonEmptyString) ||
-      new Set(ids).size !== ids.length ||
-      value.shaping === undefined
-    ) {
+    if (ids.length === 0 || !ids.every(nonEmptyString) || new Set(ids).size !== ids.length || value.shaping === undefined) {
       throw new ProjectValidationError('Invalid topology override')
     }
   }
   validateRowSequence(value.sequence)
+  validateRowProgram(value.program)
+  if (value.program !== undefined && value.sequence !== undefined) {
+    throw new ProjectValidationError('Row cannot contain both sequence and rich program')
+  }
+  if (value.program !== undefined && (value.shaping !== undefined || value.topologyOverride !== undefined)) {
+    throw new ProjectValidationError('Rich row program owns shaping and topology')
+  }
   return value as unknown as ParametricRowBinding
 }
 
@@ -114,9 +140,7 @@ function parseElement(value: unknown): StitchElement {
     !finite(value.x) || !finite(value.y) || !finite(value.rotation) ||
     !optionalBoolean(value.visible) || !optionalBoolean(value.locked) ||
     !optionalStringArray(value.parentStitchIds)
-  ) {
-    throw new ProjectValidationError('Invalid stitch element fields')
-  }
+  ) throw new ProjectValidationError('Invalid stitch element fields')
   return {
     id: value.id,
     symbolId: value.symbolId,
@@ -131,25 +155,17 @@ function parseElement(value: unknown): StitchElement {
 }
 
 function parseGuide(value: unknown): Guide {
-  if (!isRecord(value) || !nonEmptyString(value.id) || typeof value.visible !== 'boolean') {
-    throw new ProjectValidationError('Invalid guide')
-  }
+  if (!isRecord(value) || !nonEmptyString(value.id) || typeof value.visible !== 'boolean') throw new ProjectValidationError('Invalid guide')
   if (value.type === 'arc') {
-    if (!point(value.center) || !finite(value.radius) || !finite(value.startAngle) || !finite(value.endAngle) || !finite(value.divisions)) {
-      throw new ProjectValidationError('Invalid arc guide')
-    }
+    if (!point(value.center) || !finite(value.radius) || !finite(value.startAngle) || !finite(value.endAngle) || !finite(value.divisions)) throw new ProjectValidationError('Invalid arc guide')
     return value as unknown as Guide
   }
   if (value.type === 'grid') {
-    if (!point(value.origin) || !finite(value.rows) || !finite(value.columns) || !finite(value.spacingX) || !finite(value.spacingY) || !finite(value.rotation)) {
-      throw new ProjectValidationError('Invalid grid guide')
-    }
+    if (!point(value.origin) || !finite(value.rows) || !finite(value.columns) || !finite(value.spacingX) || !finite(value.spacingY) || !finite(value.rotation)) throw new ProjectValidationError('Invalid grid guide')
     return value as unknown as Guide
   }
   if (value.type === 'radial-grid') {
-    if (!point(value.center) || !finite(value.ringCount) || !finite(value.ringSpacing) || !finite(value.sectorCount) || !finite(value.startAngle)) {
-      throw new ProjectValidationError('Invalid radial guide')
-    }
+    if (!point(value.center) || !finite(value.ringCount) || !finite(value.ringSpacing) || !finite(value.sectorCount) || !finite(value.startAngle)) throw new ProjectValidationError('Invalid radial guide')
     return value as unknown as Guide
   }
   throw new ProjectValidationError('Unknown guide type')
@@ -161,23 +177,16 @@ function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSett
     typeof value.enabled !== 'boolean' ||
     !['top', 'center', 'bottom'].includes(String(value.sourceAnchor)) ||
     !['none', 'along', 'perpendicular'].includes(String(value.orientationMode)) ||
-    typeof value.snapToVertices !== 'boolean' ||
-    !finite(value.tolerancePx)
-  ) {
-    throw new ProjectValidationError('Invalid snapping settings')
-  }
+    typeof value.snapToVertices !== 'boolean' || !finite(value.tolerancePx)
+  ) throw new ProjectValidationError('Invalid snapping settings')
   return value as unknown as SnappingSettings
 }
 
 export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): CrochetProject {
   if (!isRecord(raw)) throw new ProjectValidationError('Project must be an object')
-  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 9) {
-    throw new ProjectValidationError('Unsupported project schema')
-  }
+  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 10) throw new ProjectValidationError('Unsupported project schema')
   if (!Array.isArray(raw.elements)) throw new ProjectValidationError('Project elements are missing')
-  if (raw.guides !== undefined && !Array.isArray(raw.guides)) {
-    throw new ProjectValidationError('Project guides are invalid')
-  }
+  if (raw.guides !== undefined && !Array.isArray(raw.guides)) throw new ProjectValidationError('Project guides are invalid')
 
   const metadata = isRecord(raw.metadata) ? raw.metadata : {}
   const settings = isRecord(raw.settings) ? raw.settings : {}
@@ -185,15 +194,13 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
   const guides = (raw.guides ?? []).map(parseGuide)
 
   return {
-    schemaVersion: 9,
+    schemaVersion: 10,
     metadata: {
       title: typeof metadata.title === 'string' && metadata.title.trim() ? metadata.title : 'Crochet scheme',
       updatedAt: typeof metadata.updatedAt === 'string' ? metadata.updatedAt : new Date().toISOString(),
     },
     elements,
     guides,
-    settings: {
-      snapping: parseSnapping(settings.snapping, fallbackSnapping),
-    },
+    settings: { snapping: parseSnapping(settings.snapping, fallbackSnapping) },
   }
 }

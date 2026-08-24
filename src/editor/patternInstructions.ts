@@ -1,7 +1,15 @@
 import { SYMBOL_BY_ID } from '../symbols'
 import { symbolName, type Locale } from '../i18n'
-import type { ParametricRowBinding, RowSequenceItem, RowShaping, StitchElement } from '../types'
+import type {
+  ParametricRowBinding,
+  RowProgramItem,
+  RowProgramLeaf,
+  RowSequenceItem,
+  RowShaping,
+  StitchElement,
+} from '../types'
 import { patternRows, rowElements } from './parametricRows'
+import { normalizeRowProgram, rowProgramMetrics } from './rowProgram'
 import {
   normalizeRowSequence,
   rowHasMixedSequence,
@@ -42,6 +50,8 @@ const COPY = {
     marked: 'по отмеченным позициям',
     title: 'Схема вязания',
     abbreviations: 'Сокращения',
+    programMismatch: 'ожидается по раппорту',
+    actual: 'фактически',
   },
   en: {
     row: 'Row',
@@ -55,6 +65,8 @@ const COPY = {
     marked: 'at marked positions',
     title: 'Crochet pattern',
     abbreviations: 'Abbreviations',
+    programMismatch: 'rapport expects',
+    actual: 'actual',
   },
 } as const
 
@@ -108,6 +120,38 @@ function mixedSequenceComposition(
     rowSequenceRunsForCount(sequence, targetCount, binding.symbolId),
     locale,
   )
+}
+
+function programLeafText(leaf: RowProgramLeaf, locale: Locale) {
+  const abbreviation = stitchAbbreviation(leaf.symbolId, locale)
+  if (leaf.kind === 'stitch') return `${leaf.count} ${abbreviation}`
+  const word = leaf.kind === 'increase'
+    ? leaf.count === 1 ? COPY[locale].increase : COPY[locale].increases
+    : leaf.count === 1 ? COPY[locale].decrease : COPY[locale].decreases
+  return locale === 'ru'
+    ? `${leaf.count === 1 ? '' : `${leaf.count} `}${word} (${abbreviation})`
+    : `${leaf.count === 1 ? '' : `${leaf.count} `}${abbreviation} ${word}`
+}
+
+function programItemText(item: RowProgramItem, locale: Locale) {
+  if (item.kind !== 'group') return programLeafText(item, locale)
+  const body = item.items.map((leaf) => programLeafText(leaf, locale)).join(', ')
+  return item.repeat === 1 ? body : `(${body}) × ${item.repeat}`
+}
+
+function richProgramComposition(
+  binding: ParametricRowBinding,
+  stitchCount: number,
+  locale: Locale,
+) {
+  const program = normalizeRowProgram(binding.program)
+  if (!program) return null
+  const body = program.items.map((item) => programItemText(item, locale)).join(', ')
+  const expression = program.repeat === 1 ? body : `[${body}] × ${program.repeat}`
+  const metrics = rowProgramMetrics(program)
+  if (metrics.producedChildren === stitchCount) return expression
+  const copy = COPY[locale]
+  return `${expression}; ${copy.programMismatch} ${metrics.producedChildren}, ${copy.actual} ${stitchCount}`
 }
 
 function mixedShapingDetail(
@@ -210,6 +254,9 @@ export function formatPatternRowInstruction(
   parentPositions?: number[],
 ) {
   const prefix = `${COPY[locale].row} ${rowNumber}: `
+  const program = richProgramComposition(binding, stitchCount, locale)
+  if (program) return `${prefix}${program} = ${stitchCount}`
+
   const composition = mixedSequenceComposition(binding, stitchCount, locale)
   if (composition) {
     const shaping = mixedShapingDetail(binding, locale, parentPositions)
@@ -264,12 +311,26 @@ export function generatePatternInstructions(
   })
 }
 
+function programSymbolIds(binding: ParametricRowBinding) {
+  const program = normalizeRowProgram(binding.program)
+  if (!program) return []
+  const ids: string[] = []
+  for (const item of program.items) {
+    if (item.kind === 'group') ids.push(...item.items.map((leaf) => leaf.symbolId))
+    else ids.push(item.symbolId)
+  }
+  return ids
+}
+
 export function usedPatternAbbreviations(elements: StitchElement[], locale: Locale) {
   const seen = new Set<string>()
   const result: Array<{ abbreviation: string; name: string }> = []
 
   for (const row of patternRows(elements)) {
-    const symbolIds = row.binding.sequence?.items.map((item) => item.symbolId) ?? [row.binding.symbolId]
+    const richIds = programSymbolIds(row.binding)
+    const symbolIds = richIds.length
+      ? richIds
+      : row.binding.sequence?.items.map((item) => item.symbolId) ?? [row.binding.symbolId]
     for (const symbolId of symbolIds) {
       if (seen.has(symbolId)) continue
       seen.add(symbolId)

@@ -35,6 +35,25 @@ export type RowSequence = {
   items: RowSequenceItem[]
 }
 
+export type RowProgramLeaf = {
+  kind: 'stitch' | 'increase' | 'decrease'
+  symbolId: string
+  count: number
+}
+
+export type RowProgramGroup = {
+  kind: 'group'
+  repeat: number
+  items: RowProgramLeaf[]
+}
+
+export type RowProgramItem = RowProgramLeaf | RowProgramGroup
+
+export type RowProgram = {
+  repeat: number
+  items: RowProgramItem[]
+}
+
 export type ParametricRowBinding = {
   id: string
   guideId: string
@@ -45,6 +64,7 @@ export type ParametricRowBinding = {
   shaping?: RowShaping
   topologyOverride?: RowTopologyOverride
   sequence?: RowSequence
+  program?: RowProgram
 }
 
 export type StitchElement = {
@@ -110,7 +130,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
   metadata: {
     title: string
     updatedAt: string

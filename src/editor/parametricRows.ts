@@ -5,6 +5,11 @@ import {
   rowPlacementsToElements,
 } from './rowGenerator'
 import { createRowShaping, targetCountForRowShaping } from './rowShaping'
+import {
+  applyCompiledProgram,
+  compileRowProgram,
+  rowProgramSymbolIds,
+} from './rowProgram'
 import { rowBindingSymbolIds } from './rowSequence'
 import { applyRowTopology, isTopologyOverrideValid } from './topology'
 
@@ -111,7 +116,10 @@ function replaceRowBlock(
 }
 
 function applyBindingSymbols(elements: StitchElement[], binding: ParametricRowBinding) {
-  const symbolIds = rowBindingSymbolIds(binding, elements.length)
+  const programSymbols = binding.program ? rowProgramSymbolIds(binding.program) : null
+  const symbolIds = programSymbols?.length === elements.length
+    ? programSymbols
+    : rowBindingSymbolIds(binding, elements.length)
   return elements.map((element, index) => ({
     ...element,
     symbolId: symbolIds[index] ?? binding.symbolId,
@@ -154,6 +162,19 @@ function reconcileTopology(elements: StitchElement[]) {
           : undefined,
       }))
       next = replaceRowBlock(next, binding.id, detachedChildren)
+      continue
+    }
+
+    if (binding.program) {
+      const compiled = compileRowProgram(binding.program, parents)
+      const resolvedBinding = binding.shaping || binding.topologyOverride
+        ? { ...binding, shaping: undefined, topologyOverride: undefined }
+        : binding
+      const reboundChildren = children.map((element) => ({
+        ...element,
+        parametricRow: resolvedBinding,
+      }))
+      next = replaceRowBlock(next, binding.id, applyCompiledProgram(reboundChildren, compiled))
       continue
     }
 

@@ -1,6 +1,7 @@
 import { SYMBOLS } from '../symbols'
 import { symbolName, type Locale } from '../i18n'
 import type { ParametricRowBinding, RowSequenceItem } from '../types'
+import { defaultRichProgram, RichRapportEditor } from './RichRapportEditor'
 import {
   normalizeRowSequenceItems,
   rowSequenceCycleInfo,
@@ -12,6 +13,7 @@ const COPY = {
     title: 'Состав ряда',
     single: 'Один элемент',
     rapport: 'Раппорт',
+    rich: 'Семантический',
     count: 'Кол-во',
     stitch: 'Элемент',
     add: '+ Добавить шаг',
@@ -22,11 +24,13 @@ const COPY = {
     repeats: 'полных повторов',
     remainder: 'остаток',
     hint: 'Раппорт циклически заполняет фактическое количество петель ряда и не меняет shaping или topology.',
+    richHint: 'Семантический режим задаёт и состав, и точные связи 1→1 / 1→2 / 2→1.',
   },
   en: {
     title: 'Row composition',
     single: 'Single stitch',
     rapport: 'Rapport',
+    rich: 'Semantic',
     count: 'Count',
     stitch: 'Stitch',
     add: '+ Add step',
@@ -37,6 +41,7 @@ const COPY = {
     repeats: 'full repeats',
     remainder: 'remainder',
     hint: 'The rapport cycles across the actual row stitch count without changing shaping or topology.',
+    richHint: 'Semantic mode owns both composition and exact 1→1 / 1→2 / 2→1 topology.',
   },
 } as const
 
@@ -48,34 +53,57 @@ export function RowSequenceEditor({
   binding,
   locale,
   stitchCount,
+  parentStitchCount,
   onChange,
 }: {
   binding: ParametricRowBinding
   locale: Locale
   stitchCount: number
+  parentStitchCount?: number
   onChange: (binding: ParametricRowBinding) => void
 }) {
   const copy = COPY[locale]
   const items = binding.sequence?.items ?? []
-  const mixed = Boolean(binding.sequence)
+  const rapport = Boolean(binding.sequence)
+  const rich = Boolean(binding.program)
   const cycle = rowSequenceCycleInfo(binding.sequence, stitchCount)
 
   const setItems = (nextItems: RowSequenceItem[]) => {
     const normalized = normalizeRowSequenceItems(nextItems)
     onChange({
       ...binding,
+      program: undefined,
       sequence: normalized.length ? { items: normalized } : undefined,
     })
   }
 
   const enableRapport = () => {
+    if (rapport) return
     onChange({
       ...binding,
+      program: undefined,
       sequence: {
         items: [
           { symbolId: binding.symbolId, count: 3 },
           { symbolId: defaultSecondSymbol(binding.symbolId), count: 1 },
         ],
+      },
+    })
+  }
+
+  const enableRich = () => {
+    if (rich) return
+    const program = defaultRichProgram(binding.symbolId, parentStitchCount ?? stitchCount)
+    onChange({
+      ...binding,
+      sequence: undefined,
+      shaping: undefined,
+      topologyOverride: undefined,
+      program,
+      options: {
+        ...binding.options,
+        distributionMode: 'count',
+        count: parentStitchCount ?? stitchCount,
       },
     })
   }
@@ -97,17 +125,20 @@ export function RowSequenceEditor({
       <legend>{copy.title}</legend>
       <div className="segmented-control">
         <button
-          className={!mixed ? 'active' : ''}
-          onClick={() => onChange({ ...binding, sequence: undefined })}
+          className={!rapport && !rich ? 'active' : ''}
+          onClick={() => onChange({ ...binding, sequence: undefined, program: undefined })}
         >
           {copy.single}
         </button>
-        <button className={mixed ? 'active' : ''} onClick={enableRapport}>
+        <button className={rapport ? 'active' : ''} onClick={enableRapport}>
           {copy.rapport}
+        </button>
+        <button className={rich ? 'active' : ''} onClick={enableRich}>
+          {copy.rich}
         </button>
       </div>
 
-      {mixed && (
+      {rapport && (
         <>
           <div className="row-sequence-list">
             {items.map((item, index) => (
@@ -174,6 +205,18 @@ export function RowSequenceEditor({
             {cycle.remainder ? ` · ${copy.remainder}: ${cycle.remainder}` : ''}
           </p>
           <p className="row-generator-hint">{copy.hint}</p>
+        </>
+      )}
+
+      {rich && (
+        <>
+          <RichRapportEditor
+            binding={binding}
+            locale={locale}
+            parentStitchCount={parentStitchCount}
+            onChange={onChange}
+          />
+          <p className="row-generator-hint">{copy.richHint}</p>
         </>
       )}
     </fieldset>

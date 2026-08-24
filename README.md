@@ -2,9 +2,9 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
-## v1.5
+## v1.6
 
-The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology and mixed stitch rapports inside one row.
+The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed stitch rapports and rich semantic rapport programs.
 
 ### Editing
 
@@ -31,22 +31,24 @@ The editor combines an SVG canvas with a document model that understands guides,
 - parametric rows remain linked to guides
 - ordered pattern rows with parent-row relationships
 - evenly distributed increases and decreases
-- quick next-row actions and +6 sequences
+- quick next-row actions and +6 sequences for classic shaping rows
 - explicit parent-stitch → child-stitch topology
 - 1→1 normal stitches, 1→2 increases and 2→1 decreases
 - topology connection lines for the selected child row
-- click a +/− marker and move that increase/decrease to a neighboring parent stitch
-- reset manual topology back to evenly distributed positions
+- click a +/− marker and move classic shaping changes to neighboring parent stitches
 - mixed row rapports such as `3 SC, 1 CH, 1 DC`, repeated across the actual row count
-- rapport steps can change stitch type, count and order without changing row geometry/topology
-- mixed composition is inherited by newly generated child rows
-- written RU/EN instructions generate exact rapport repeats and honest partial remainders
-- TXT and Markdown pattern export includes all stitch abbreviations used by mixed rows
+- rich semantic rapports where `stitch`, `increase` and `decrease` are explicit AST operations
+- one nested repeat-group level plus a root repeat, e.g. `[(2 SC, increase) × 3, 2 CH] × 4`
+- the rich rapport compiler produces both child stitch types and exact parent-group topology from the same source
+- rich rapport validation reports parents consumed versus children produced and refuses to invent topology on a parent-count mismatch
+- written RU/EN instructions preserve repeat groups and operation semantics instead of flattening the program
+- TXT and Markdown pattern export includes every abbreviation used by mixed and rich rapports
 
 ### Persistence and export
 
-- project JSON schema v9; v1-v8 remain loadable through runtime validation/migration
-- topology parent ids, manual topology overrides and mixed row sequences are persisted and validated
+- project JSON schema v10; v1-v9 remain loadable through runtime validation/migration
+- topology parent ids, manual topology overrides, mixed row sequences and rich row programs are persisted and validated
+- rich programs are mutually exclusive with legacy shaping/sequence topology to avoid conflicting sources of truth
 - local multi-project storage in IndexedDB
 - automatic migration of the legacy single autosave into the first local project
 - autosave per active project
@@ -55,7 +57,7 @@ The editor combines an SVG canvas with a document model that understands guides,
 
 ## Engineering baseline
 
-Core geometry, snapping, guide manipulation, selection, row generation, shaping, row-sequence expansion, stitch topology, project validation, history and written-pattern generation live in pure modules outside the React rendering layer.
+Core geometry, snapping, guide manipulation, selection, row generation, shaping, row-sequence expansion, rich rapport compilation, stitch topology, project validation, history and written-pattern generation live in pure modules outside the React rendering layer.
 
 Every pull request runs:
 
@@ -99,11 +101,12 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - guide geometry and manipulation
 - snapping
 - selection and viewport geometry
-- parametric crochet rows and shaping semantics
+- parametric crochet rows and classic shaping semantics
 - cyclic mixed-row rapport semantics
+- rich rapport AST compilation into composition + topology
 - explicit and editable stitch topology
 - generated written instructions
 - local persistence
 - rendering and React UI
 
-The next domain milestone is richer crochet operations inside rapports: explicit increase/decrease operations as sequence steps, nested repeat groups and turning/joined/spiral row semantics.
+The next domain milestone is row-construction semantics beyond stitch topology: joined versus spiral rounds, turning rows, chain-up/start/end operations and direction-aware written instructions.

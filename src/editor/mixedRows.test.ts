@@ -67,4 +67,43 @@ describe('mixed parametric rows', () => {
       index > 0 && element.parentStitchIds?.[0] === all[index - 1].parentStitchIds?.[0],
     )).toHaveLength(2)
   })
+
+  it('uses a rich program as the source of both stitch types and parent-child topology', () => {
+    const parentBinding: ParametricRowBinding = {
+      ...mixed,
+      id: 'parent',
+      sequence: undefined,
+      options: { ...mixed.options, count: 6 },
+    }
+    const childBinding: ParametricRowBinding = {
+      ...mixed,
+      id: 'child',
+      parentRowId: parentBinding.id,
+      sequence: undefined,
+      program: {
+        repeat: 1,
+        items: [
+          { kind: 'stitch', symbolId: 'single', count: 2 },
+          { kind: 'increase', symbolId: 'double', count: 1 },
+          { kind: 'group', repeat: 1, items: [
+            { kind: 'stitch', symbolId: 'chain', count: 1 },
+            { kind: 'decrease', symbolId: 'half-double', count: 1 },
+          ] },
+        ],
+      },
+      options: { ...mixed.options, count: 6, radialOffset: 40 },
+    }
+    const result = reconcileParametricRows(
+      [...row(parentBinding, 6), ...row(childBinding, 6)],
+      [guide],
+      () => 'unused',
+    )
+    const child = result.filter((element) => element.parametricRow?.id === childBinding.id)
+    expect(child.map((element) => element.symbolId)).toEqual([
+      'single', 'single', 'double', 'double', 'chain', 'half-double',
+    ])
+    expect(child.map((element) => element.parentStitchIds)).toEqual([
+      ['parent-0'], ['parent-1'], ['parent-2'], ['parent-2'], ['parent-3'], ['parent-4', 'parent-5'],
+    ])
+  })
 })

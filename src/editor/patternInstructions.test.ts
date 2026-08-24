@@ -83,6 +83,29 @@ describe('pattern instructions', () => {
     )
   })
 
+  it('formats rich topology operations and nested repeat groups from the AST', () => {
+    const rich: ParametricRowBinding = {
+      ...binding('row-2', 56, undefined, 'row-1'),
+      program: {
+        repeat: 4,
+        items: [
+          {
+            kind: 'group',
+            repeat: 3,
+            items: [
+              { kind: 'stitch', symbolId: 'single', count: 2 },
+              { kind: 'increase', symbolId: 'single', count: 1 },
+            ],
+          },
+          { kind: 'stitch', symbolId: 'chain', count: 2 },
+        ],
+      },
+    }
+    expect(formatPatternRowInstruction(rich, 2, 56, 'ru')).toBe(
+      'Ряд 2: [(2 СБН, прибавка (СБН)) × 3, 2 ВП] × 4 = 56',
+    )
+  })
+
   it('keeps shaping as topology semantics alongside a mixed rapport', () => {
     const mixed = {
       ...binding('row-2', 30, { kind: 'increase', count: 6, baseCount: 24 }, 'row-1'),
@@ -192,5 +215,23 @@ describe('pattern instructions', () => {
     expect(markdown).toContain('# Схема вязания')
     expect(markdown).toContain('**СБН** — Столбик без накида')
     expect(markdown).toContain('**ССН** — Столбик с накидом')
+  })
+
+  it('includes every rich-program stitch type in the markdown legend', () => {
+    const rich: ParametricRowBinding = {
+      ...binding('row-2', 4, undefined, 'row-1'),
+      program: {
+        repeat: 1,
+        items: [
+          { kind: 'stitch', symbolId: 'chain', count: 1 },
+          { kind: 'increase', symbolId: 'double', count: 1 },
+          { kind: 'decrease', symbolId: 'half-double', count: 1 },
+        ],
+      },
+    }
+    const markdown = patternInstructionsMarkdown(row(rich, 4), 'ru')
+    expect(markdown).toContain('**ВП** — Воздушная петля')
+    expect(markdown).toContain('**ССН** — Столбик с накидом')
+    expect(markdown).toContain('**ПСН** — Полустолбик с накидом')
   })
 })

@@ -34,9 +34,9 @@ function shapedBinding() {
 }
 
 describe('parseProject', () => {
-  it('migrates legacy projects to schema v9 and normalizes element flags', () => {
+  it('migrates legacy projects to schema v10 and normalizes element flags', () => {
     const project = parseProject(legacyProject(), fallback)
-    expect(project.schemaVersion).toBe(9)
+    expect(project.schemaVersion).toBe(10)
     expect(project.elements[0]).toMatchObject({ visible: true, locked: false })
     expect(project.guides).toEqual([])
   })
@@ -77,6 +77,31 @@ describe('parseProject', () => {
     expect(project.elements[0].parametricRow?.sequence?.items).toHaveLength(3)
   })
 
+  it('preserves a valid schema v10 rich row program', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 10
+    raw.elements[0].parametricRow = {
+      ...shapedBinding(),
+      shaping: undefined,
+      program: {
+        repeat: 2,
+        items: [
+          { kind: 'stitch', symbolId: 'single', count: 2 },
+          {
+            kind: 'group',
+            repeat: 3,
+            items: [
+              { kind: 'increase', symbolId: 'double', count: 1 },
+              { kind: 'stitch', symbolId: 'chain', count: 1 },
+            ],
+          },
+        ],
+      },
+    }
+    const project = parseProject(raw, fallback)
+    expect(project.elements[0].parametricRow?.program?.items).toHaveLength(2)
+  })
+
   it('rejects malformed mixed row sequences', () => {
     const raw = legacyProject() as any
     raw.schemaVersion = 9
@@ -85,6 +110,48 @@ describe('parseProject', () => {
       sequence: { items: [{ symbolId: 'single', count: 0 }] },
     }
     expect(() => parseProject(raw, fallback)).toThrow('Invalid row sequence item')
+  })
+
+  it('rejects nested groups and invalid rich program counts', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 10
+    raw.elements[0].parametricRow = {
+      ...shapedBinding(),
+      shaping: undefined,
+      program: {
+        repeat: 1,
+        items: [{
+          kind: 'group',
+          repeat: 1,
+          items: [{ kind: 'group', repeat: 2, items: [] }],
+        }],
+      },
+    }
+    expect(() => parseProject(raw, fallback)).toThrow('Invalid row program leaf')
+  })
+
+  it('rejects a row that contains both rich program and legacy shaping/sequence semantics', () => {
+    const sequenceConflict = legacyProject() as any
+    sequenceConflict.schemaVersion = 10
+    sequenceConflict.elements[0].parametricRow = {
+      ...shapedBinding(),
+      shaping: undefined,
+      sequence: { items: [{ symbolId: 'single', count: 2 }] },
+      program: { repeat: 1, items: [{ kind: 'stitch', symbolId: 'single', count: 2 }] },
+    }
+    expect(() => parseProject(sequenceConflict, fallback)).toThrow(
+      'Row cannot contain both sequence and rich program',
+    )
+
+    const shapingConflict = legacyProject() as any
+    shapingConflict.schemaVersion = 10
+    shapingConflict.elements[0].parametricRow = {
+      ...shapedBinding(),
+      program: { repeat: 1, items: [{ kind: 'stitch', symbolId: 'single', count: 2 }] },
+    }
+    expect(() => parseProject(shapingConflict, fallback)).toThrow(
+      'Rich row program owns shaping and topology',
+    )
   })
 
   it('rejects malformed topology parent ids', () => {
@@ -120,13 +187,13 @@ describe('parseProject', () => {
   })
 
   it('rejects unknown guide types', () => {
-    const raw = { ...legacyProject(), schemaVersion: 9, guides: [{ id: 'x', type: 'mystery', visible: true }] }
+    const raw = { ...legacyProject(), schemaVersion: 10, guides: [{ id: 'x', type: 'mystery', visible: true }] }
     expect(() => parseProject(raw, fallback)).toThrow('Unknown guide type')
   })
 
   it('rejects malformed parametric row shaping', () => {
     const raw = legacyProject() as any
-    raw.schemaVersion = 9
+    raw.schemaVersion = 10
     raw.elements[0].parametricRow = {
       ...shapedBinding(),
       shaping: { kind: 'magic', count: 6, baseCount: 6 },

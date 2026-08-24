@@ -1,0 +1,111 @@
+.rich-rapport-editor {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.rich-root-repeat,
+.rich-group-heading label,
+.rich-rapport-leaf label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.rich-root-repeat input,
+.rich-group-heading input,
+.rich-rapport-leaf input,
+.rich-rapport-leaf select {
+  width: 100%;
+}
+
+.rich-rapport-items {
+  display: grid;
+  gap: 8px;
+}
+
+.rich-rapport-item {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #d8d4cc;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.rich-rapport-item.group {
+  background: #f7f5ef;
+}
+
+.rich-rapport-leaf {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) 72px minmax(0, 1.15fr);
+  gap: 6px;
+}
+
+.rich-group-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rich-group-heading label {
+  width: 92px;
+}
+
+.rich-group-leaves {
+  display: grid;
+  gap: 7px;
+  padding-left: 8px;
+  border-left: 2px solid #d0cbc0;
+}
+
+.rich-group-leaf-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px;
+  align-items: end;
+}
+
+.rich-item-actions,
+.rich-add-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.rich-item-actions {
+  justify-content: flex-end;
+}
+
+.rich-item-actions button,
+.rich-group-leaf-row > button {
+  min-width: 30px;
+}
+
+.rich-program-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 7px;
+  font-size: 12px;
+}
+
+.rich-program-metrics.valid {
+  background: #eef7ee;
+  border: 1px solid #bfd9c0;
+}
+
+.rich-program-metrics.invalid {
+  background: #fff2ec;
+  border: 1px solid #e4b9a6;
+}
+
+.rich-program-status.valid {
+  color: #2d6b36;
+}
+
+.rich-program-status.invalid {
+  color: #9a3f22;
+}

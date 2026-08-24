@@ -233,7 +233,7 @@ function buildProject(
   snapping: SnappingSettings,
 ): CrochetProject {
   return {
-    schemaVersion: 9,
+    schemaVersion: 10,
     metadata: { title, updatedAt: new Date().toISOString() },
     elements: normalizeElements(elements),
     guides,
@@ -1268,7 +1268,7 @@ function App() {
     try {
       const raw = JSON.parse(await file.text()) as CrochetProject
       if (
-        ![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(raw.schemaVersion) ||
+        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(raw.schemaVersion) ||
         !Array.isArray(raw.elements)
       ) {
         throw new Error(t.unsupportedProject)
