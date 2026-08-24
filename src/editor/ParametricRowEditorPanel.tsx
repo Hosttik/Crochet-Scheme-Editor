@@ -104,6 +104,7 @@ export function ParametricRowEditorPanel({
       ...binding,
       shaping: manualDistributionChange ? undefined : binding.shaping,
       topologyOverride: manualDistributionChange ? undefined : binding.topologyOverride,
+      program: manualDistributionChange ? undefined : binding.program,
       options: { ...binding.options, ...patch },
     })
   }
@@ -113,6 +114,7 @@ export function ParametricRowEditorPanel({
     if (!kind) {
       onChange({
         ...binding,
+        program: undefined,
         shaping: undefined,
         topologyOverride: undefined,
         options: {
@@ -131,6 +133,7 @@ export function ParametricRowEditorPanel({
     if (!shaping) return
     onChange({
       ...binding,
+      program: undefined,
       shaping,
       topologyOverride: undefined,
       options: {
@@ -147,6 +150,7 @@ export function ParametricRowEditorPanel({
     if (!shaping) return
     onChange({
       ...binding,
+      program: undefined,
       shaping,
       topologyOverride: undefined,
       options: {
@@ -183,6 +187,7 @@ export function ParametricRowEditorPanel({
         binding={binding}
         locale={locale}
         stitchCount={resolvedCount}
+        parentStitchCount={parentStitchCount}
         onChange={onChange}
       />
 
@@ -193,7 +198,7 @@ export function ParametricRowEditorPanel({
             <p className="row-shaping-base">{copy.shapingBase}: <strong>{shapingBase}</strong></p>
             <div className="segmented-control">
               <button
-                className={!binding.shaping ? 'active' : ''}
+                className={!binding.shaping && !binding.program ? 'active' : ''}
                 onClick={() => applyShaping(null)}
               >
                 {copy.shapingNone}
