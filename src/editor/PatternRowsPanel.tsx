@@ -3,6 +3,7 @@ import { symbolName, type Locale } from '../i18n'
 import type { StitchElement } from '../types'
 import { PatternInstructionsPanel } from './PatternInstructionsPanel'
 import { patternRows } from './parametricRows'
+import { rowHasMixedSequence, rowSequenceCycleInfo } from './rowSequence'
 import { maxRowShapingChanges } from './rowShaping'
 import './patternRows.css'
 
@@ -15,12 +16,14 @@ const COPY = {
     from: 'из ряда',
     increases: 'прибавок',
     decreases: 'убавок',
+    mixed: 'Смешанный раппорт',
+    rapport: 'раппорт',
     next: 'Следующий ряд',
     same: 'Без изменений',
     plus6: '+6 прибавок',
     minus6: '−6 убавок',
     sequence: 'Серия +6 ×4',
-    hint: 'Прибавки и убавки распределяются равномерно по ряду. Серия создаёт четыре следующих ряда одной операцией.',
+    hint: 'Следующий ряд наследует состав/раппорт. Прибавки и убавки меняют topology, но не типы stitches внутри раппорта.',
   },
   en: {
     title: 'Rows',
@@ -30,12 +33,14 @@ const COPY = {
     from: 'from row',
     increases: 'increases',
     decreases: 'decreases',
+    mixed: 'Mixed rapport',
+    rapport: 'rapport',
     next: 'Next row',
     same: 'No shaping',
     plus6: '+6 increases',
     minus6: '−6 decreases',
     sequence: '+6 ×4 sequence',
-    hint: 'Increases and decreases are distributed evenly around the row. Sequence creates four next rows as one operation.',
+    hint: 'The next row inherits its stitch composition/rapport. Shaping changes topology without replacing rapport stitch types.',
   },
 } as const
 
@@ -77,6 +82,8 @@ export function PatternRowsPanel({
                 : undefined
               const active = row.id === selectedRowId
               const shaping = row.binding.shaping
+              const mixed = rowHasMixedSequence(row.binding)
+              const cycle = rowSequenceCycleInfo(row.binding.sequence, row.stitchCount)
               const canIncrease6 = maxRowShapingChanges(row.stitchCount, 'increase') >= 6
               const canDecrease6 = maxRowShapingChanges(row.stitchCount, 'decrease') >= 6
 
@@ -84,9 +91,14 @@ export function PatternRowsPanel({
                 <div key={row.id} className={`pattern-row-card ${active ? 'active' : ''}`}>
                   <button className="pattern-row-main" onClick={() => onSelect(row.id)}>
                     <span className="pattern-row-number">{copy.row} {row.displayOrder}</span>
-                    <strong>{symbolName(row.binding.symbolId, definition?.name ?? row.binding.symbolId, locale)}</strong>
+                    <strong>
+                      {mixed
+                        ? copy.mixed
+                        : symbolName(row.binding.symbolId, definition?.name ?? row.binding.symbolId, locale)}
+                    </strong>
                     <small>
                       {row.stitchCount} {copy.stitches}
+                      {mixed ? ` · ${copy.rapport} ${cycle.templateLength}` : ''}
                       {parentNumber ? ` · ${copy.from} ${parentNumber}` : ''}
                     </small>
                     {shaping && (
