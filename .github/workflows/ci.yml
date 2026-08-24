@@ -5,31 +5,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch-stitch-topology-v13:
-    if: github.head_ref == 'feature/stitch-topology-v13' && github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v6
-        with:
-          ref: feature/stitch-topology-v13
-      - name: Apply guarded integration patch
-        run: node scripts/apply-stitch-topology-v13.mjs
-      - name: Commit integration
-        run: |
-          if git diff --quiet; then
-            echo "No integration changes needed"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/App.tsx src/editor/parametricRows.ts src/i18n.ts
-          git commit -m "Integrate stitch topology v1.3"
-          git push origin HEAD:feature/stitch-topology-v13
-
   verify:
     runs-on: ubuntu-latest
     steps:
