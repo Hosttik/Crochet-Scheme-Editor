@@ -1,0 +1,37 @@
+.row-shaping-marker {
+  opacity: .66;
+  transition: opacity .12s ease;
+}
+
+.row-shaping-marker.selected {
+  opacity: 1;
+}
+
+.row-shaping-marker circle {
+  fill: #fff;
+  stroke-width: 1.2;
+}
+
+.row-shaping-marker text {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-weight: 800;
+  user-select: none;
+}
+
+.row-shaping-marker.increase circle {
+  fill: #edf8f1;
+  stroke: #3d8a62;
+}
+
+.row-shaping-marker.increase text {
+  fill: #2f7351;
+}
+
+.row-shaping-marker.decrease circle {
+  fill: #fbefef;
+  stroke: #aa6464;
+}
+
+.row-shaping-marker.decrease text {
+  fill: #945151;
+}
