@@ -29,27 +29,28 @@ export function rowElements(elements: StitchElement[], rowId: string) {
 }
 
 export function patternRows(elements: StitchElement[]): PatternRowSummary[] {
-  const summaries = uniqueBindings(elements).map((binding) => {
+  const summaries = uniqueBindings(elements).map((binding, sourceIndex) => {
     const firstElementIndex = elements.findIndex((element) => element.parametricRow?.id === binding.id)
     return {
       id: binding.id,
       binding,
       stitchCount: rowElements(elements, binding.id).length,
       firstElementIndex,
+      sourceOrder: sourceIndex + 1,
       displayOrder: 0,
     }
   })
 
   summaries.sort((left, right) => {
-    const leftOrder = left.binding.patternOrder
-    const rightOrder = right.binding.patternOrder
-    if (leftOrder != null && rightOrder != null && leftOrder !== rightOrder) return leftOrder - rightOrder
-    if (leftOrder != null && rightOrder == null) return -1
-    if (leftOrder == null && rightOrder != null) return 1
-    return left.firstElementIndex - right.firstElementIndex
+    const leftOrder = left.binding.patternOrder ?? left.sourceOrder
+    const rightOrder = right.binding.patternOrder ?? right.sourceOrder
+    return leftOrder - rightOrder || left.firstElementIndex - right.firstElementIndex
   })
 
-  return summaries.map((summary, index) => ({ ...summary, displayOrder: index + 1 }))
+  return summaries.map(({ sourceOrder: _sourceOrder, ...summary }, index) => ({
+    ...summary,
+    displayOrder: index + 1,
+  }))
 }
 
 export function nextPatternOrder(elements: StitchElement[]) {
