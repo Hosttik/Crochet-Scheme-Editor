@@ -24,3 +24,13 @@ jobs:
 
       - name: Typecheck, test and build
         run: npm run build
+
+  smoke-pages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify published GitHub Pages site
+        run: |
+          curl --fail --silent --show-error --location \
+            --retry 12 --retry-delay 5 --retry-all-errors \
+            https://hosttik.github.io/Crochet-Scheme-Editor/ \
+            --output /dev/null
