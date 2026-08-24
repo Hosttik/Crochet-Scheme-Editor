@@ -5,6 +5,7 @@ import './styles.css'
 import './guides.css'
 import './selection.css'
 import './layers.css'
+import './foundation.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
