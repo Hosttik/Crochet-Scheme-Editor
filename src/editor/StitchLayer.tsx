@@ -2,7 +2,9 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph } from '../symbols'
 import type { AnchorName, StitchElement } from '../types'
 import { isElementLocked, isElementVisible } from './document'
+import { rowShapingMarkers } from './rowShaping'
 import { selectionAabb, type Rect } from './selection'
+import './rowShaping.css'
 
 const SYMBOL_SIZES = Object.fromEntries(
   SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
@@ -35,6 +37,7 @@ export function StitchLayer({
 }) {
   const visibleElements = elements.filter(isElementVisible)
   const selectedSet = new Set(selectedIds)
+  const shapingMarkers = rowShapingMarkers(elements)
   const groupBounds =
     selectedIds.length > 1
       ? selectionAabb(visibleElements, selectedIds, SYMBOL_SIZES)
@@ -119,6 +122,34 @@ export function StitchLayer({
                 />
               </>
             )}
+          </g>
+        )
+      })}
+
+      {visibleElements.map((element) => {
+        const shaping = shapingMarkers.get(element.id)
+        if (!shaping) return null
+        const selected = selectedSet.has(element.id)
+        const markerX = element.x + 13 / zoom
+        const markerY = element.y - 13 / zoom
+        return (
+          <g
+            key={`shaping:${element.id}`}
+            transform={`translate(${markerX} ${markerY})`}
+            className={`row-shaping-marker ${shaping} ${selected ? 'selected' : ''}`}
+            pointerEvents="none"
+            aria-hidden="true"
+          >
+            <circle r={7 / zoom} vectorEffect="non-scaling-stroke" />
+            <text
+              x="0"
+              y={0.5 / zoom}
+              fontSize={10 / zoom}
+              textAnchor="middle"
+              dominantBaseline="central"
+            >
+              {shaping === 'increase' ? '+' : '−'}
+            </text>
           </g>
         )
       })}

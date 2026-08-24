@@ -4,6 +4,7 @@ export type OrientationMode = 'none' | 'along' | 'perpendicular'
 
 export type RowDistributionMode = 'count' | 'spacing'
 export type RowOrientation = 'tangent' | 'radial' | 'fixed'
+export type RowShapingKind = 'increase' | 'decrease'
 
 export type GuideRowOptions = {
   distributionMode: RowDistributionMode
@@ -15,6 +16,12 @@ export type GuideRowOptions = {
   ringIndex: number
 }
 
+export type RowShaping = {
+  kind: RowShapingKind
+  count: number
+  baseCount: number
+}
+
 export type ParametricRowBinding = {
   id: string
   guideId: string
@@ -22,6 +29,7 @@ export type ParametricRowBinding = {
   options: GuideRowOptions
   patternOrder?: number
   parentRowId?: string
+  shaping?: RowShaping
 }
 
 export type StitchElement = {
@@ -86,7 +94,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4 | 5
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6
   metadata: {
     title: string
     updatedAt: string

@@ -25,7 +25,7 @@ export function normalizeProject(
   fallbackSnapping: SnappingSettings,
 ): CrochetProject {
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     metadata: {
       title: project.metadata?.title ?? 'Crochet scheme',
       updatedAt: project.metadata?.updatedAt ?? new Date().toISOString(),

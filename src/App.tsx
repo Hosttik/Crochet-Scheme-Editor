@@ -21,6 +21,7 @@ import { clamp, screenToDocument } from './editor/geometry'
 import { loadAutosave, saveAutosave } from './editor/persistence'
 import {
   createNextPatternRow,
+  createPatternIncreaseSequence,
   deleteParametricRow,
   expandIdsToParametricRows,
   nextPatternOrder,
@@ -196,7 +197,7 @@ function buildProject(
   snapping: SnappingSettings,
 ): CrochetProject {
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     metadata: { title, updatedAt: new Date().toISOString() },
     elements: normalizeElements(elements),
     guides,
@@ -345,6 +346,12 @@ function App() {
       : null,
     [guides, selectedParametricRow],
   )
+  const selectedParametricParentCount = useMemo(() => {
+    const parentRowId = selectedParametricRow?.parentRowId
+    if (!parentRowId) return undefined
+    const count = rowElements(elements, parentRowId).length
+    return count || undefined
+  }, [elements, selectedParametricRow])
   const visibleElements = useMemo(() => elements.filter(isElementVisible), [elements])
   const groupedSymbols = useMemo(() => {
     const groups = new Map<string, typeof SYMBOLS>()
@@ -1113,6 +1120,25 @@ function App() {
     setStatus((locale === 'ru' ? 'Создан следующий ряд' : 'Next row created') + ' ' + order + ': ' + created.elements.length)
   }
 
+  const handleCreatePatternSequence = (rowId: string) => {
+    const parent = rowElements(elements, rowId)[0]?.parametricRow
+    if (!parent) return
+    const created = createPatternIncreaseSequence(elements, guides, parent, 6, 4, createId)
+    const lastRow = created.rows.at(-1)
+    if (!lastRow || !created.elements.length) {
+      setStatus(locale === 'ru' ? 'Нельзя создать серию +6 для этого ряда' : 'Cannot create a +6 sequence from this row')
+      return
+    }
+    commitElements([...elements, ...created.elements])
+    setSelectedIds(lastRow.elements.map((element) => element.id))
+    setSelectedGuideId(null)
+    setTool({ type: 'select' })
+    setPreview(null)
+    setSnapTarget(null)
+    const counts = created.rows.map((row) => row.elements.length).join(' → ')
+    setStatus((locale === 'ru' ? 'Создана серия рядов' : 'Row sequence created') + ': ' + counts)
+  }
+
   const handleUpdateParametricRow = (binding: ParametricRowBinding) => {
     const next = updateParametricRow(elements, guides, binding.id, binding, createId)
     commitElements(next)
@@ -1137,7 +1163,7 @@ function App() {
     try {
       const raw = JSON.parse(await file.text()) as CrochetProject
       if (
-        ![1, 2, 3, 4, 5].includes(raw.schemaVersion) ||
+        ![1, 2, 3, 4, 5, 6].includes(raw.schemaVersion) ||
         !Array.isArray(raw.elements)
       ) {
         throw new Error(t.unsupportedProject)
@@ -1444,6 +1470,7 @@ function App() {
             selectedRowId={selectedParametricRow?.id ?? null}
             onSelect={handleSelectPatternRow}
             onCreateNext={handleCreateNextPatternRow}
+            onCreateSequence={handleCreatePatternSequence}
           />
         </section>
 
@@ -1455,6 +1482,7 @@ function App() {
               binding={selectedParametricRow}
               guide={selectedParametricGuide}
               locale={locale}
+              parentStitchCount={selectedParametricParentCount}
               onChange={handleUpdateParametricRow}
               onDelete={() => handleDeleteParametricRow(selectedParametricRow.id)}
             />
