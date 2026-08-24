@@ -2,9 +2,9 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
-## v1.6
+## v1.7
 
-The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed stitch rapports and rich semantic rapport programs.
+The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed.
 
 ### Editing
 
@@ -40,24 +40,35 @@ The editor combines an SVG canvas with a document model that understands guides,
 - rich semantic rapports where `stitch`, `increase` and `decrease` are explicit AST operations
 - one nested repeat-group level plus a root repeat, e.g. `[(2 SC, increase) × 3, 2 CH] × 4`
 - the rich rapport compiler produces both child stitch types and exact parent-group topology from the same source
-- rich rapport validation reports parents consumed versus children produced and refuses to invent topology on a parent-count mismatch
-- written RU/EN instructions preserve repeat groups and operation semantics instead of flattening the program
-- TXT and Markdown pattern export includes every abbreviation used by mixed and rich rapports
+
+### Row construction semantics
+
+- each parametric row may be marked as `spiral`, `joined round` or `turning row`
+- construction direction is stored independently as along-guide or reverse-guide
+- turning rows automatically alternate direction when the next row is generated
+- joined/spiral rows preserve their direction across generated child rows
+- joined and turning rows can store an auxiliary starting-chain count
+- joined rounds may explicitly end with a slip-stitch join
+- starting chains are deliberately auxiliary in v1.7: they do not silently change row stitch totals or parent-child topology
+- the selected row shows S/E markers, direction, turning/closure hints and starting-chain metadata on the SVG canvas
+- written RU/EN instructions include starting chains, spiral/joined/turning semantics, direction and slip-stitch closure
+- Markdown abbreviation legends include CH/ВП and SL ST/СС when construction semantics use them
 
 ### Persistence and export
 
-- project JSON schema v10; v1-v9 remain loadable through runtime validation/migration
-- topology parent ids, manual topology overrides, mixed row sequences and rich row programs are persisted and validated
+- project JSON schema v11; v1-v10 remain loadable through runtime validation/migration
+- topology parent ids, manual topology overrides, mixed/rich row programs and row construction semantics are persisted and validated
 - rich programs are mutually exclusive with legacy shaping/sequence topology to avoid conflicting sources of truth
 - local multi-project storage in IndexedDB
 - automatic migration of the legacy single autosave into the first local project
 - autosave per active project
 - JSON and SVG export
+- TXT and Markdown written-pattern export
 - GitHub Pages deployment from `main`
 
 ## Engineering baseline
 
-Core geometry, snapping, guide manipulation, selection, row generation, shaping, row-sequence expansion, rich rapport compilation, stitch topology, project validation, history and written-pattern generation live in pure modules outside the React rendering layer.
+Core geometry, snapping, guide manipulation, selection, row generation, shaping, row construction, row-sequence expansion, rich rapport compilation, stitch topology, project validation, history and written-pattern generation live in pure modules outside the React rendering layer.
 
 Every pull request runs:
 
@@ -104,9 +115,10 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - parametric crochet rows and classic shaping semantics
 - cyclic mixed-row rapport semantics
 - rich rapport AST compilation into composition + topology
+- row construction and work-direction semantics
 - explicit and editable stitch topology
 - generated written instructions
 - local persistence
 - rendering and React UI
 
-The next domain milestone is row-construction semantics beyond stitch topology: joined versus spiral rounds, turning rows, chain-up/start/end operations and direction-aware written instructions.
+The next domain milestone is counted row-boundary semantics: turning/start chains that may count as the first stitch, skipped first stitches, explicit row start/end attachment and more exact joined-round closure behavior.
