@@ -2,9 +2,9 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
-## v1.3
+## v1.4
 
-The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping and explicit stitch-to-stitch topology between adjacent rows.
+The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping and editable stitch-to-stitch topology between adjacent rows.
 
 ### Editing
 
@@ -35,14 +35,16 @@ The editor combines an SVG canvas with a document model that understands guides,
 - explicit parent-stitch → child-stitch topology
 - 1→1 normal stitches, 1→2 increases and 2→1 decreases
 - topology connection lines for the selected child row
-- canvas shaping markers
-- generated RU/EN written instructions
+- click a +/− marker and move that increase/decrease to a neighboring parent stitch
+- reset manual topology back to evenly distributed positions
+- manual topology keeps row count and geometry unchanged and participates in Undo/Redo + autosave
+- written RU/EN instructions list exact manual increase positions or decrease pairs
 - TXT and Markdown pattern export
 
 ### Persistence and export
 
-- project JSON schema v7; v1-v6 remain loadable through runtime validation/migration
-- topology parent ids are persisted and validated
+- project JSON schema v8; v1-v7 remain loadable through runtime validation/migration
+- topology parent ids and manual topology overrides are persisted and validated
 - local multi-project storage in IndexedDB
 - automatic migration of the legacy single autosave into the first local project
 - autosave per active project
@@ -96,9 +98,9 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - snapping
 - selection and viewport geometry
 - parametric crochet rows and shaping semantics
-- explicit stitch topology
+- explicit and editable stitch topology
 - generated written instructions
 - local persistence
 - rendering and React UI
 
-The next domain milestone is editable topology: manually moving increase/decrease locations, mixed stitch sequences inside one row, and validation that compares row semantics with the actual parent-child graph.
+The next domain milestone is mixed row semantics: multiple stitch types and operations inside one row, richer repeat groups, and validation that compares the written pattern with the actual topology graph.
