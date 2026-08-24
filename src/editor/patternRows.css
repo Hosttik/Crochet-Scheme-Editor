@@ -68,7 +68,7 @@
 }
 
 .pattern-row-number {
-  grid-row: 1 / span 2;
+  grid-row: 1 / span 3;
   align-self: center;
   min-width: 42px;
   padding: 4px 6px;
@@ -89,12 +89,28 @@
   color: #828780;
 }
 
+.pattern-row-shaping {
+  justify-self: start;
+  padding: 2px 5px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 600;
+}
+
+.pattern-row-shaping.increase {
+  background: #e9f7ef;
+  color: #2f7351;
+}
+
+.pattern-row-shaping.decrease {
+  background: #f9eded;
+  color: #945151;
+}
+
 .pattern-row-next-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 7px 9px;
+  display: grid;
+  gap: 6px;
+  padding: 8px 9px;
   border-top: 1px solid #e9e6e0;
   background: #f7faf8;
 }
@@ -104,24 +120,36 @@
   color: #69736d;
 }
 
-.pattern-row-next-actions > div {
-  display: flex;
+.pattern-row-shaping-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
 }
 
 .pattern-row-next-actions button {
-  min-width: 34px;
-  padding: 5px 7px;
+  min-width: 0;
+  padding: 6px 7px;
   border: 1px solid #cfd9d3;
   border-radius: 6px;
   background: #fff;
   color: #466653;
-  font-size: 9px;
+  font-size: 8px;
   cursor: pointer;
 }
 
-.pattern-row-next-actions button:hover {
+.pattern-row-next-actions button:hover:not(:disabled) {
   background: #edf5f0;
+}
+
+.pattern-row-next-actions button:disabled {
+  opacity: .38;
+  cursor: not-allowed;
+}
+
+.pattern-row-next-actions .pattern-sequence-button {
+  border-color: #9db8aa;
+  background: #edf5f0;
+  font-weight: 600;
 }
 
 .pattern-rows-hint {
