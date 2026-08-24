@@ -27,7 +27,7 @@ const COPY = {
     decrease: 'Убавки',
     shapingCount: 'Количество изменений',
     shapingBase: 'Предыдущий ряд',
-    shapingHint: 'Прибавки или убавки распределяются равномерно. Маркеры +/− показывают позиции на холсте.',
+    shapingHint: 'Прибавки или убавки распределяются автоматически, пока вы не перенесёте позиции вручную ниже.',
     noParent: 'Для первого ряда shaping задаётся через создание следующего ряда.',
     distribution: 'Распределение',
     countMode: 'Количество',
@@ -55,7 +55,7 @@ const COPY = {
     decrease: 'Decreases',
     shapingCount: 'Number of changes',
     shapingBase: 'Previous row',
-    shapingHint: 'Increases or decreases are distributed evenly. +/− markers show their positions on the canvas.',
+    shapingHint: 'Increases or decreases stay evenly distributed until you move their positions manually below.',
     noParent: 'For the first row, shaping starts when you create the next row.',
     distribution: 'Distribution',
     countMode: 'Count',
@@ -102,6 +102,7 @@ export function ParametricRowEditorPanel({
     onChange({
       ...binding,
       shaping: manualDistributionChange ? undefined : binding.shaping,
+      topologyOverride: manualDistributionChange ? undefined : binding.topologyOverride,
       options: { ...binding.options, ...patch },
     })
   }
@@ -112,6 +113,7 @@ export function ParametricRowEditorPanel({
       onChange({
         ...binding,
         shaping: undefined,
+        topologyOverride: undefined,
         options: {
           ...binding.options,
           distributionMode: 'count',
@@ -129,6 +131,7 @@ export function ParametricRowEditorPanel({
     onChange({
       ...binding,
       shaping,
+      topologyOverride: undefined,
       options: {
         ...binding.options,
         distributionMode: 'count',
@@ -144,6 +147,7 @@ export function ParametricRowEditorPanel({
     onChange({
       ...binding,
       shaping,
+      topologyOverride: undefined,
       options: {
         ...binding.options,
         distributionMode: 'count',
