@@ -4,3 +4,87 @@
   stroke-dasharray: 4 3;
   opacity: .58;
 }
+
+.row-shaping-marker.editable {
+  cursor: pointer;
+}
+
+.row-shaping-marker.editable circle {
+  stroke-width: 1.6;
+}
+
+.row-shaping-marker.topology-active circle {
+  stroke-width: 2.4;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 18%));
+}
+
+.topology-editor {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #ddd8ce);
+}
+
+.topology-editor-heading,
+.topology-editor-status,
+.topology-editor-actions,
+.topology-change-list {
+  display: flex;
+  align-items: center;
+}
+
+.topology-editor-heading,
+.topology-editor-status {
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.topology-editor-status {
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.topology-mode-badge {
+  border: 1px solid #c8c3b8;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 11px;
+  color: #5d625f;
+  background: #f5f2eb;
+}
+
+.topology-mode-badge.custom {
+  border-color: #9a7456;
+  color: #754b2e;
+  background: #fff4e8;
+}
+
+.topology-change-list {
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 8px 0;
+}
+
+.topology-change-button {
+  min-width: 38px;
+  padding: 5px 7px;
+}
+
+.topology-change-button.active {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+
+.topology-editor-actions {
+  gap: 6px;
+}
+
+.topology-editor-actions button {
+  flex: 1;
+}
+
+.topology-editor-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #77736c;
+}
