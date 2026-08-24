@@ -3,6 +3,13 @@ import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent }
 import { GuideRenderer } from './editor/GuideRenderer'
 import { clamp, screenToDocument } from './editor/geometry'
 import { solveSnap, type SnapCandidate } from './editor/snapping'
+import {
+  DEFAULT_LOCALE,
+  UI,
+  categoryName,
+  symbolName,
+  type Locale,
+} from './i18n'
 import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph, symbolSvgMarkup } from './symbols'
 import type {
   AnchorName,
@@ -23,36 +30,28 @@ const DEFAULT_SNAPPING: SnappingSettings = {
   snapToVertices: true,
   tolerancePx: 12,
 }
+const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
 
 type Tool = { type: 'select' } | { type: 'place'; symbolId: string }
-
-type DocumentSnapshot = {
-  elements: StitchElement[]
-  guides: Guide[]
-}
-
+type DocumentSnapshot = { elements: StitchElement[]; guides: Guide[] }
 type DragState = {
   pointerId: number
   elementId: string
   pointerOffset: Point
   startSnapshot: DocumentSnapshot
 }
-
 type PanState = {
   pointerId: number
   startPointer: Point
   startViewport: Viewport
 }
-
 type HistoryState = {
   past: DocumentSnapshot[]
   future: DocumentSnapshot[]
 }
 
 function createId() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID()
-  }
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
@@ -66,10 +65,11 @@ function downloadText(filename: string, content: string, type: string) {
   URL.revokeObjectURL(url)
 }
 
-function guideLabel(guide: Guide) {
-  if (guide.type === 'arc') return 'Arc'
-  if (guide.type === 'grid') return 'Rectangular grid'
-  return 'Radial grid'
+function guideLabel(guide: Guide, locale: Locale) {
+  const t = UI[locale]
+  if (guide.type === 'arc') return t.arc
+  if (guide.type === 'grid') return t.rectangularGrid
+  return t.radialGrid
 }
 
 function NumberField({
@@ -102,9 +102,9 @@ function NumberField({
   )
 }
 
-function serializeSvg(elements: StitchElement[]) {
+function serializeSvg(elements: StitchElement[], emptyLabel: string) {
   if (!elements.length) {
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480"><text x="320" y="240" text-anchor="middle" font-family="sans-serif" fill="#888">Empty crochet scheme</text></svg>'
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480"><text x="320" y="240" text-anchor="middle" font-family="sans-serif" fill="#888">${emptyLabel}</text></svg>`
   }
 
   const bounds = elements.map((element) => {
@@ -125,7 +125,6 @@ function serializeSvg(elements: StitchElement[]) {
   const bottom = Math.max(...bounds.map((item) => item.bottom)) + padding
   const width = Math.max(1, right - left)
   const height = Math.max(1, bottom - top)
-
   const content = elements
     .map(
       (element) =>
@@ -136,6 +135,12 @@ function serializeSvg(elements: StitchElement[]) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" width="${width}" height="${height}"><rect x="${left}" y="${top}" width="${width}" height="${height}" fill="white"/>${content}</svg>`
 }
 
+function initialLocale(): Locale {
+  if (typeof window === 'undefined') return DEFAULT_LOCALE
+  const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY)
+  return stored === 'ru' || stored === 'en' ? stored : DEFAULT_LOCALE
+}
+
 function App() {
   const svgRef = useRef<SVGSVGElement>(null)
   const loadInputRef = useRef<HTMLInputElement>(null)
@@ -143,6 +148,8 @@ function App() {
   const spacePressedRef = useRef(false)
   const didDragRef = useRef(false)
 
+  const [locale, setLocale] = useState<Locale>(initialLocale)
+  const t = UI[locale]
   const [elements, setElements] = useState<StitchElement[]>([])
   const [guides, setGuides] = useState<Guide[]>([])
   const [history, setHistory] = useState<HistoryState>({ past: [], future: [] })
@@ -155,7 +162,13 @@ function App() {
   const [snapTarget, setSnapTarget] = useState<SnapCandidate | null>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
   const [pan, setPan] = useState<PanState | null>(null)
-  const [status, setStatus] = useState('Ready')
+  const [status, setStatus] = useState(UI[DEFAULT_LOCALE].ready)
+
+  useEffect(() => {
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, locale)
+    document.documentElement.lang = locale
+    setStatus(UI[locale].ready)
+  }, [locale])
 
   const selectedElement = useMemo(
     () => elements.find((element) => element.id === selectedId) ?? null,
@@ -165,7 +178,6 @@ function App() {
     () => guides.find((guide) => guide.id === selectedGuideId) ?? null,
     [guides, selectedGuideId],
   )
-
   const groupedSymbols = useMemo(() => {
     const groups = new Map<string, typeof SYMBOLS>()
     for (const symbol of SYMBOLS) {
@@ -176,29 +188,23 @@ function App() {
 
   const localPoint = useCallback((clientX: number, clientY: number): Point => {
     const rect = svgRef.current?.getBoundingClientRect()
-    return {
-      x: clientX - (rect?.left ?? 0),
-      y: clientY - (rect?.top ?? 0),
-    }
+    return { x: clientX - (rect?.left ?? 0), y: clientY - (rect?.top ?? 0) }
   }, [])
 
   const toDocumentPoint = useCallback(
     (screen: Point) => screenToDocument(screen, viewport),
     [viewport],
   )
-
   const currentSnapshot = useCallback(
     (): DocumentSnapshot => ({ elements, guides }),
     [elements, guides],
   )
-
   const recordSnapshot = useCallback((before: DocumentSnapshot) => {
     setHistory((current) => ({
       past: [...current.past.slice(-99), before],
       future: [],
     }))
   }, [])
-
   const commitElements = useCallback(
     (next: StitchElement[]) => {
       recordSnapshot(currentSnapshot())
@@ -206,7 +212,6 @@ function App() {
     },
     [currentSnapshot, recordSnapshot],
   )
-
   const commitGuides = useCallback(
     (next: Guide[]) => {
       recordSnapshot(currentSnapshot())
@@ -218,7 +223,6 @@ function App() {
   const undo = useCallback(() => {
     const previous = history.past.at(-1)
     if (!previous) return
-
     setHistory({
       past: history.past.slice(0, -1),
       future: [currentSnapshot(), ...history.future].slice(0, 100),
@@ -227,13 +231,12 @@ function App() {
     setGuides(previous.guides)
     setSelectedId(null)
     setSelectedGuideId(null)
-    setStatus('Undo')
-  }, [currentSnapshot, history])
+    setStatus(t.statusUndo)
+  }, [currentSnapshot, history, t.statusUndo])
 
   const redo = useCallback(() => {
     const next = history.future[0]
     if (!next) return
-
     setHistory({
       past: [...history.past, currentSnapshot()].slice(-100),
       future: history.future.slice(1),
@@ -242,22 +245,22 @@ function App() {
     setGuides(next.guides)
     setSelectedId(null)
     setSelectedGuideId(null)
-    setStatus('Redo')
-  }, [currentSnapshot, history])
+    setStatus(t.statusRedo)
+  }, [currentSnapshot, history, t.statusRedo])
 
   const deleteSelected = useCallback(() => {
     if (selectedId) {
       commitElements(elements.filter((element) => element.id !== selectedId))
       setSelectedId(null)
-      setStatus('Element deleted')
+      setStatus(t.elementDeleted)
       return
     }
     if (selectedGuideId) {
       commitGuides(guides.filter((guide) => guide.id !== selectedGuideId))
       setSelectedGuideId(null)
-      setStatus('Guide deleted')
+      setStatus(t.guideDeleted)
     }
-  }, [commitElements, commitGuides, elements, guides, selectedGuideId, selectedId])
+  }, [commitElements, commitGuides, elements, guides, selectedGuideId, selectedId, t.elementDeleted, t.guideDeleted])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -265,7 +268,6 @@ function App() {
         spacePressedRef.current = true
         if (event.target === document.body) event.preventDefault()
       }
-
       if (
         (event.key === 'Delete' || event.key === 'Backspace') &&
         !(event.target instanceof HTMLInputElement)
@@ -273,13 +275,11 @@ function App() {
         event.preventDefault()
         deleteSelected()
       }
-
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
         event.preventDefault()
         if (event.shiftKey) redo()
         else undo()
       }
-
       if (event.key === 'Escape') {
         setTool({ type: 'select' })
         setPreview(null)
@@ -288,11 +288,9 @@ function App() {
         snapLockRef.current = null
       }
     }
-
     const onKeyUp = (event: KeyboardEvent) => {
       if (event.code === 'Space') spacePressedRef.current = false
     }
-
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
     return () => {
@@ -307,7 +305,6 @@ function App() {
     const docBefore = toDocumentPoint(screen)
     const factor = Math.exp(-event.deltaY * 0.001)
     const zoom = clamp(viewport.zoom * factor, 0.1, 5)
-
     setViewport({
       zoom,
       panX: screen.x - docBefore.x * zoom,
@@ -318,18 +315,13 @@ function App() {
   const beginPan = (event: ReactPointerEvent<SVGSVGElement>) => {
     const screen = localPoint(event.clientX, event.clientY)
     event.currentTarget.setPointerCapture(event.pointerId)
-    setPan({
-      pointerId: event.pointerId,
-      startPointer: screen,
-      startViewport: viewport,
-    })
+    setPan({ pointerId: event.pointerId, startPointer: screen, startViewport: viewport })
     setPreview(null)
     setSnapTarget(null)
   }
 
   const updatePreview = (documentPoint: Point) => {
     if (tool.type !== 'place') return
-
     const proposed: StitchElement = {
       id: '__preview__',
       symbolId: tool.symbolId,
@@ -337,7 +329,6 @@ function App() {
       y: documentPoint.y,
       rotation: 0,
     }
-
     const solved = solveSnap(
       proposed,
       elements,
@@ -346,7 +337,6 @@ function App() {
       viewport,
       snapLockRef.current,
     )
-
     snapLockRef.current = solved.candidate?.key ?? null
     setSnapTarget(solved.candidate)
     setPreview({ ...proposed, x: solved.x, y: solved.y, rotation: solved.rotation })
@@ -359,7 +349,6 @@ function App() {
       return
     }
     if (event.button !== 0) return
-
     const point = toDocumentPoint(localPoint(event.clientX, event.clientY))
 
     if (tool.type === 'place') {
@@ -370,7 +359,6 @@ function App() {
         y: point.y,
         rotation: 0,
       }
-
       const solved = solveSnap(
         proposed,
         elements,
@@ -385,14 +373,13 @@ function App() {
         y: solved.y,
         rotation: solved.rotation,
       }
-
       commitElements([...elements, placed])
       setSelectedId(placed.id)
       setSelectedGuideId(null)
-      setStatus(`Placed ${SYMBOL_BY_ID.get(placed.symbolId)?.name ?? 'stitch'}`)
+      const definition = SYMBOL_BY_ID.get(placed.symbolId)
+      setStatus(`${t.placed}: ${symbolName(placed.symbolId, definition?.name ?? placed.symbolId, locale)}`)
       return
     }
-
     setSelectedId(null)
     setSelectedGuideId(null)
   }
@@ -400,7 +387,6 @@ function App() {
   const handleCanvasPointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
     const screen = localPoint(event.clientX, event.clientY)
     const activePan = pan
-
     if (activePan && activePan.pointerId === event.pointerId) {
       setViewport({
         ...activePan.startViewport,
@@ -412,11 +398,9 @@ function App() {
 
     const documentPoint = toDocumentPoint(screen)
     const activeDrag = drag
-
     if (activeDrag && activeDrag.pointerId === event.pointerId) {
       const original = elements.find((element) => element.id === activeDrag.elementId)
       if (!original) return
-
       didDragRef.current = true
       const proposed: StitchElement = {
         ...original,
@@ -431,7 +415,6 @@ function App() {
         viewport,
         snapLockRef.current,
       )
-
       snapLockRef.current = solved.candidate?.key ?? null
       setSnapTarget(solved.candidate)
       setElements((current) =>
@@ -443,7 +426,6 @@ function App() {
       )
       return
     }
-
     updatePreview(documentPoint)
   }
 
@@ -453,12 +435,11 @@ function App() {
       setPan(null)
       return
     }
-
     const activeDrag = drag
     if (activeDrag && activeDrag.pointerId === event.pointerId) {
       if (didDragRef.current) {
         recordSnapshot(activeDrag.startSnapshot)
-        setStatus('Element moved')
+        setStatus(t.elementMoved)
       }
       didDragRef.current = false
       setDrag(null)
@@ -472,10 +453,8 @@ function App() {
     element: StitchElement,
   ) => {
     if (tool.type !== 'select' || event.button !== 0 || spacePressedRef.current) return
-
     event.stopPropagation()
     const documentPoint = toDocumentPoint(localPoint(event.clientX, event.clientY))
-
     setSelectedId(element.id)
     setSelectedGuideId(null)
     setDrag({
@@ -500,7 +479,7 @@ function App() {
     event.stopPropagation()
     setSelectedGuideId(guide.id)
     setSelectedId(null)
-    setStatus(`${guideLabel(guide)} selected`)
+    setStatus(`${guideLabel(guide, locale)} ${t.selected}`)
   }
 
   const rotateSelected = (delta: number) => {
@@ -564,7 +543,7 @@ function App() {
     setSelectedId(null)
     setTool({ type: 'select' })
     setPreview(null)
-    setStatus(`${guideLabel(guide)} added`)
+    setStatus(`${guideLabel(guide, locale)} ${t.added}`)
   }
 
   const updateSelectedGuide = (updater: (guide: Guide) => Guide) => {
@@ -577,17 +556,13 @@ function App() {
   const saveProject = () => {
     const project: CrochetProject = {
       schemaVersion: 2,
-      metadata: {
-        title: 'Crochet scheme',
-        updatedAt: new Date().toISOString(),
-      },
+      metadata: { title: t.projectTitle, updatedAt: new Date().toISOString() },
       elements,
       guides,
       settings: { snapping },
     }
-
     downloadText('crochet-scheme.json', JSON.stringify(project, null, 2), 'application/json')
-    setStatus('Project saved')
+    setStatus(t.projectSaved)
   }
 
   const loadProject = async (file: File) => {
@@ -597,9 +572,8 @@ function App() {
         (project.schemaVersion !== 1 && project.schemaVersion !== 2) ||
         !Array.isArray(project.elements)
       ) {
-        throw new Error('Unsupported project file')
+        throw new Error(t.unsupportedProject)
       }
-
       setHistory({ past: [currentSnapshot()], future: [] })
       setElements(project.elements)
       setGuides(Array.isArray(project.guides) ? project.guides : [])
@@ -610,19 +584,24 @@ function App() {
       setPreview(null)
       setSnapTarget(null)
       setStatus(
-        `Loaded ${project.elements.length} elements · ${project.guides?.length ?? 0} guides`,
+        `${t.loaded}: ${project.elements.length} ${t.stitchCount} · ${project.guides?.length ?? 0} ${t.guideCount}`,
       )
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not load project')
+      setStatus(error instanceof Error ? error.message : t.couldNotLoad)
     }
   }
 
   const exportSvg = () => {
-    downloadText('crochet-scheme.svg', serializeSvg(elements), 'image/svg+xml')
-    setStatus('SVG exported (guides excluded)')
+    downloadText('crochet-scheme.svg', serializeSvg(elements, t.emptySvg), 'image/svg+xml')
+    setStatus(t.svgExported)
   }
 
   const resetView = () => setViewport(DEFAULT_VIEWPORT)
+  const anchorLabels: Record<AnchorName, string> = {
+    top: t.top,
+    center: t.center,
+    bottom: t.bottom,
+  }
 
   return (
     <div className="app-shell">
@@ -630,22 +609,37 @@ function App() {
         <div className="brand">
           <div className="brand-mark">C</div>
           <div>
-            <strong>Crochet Scheme Editor</strong>
-            <span>Vector pattern workspace · MVP 0.3</span>
+            <strong>{t.brandTitle}</strong>
+            <span>{t.brandSubtitle}</span>
           </div>
         </div>
 
         <div className="topbar-actions">
+          <div className="language-switch" aria-label={t.language}>
+            <button
+              className={`ghost-button ${locale === 'ru' ? 'active-lang' : ''}`}
+              onClick={() => setLocale('ru')}
+            >
+              RU
+            </button>
+            <button
+              className={`ghost-button ${locale === 'en' ? 'active-lang' : ''}`}
+              onClick={() => setLocale('en')}
+            >
+              EN
+            </button>
+          </div>
+          <span className="toolbar-separator" />
           <button className="ghost-button" onClick={undo} disabled={!history.past.length}>
-            Undo
+            {t.undo}
           </button>
           <button className="ghost-button" onClick={redo} disabled={!history.future.length}>
-            Redo
+            {t.redo}
           </button>
           <span className="toolbar-separator" />
-          <button className="ghost-button" onClick={saveProject}>Save JSON</button>
-          <button className="ghost-button" onClick={() => loadInputRef.current?.click()}>Load</button>
-          <button className="primary-button" onClick={exportSvg}>Export SVG</button>
+          <button className="ghost-button" onClick={saveProject}>{t.saveJson}</button>
+          <button className="ghost-button" onClick={() => loadInputRef.current?.click()}>{t.load}</button>
+          <button className="primary-button" onClick={exportSvg}>{t.exportSvg}</button>
           <input
             ref={loadInputRef}
             type="file"
@@ -663,7 +657,7 @@ function App() {
       <aside className="sidebar left-sidebar">
         <section className="panel-section compact-section">
           <div className="section-title-row">
-            <h2>Tools</h2>
+            <h2>{t.tools}</h2>
             <span className="badge">P0</span>
           </div>
           <button
@@ -675,20 +669,20 @@ function App() {
             }}
           >
             <span>↖</span>
-            Select & move
+            {t.selectMove}
             <kbd>Esc</kbd>
           </button>
         </section>
 
         <section className="panel-section guide-section">
           <div className="section-title-row">
-            <h2>Guides</h2>
+            <h2>{t.guides}</h2>
             <span className="muted-text">{guides.length}</span>
           </div>
           <div className="guide-add-grid">
-            <button onClick={() => addGuide('arc')}><strong>⌒</strong><span>Arc</span></button>
-            <button onClick={() => addGuide('grid')}><strong>▦</strong><span>Grid</span></button>
-            <button onClick={() => addGuide('radial-grid')}><strong>◎</strong><span>Radial</span></button>
+            <button onClick={() => addGuide('arc')}><strong>⌒</strong><span>{t.arc}</span></button>
+            <button onClick={() => addGuide('grid')}><strong>▦</strong><span>{t.grid}</span></button>
+            <button onClick={() => addGuide('radial-grid')}><strong>◎</strong><span>{t.radial}</span></button>
           </div>
           {guides.length > 0 && (
             <div className="guide-list">
@@ -703,7 +697,7 @@ function App() {
                   }}
                 >
                   <span className={`visibility-dot ${guide.visible ? '' : 'hidden'}`} />
-                  <span>{index + 1}. {guideLabel(guide)}</span>
+                  <span>{index + 1}. {guideLabel(guide, locale)}</span>
                 </button>
               ))}
             </div>
@@ -712,21 +706,21 @@ function App() {
 
         <section className="panel-section symbols-section">
           <div className="section-title-row">
-            <h2>Stitches</h2>
+            <h2>{t.stitches}</h2>
             <span className="muted-text">{SYMBOLS.length}</span>
           </div>
-
           {groupedSymbols.map(([category, symbols]) => (
             <div className="symbol-group" key={category}>
-              <h3>{category}</h3>
+              <h3>{categoryName(category, locale)}</h3>
               <div className="symbol-grid">
                 {symbols.map((symbol) => {
                   const active = tool.type === 'place' && tool.symbolId === symbol.id
+                  const label = symbolName(symbol.id, symbol.name, locale)
                   return (
                     <button
                       className={`symbol-button ${active ? 'active' : ''}`}
                       key={symbol.id}
-                      title={symbol.name}
+                      title={label}
                       onClick={() => {
                         setTool({ type: 'place', symbolId: symbol.id })
                         setSelectedId(null)
@@ -736,7 +730,7 @@ function App() {
                       <svg viewBox="-24 -38 48 76" aria-hidden="true">
                         <g className="symbol-glyph"><SymbolGlyph symbolId={symbol.id} /></g>
                       </svg>
-                      <span>{symbol.name}</span>
+                      <span>{label}</span>
                     </button>
                   )
                 })}
@@ -751,7 +745,7 @@ function App() {
           <button onClick={() => setViewport((value) => ({ ...value, zoom: clamp(value.zoom / 1.2, 0.1, 5) }))}>−</button>
           <button className="zoom-readout" onClick={resetView}>{Math.round(viewport.zoom * 100)}%</button>
           <button onClick={() => setViewport((value) => ({ ...value, zoom: clamp(value.zoom * 1.2, 0.1, 5) }))}>+</button>
-          <span className="canvas-hint">Wheel to zoom · Space + drag to pan</span>
+          <span className="canvas-hint">{t.zoomHint}</span>
         </div>
 
         <svg
@@ -832,7 +826,10 @@ function App() {
             )}
 
             {snapTarget && (
-              <g className={`snap-indicator ${snapTarget.targetType === 'guide' ? 'guide-target' : ''}`} transform={`translate(${snapTarget.point.x} ${snapTarget.point.y})`}>
+              <g
+                className={`snap-indicator ${snapTarget.targetType === 'guide' ? 'guide-target' : ''}`}
+                transform={`translate(${snapTarget.point.x} ${snapTarget.point.y})`}
+              >
                 <circle r={8 / viewport.zoom} vectorEffect="non-scaling-stroke" />
                 <circle r={2.5 / viewport.zoom} vectorEffect="non-scaling-stroke" />
               </g>
@@ -842,15 +839,15 @@ function App() {
 
         <div className="statusbar">
           <span>{status}</span>
-          <span>{elements.length} stitches · {guides.length} guides</span>
+          <span>{elements.length} {t.stitchCount} · {guides.length} {t.guideCount}</span>
         </div>
       </main>
 
       <aside className="sidebar right-sidebar">
         <section className="panel-section">
-          <div className="section-title-row"><h2>Snapping</h2></div>
+          <div className="section-title-row"><h2>{t.snapping}</h2></div>
           <label className="toggle-row">
-            <span><strong>Allow snapping</strong><small>Stitches and guide intersections share one snap engine</small></span>
+            <span><strong>{t.allowSnapping}</strong><small>{t.snappingHint}</small></span>
             <input
               type="checkbox"
               checked={snapping.enabled}
@@ -859,7 +856,7 @@ function App() {
           </label>
 
           <fieldset disabled={!snapping.enabled}>
-            <legend>Snap point</legend>
+            <legend>{t.snapPoint}</legend>
             <div className="segmented-control">
               {(['top', 'center', 'bottom'] as AnchorName[]).map((anchor) => (
                 <button
@@ -867,14 +864,14 @@ function App() {
                   className={snapping.sourceAnchor === anchor ? 'active' : ''}
                   onClick={() => setSnapping((value) => ({ ...value, sourceAnchor: anchor }))}
                 >
-                  {anchor[0].toUpperCase() + anchor.slice(1)}
+                  {anchorLabels[anchor]}
                 </button>
               ))}
             </div>
           </fieldset>
 
           <fieldset disabled={!snapping.enabled}>
-            <legend>Orientation</legend>
+            <legend>{t.orientation}</legend>
             <select
               value={snapping.orientationMode}
               onChange={(event) => setSnapping((value) => ({
@@ -882,14 +879,14 @@ function App() {
                 orientationMode: event.target.value as OrientationMode,
               }))}
             >
-              <option value="none">Keep current</option>
-              <option value="along">Along target / tangent</option>
-              <option value="perpendicular">Perpendicular / radial</option>
+              <option value="none">{t.keepCurrent}</option>
+              <option value="along">{t.alongTarget}</option>
+              <option value="perpendicular">{t.perpendicular}</option>
             </select>
           </fieldset>
 
           <label className="toggle-row compact-toggle">
-            <span>Snap to stitch vertices</span>
+            <span>{t.snapToVertices}</span>
             <input
               type="checkbox"
               checked={snapping.snapToVertices}
@@ -898,7 +895,7 @@ function App() {
             />
           </label>
           <label className="range-row">
-            <span>Snap radius <strong>{snapping.tolerancePx}px</strong></span>
+            <span>{t.snapRadius} <strong>{snapping.tolerancePx}px</strong></span>
             <input
               type="range"
               min="6"
@@ -911,7 +908,7 @@ function App() {
         </section>
 
         <section className="panel-section">
-          <div className="section-title-row"><h2>Selection</h2></div>
+          <div className="section-title-row"><h2>{t.selection}</h2></div>
 
           {selectedElement ? (
             <div className="selection-card">
@@ -919,7 +916,11 @@ function App() {
                 <svg viewBox="-30 -42 60 84"><g className="symbol-glyph"><SymbolGlyph symbolId={selectedElement.symbolId} /></g></svg>
               </div>
               <div>
-                <strong>{SYMBOL_BY_ID.get(selectedElement.symbolId)?.name}</strong>
+                <strong>{symbolName(
+                  selectedElement.symbolId,
+                  SYMBOL_BY_ID.get(selectedElement.symbolId)?.name ?? selectedElement.symbolId,
+                  locale,
+                )}</strong>
                 <small>x {Math.round(selectedElement.x)} · y {Math.round(selectedElement.y)}</small>
                 <small>{Math.round(selectedElement.rotation)}°</small>
               </div>
@@ -927,17 +928,17 @@ function App() {
                 <button onClick={() => rotateSelected(-15)}>−15°</button>
                 <button onClick={() => rotateSelected(15)}>+15°</button>
               </div>
-              <button className="danger-button" onClick={deleteSelected}>Delete</button>
+              <button className="danger-button" onClick={deleteSelected}>{t.delete}</button>
             </div>
           ) : selectedGuide ? (
             <div className="guide-editor">
               <div className="guide-editor-heading">
-                <strong>{guideLabel(selectedGuide)}</strong>
+                <strong>{guideLabel(selectedGuide, locale)}</strong>
                 <span>{selectedGuide.type}</span>
               </div>
 
               <label className="toggle-row compact-toggle">
-                <span>Visible</span>
+                <span>{t.visible}</span>
                 <input
                   type="checkbox"
                   checked={selectedGuide.visible}
@@ -947,55 +948,55 @@ function App() {
 
               {selectedGuide.type === 'arc' && (
                 <div className="number-field-grid">
-                  <NumberField label="Center X" value={selectedGuide.center.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, center: { ...guide.center, x: value } } : guide)} />
-                  <NumberField label="Center Y" value={selectedGuide.center.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, center: { ...guide.center, y: value } } : guide)} />
-                  <NumberField label="Radius" value={selectedGuide.radius} min={10} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, radius: Math.max(10, value) } : guide)} />
-                  <NumberField label="Divisions" value={selectedGuide.divisions} min={1} max={72} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, divisions: Math.round(clamp(value, 1, 72)) } : guide)} />
-                  <NumberField label="Start °" value={selectedGuide.startAngle} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, startAngle: value } : guide)} />
-                  <NumberField label="End °" value={selectedGuide.endAngle} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, endAngle: value } : guide)} />
+                  <NumberField label={t.centerX} value={selectedGuide.center.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, center: { ...guide.center, x: value } } : guide)} />
+                  <NumberField label={t.centerY} value={selectedGuide.center.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, center: { ...guide.center, y: value } } : guide)} />
+                  <NumberField label={t.radius} value={selectedGuide.radius} min={10} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, radius: Math.max(10, value) } : guide)} />
+                  <NumberField label={t.divisions} value={selectedGuide.divisions} min={1} max={72} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, divisions: Math.round(clamp(value, 1, 72)) } : guide)} />
+                  <NumberField label={t.startAngle} value={selectedGuide.startAngle} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, startAngle: value } : guide)} />
+                  <NumberField label={t.endAngle} value={selectedGuide.endAngle} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, endAngle: value } : guide)} />
                 </div>
               )}
 
               {selectedGuide.type === 'grid' && (
                 <div className="number-field-grid">
-                  <NumberField label="Center X" value={selectedGuide.origin.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, origin: { ...guide.origin, x: value } } : guide)} />
-                  <NumberField label="Center Y" value={selectedGuide.origin.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, origin: { ...guide.origin, y: value } } : guide)} />
-                  <NumberField label="Rows" value={selectedGuide.rows} min={1} max={50} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, rows: Math.round(clamp(value, 1, 50)) } : guide)} />
-                  <NumberField label="Columns" value={selectedGuide.columns} min={1} max={50} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, columns: Math.round(clamp(value, 1, 50)) } : guide)} />
-                  <NumberField label="Spacing X" value={selectedGuide.spacingX} min={5} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, spacingX: Math.max(5, value) } : guide)} />
-                  <NumberField label="Spacing Y" value={selectedGuide.spacingY} min={5} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, spacingY: Math.max(5, value) } : guide)} />
-                  <NumberField label="Rotation °" value={selectedGuide.rotation} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, rotation: value } : guide)} />
+                  <NumberField label={t.centerX} value={selectedGuide.origin.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, origin: { ...guide.origin, x: value } } : guide)} />
+                  <NumberField label={t.centerY} value={selectedGuide.origin.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, origin: { ...guide.origin, y: value } } : guide)} />
+                  <NumberField label={t.rows} value={selectedGuide.rows} min={1} max={50} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, rows: Math.round(clamp(value, 1, 50)) } : guide)} />
+                  <NumberField label={t.columns} value={selectedGuide.columns} min={1} max={50} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, columns: Math.round(clamp(value, 1, 50)) } : guide)} />
+                  <NumberField label={t.spacingX} value={selectedGuide.spacingX} min={5} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, spacingX: Math.max(5, value) } : guide)} />
+                  <NumberField label={t.spacingY} value={selectedGuide.spacingY} min={5} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, spacingY: Math.max(5, value) } : guide)} />
+                  <NumberField label={t.rotation} value={selectedGuide.rotation} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, rotation: value } : guide)} />
                 </div>
               )}
 
               {selectedGuide.type === 'radial-grid' && (
                 <div className="number-field-grid">
-                  <NumberField label="Center X" value={selectedGuide.center.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, center: { ...guide.center, x: value } } : guide)} />
-                  <NumberField label="Center Y" value={selectedGuide.center.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, center: { ...guide.center, y: value } } : guide)} />
-                  <NumberField label="Rings" value={selectedGuide.ringCount} min={1} max={30} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, ringCount: Math.round(clamp(value, 1, 30)) } : guide)} />
-                  <NumberField label="Ring spacing" value={selectedGuide.ringSpacing} min={5} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, ringSpacing: Math.max(5, value) } : guide)} />
-                  <NumberField label="Sectors" value={selectedGuide.sectorCount} min={2} max={72} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, sectorCount: Math.round(clamp(value, 2, 72)) } : guide)} />
-                  <NumberField label="Start °" value={selectedGuide.startAngle} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, startAngle: value } : guide)} />
+                  <NumberField label={t.centerX} value={selectedGuide.center.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, center: { ...guide.center, x: value } } : guide)} />
+                  <NumberField label={t.centerY} value={selectedGuide.center.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, center: { ...guide.center, y: value } } : guide)} />
+                  <NumberField label={t.rings} value={selectedGuide.ringCount} min={1} max={30} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, ringCount: Math.round(clamp(value, 1, 30)) } : guide)} />
+                  <NumberField label={t.ringSpacing} value={selectedGuide.ringSpacing} min={5} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, ringSpacing: Math.max(5, value) } : guide)} />
+                  <NumberField label={t.sectors} value={selectedGuide.sectorCount} min={2} max={72} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, sectorCount: Math.round(clamp(value, 2, 72)) } : guide)} />
+                  <NumberField label={t.startAngle} value={selectedGuide.startAngle} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, startAngle: value } : guide)} />
                 </div>
               )}
 
-              <p className="guide-note">Selected guide points are snap targets. Along follows grid direction or curve tangent; Perpendicular points radially across arcs/rings.</p>
-              <button className="danger-button" onClick={deleteSelected}>Delete guide</button>
+              <p className="guide-note">{t.guideNote}</p>
+              <button className="danger-button" onClick={deleteSelected}>{t.deleteGuide}</button>
             </div>
           ) : (
-            <p className="empty-state">Select a stitch or guide to edit it.</p>
+            <p className="empty-state">{t.emptySelection}</p>
           )}
         </section>
 
         <section className="panel-section help-section">
-          <div className="section-title-row"><h2>MVP controls</h2></div>
+          <div className="section-title-row"><h2>{t.controls}</h2></div>
           <ul>
-            <li>Add Arc, Grid or Radial guides from the left panel.</li>
-            <li>Select a guide to expose its snap points and parameters.</li>
-            <li>Choose a stitch and place it near a guide point to snap.</li>
-            <li>Along uses the guide tangent; Perpendicular rotates 90° from it.</li>
-            <li>Mouse wheel zooms; Space + drag pans.</li>
-            <li>Save JSON persists guides using schema v2.</li>
+            <li>{t.help1}</li>
+            <li>{t.help2}</li>
+            <li>{t.help3}</li>
+            <li>{t.help4}</li>
+            <li>{t.help5}</li>
+            <li>{t.help6}</li>
           </ul>
         </section>
       </aside>
