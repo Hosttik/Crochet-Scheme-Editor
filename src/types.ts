@@ -8,6 +8,8 @@ export type StitchElement = {
   x: number
   y: number
   rotation: number
+  visible?: boolean
+  locked?: boolean
 }
 
 export type ArcGuide = {
@@ -61,7 +63,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2
+  schemaVersion: 1 | 2 | 3
   metadata: {
     title: string
     updatedAt: string
