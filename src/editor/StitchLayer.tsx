@@ -5,6 +5,7 @@ import { isElementLocked, isElementVisible } from './document'
 import { rowShapingMarkers } from './rowShaping'
 import { selectionAabb, type Rect } from './selection'
 import './rowShaping.css'
+import './topology.css'
 
 const SYMBOL_SIZES = Object.fromEntries(
   SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
@@ -38,6 +39,24 @@ export function StitchLayer({
   const visibleElements = elements.filter(isElementVisible)
   const selectedSet = new Set(selectedIds)
   const shapingMarkers = rowShapingMarkers(elements)
+  const elementById = new Map(visibleElements.map((element) => [element.id, element]))
+  const selectedElements = elements.filter((element) => selectedSet.has(element.id))
+  const selectedRowIds = new Set(
+    selectedElements.map((element) => element.parametricRow?.id).filter((id): id is string => Boolean(id)),
+  )
+  const topologyRowId =
+    selectedElements.length === selectedIds.length && selectedRowIds.size === 1
+      ? [...selectedRowIds][0]
+      : null
+  const topologyEdges = topologyRowId
+    ? visibleElements.flatMap((child) => {
+        if (child.parametricRow?.id !== topologyRowId) return []
+        return (child.parentStitchIds ?? []).flatMap((parentId) => {
+          const parent = elementById.get(parentId)
+          return parent ? [{ parent, child }] : []
+        })
+      })
+    : []
   const groupBounds =
     selectedIds.length > 1
       ? selectionAabb(visibleElements, selectedIds, SYMBOL_SIZES)
@@ -45,6 +64,22 @@ export function StitchLayer({
 
   return (
     <>
+      {topologyEdges.length > 0 && (
+        <g className="stitch-topology" pointerEvents="none" aria-hidden="true">
+          {topologyEdges.map(({ parent, child }, index) => (
+            <line
+              key={`${parent.id}:${child.id}:${index}`}
+              x1={parent.x}
+              y1={parent.y}
+              x2={child.x}
+              y2={child.y}
+              className="stitch-topology-link"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </g>
+      )}
+
       {groupBounds && (
         <rect
           x={groupBounds.left}
