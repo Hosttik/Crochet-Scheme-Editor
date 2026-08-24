@@ -35,6 +35,7 @@ const COPY = {
     valid: 'Топология согласована с предыдущим рядом',
     mismatch: 'Программа должна потреблять ровно все петли предыдущего ряда',
     firstRow: 'Прибавки/убавки требуют предыдущий ряд. В первом ряду используйте только обычные шаги.',
+    tooMany: 'Программа создаёт больше 500 элементов. Уменьшите количество или repeat.',
   },
   en: {
     rootRepeat: 'Repeat entire rapport',
@@ -57,6 +58,7 @@ const COPY = {
     valid: 'Topology matches the previous row',
     mismatch: 'The program must consume every stitch of the previous row exactly once',
     firstRow: 'Increases/decreases require a previous row. Use normal steps only in the first row.',
+    tooMany: 'The program produces more than 500 stitches. Reduce counts or repeats.',
   },
 } as const
 
@@ -91,9 +93,11 @@ export function RichRapportEditor({
   if (!program) return null
   const metrics = rowProgramMetrics(program)
   const hasTopologyOperations = rowProgramHasTopologyOperations(program)
-  const valid = parentStitchCount !== undefined
+  const withinLimit = metrics.producedChildren <= 500
+  const parentCompatible = parentStitchCount !== undefined
     ? metrics.consumedParents === parentStitchCount
     : !hasTopologyOperations
+  const valid = withinLimit && parentCompatible
 
   const commit = (nextProgram: RowProgram) => {
     const normalized = normalizeRowProgram(nextProgram)
@@ -270,7 +274,13 @@ export function RichRapportEditor({
         <span>{copy.children}: <strong>{metrics.producedChildren}</strong></span>
       </div>
       <p className={`row-generator-hint rich-program-status ${valid ? 'valid' : 'invalid'}`}>
-        {valid ? copy.valid : parentStitchCount === undefined ? copy.firstRow : copy.mismatch}
+        {valid
+          ? copy.valid
+          : !withinLimit
+            ? copy.tooMany
+            : parentStitchCount === undefined
+              ? copy.firstRow
+              : copy.mismatch}
       </p>
     </div>
   )
