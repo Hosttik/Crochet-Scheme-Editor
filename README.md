@@ -2,9 +2,9 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
-## v1.2
+## v1.3
 
-The editor combines an SVG canvas with a document model that understands guides, parametric rows and crochet row shaping.
+The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping and explicit stitch-to-stitch topology between adjacent rows.
 
 ### Editing
 
@@ -32,13 +32,17 @@ The editor combines an SVG canvas with a document model that understands guides,
 - ordered pattern rows with parent-row relationships
 - evenly distributed increases and decreases
 - quick next-row actions and +6 sequences
+- explicit parent-stitch → child-stitch topology
+- 1→1 normal stitches, 1→2 increases and 2→1 decreases
+- topology connection lines for the selected child row
 - canvas shaping markers
 - generated RU/EN written instructions
 - TXT and Markdown pattern export
 
 ### Persistence and export
 
-- project JSON schema v6; v1-v5 remain loadable through runtime validation/migration
+- project JSON schema v7; v1-v6 remain loadable through runtime validation/migration
+- topology parent ids are persisted and validated
 - local multi-project storage in IndexedDB
 - automatic migration of the legacy single autosave into the first local project
 - autosave per active project
@@ -47,14 +51,14 @@ The editor combines an SVG canvas with a document model that understands guides,
 
 ## Engineering baseline
 
-Core geometry, snapping, guide manipulation, selection, row generation, shaping, project validation, history and written-pattern generation live in pure modules outside the React rendering layer.
+Core geometry, snapping, guide manipulation, selection, row generation, shaping, stitch topology, project validation, history and written-pattern generation live in pure modules outside the React rendering layer.
 
 Every pull request runs:
 
 - strict TypeScript
 - Vitest unit tests
 - Vite production build
-- Playwright Chromium E2E smoke flow
+- Playwright Chromium E2E flows
 - public GitHub Pages endpoint smoke check
 
 ## Local development
@@ -92,8 +96,9 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - snapping
 - selection and viewport geometry
 - parametric crochet rows and shaping semantics
+- explicit stitch topology
 - generated written instructions
 - local persistence
 - rendering and React UI
 
-The next major domain milestone is stitch topology: explicit parent-stitch → child-stitch relationships between adjacent rows. That will enable exact non-uniform increases/decreases, mixed repeats, connection visualization and stronger pattern validation.
+The next domain milestone is editable topology: manually moving increase/decrease locations, mixed stitch sequences inside one row, and validation that compares row semantics with the actual parent-child graph.
