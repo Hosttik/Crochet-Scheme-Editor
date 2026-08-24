@@ -5,6 +5,7 @@ import {
   rowPlacementsToElements,
 } from './rowGenerator'
 import { createRowShaping, targetCountForRowShaping } from './rowShaping'
+import { rowBindingSymbolIds } from './rowSequence'
 import { applyRowTopology, isTopologyOverrideValid } from './topology'
 
 export type ParametricIdFactory = () => string
@@ -109,6 +110,15 @@ function replaceRowBlock(
   ]
 }
 
+function applyBindingSymbols(elements: StitchElement[], binding: ParametricRowBinding) {
+  const symbolIds = rowBindingSymbolIds(binding, elements.length)
+  return elements.map((element, index) => ({
+    ...element,
+    symbolId: symbolIds[index] ?? binding.symbolId,
+    parametricRow: binding,
+  }))
+}
+
 function reconcileTopology(elements: StitchElement[]) {
   let next = [...elements]
   for (const binding of uniqueBindings(next)) {
@@ -196,10 +206,9 @@ export function reconcileParametricRows(
       ...element,
       visible: existing[index]?.visible ?? true,
       locked: existing[index]?.locked ?? false,
-      parametricRow: binding,
     }))
 
-    next = replaceRowBlock(next, binding.id, regenerated)
+    next = replaceRowBlock(next, binding.id, applyBindingSymbols(regenerated, binding))
   }
 
   return reconcileTopology(next)
@@ -214,7 +223,7 @@ export function updateParametricRow(
 ) {
   const rebound = elements.map((element) =>
     element.parametricRow?.id === rowId
-      ? { ...element, symbolId: binding.symbolId, parametricRow: binding }
+      ? { ...element, parametricRow: binding }
       : element,
   )
   return reconcileParametricRows(rebound, guides, idFactory)
@@ -250,6 +259,7 @@ export function createNextPatternRow(
     id: idFactory(),
     guideId: parent.guideId,
     symbolId: parent.symbolId,
+    sequence: parent.sequence,
     patternOrder: nextPatternOrder(elements),
     parentRowId: parent.id,
     shaping,
@@ -262,11 +272,14 @@ export function createNextPatternRow(
   }
 
   const placements = generateGuideRowPlacements(guide, binding.options)
-  const generated = rowPlacementsToElements(
-    placements,
-    binding.symbolId,
-    () => idFactory(),
-  ).map((element) => ({ ...element, parametricRow: binding }))
+  const generated = applyBindingSymbols(
+    rowPlacementsToElements(
+      placements,
+      binding.symbolId,
+      () => idFactory(),
+    ),
+    binding,
+  )
   const linked = applyRowTopology(generated, parentElements, shaping)
 
   return { binding, elements: linked }
