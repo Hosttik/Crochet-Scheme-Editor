@@ -37,7 +37,8 @@
 .visibility-dot { width: 7px; height: 7px; border-radius: 50%; background: #438267; }
 .visibility-dot.hidden { background: #c8c6c0; }
 
-.guide-layer { cursor: pointer; }
+.guide-layer { cursor: grab; }
+.guide-layer:active { cursor: grabbing; }
 .guide-stroke {
   stroke: #678a9b;
   stroke-width: 1.15;
@@ -60,6 +61,31 @@
 }
 .snap-indicator.guide-target circle:first-child { stroke: #2e738f; fill: rgba(46, 115, 143, .08); }
 .snap-indicator.guide-target circle:last-child { fill: #2e738f; }
+
+.guide-manipulation-ui { pointer-events: none; }
+.guide-handle-link {
+  stroke: #2e738f;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: .75;
+  pointer-events: none;
+}
+.guide-handle {
+  pointer-events: all;
+  stroke: #2e738f;
+  stroke-width: 1.4;
+  fill: #fff;
+}
+.guide-move-handle {
+  fill: #2e738f;
+  cursor: move;
+}
+.guide-resize-handle { cursor: ew-resize; }
+.guide-rotate-handle {
+  fill: #f4fbff;
+  cursor: grab;
+}
+.guide-rotate-handle:active { cursor: grabbing; }
 
 .guide-editor { display: grid; gap: 12px; }
 .guide-editor-heading {
@@ -101,4 +127,13 @@
   color: #68747a;
   font-size: 9px;
   line-height: 1.45;
+}
+
+.language-switch { display: flex; align-items: center; gap: 3px; }
+.language-switch .ghost-button { min-width: 34px; padding-left: 7px; padding-right: 7px; }
+.language-switch .active-lang {
+  background: #e7f0eb;
+  border-color: #8aab9b;
+  color: #244e3e;
+  font-weight: 700;
 }
