@@ -1,0 +1,91 @@
+.pattern-instructions-panel {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e4e0d8;
+  display: grid;
+  gap: 9px;
+}
+
+.pattern-instructions-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pattern-instructions-heading strong {
+  font-size: 11px;
+  color: #3f4943;
+}
+
+.pattern-instructions-heading span {
+  font-size: 8px;
+  color: #788078;
+}
+
+.pattern-instructions-empty,
+.pattern-instructions-hint {
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.45;
+  color: #7c827d;
+}
+
+.pattern-instructions-list {
+  display: grid;
+  gap: 5px;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.pattern-instructions-list button {
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid #e1ddd6;
+  border-radius: 7px;
+  background: #fff;
+  color: #404640;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pattern-instructions-list button:hover {
+  background: #f7faf8;
+  border-color: #cfdad4;
+}
+
+.pattern-instructions-list button.active {
+  border-color: #78a18c;
+  background: #edf5f0;
+  color: #315a47;
+}
+
+.pattern-instructions-actions {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 6px;
+}
+
+.pattern-instructions-actions button {
+  min-height: 30px;
+  padding: 6px 9px;
+  border: 1px solid #d5dcd7;
+  border-radius: 7px;
+  background: #fff;
+  color: #466653;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.pattern-instructions-actions button:hover {
+  background: #edf5f0;
+}
+
+.pattern-instructions-hint {
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: #f4f7f4;
+}
