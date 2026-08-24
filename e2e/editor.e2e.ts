@@ -31,3 +31,17 @@ test('places a stitch, restores autosave and manages local projects', async ({ p
   await expect(page.locator('.statusbar span').last()).toContainText('0 элементов')
   await expect(page.locator('.project-select option')).toHaveCount(2)
 })
+
+test('renders explicit parent-child topology for a shaped row', async ({ page }) => {
+  await page.goto('/Crochet-Scheme-Editor/')
+
+  await page.getByRole('button', { name: /Радиальная/ }).click()
+  await expect(page.getByText('Создать параметрический ряд', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
+
+  await expect(page.getByText('Ряд 1', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '+6 прибавок' }).click()
+
+  await expect(page.getByText('Ряд 2', { exact: true })).toBeVisible()
+  await expect(page.locator('.stitch-topology-link')).toHaveCount(18)
+})

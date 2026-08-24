@@ -29,6 +29,12 @@ function optionalBoolean(value: unknown) {
   return value === undefined || typeof value === 'boolean'
 }
 
+function optionalStringArray(value: unknown) {
+  return value === undefined || (
+    Array.isArray(value) && value.length > 0 && value.every(nonEmptyString)
+  )
+}
+
 function point(value: unknown) {
   return isRecord(value) && finite(value.x) && finite(value.y)
 }
@@ -72,7 +78,8 @@ function parseElement(value: unknown): StitchElement {
   if (
     !nonEmptyString(value.id) || !nonEmptyString(value.symbolId) ||
     !finite(value.x) || !finite(value.y) || !finite(value.rotation) ||
-    !optionalBoolean(value.visible) || !optionalBoolean(value.locked)
+    !optionalBoolean(value.visible) || !optionalBoolean(value.locked) ||
+    !optionalStringArray(value.parentStitchIds)
   ) {
     throw new ProjectValidationError('Invalid stitch element fields')
   }
@@ -85,6 +92,7 @@ function parseElement(value: unknown): StitchElement {
     visible: value.visible !== false,
     locked: value.locked === true,
     parametricRow: parseParametricRow(value.parametricRow),
+    parentStitchIds: value.parentStitchIds as string[] | undefined,
   }
 }
 
@@ -129,7 +137,7 @@ function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSett
 
 export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): CrochetProject {
   if (!isRecord(raw)) throw new ProjectValidationError('Project must be an object')
-  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 6) {
+  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 7) {
     throw new ProjectValidationError('Unsupported project schema')
   }
   if (!Array.isArray(raw.elements)) throw new ProjectValidationError('Project elements are missing')
@@ -143,7 +151,7 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
   const guides = (raw.guides ?? []).map(parseGuide)
 
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     metadata: {
       title: typeof metadata.title === 'string' && metadata.title.trim() ? metadata.title : 'Crochet scheme',
       updatedAt: typeof metadata.updatedAt === 'string' ? metadata.updatedAt : new Date().toISOString(),

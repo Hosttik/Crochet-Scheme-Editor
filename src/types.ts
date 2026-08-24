@@ -41,6 +41,7 @@ export type StitchElement = {
   visible?: boolean
   locked?: boolean
   parametricRow?: ParametricRowBinding
+  parentStitchIds?: string[]
 }
 
 export type ArcGuide = {
@@ -94,7 +95,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7
   metadata: {
     title: string
     updatedAt: string
