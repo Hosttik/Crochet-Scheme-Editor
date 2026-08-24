@@ -1,4 +1,4 @@
-import type { ArcGuide, Guide, RadialGridGuide } from '../types'
+import type { ArcGuide, Guide, RadialGridGuide, StitchElement } from '../types'
 
 export type RowDistributionMode = 'count' | 'spacing'
 export type RowOrientation = 'tangent' | 'radial' | 'fixed'
@@ -19,6 +19,8 @@ export type RowPlacement = {
   rotation: number
   angle: number
 }
+
+export type RowElementIdFactory = (placement: RowPlacement, index: number) => string
 
 const MAX_STITCHES = 500
 const EPSILON = 1e-6
@@ -133,4 +135,20 @@ export function generateGuideRowPlacements(
   if (guide.type === 'arc') return arcPlacements(guide, options)
   if (guide.type === 'radial-grid') return radialPlacements(guide, options)
   return []
+}
+
+export function rowPlacementsToElements(
+  placements: RowPlacement[],
+  symbolId: string,
+  idFactory: RowElementIdFactory,
+): StitchElement[] {
+  return placements.map((placement, index) => ({
+    id: idFactory(placement, index),
+    symbolId,
+    x: placement.x,
+    y: placement.y,
+    rotation: placement.rotation,
+    visible: true,
+    locked: false,
+  }))
 }
