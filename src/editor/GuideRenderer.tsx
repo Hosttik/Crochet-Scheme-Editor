@@ -18,7 +18,7 @@ type Props = {
   guide: Guide
   selected: boolean
   zoom: number
-  onPointerDown: (event: ReactPointerEvent<SVGGElement>, guide: Guide) => boolean
+  onPointerDown: (event: ReactPointerEvent<SVGGElement>, guide: Guide) => void
   clientToDocument: (clientX: number, clientY: number) => Point
   onManipulationStart: () => void
   onManipulationPreview: (guide: Guide) => void
@@ -53,14 +53,10 @@ export function GuideRenderer({
   ) => {
     if (event.button !== 0) return
 
-    const accepted = onPointerDown(
-      event as unknown as ReactPointerEvent<SVGGElement>,
-      guide,
-    )
-    if (!accepted) return
+    onPointerDown(event as unknown as ReactPointerEvent<SVGGElement>, guide)
+    if (!event.isPropagationStopped()) return
 
     event.preventDefault()
-    event.stopPropagation()
 
     const pointerId = event.pointerId
     const startClient = { x: event.clientX, y: event.clientY }
