@@ -67,7 +67,7 @@ export function StitchLayer({
           <g
             key={element.id}
             transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
-            className={`stitch-element ${selected ? 'selected' : ''} ${locked ? 'locked' : ''}`}
+            className={`stitch-element ${selected ? 'selected' : ''} ${locked ? 'locked' : ''} ${element.parametricRow ? 'parametric' : ''}`}
             pointerEvents={locked ? 'none' : undefined}
             onPointerDown={locked ? undefined : (event) => onElementPointerDown(event, element)}
           >
@@ -86,7 +86,7 @@ export function StitchLayer({
               <SymbolGlyph symbolId={element.symbolId} />
             </g>
 
-            {primary && selectedIds.length === 1 && definition && !locked && (
+            {primary && selectedIds.length === 1 && definition && !locked && !element.parametricRow && (
               <>
                 {(['top', 'center', 'bottom'] as AnchorName[]).map((anchor) => (
                   <circle

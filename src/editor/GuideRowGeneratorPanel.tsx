@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { SYMBOLS, SymbolGlyph } from '../symbols'
 import { symbolName, type Locale } from '../i18n'
-import type { Guide, StitchElement } from '../types'
+import type { Guide, ParametricRowBinding, StitchElement } from '../types'
 import {
   generateGuideRowPlacements,
   resolveGuideRowCount,
@@ -15,7 +15,7 @@ import './rowGenerator.css'
 
 const COPY = {
   ru: {
-    title: 'Создать ряд по направляющей',
+    title: 'Создать параметрический ряд',
     stitch: 'Элемент',
     distribution: 'Распределение',
     countMode: 'Количество',
@@ -29,14 +29,15 @@ const COPY = {
     fixed: 'Без автоповорота',
     rotationOffset: 'Смещение угла °',
     radialOffset: 'Смещение от направляющей',
-    generate: 'Создать ряд',
+    generate: 'Создать связанный ряд',
     result: 'Будет создано элементов',
     preview: 'Полупрозрачный предпросмотр уже показан на холсте.',
+    parametric: 'После создания ряд останется связан с направляющей и сможет перестраиваться.',
     hintArc: 'На открытой дуге крайние элементы ставятся точно в начало и конец.',
     hintRadial: 'Элементы равномерно распределяются по выбранному кольцу без дублирования начальной точки.',
   },
   en: {
-    title: 'Generate row from guide',
+    title: 'Create parametric row',
     stitch: 'Stitch',
     distribution: 'Distribution',
     countMode: 'Count',
@@ -50,9 +51,10 @@ const COPY = {
     fixed: 'Keep fixed',
     rotationOffset: 'Rotation offset °',
     radialOffset: 'Guide offset',
-    generate: 'Generate row',
+    generate: 'Create linked row',
     result: 'Stitches to create',
     preview: 'A translucent live preview is already visible on the canvas.',
+    parametric: 'After creation, the row stays linked to the guide and can be rebuilt later.',
     hintArc: 'On an open arc, the first and last stitches land exactly on the endpoints.',
     hintRadial: 'Stitches are distributed evenly around the selected ring without duplicating the start point.',
   },
@@ -141,7 +143,15 @@ export function GuideRowGeneratorPanel({
   }
 
   const generate = () => {
-    const generated = rowPlacementsToElements(placements, symbolId, () => createId())
+    const binding: ParametricRowBinding = {
+      id: createId(),
+      guideId: guide.id,
+      symbolId,
+      options: { ...options },
+    }
+    const generated = rowPlacementsToElements(placements, symbolId, () => createId()).map(
+      (element) => ({ ...element, parametricRow: binding }),
+    )
     onGenerate(generated)
     setPreviewVisible(false)
   }
@@ -286,6 +296,7 @@ export function GuideRowGeneratorPanel({
         {previewVisible && guide.visible && (
           <p className="row-generator-preview-hint">{copy.preview}</p>
         )}
+        <p className="row-generator-preview-hint">{copy.parametric}</p>
         <p className="row-generator-hint">
           {guide.type === 'arc' ? copy.hintArc : copy.hintRadial}
         </p>

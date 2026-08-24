@@ -2,6 +2,26 @@ export type Point = { x: number; y: number }
 export type AnchorName = 'top' | 'center' | 'bottom'
 export type OrientationMode = 'none' | 'along' | 'perpendicular'
 
+export type RowDistributionMode = 'count' | 'spacing'
+export type RowOrientation = 'tangent' | 'radial' | 'fixed'
+
+export type GuideRowOptions = {
+  distributionMode: RowDistributionMode
+  count: number
+  spacing: number
+  orientation: RowOrientation
+  rotationOffset: number
+  radialOffset: number
+  ringIndex: number
+}
+
+export type ParametricRowBinding = {
+  id: string
+  guideId: string
+  symbolId: string
+  options: GuideRowOptions
+}
+
 export type StitchElement = {
   id: string
   symbolId: string
@@ -10,6 +30,7 @@ export type StitchElement = {
   rotation: number
   visible?: boolean
   locked?: boolean
+  parametricRow?: ParametricRowBinding
 }
 
 export type ArcGuide = {
@@ -63,7 +84,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3
+  schemaVersion: 1 | 2 | 3 | 4
   metadata: {
     title: string
     updatedAt: string

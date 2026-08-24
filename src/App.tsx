@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { GuideRenderer } from './editor/GuideRenderer'
 import { GuideRowGeneratorPanel } from './editor/GuideRowGeneratorPanel'
+import { ParametricRowEditorPanel } from './editor/ParametricRowEditorPanel'
 import { LayersPanel } from './editor/LayersPanel'
 import { StitchLayer } from './editor/StitchLayer'
 import {
@@ -17,6 +18,14 @@ import {
 import type { GuideManipulationMode } from './editor/guideManipulation'
 import { clamp, screenToDocument } from './editor/geometry'
 import { loadAutosave, saveAutosave } from './editor/persistence'
+import {
+  deleteParametricRow,
+  expandIdsToParametricRows,
+  parametricRowFromSelection,
+  reconcileParametricRows,
+  rowElements,
+  updateParametricRow,
+} from './editor/parametricRows'
 import {
   idsInMarquee,
   normalizeRect,
@@ -38,6 +47,7 @@ import type {
   CrochetProject,
   Guide,
   OrientationMode,
+  ParametricRowBinding,
   Point,
   SnappingSettings,
   StitchElement,
@@ -183,7 +193,7 @@ function buildProject(
   snapping: SnappingSettings,
 ): CrochetProject {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     metadata: { title, updatedAt: new Date().toISOString() },
     elements: normalizeElements(elements),
     guides,
@@ -263,7 +273,7 @@ function App() {
         if (cancelled) return
         if (saved) {
           const project = normalizeProject(saved, DEFAULT_SNAPPING)
-          setElements(project.elements)
+          setElements(reconcileParametricRows(project.elements, project.guides ?? [], createId))
           setGuides(project.guides ?? [])
           setSnapping(project.settings.snapping)
           setStatus(UI[locale].autosaveRestored)
@@ -305,6 +315,11 @@ function App() {
     return () => window.clearTimeout(timeout)
   }, [elements, guides, hydrated, snapping, t.projectTitle])
 
+  useEffect(() => {
+    if (!hydrated) return
+    setElements((current) => reconcileParametricRows(current, guides, createId))
+  }, [guides, hydrated])
+
   const primaryId = selectedIds.at(-1) ?? null
   const selectedElement = useMemo(
     () =>
@@ -316,6 +331,16 @@ function App() {
   const selectedGuide = useMemo(
     () => guides.find((guide) => guide.id === selectedGuideId) ?? null,
     [guides, selectedGuideId],
+  )
+  const selectedParametricRow = useMemo(
+    () => parametricRowFromSelection(elements, selectedIds),
+    [elements, selectedIds],
+  )
+  const selectedParametricGuide = useMemo(
+    () => selectedParametricRow
+      ? guides.find((guide) => guide.id === selectedParametricRow.guideId) ?? null
+      : null,
+    [guides, selectedParametricRow],
   )
   const visibleElements = useMemo(() => elements.filter(isElementVisible), [elements])
   const groupedSymbols = useMemo(() => {
@@ -403,7 +428,7 @@ function App() {
 
   const deleteSelected = useCallback(() => {
     if (selectedIds.length) {
-      const deletable = new Set(unlockedSelectedIds())
+      const deletable = new Set(expandIdsToParametricRows(elements, unlockedSelectedIds()))
       if (!deletable.size) return
       commitElements(elements.filter((element) => !deletable.has(element.id)))
       setSelectedIds((current) => current.filter((id) => !deletable.has(id)))
@@ -448,6 +473,7 @@ function App() {
       x: element.x + offset,
       y: element.y + offset,
       locked: false,
+      parametricRow: undefined,
     }))
     commitElements([...elements, ...pasted])
     setSelectedIds(pasted.map((element) => element.id))
@@ -467,6 +493,7 @@ function App() {
         x: element.x + DUPLICATE_OFFSET,
         y: element.y + DUPLICATE_OFFSET,
         locked: false,
+        parametricRow: undefined,
       }))
     commitElements([...elements, ...duplicated])
     setSelectedIds(duplicated.map((element) => element.id))
@@ -491,8 +518,13 @@ function App() {
     setSelectedGuideId(null)
     setTool({ type: 'select' })
     setSelectedIds((current) => {
-      if (!additive) return [id]
-      return current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+      const targetIds = expandIdsToParametricRows(elements, [id])
+      if (!additive) return targetIds
+      const targetSet = new Set(targetIds)
+      const allSelected = targetIds.every((item) => current.includes(item))
+      return allSelected
+        ? current.filter((item) => !targetSet.has(item))
+        : uniqueIds([...current, ...targetIds])
     })
   }, [elements])
 
@@ -777,7 +809,7 @@ function App() {
       interactionMovedRef.current = Math.hypot(delta.x, delta.y) > 0.5
       setElements(
         drag.startSnapshot.elements.map((element) => {
-          if (!selectedSet.has(element.id) || isElementLocked(element)) return element
+          if (!selectedSet.has(element.id) || isElementLocked(element) || element.parametricRow) return element
           const moved = { ...element, x: element.x + delta.x, y: element.y + delta.y }
           return drag.selectedIds.length === 1 && element.id === reference.id
             ? { ...moved, rotation: solved.rotation }
@@ -836,7 +868,7 @@ function App() {
           (element) => isElementVisible(element) && !isElementLocked(element),
         )
         const hits = moved ? idsInMarquee(selectable, rect, SYMBOL_SIZES) : []
-        const next = uniqueIds([...marquee.baseIds, ...hits])
+        const next = expandIdsToParametricRows(elements, uniqueIds([...marquee.baseIds, ...hits]))
         setSelectedIds(next)
         if (next.length) setStatus(`${t.selectedCount}: ${next.length}`)
       }
@@ -855,6 +887,23 @@ function App() {
       isElementLocked(element)
     ) return
     event.stopPropagation()
+
+    if (element.parametricRow) {
+      const rowIds = rowElements(elements, element.parametricRow.id).map((item) => item.id)
+      const rowSet = new Set(rowIds)
+      const rowAlreadySelected = rowIds.every((id) => selectedIds.includes(id))
+      setSelectedIds(
+        event.shiftKey
+          ? rowAlreadySelected
+            ? selectedIds.filter((id) => !rowSet.has(id))
+            : uniqueIds([...selectedIds, ...rowIds])
+          : rowIds,
+      )
+      setSelectedGuideId(null)
+      setTool({ type: 'select' })
+      setStatus((locale === 'ru' ? 'Выбран параметрический ряд' : 'Parametric row selected') + ': ' + rowIds.length)
+      return
+    }
 
     const alreadySelected = selectedIds.includes(element.id)
     if (event.shiftKey && alreadySelected) {
@@ -886,7 +935,7 @@ function App() {
     event: ReactPointerEvent<SVGCircleElement>,
     element: StitchElement,
   ) => {
-    if (event.button !== 0 || spacePressedRef.current || isElementLocked(element)) return
+    if (event.button !== 0 || spacePressedRef.current || isElementLocked(element) || element.parametricRow) return
     event.preventDefault()
     event.stopPropagation()
     const point = clientToDocument(event.clientX, event.clientY)
@@ -944,7 +993,7 @@ function App() {
     if (!selected.size) return
     commitElements(
       elements.map((element) =>
-        selected.has(element.id)
+        selected.has(element.id) && !element.parametricRow
           ? { ...element, rotation: element.rotation + delta }
           : element,
       ),
@@ -1022,6 +1071,20 @@ function App() {
     setStatus(`${locale === 'ru' ? 'Создан ряд' : 'Row generated'}: ${generated.length}`)
   }
 
+  const handleUpdateParametricRow = (binding: ParametricRowBinding) => {
+    const next = updateParametricRow(elements, guides, binding.id, binding, createId)
+    commitElements(next)
+    setSelectedIds(rowElements(next, binding.id).map((element) => element.id))
+    setSelectedGuideId(null)
+    setStatus(locale === 'ru' ? 'Параметрический ряд перестроен' : 'Parametric row rebuilt')
+  }
+
+  const handleDeleteParametricRow = (rowId: string) => {
+    commitElements(deleteParametricRow(elements, rowId))
+    clearElementSelection()
+    setStatus(locale === 'ru' ? 'Параметрический ряд удалён' : 'Parametric row deleted')
+  }
+
   const saveProject = () => {
     const project = buildProject(t.projectTitle, elements, guides, snapping)
     downloadText('crochet-scheme.json', JSON.stringify(project, null, 2), 'application/json')
@@ -1032,14 +1095,14 @@ function App() {
     try {
       const raw = JSON.parse(await file.text()) as CrochetProject
       if (
-        ![1, 2, 3].includes(raw.schemaVersion) ||
+        ![1, 2, 3, 4].includes(raw.schemaVersion) ||
         !Array.isArray(raw.elements)
       ) {
         throw new Error(t.unsupportedProject)
       }
       const project = normalizeProject(raw, DEFAULT_SNAPPING)
       setHistory({ past: [currentSnapshot()], future: [] })
-      setElements(project.elements)
+      setElements(reconcileParametricRows(project.elements, project.guides ?? [], createId))
       setGuides(project.guides ?? [])
       setSnapping(project.settings.snapping)
       clearElementSelection()
@@ -1335,7 +1398,15 @@ function App() {
         <section className="panel-section">
           <div className="section-title-row"><h2>{t.selection}</h2></div>
 
-          {selectedElement ? (
+          {selectedParametricRow && selectedParametricGuide ? (
+            <ParametricRowEditorPanel
+              binding={selectedParametricRow}
+              guide={selectedParametricGuide}
+              locale={locale}
+              onChange={handleUpdateParametricRow}
+              onDelete={() => handleDeleteParametricRow(selectedParametricRow.id)}
+            />
+          ) : selectedElement ? (
             <div className="selection-card">
               <div className="selection-preview">
                 <svg viewBox="-30 -42 60 84"><g className="symbol-glyph"><SymbolGlyph symbolId={selectedElement.symbolId} /></g></svg>

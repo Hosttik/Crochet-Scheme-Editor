@@ -1,17 +1,14 @@
-import type { ArcGuide, Guide, RadialGridGuide, StitchElement } from '../types'
+import type {
+  ArcGuide,
+  Guide,
+  GuideRowOptions,
+  RadialGridGuide,
+  RowDistributionMode,
+  RowOrientation,
+  StitchElement,
+} from '../types'
 
-export type RowDistributionMode = 'count' | 'spacing'
-export type RowOrientation = 'tangent' | 'radial' | 'fixed'
-
-export type GuideRowOptions = {
-  distributionMode: RowDistributionMode
-  count: number
-  spacing: number
-  orientation: RowOrientation
-  rotationOffset: number
-  radialOffset: number
-  ringIndex: number
-}
+export type { GuideRowOptions, RowDistributionMode, RowOrientation } from '../types'
 
 export type RowPlacement = {
   x: number
