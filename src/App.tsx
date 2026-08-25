@@ -6,6 +6,7 @@ import { ParametricRowEditorPanel } from './editor/ParametricRowEditorPanel'
 import { PatternRowsPanel } from './editor/PatternRowsPanel'
 import { ProjectManagerPanel } from './editor/ProjectManagerPanel'
 import { ProductivityPanel } from './editor/ProductivityPanel'
+import { SelectionQuickToolbar } from './editor/SelectionQuickToolbar'
 import { LayersPanel } from './editor/LayersPanel'
 import { StitchLayer } from './editor/StitchLayer'
 import { TopologyEditorPanel } from './editor/TopologyEditorPanel'
@@ -1055,12 +1056,17 @@ function App() {
     element: StitchElement,
   ) => {
     if (
-      tool.type !== 'select' ||
       event.button !== 0 ||
       spacePressedRef.current ||
       isElementLocked(element)
     ) return
     event.stopPropagation()
+
+    if (tool.type === 'place') {
+      setTool({ type: 'select' })
+      setPreview(null)
+      setSnapTarget(null)
+    }
 
     if (element.parametricRow) {
       const rowIds = rowElements(elements, element.parametricRow.id).map((item) => item.id)
@@ -1617,9 +1623,24 @@ function App() {
           <span className="canvas-hint">{t.zoomHint}</span>
         </div>
 
+        <SelectionQuickToolbar
+          locale={locale}
+          elements={elements}
+          selectedIds={productivitySelectionIds()}
+          viewport={viewport}
+          canGroup={productivitySelectionIds().length > 1}
+          canUngroup={productivitySelectionIds().some((id) => Boolean(elements.find((element) => element.id === id)?.groupId))}
+          onDuplicate={duplicateSelection}
+          onGroup={groupSelection}
+          onUngroup={ungroupSelection}
+          onMirror={mirrorSelection}
+          onRotate={rotateSelected}
+          onDelete={deleteSelected}
+        />
+
         <svg
           ref={svgRef}
-          className={`editor-canvas ${pan ? 'panning' : ''}`}
+          className={`editor-canvas ${pan ? 'panning' : ''} ${tool.type === 'place' ? 'placing' : 'selecting'}`}
           onWheel={handleWheel}
           onPointerDown={handleCanvasPointerDown}
           onPointerMove={handleCanvasPointerMove}
@@ -1740,18 +1761,22 @@ function App() {
           />
         </section>
 
-        <ProductivityPanel
-          locale={locale}
-          guides={guides}
-          selectedCount={productivitySelectionIds().length}
-          canTransform={productivitySelectionIds().length > 0}
-          canGroup={productivitySelectionIds().length > 1}
-          canUngroup={productivitySelectionIds().some((id) => Boolean(elements.find((element) => element.id === id)?.groupId))}
-          onGroup={groupSelection}
-          onUngroup={ungroupSelection}
-          onMirror={mirrorSelection}
-          onRepeat={repeatProductivitySelection}
-        />
+        {productivitySelectionIds().length > 0 && (
+          <ProductivityPanel
+            locale={locale}
+            guides={guides}
+            elements={elements}
+            selectedIds={productivitySelectionIds()}
+            selectedCount={productivitySelectionIds().length}
+            canTransform
+            canGroup={productivitySelectionIds().length > 1}
+            canUngroup={productivitySelectionIds().some((id) => Boolean(elements.find((element) => element.id === id)?.groupId))}
+            onGroup={groupSelection}
+            onUngroup={ungroupSelection}
+            onMirror={mirrorSelection}
+            onRepeat={repeatProductivitySelection}
+          />
+        )}
 
         <section className="panel-section">
           <div className="section-title-row"><h2>{t.selection}</h2></div>
