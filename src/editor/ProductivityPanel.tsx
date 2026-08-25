@@ -15,6 +15,7 @@ const COPY = {
   ru: {
     title: 'Ускорители',
     hint: 'Результат повтора показывается на холсте до создания.',
+    groupedPreviewHidden: 'Для выбранной группы фантомный предпросмотр скрыт, чтобы не перегружать схему.',
     group: 'Группировать',
     ungroup: 'Разгруппировать',
     mirror: 'Отразить',
@@ -45,6 +46,7 @@ const COPY = {
   en: {
     title: 'Productivity',
     hint: 'Repeat results are previewed on the canvas before creation.',
+    groupedPreviewHidden: 'Ghost preview is hidden for a selected group to keep the chart readable.',
     group: 'Group',
     ungroup: 'Ungroup',
     mirror: 'Mirror',
@@ -150,10 +152,10 @@ export function ProductivityPanel({
   }, [angleStep, copies, deltaX, deltaY, mode, orientation, selectedGuide, spacing])
 
   const previewElements = useMemo(() => {
-    if (!canTransform || !options) return []
+    if (!canTransform || !options || canUngroup) return []
     let index = 0
     return repeatSelection(elements, selectedIds, options, () => `__repeat-preview__:${index++}`)
-  }, [canTransform, elements, options, selectedIds])
+  }, [canTransform, canUngroup, elements, options, selectedIds])
 
   const apply = () => {
     if (disabled || !options) return
@@ -185,7 +187,7 @@ export function ProductivityPanel({
           <h2>{copy.title}</h2>
           <span className="muted-text">{selectedCount}</span>
         </div>
-        <p className="productivity-hint">{copy.hint}</p>
+        <p className="productivity-hint">{canUngroup ? copy.groupedPreviewHidden : copy.hint}</p>
 
         <div className="productivity-actions">
           <button disabled={!canGroup} onClick={onGroup}>{copy.group}</button>

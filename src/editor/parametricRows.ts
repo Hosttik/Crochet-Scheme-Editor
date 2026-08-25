@@ -157,6 +157,7 @@ function reconcileTopology(elements: StitchElement[]) {
           ? {
               ...element.parametricRow,
               parentRowId: undefined,
+              generatedRadialOffset: undefined,
               shaping: undefined,
               topologyOverride: undefined,
             }
@@ -277,6 +278,7 @@ export function createNextPatternRow(
     ? targetCountForRowShaping(baseCount, shaping.kind, shaping.count)
     : baseCount
   const radialStep = guide.type === 'radial-grid' ? Math.max(1, guide.ringSpacing) : 40
+  const generatedRadialOffset = parent.options.radialOffset + radialStep
   const binding: ParametricRowBinding = {
     id: idFactory(),
     guideId: parent.guideId,
@@ -285,12 +287,13 @@ export function createNextPatternRow(
     construction: nextRowConstruction(parent.construction),
     patternOrder: nextPatternOrder(elements),
     parentRowId: parent.id,
+    generatedRadialOffset,
     shaping,
     options: {
       ...parent.options,
       distributionMode: 'count',
       count: targetCount,
-      radialOffset: parent.options.radialOffset + radialStep,
+      radialOffset: generatedRadialOffset,
     },
   }
 
@@ -351,6 +354,7 @@ export function deleteParametricRow(elements: StitchElement[], rowId: string) {
       parametricRow: {
         ...binding,
         parentRowId: undefined,
+        generatedRadialOffset: undefined,
         shaping: undefined,
         topologyOverride: undefined,
       },

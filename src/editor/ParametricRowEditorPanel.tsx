@@ -104,13 +104,18 @@ export function ParametricRowEditorPanel({
   const hasNonDefaultRing =
     guide.type === 'radial-grid' &&
     options.ringIndex !== Math.max(1, Math.round(guide.ringCount))
-  const hasRootRadialOffset = !binding.parentRowId && options.radialOffset !== 0
+  const radialStep = guide.type === 'radial-grid' ? Math.max(1, guide.ringSpacing) : 40
+  const legacyStructuralRadialOffset = Math.max(1, (binding.patternOrder ?? 2) - 1) * radialStep
+  const structuralRadialOffset = binding.parentRowId
+    ? binding.generatedRadialOffset ?? legacyStructuralRadialOffset
+    : 0
+  const hasNonDefaultRadialOffset = Math.abs(options.radialOffset - structuralRadialOffset) > 1e-6
   const hasAdvancedValue = Boolean(
     binding.sequence?.items.length ||
     binding.program ||
     binding.construction ||
     options.distributionMode === 'spacing' ||
-    hasRootRadialOffset ||
+    hasNonDefaultRadialOffset ||
     options.rotationOffset ||
     hasNonDefaultRing,
   )
@@ -250,8 +255,7 @@ export function ParametricRowEditorPanel({
                 disabled={maxRowShapingChanges(shapingBase, 'decrease') === 0}
                 onClick={() => applyShaping('decrease')}
               >
-                {copy.decrease}
-              </button>
+                {copy.decrease}</button>
             </div>
             {binding.shaping && (
               <label className="row-generator-field row-shaping-count-field">

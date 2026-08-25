@@ -140,6 +140,37 @@ test('compiles a semantic rapport into stitch types and exact topology', async (
   await expect(page.locator('.stitch-topology-link')).toHaveCount(13)
 })
 
+test('reopens Advanced for a manually changed child row offset', async ({ page }) => {
+  await page.goto('/Crochet-Scheme-Editor/')
+
+  await page.getByRole('button', { name: /Радиальная/ }).click()
+  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
+  await expect(patternRow(page, 1)).toBeVisible()
+  await page.locator('.pattern-row-next-actions').getByRole('button', { name: 'Без изменений' }).click()
+  await expect(patternRow(page, 2)).toBeVisible()
+
+  const rowEditor = page.locator('.parametric-row-editor')
+  const advanced = rowEditor.getByRole('button', { name: 'Дополнительно' })
+  await expect(advanced).toHaveAttribute('aria-expanded', 'false')
+  await advanced.click()
+
+  const radialOffset = rowEditor.getByLabel('Смещение от направляющей')
+  const automaticValue = Number(await radialOffset.inputValue())
+  const manualValue = automaticValue + 7
+  await radialOffset.fill(String(manualValue))
+  await expect(radialOffset).toHaveValue(String(manualValue))
+
+  await page.waitForTimeout(900)
+  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
+  await page.reload()
+
+  await patternRow(page, 2).click()
+  const restoredEditor = page.locator('.parametric-row-editor')
+  const restoredAdvanced = restoredEditor.getByRole('button', { name: 'Дополнительно' })
+  await expect(restoredAdvanced).toHaveAttribute('aria-expanded', 'true')
+  await expect(restoredEditor.getByLabel('Смещение от направляющей')).toHaveValue(String(manualValue))
+})
+
 test('persists joined and turning row construction semantics', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
 

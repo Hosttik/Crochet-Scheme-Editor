@@ -45,10 +45,13 @@ test('groups a motif, selects it as one object, mirrors it and creates a linear 
   await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
   const productivity = page.locator('.productivity-panel')
   await productivity.getByRole('button', { name: 'Группировать', exact: true }).click()
+  await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(0)
+  await expect(productivity.locator('.productivity-hint')).toContainText('фантомный предпросмотр скрыт')
 
   await clearCanvasSelection(page)
   await page.locator('.stitch-element').first().click()
   await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
+  await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(0)
 
   await clearCanvasSelection(page)
   await page.locator('.stitch-element').first().click({ modifiers: ['Alt'] })
