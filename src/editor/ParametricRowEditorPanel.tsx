@@ -102,7 +102,7 @@ export function ParametricRowEditorPanel({
   const resolvedCount = resolveGuideRowCount(guide, options)
   const shapingBase = parentStitchCount ?? binding.shaping?.baseCount
   const hasAdvancedValue = Boolean(
-    binding.sequence?.length ||
+    binding.sequence?.items.length ||
     binding.program ||
     binding.construction ||
     options.distributionMode === 'spacing' ||
