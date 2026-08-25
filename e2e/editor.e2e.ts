@@ -1,4 +1,8 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+function patternRow(page: Page, number: number) {
+  return page.locator('.pattern-row-number').filter({ hasText: new RegExp(`^Ряд ${number}$`) })
+}
 
 test('places a stitch, restores autosave and manages local projects', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -39,10 +43,10 @@ test('edits explicit parent-child topology and restores it with undo', async ({ 
   await expect(page.getByText('Создать параметрический ряд', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
 
-  await expect(page.getByText('Ряд 1', { exact: true })).toBeVisible()
+  await expect(patternRow(page, 1)).toBeVisible()
   await page.getByRole('button', { name: '+6 прибавок' }).click()
 
-  await expect(page.getByText('Ряд 2', { exact: true })).toBeVisible()
+  await expect(patternRow(page, 2)).toBeVisible()
   await expect(page.locator('.stitch-topology-link')).toHaveCount(18)
   await expect(page.locator('.topology-mode-badge')).toHaveText('Равномерно')
   await expect(page.locator('.topology-change-button')).toHaveCount(6)
@@ -59,7 +63,7 @@ test('edits explicit parent-child topology and restores it with undo', async ({ 
   await expect(page.getByText(/прибавки в петли 3, 4, 6, 8, 10, 12/)).toBeVisible()
 
   await page.getByRole('button', { name: 'Отменить' }).click()
-  await page.getByText('Ряд 2', { exact: true }).click()
+  await patternRow(page, 2).click()
   await expect(page.locator('.topology-mode-badge')).toHaveText('Равномерно')
   await expect(page.locator('.topology-change-button').first()).toContainText('+ 2')
   await expect(page.locator('.stitch-topology-link')).toHaveCount(18)
@@ -70,7 +74,7 @@ test('edits a mixed stitch rapport and restores it from autosave', async ({ page
 
   await page.getByRole('button', { name: /Радиальная/ }).click()
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
-  await expect(page.getByText('Ряд 1', { exact: true })).toBeVisible()
+  await expect(patternRow(page, 1)).toBeVisible()
   await page.getByRole('button', { name: 'Дополнительно' }).click()
 
   await page.getByRole('button', { name: 'Раппорт', exact: true }).click()
@@ -97,9 +101,9 @@ test('compiles a semantic rapport into stitch types and exact topology', async (
 
   await page.getByRole('button', { name: /Радиальная/ }).click()
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
-  await expect(page.getByText('Ряд 1', { exact: true })).toBeVisible()
+  await expect(patternRow(page, 1)).toBeVisible()
   await page.getByRole('button', { name: 'Без изменений' }).click()
-  await expect(page.getByText('Ряд 2', { exact: true })).toBeVisible()
+  await expect(patternRow(page, 2)).toBeVisible()
   await page.getByRole('button', { name: 'Дополнительно' }).click()
 
   await page.getByRole('button', { name: 'Семантический', exact: true }).click()
@@ -122,7 +126,7 @@ test('compiles a semantic rapport into stitch types and exact topology', async (
 
   await expect(page.getByText('Семантический раппорт', { exact: true })).toBeVisible()
   await expect(page.getByText(/Ряд 2: 11 СБН, прибавка \(СБН\) = 13/)).toBeVisible()
-  await page.getByText('Ряд 2', { exact: true }).click()
+  await patternRow(page, 2).click()
   await expect(page.locator('.stitch-topology-link')).toHaveCount(13)
 })
 
@@ -131,7 +135,7 @@ test('persists joined and turning row construction semantics', async ({ page }) 
 
   await page.getByRole('button', { name: /Радиальная/ }).click()
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
-  await expect(page.getByText('Ряд 1', { exact: true })).toBeVisible()
+  await expect(patternRow(page, 1)).toBeVisible()
   await page.getByRole('button', { name: 'Дополнительно' }).click()
 
   await page.getByRole('button', { name: 'Замкнутый', exact: true }).click()
@@ -143,14 +147,14 @@ test('persists joined and turning row construction semantics', async ({ page }) 
   await expect(page.getByText(/2 ВП подъёма \(вне счёта ряда\); 12 СБН = 12; замкнутый круг ↻; замкнуть СС/)).toBeVisible()
 
   await page.locator('.pattern-row-next-actions').getByRole('button', { name: 'Без изменений' }).click()
-  await expect(page.getByText('Ряд 2', { exact: true })).toBeVisible()
+  await expect(patternRow(page, 2)).toBeVisible()
   await expect(page.getByText(/замкнутый круг ↻; замкнуть СС/).last()).toBeVisible()
 
   await page.getByRole('button', { name: 'Поворотный', exact: true }).click()
   await expect(page.locator('.row-construction-status strong')).toHaveText('→')
   await page.locator('.pattern-row-next-actions').getByRole('button', { name: 'Без изменений' }).click()
 
-  await expect(page.getByText('Ряд 3', { exact: true })).toBeVisible()
+  await expect(patternRow(page, 3)).toBeVisible()
   await expect(page.locator('.row-construction-status strong')).toHaveText('←')
   await expect(page.getByText(/поворотный ряд ←; повернуть работу/).last()).toBeVisible()
   await expect(page.locator('.row-construction-marker')).toHaveCount(2)
@@ -159,7 +163,7 @@ test('persists joined and turning row construction semantics', async ({ page }) 
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
   await page.reload()
 
-  await page.getByText('Ряд 3', { exact: true }).click()
+  await patternRow(page, 3).click()
   await expect(page.locator('.row-construction-status strong')).toHaveText('←')
   await expect(page.getByText(/поворотный ряд ←; повернуть работу/).last()).toBeVisible()
 })
