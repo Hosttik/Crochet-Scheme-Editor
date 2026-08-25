@@ -124,6 +124,7 @@ test('repeated Ctrl+D repeats the previous duplicate movement and rotation', asy
   await page.keyboard.press('Control+D')
   await expect(page.locator('.stitch-element')).toHaveCount(2)
 
+  await page.getByRole('button', { name: 'Выбрать и переместить', exact: true }).click()
   const selected = page.locator('.stitch-element.selected')
   const selectedBox = await selected.boundingBox()
   expect(selectedBox).not.toBeNull()
@@ -134,6 +135,8 @@ test('repeated Ctrl+D repeats the previous duplicate movement and rotation', asy
   await page.locator('.right-sidebar').getByRole('button', { name: '+15°', exact: true }).click()
 
   const current = transformParts(await selected.getAttribute('transform'))
+  expect(Math.hypot(current.x - original.x, current.y - original.y)).toBeGreaterThan(40)
+  expect(current.rotation - original.rotation).toBeCloseTo(15, 3)
   await expect(page.locator('.stitch-element.selected')).toHaveCount(1)
   await page.keyboard.press('Control+D')
   await expect(page.locator('.stitch-element')).toHaveCount(3)
