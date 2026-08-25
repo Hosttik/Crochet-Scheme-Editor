@@ -105,8 +105,9 @@ export function ParametricRowEditorPanel({
     guide.type === 'radial-grid' &&
     options.ringIndex !== Math.max(1, Math.round(guide.ringCount))
   const radialStep = guide.type === 'radial-grid' ? Math.max(1, guide.ringSpacing) : 40
+  const legacyStructuralRadialOffset = Math.max(1, (binding.patternOrder ?? 2) - 1) * radialStep
   const structuralRadialOffset = binding.parentRowId
-    ? Math.max(1, (binding.patternOrder ?? 2) - 1) * radialStep
+    ? binding.generatedRadialOffset ?? legacyStructuralRadialOffset
     : 0
   const hasNonDefaultRadialOffset = Math.abs(options.radialOffset - structuralRadialOffset) > 1e-6
   const hasAdvancedValue = Boolean(
@@ -333,7 +334,7 @@ export function ParametricRowEditorPanel({
                   min="1"
                   step="1"
                   value={options.spacing}
-                  onChange={(event) => patchOptions({ spacing: Math.max(1, Number(event.target.value) || 1) })}
+                  onChange={(event) => patchOptions({ spacing: Math.max(1, Number(event.target.value) || 1 })}
                 />
               </label>
             )}
