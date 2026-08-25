@@ -1,7 +1,7 @@
 .selection-quick-toolbar {
   position: absolute;
   z-index: 14;
-  transform: translate(-50%, calc(-100% - 24px));
+  transform: translate(-50%, calc(-100% - 12px));
   display: flex;
   align-items: center;
   gap: 4px;
@@ -24,4 +24,4 @@
 .selection-quick-toolbar button:hover:not(:disabled) { background: #edf4f0; border-color: #b7c9bf; }
 .selection-quick-toolbar .selection-quick-danger { color: #a44036; }
 .selection-quick-toolbar .selection-quick-danger:hover:not(:disabled) { background: #fff0ed; border-color: #eccbc6; }
-.selection-quick-separator { width: 1px; height: 20px; margin: 0 1px; background: #e3dfd7; }
+.selection-quick-separator { width: 1px; height: 20px; margin: 0 1px; background: #e3dfd7; pointer-events: none; }
