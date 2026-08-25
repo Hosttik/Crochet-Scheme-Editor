@@ -1,0 +1,32 @@
+name: v1.9 guarded integration
+
+on:
+  push:
+    branches:
+      - feature/usability-pass-v19
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: feature/usability-pass-v19
+      - name: Apply guarded App integration
+        run: python scripts/apply-v19-integration.py
+      - name: Commit integration
+        run: |
+          if git diff --quiet; then
+            echo "No integration changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.tsx src/styles.css
+          git commit -m "feat: integrate v1.9 usability interactions"
+          git push origin HEAD:feature/usability-pass-v19
