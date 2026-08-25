@@ -288,6 +288,7 @@ function App() {
   const clipboardRef = useRef<StitchElement[]>([])
   const pasteSerialRef = useRef(1)
   const duplicateSeriesRef = useRef<{ previous: StitchElement[]; currentIds: string[] } | null>(null)
+  const duplicateKeyDownRef = useRef(false)
   const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const autosaveRevisionRef = useRef(0)
 
@@ -759,7 +760,10 @@ function App() {
           pasteSelection()
         } else if (key === 'd') {
           event.preventDefault()
-          if (!event.repeat) duplicateSelection()
+          if (!event.repeat && !duplicateKeyDownRef.current) {
+            duplicateKeyDownRef.current = true
+            duplicateSelection()
+          }
         } else if (key === 'a') {
           event.preventDefault()
           selectAll()
@@ -782,6 +786,9 @@ function App() {
 
     const onKeyUp = (event: KeyboardEvent) => {
       if (event.code === 'Space') spacePressedRef.current = false
+      if (event.key.toLowerCase() === 'd' || event.key === 'Control' || event.key === 'Meta') {
+        duplicateKeyDownRef.current = false
+      }
     }
 
     window.addEventListener('keydown', onKeyDown)

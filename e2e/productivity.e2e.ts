@@ -134,6 +134,7 @@ test('repeated Ctrl+D repeats the previous duplicate movement and rotation', asy
   await page.locator('.right-sidebar').getByRole('button', { name: '+15°', exact: true }).click()
 
   const current = transformParts(await selected.getAttribute('transform'))
+  await expect(page.locator('.stitch-element.selected')).toHaveCount(1)
   await page.keyboard.press('Control+D')
   await expect(page.locator('.stitch-element')).toHaveCount(3)
   const next = transformParts(await page.locator('.stitch-element.selected').getAttribute('transform'))
