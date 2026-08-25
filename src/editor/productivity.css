@@ -64,3 +64,6 @@
   width: 100%;
   font-weight: 700;
 }
+
+.productivity-repeat-preview { opacity: .38; color: #236b4e; }
+.productivity-repeat-preview-stitch .symbol-glyph { color: #236b4e; }
