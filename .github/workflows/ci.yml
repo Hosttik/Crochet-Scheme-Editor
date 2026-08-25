@@ -8,30 +8,6 @@ permissions:
   contents: read
 
 jobs:
-  apply-v18-shortcut-fix:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/productivity-tools-v18'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout feature branch
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-      - name: Apply guarded shortcut fix
-        run: node scripts/fix-v18-shortcut.mjs
-      - name: Commit fix
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/App.tsx e2e/productivity.e2e.ts
-          if git diff --cached --quiet; then
-            echo "No fix changes"
-          else
-            git commit -m "fix: debounce Ctrl+D shortcut per keypress"
-            git push origin HEAD:${{ github.event.pull_request.head.ref }}
-          fi
-
   verify:
     runs-on: ubuntu-latest
     steps:
