@@ -71,6 +71,7 @@ test('edits a mixed stitch rapport and restores it from autosave', async ({ page
   await page.getByRole('button', { name: /Радиальная/ }).click()
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
   await expect(page.getByText('Ряд 1', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Дополнительно' }).click()
 
   await page.getByRole('button', { name: 'Раппорт', exact: true }).click()
   await expect(page.locator('.row-sequence-item')).toHaveCount(2)
@@ -99,6 +100,7 @@ test('compiles a semantic rapport into stitch types and exact topology', async (
   await expect(page.getByText('Ряд 1', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Без изменений' }).click()
   await expect(page.getByText('Ряд 2', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Дополнительно' }).click()
 
   await page.getByRole('button', { name: 'Семантический', exact: true }).click()
   await expect(page.getByText('Семантический раппорт', { exact: true })).toBeVisible()
@@ -130,6 +132,7 @@ test('persists joined and turning row construction semantics', async ({ page }) 
   await page.getByRole('button', { name: /Радиальная/ }).click()
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
   await expect(page.getByText('Ряд 1', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Дополнительно' }).click()
 
   await page.getByRole('button', { name: 'Замкнутый', exact: true }).click()
   await expect(page.locator('.row-construction-status strong')).toHaveText('↻')
