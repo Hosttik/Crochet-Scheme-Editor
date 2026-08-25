@@ -6,6 +6,7 @@ import { ParametricRowEditorPanel } from './editor/ParametricRowEditorPanel'
 import { PatternRowsPanel } from './editor/PatternRowsPanel'
 import { ProjectManagerPanel } from './editor/ProjectManagerPanel'
 import { ProductivityPanel } from './editor/ProductivityPanel'
+import { SelectionColorControl } from './editor/SelectionColorControl'
 import { SelectionQuickToolbar } from './editor/SelectionQuickToolbar'
 import { LayersPanel } from './editor/LayersPanel'
 import { StitchLayer } from './editor/StitchLayer'
@@ -20,6 +21,7 @@ import {
   sendBackward as sendElementsBackward,
   sendToBack as sendElementsToBack,
 } from './editor/document'
+import { DEFAULT_STITCH_COLOR } from './editor/elementColor'
 import type { GuideManipulationMode } from './editor/guideManipulation'
 import { clamp, screenToDocument } from './editor/geometry'
 import { emptyHistory, pushHistory, redoHistory, undoHistory } from './editor/history'
@@ -232,7 +234,7 @@ function serializeSvg(elements: StitchElement[], emptyLabel: string) {
   const content = elements
     .map(
       (element) =>
-        `<g transform="translate(${element.x} ${element.y}) rotate(${element.rotation})" style="color:#1d211f">${symbolSvgMarkup(element.symbolId)}</g>`,
+        `<g transform="translate(${element.x} ${element.y}) rotate(${element.rotation})" style="color:${element.color ?? DEFAULT_STITCH_COLOR}">${symbolSvgMarkup(element.symbolId)}</g>`,
     )
     .join('')
 
@@ -246,7 +248,7 @@ function buildProject(
   snapping: SnappingSettings,
 ): CrochetProject {
   return {
-    schemaVersion: 12,
+    schemaVersion: 13,
     metadata: { title, updatedAt: new Date().toISOString() },
     elements: normalizeElements(elements),
     guides,
@@ -1184,6 +1186,17 @@ function App() {
     )
   }
 
+  const applySelectionColor = (color?: string) => {
+    const selected = new Set(unlockedSelectedIds())
+    if (!selected.size) return
+    commitElements(
+      elements.map((element) =>
+        selected.has(element.id) ? { ...element, color } : element,
+      ),
+    )
+    setStatus(locale === 'ru' ? 'Цвет выделения изменён' : 'Selection color changed')
+  }
+
   const addGuide = (type: Guide['type']) => {
     const rect = svgRef.current?.getBoundingClientRect()
     const center = toDocumentPoint({
@@ -1385,7 +1398,7 @@ function App() {
     try {
       const raw = JSON.parse(await file.text()) as CrochetProject
       if (
-        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].includes(raw.schemaVersion) ||
+        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].includes(raw.schemaVersion) ||
         !Array.isArray(raw.elements)
       ) {
         throw new Error(t.unsupportedProject)
@@ -1781,6 +1794,16 @@ function App() {
         <section className="panel-section">
           <div className="section-title-row"><h2>{t.selection}</h2></div>
 
+          {selectedIds.length > 0 && (
+            <SelectionColorControl
+              locale={locale}
+              colors={elements
+                .filter((element) => selectedIds.includes(element.id) && !isElementLocked(element))
+                .map((element) => element.color)}
+              onChange={applySelectionColor}
+            />
+          )}
+
           {selectedParametricRow && selectedParametricGuide ? (
             <>
               <ParametricRowEditorPanel
@@ -1803,7 +1826,7 @@ function App() {
           ) : selectedElement ? (
             <div className="selection-card">
               <div className="selection-preview">
-                <svg viewBox="-30 -42 60 84"><g className="symbol-glyph"><SymbolGlyph symbolId={selectedElement.symbolId} /></g></svg>
+                <svg viewBox="-30 -42 60 84"><g className="symbol-glyph" style={selectedElement.color ? { color: selectedElement.color } : undefined}><SymbolGlyph symbolId={selectedElement.symbolId} /></g></svg>
               </div>
               <div>
                 <strong>{symbolName(selectedElement.symbolId, SYMBOL_BY_ID.get(selectedElement.symbolId)?.name ?? selectedElement.symbolId, locale)}</strong>

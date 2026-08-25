@@ -34,9 +34,9 @@ function shapedBinding() {
 }
 
 describe('parseProject', () => {
-  it('migrates legacy projects to schema v12 and normalizes element flags', () => {
+  it('migrates legacy projects to schema v13 and normalizes element flags', () => {
     const project = parseProject(legacyProject(), fallback)
-    expect(project.schemaVersion).toBe(12)
+    expect(project.schemaVersion).toBe(13)
     expect(project.elements[0]).toMatchObject({ visible: true, locked: false })
     expect(project.guides).toEqual([])
   })
@@ -218,6 +218,20 @@ describe('parseProject', () => {
     raw.elements[0].groupId = 'motif-a'
     expect(parseProject(raw, fallback).elements[0].groupId).toBe('motif-a')
     raw.elements[0].groupId = ''
+    expect(() => parseProject(raw, fallback)).toThrow(ProjectValidationError)
+  })
+
+  it('preserves and validates schema v13 stitch colors', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 13
+    raw.elements[0].color = '#C2413B'
+    const parsed = parseProject(raw, fallback)
+    expect(parsed.elements[0].color).toBe('#c2413b')
+    expect(parsed.schemaVersion).toBe(13)
+
+    raw.elements[0].color = 'red'
+    expect(() => parseProject(raw, fallback)).toThrow(ProjectValidationError)
+    raw.elements[0].color = '#123'
     expect(() => parseProject(raw, fallback)).toThrow(ProjectValidationError)
   })
 

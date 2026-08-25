@@ -45,7 +45,7 @@ describe('layer ordering', () => {
 })
 
 describe('project migration', () => {
-  it('upgrades legacy stitch visibility and lock flags to schema v12', () => {
+  it('upgrades legacy stitch visibility and lock flags to schema v13', () => {
     const legacy = {
       schemaVersion: 2,
       metadata: { title: 'Legacy', updatedAt: '2026-01-01T00:00:00.000Z' },
@@ -55,7 +55,7 @@ describe('project migration', () => {
     } as CrochetProject
 
     const migrated = normalizeProject(legacy, snapping)
-    expect(migrated.schemaVersion).toBe(12)
+    expect(migrated.schemaVersion).toBe(13)
     expect(migrated.elements[0]).toMatchObject({ visible: true, locked: false })
   })
 
@@ -69,7 +69,7 @@ describe('project migration', () => {
     }
 
     const migrated = normalizeProject(project, snapping)
-    expect(migrated.schemaVersion).toBe(12)
+    expect(migrated.schemaVersion).toBe(13)
     expect(migrated.elements[0]).toMatchObject({
       visible: false,
       locked: true,

@@ -131,7 +131,7 @@ export function StitchLayer({
               />
             )}
 
-            <g className="symbol-glyph">
+            <g className="symbol-glyph" style={element.color ? { color: element.color } : undefined}>
               <SymbolGlyph symbolId={element.symbolId} />
             </g>
 

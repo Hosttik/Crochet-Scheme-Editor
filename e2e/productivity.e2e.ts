@@ -36,7 +36,7 @@ async function clearCanvasSelection(page: Page) {
   await expect(page.locator('.stitch-element.selected')).toHaveCount(0)
 }
 
-test('groups a motif, selects it as one object, mirrors it and creates a linear array', async ({ page }) => {
+test('groups a colored motif, previews it as outlines and creates a linear array', async ({ page }) => {
   await openEditor(page)
   await placeAt(page, 'Столбик без накида', 0.36, 0.42)
   await placeAt(page, 'Столбик с накидом', 0.52, 0.48)
@@ -46,16 +46,25 @@ test('groups a motif, selects it as one object, mirrors it and creates a linear 
   const productivity = page.locator('.productivity-panel')
   await productivity.getByRole('button', { name: 'Группировать', exact: true }).click()
   await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(0)
-  await expect(productivity.locator('.productivity-hint')).toContainText('фантомный предпросмотр скрыт')
+  await expect(page.locator('.productivity-repeat-preview-group')).toHaveCount(5)
+  await expect(productivity.locator('.productivity-hint')).toContainText('контуры будущих копий')
+
+  await page.getByRole('button', { name: 'Синий', exact: true }).click()
+  await expect(page.locator('.stitch-element .symbol-glyph').first()).toHaveCSS('color', 'rgb(37, 99, 235)')
+  await expect(page.locator('.stitch-element .symbol-glyph').nth(1)).toHaveCSS('color', 'rgb(37, 99, 235)')
 
   await clearCanvasSelection(page)
   await page.locator('.stitch-element').first().click()
   await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
   await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(0)
+  await expect(page.locator('.productivity-repeat-preview-group')).toHaveCount(5)
 
   await clearCanvasSelection(page)
   await page.locator('.stitch-element').first().click({ modifiers: ['Alt'] })
   await expect(page.locator('.stitch-element.selected')).toHaveCount(1)
+  await page.getByRole('button', { name: 'Красный', exact: true }).click()
+  await expect(page.locator('.stitch-element .symbol-glyph').first()).toHaveCSS('color', 'rgb(194, 65, 59)')
+  await expect(page.locator('.stitch-element .symbol-glyph').nth(1)).toHaveCSS('color', 'rgb(37, 99, 235)')
   await page.locator('.stitch-element').first().click()
   await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
 
@@ -72,11 +81,18 @@ test('groups a motif, selects it as one object, mirrors it and creates a linear 
   expect(afterParts[1].x).toBeLessThan(beforeParts[1].x)
 
   await productivity.getByLabel('Копий').fill('2')
+  await expect(page.locator('.productivity-repeat-preview-group')).toHaveCount(2)
   await productivity.getByLabel('ΔX').fill('70')
   await productivity.getByLabel('ΔY').fill('0')
   await productivity.getByRole('button', { name: 'Создать копии', exact: true }).click()
   await expect(page.locator('.stitch-element')).toHaveCount(6)
   await expect(page.locator('.stitch-element.selected')).toHaveCount(4)
+
+  const colors = await page.locator('.stitch-element .symbol-glyph').evaluateAll((nodes) =>
+    nodes.map((node) => getComputedStyle(node).color),
+  )
+  expect(colors.filter((color) => color === 'rgb(194, 65, 59)')).toHaveLength(3)
+  expect(colors.filter((color) => color === 'rgb(37, 99, 235)')).toHaveLength(3)
 
   await clearCanvasSelection(page)
   await page.locator('.stitch-element').nth(2).click()
@@ -152,7 +168,34 @@ test('repeated Ctrl+D repeats the previous duplicate movement and rotation', asy
   expect(next.rotation - current.rotation).toBeCloseTo(current.rotation - original.rotation, 3)
 })
 
-test('persists group ids in schema v12 and updates a renamed project immediately', async ({ page }) => {
+test('persists a stitch color through autosave, JSON and SVG export', async ({ page }) => {
+  await openEditor(page)
+  await placeAt(page, 'Столбик без накида', 0.43, 0.44)
+  await page.getByRole('button', { name: 'Красный', exact: true }).click()
+  await expect(page.locator('.stitch-element .symbol-glyph')).toHaveCSS('color', 'rgb(194, 65, 59)')
+
+  await page.waitForTimeout(900)
+  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
+  await page.reload()
+  await expect(page.locator('.stitch-element .symbol-glyph')).toHaveCSS('color', 'rgb(194, 65, 59)')
+
+  const jsonDownload = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Сохранить JSON' }).click()
+  const jsonPath = await (await jsonDownload).path()
+  expect(jsonPath).not.toBeNull()
+  const project = JSON.parse(await readFile(jsonPath!, 'utf8'))
+  expect(project.schemaVersion).toBe(13)
+  expect(project.elements[0].color).toBe('#c2413b')
+
+  const svgDownload = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Экспорт SVG' }).click()
+  const svgPath = await (await svgDownload).path()
+  expect(svgPath).not.toBeNull()
+  const svg = await readFile(svgPath!, 'utf8')
+  expect(svg).toContain('color:#c2413b')
+})
+
+test('persists group ids in schema v13 and updates a renamed project immediately', async ({ page }) => {
   await openEditor(page)
   await placeAt(page, 'Столбик без накида', 0.40, 0.43)
   await placeAt(page, 'Воздушная петля', 0.48, 0.48)
@@ -170,7 +213,7 @@ test('persists group ids in schema v12 and updates a renamed project immediately
   const path = await (await downloadPromise).path()
   expect(path).not.toBeNull()
   const project = JSON.parse(await readFile(path!, 'utf8'))
-  expect(project.schemaVersion).toBe(12)
+  expect(project.schemaVersion).toBe(13)
   expect(project.elements).toHaveLength(2)
   expect(project.elements[0].groupId).toBeTruthy()
   expect(project.elements[0].groupId).toBe(project.elements[1].groupId)

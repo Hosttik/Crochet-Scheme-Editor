@@ -79,6 +79,21 @@ describe('parametric rows', () => {
     expect(result.slice(3).map((element) => element.id)).toEqual(['new-1', 'new-2'])
   })
 
+  it('keeps a uniform row color and applies it to new stitches when the row grows', () => {
+    let serial = 0
+    const colored = row().map((element) => ({ ...element, color: '#c2413b' }))
+    const nextBinding = { ...binding, options: { ...binding.options, count: 5 } }
+    const result = updateParametricRow(
+      colored,
+      [guide],
+      binding.id,
+      nextBinding,
+      () => `new-${++serial}`,
+    )
+    expect(result).toHaveLength(5)
+    expect(result.map((element) => element.color)).toEqual(Array(5).fill('#c2413b'))
+  })
+
   it('drops trailing children when the row shrinks', () => {
     const nextBinding = { ...binding, options: { ...binding.options, count: 2 } }
     const result = updateParametricRow(row(4), [guide], binding.id, nextBinding, () => 'unused')

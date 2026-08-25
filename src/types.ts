@@ -84,6 +84,7 @@ export type StitchElement = {
   x: number
   y: number
   rotation: number
+  color?: string
   visible?: boolean
   locked?: boolean
   groupId?: string
@@ -142,7 +143,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13
   metadata: {
     title: string
     updatedAt: string

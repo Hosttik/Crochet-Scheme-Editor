@@ -2,9 +2,9 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
-## v1.9
+## v1.10
 
-The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.9 is a usability pass: it keeps the v1.8 domain model and schema while reducing mode errors, panel noise and the number of clicks needed for common motif editing.
+The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.10 adds visual styling without changing crochet instruction semantics: stitches can carry independent colors, while grouped Repeat previews become lightweight motif outlines instead of dense piles of ghost stitches.
 
 ### Editing and productivity
 
@@ -14,13 +14,17 @@ The editor combines an SVG canvas with a document model that understands guides,
 - mode-aware canvas cursors distinguish placement, selection and panning
 - contextual floating selection toolbar provides duplicate, group/ungroup, mirror, rotate and delete next to the selected motif
 - permanent manual groups: group / ungroup, click one member to select the motif, Alt+click to select a single stitch inside it
+- per-element visual colors with quick presets, native custom color picker and reset-to-default
+- color applies to a single stitch, multi-selection, a manual group or an entire selected parametric row; Alt+click inside a group still allows coloring one member independently
 - mirror a manual selection left/right or top/bottom while preserving the group's geometry and correcting stitch rotations
-- Repeat tool with three modes and live ghost preview on the canvas before creation:
+- Repeat tool with three modes and live preview before creation:
   - Linear: create N motif copies with ΔX / ΔY
   - Circular: rotate copies around the selection center by default, or optionally around an Arc, Grid or Radial Grid center
   - Along guide: walk copies along Arc, Grid or Radial Grid geometry using path spacing and Keep / Tangent / Radial orientation
+- single-stitch Repeat keeps the ghost-stitch preview; grouped Repeat shows one dashed bounding outline per future motif copy to avoid visual overload
 - repeated Ctrl/Cmd+D acts as repeat-last-transform: duplicate once, move/rotate the duplicate, then press Ctrl/Cmd+D again to repeat the same per-stitch translation and rotation delta
 - repeated motif copies are grouped independently so every generated copy can immediately be moved as one object
+- Duplicate, paste and Repeat preserve element colors
 - Productivity controls are contextual and only appear for compatible manual selections
 - semantic Layers tree collapses parametric rows and manual groups instead of presenting every stitch as a permanently flat list
 - rotation handles, copy/paste/duplicate and layer ordering
@@ -54,7 +58,8 @@ The editor combines an SVG canvas with a document model that understands guides,
 - one nested repeat-group level plus a root repeat, e.g. `[(2 SC, increase) × 3, 2 CH] × 4`
 - the rich rapport compiler produces both child stitch types and exact parent-group topology from the same source
 - the row editor uses progressive disclosure: common stitch/count/shaping/orientation controls stay visible, while rapport, construction, distribution mode and precise offsets live under Advanced settings
-- Advanced settings automatically open when an existing project already uses advanced row semantics
+- generated child-row offsets remain structural; a manually changed offset reopens Advanced after reload
+- parametric-row regeneration preserves existing per-stitch colors; when a uniformly colored row grows, newly generated stitches inherit that row color
 
 ### Row construction semantics
 
@@ -71,16 +76,18 @@ The editor combines an SVG canvas with a document model that understands guides,
 
 ### Persistence and export
 
-- project JSON schema remains v12; v1-v11 remain loadable through runtime validation/migration
-- manual group ids, topology parent ids, manual topology overrides, mixed/rich row programs and row construction semantics are persisted and validated
+- project JSON schema is v13; v1-v12 remain loadable through runtime validation/migration
+- schema v13 adds optional six-digit hex color per stitch; default black is omitted from storage
+- manual group ids, topology parent ids, manual topology overrides, mixed/rich row programs, row construction semantics and generated-offset baselines are persisted and validated
 - rich programs are mutually exclusive with legacy shaping/sequence topology to avoid conflicting sources of truth
 - local multi-project storage in IndexedDB
 - automatic migration of the legacy single autosave into the first local project
 - autosave per active project
 - project renames update the local project selector immediately and persist through autosave
 - JSON and SVG export
-- SVG export currently serializes visible stitch glyphs only; guides and editor-only topology/construction overlays are not exported
+- SVG export serializes each visible stitch using its actual element color; guides and editor-only topology/construction overlays are not exported
 - TXT and Markdown written-pattern export
+- visual colors are deliberately presentation metadata in v1.10; they do not yet generate yarn/color-change instructions in written patterns
 - GitHub Pages deployment from `main`
 
 ## Engineering baseline
@@ -125,7 +132,7 @@ The Vite production base path is `/Crochet-Scheme-Editor/`.
 The SVG DOM is a rendering layer, not the source of truth. The current architecture separates:
 
 - document model and runtime schema migration
-- stitch definitions
+- stitch definitions and visual styling
 - guide geometry and manipulation
 - snapping
 - selection and viewport geometry
@@ -139,4 +146,4 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - local persistence
 - rendering and React UI
 
-The next usability candidates are keyboard nudge, align/distribute, reusable linked motifs and local offsets inside parametric rows. The next domain milestone remains counted row-boundary semantics: turning/start chains that may count as the first stitch, skipped first stitches, explicit row start/end attachment and more exact joined-round closure behavior.
+The next usability candidates are keyboard nudge, align/distribute, reusable linked motifs and local offsets inside parametric rows. A future color-domain milestone could turn visual colors into explicit yarn/color-change semantics, but only after defining row-boundary behavior clearly. The next core domain milestone remains counted row-boundary semantics: turning/start chains that may count as the first stitch, skipped first stitches, explicit row start/end attachment and more exact joined-round closure behavior.

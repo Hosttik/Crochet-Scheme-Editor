@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { SymbolGlyph } from '../symbols'
+import { SYMBOLS, SymbolGlyph } from '../symbols'
 import type { Guide, StitchElement } from '../types'
 import type { Locale } from '../i18n'
 import {
@@ -9,13 +9,18 @@ import {
   type RepeatOptions,
   type GuideRepeatOrientation,
 } from './productivity'
+import { selectionAabb } from './selection'
 import './productivity.css'
+
+const SYMBOL_SIZES = Object.fromEntries(
+  SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
+)
 
 const COPY = {
   ru: {
     title: 'Ускорители',
     hint: 'Результат повтора показывается на холсте до создания.',
-    groupedPreviewHidden: 'Для выбранной группы фантомный предпросмотр скрыт, чтобы не перегружать схему.',
+    groupedPreviewOutline: 'Для группы показываются только контуры будущих копий, без наложения фантомных элементов.',
     group: 'Группировать',
     ungroup: 'Разгруппировать',
     mirror: 'Отразить',
@@ -46,7 +51,7 @@ const COPY = {
   en: {
     title: 'Productivity',
     hint: 'Repeat results are previewed on the canvas before creation.',
-    groupedPreviewHidden: 'Ghost preview is hidden for a selected group to keep the chart readable.',
+    groupedPreviewOutline: 'Grouped repeats show only future-copy outlines, without overlapping ghost stitches.',
     group: 'Group',
     ungroup: 'Ungroup',
     mirror: 'Mirror',
@@ -152,28 +157,57 @@ export function ProductivityPanel({
   }, [angleStep, copies, deltaX, deltaY, mode, orientation, selectedGuide, spacing])
 
   const previewElements = useMemo(() => {
-    if (!canTransform || !options || canUngroup) return []
+    if (!canTransform || !options) return []
     let index = 0
     return repeatSelection(elements, selectedIds, options, () => `__repeat-preview__:${index++}`)
-  }, [canTransform, canUngroup, elements, options, selectedIds])
+  }, [canTransform, elements, options, selectedIds])
+
+  const previewGroupBounds = useMemo(() => {
+    if (!canUngroup || !previewElements.length) return []
+    const idsByGroup = new Map<string, string[]>()
+    for (const element of previewElements) {
+      const key = element.groupId ?? element.id
+      idsByGroup.set(key, [...(idsByGroup.get(key) ?? []), element.id])
+    }
+    return [...idsByGroup.entries()].flatMap(([id, ids]) => {
+      const bounds = selectionAabb(previewElements, ids, SYMBOL_SIZES)
+      return bounds ? [{ id, bounds }] : []
+    })
+  }, [canUngroup, previewElements])
 
   const apply = () => {
     if (disabled || !options) return
     onRepeat(options)
   }
 
-  const previewPortal = previewTarget && previewElements.length
+  const hasPreview = canUngroup ? previewGroupBounds.length > 0 : previewElements.length > 0
+  const previewPortal = previewTarget && hasPreview
     ? createPortal(
         <g className="productivity-repeat-preview" pointerEvents="none" aria-hidden="true">
-          {previewElements.map((element) => (
-            <g
-              key={element.id}
-              transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
-              className="productivity-repeat-preview-stitch"
-            >
-              <g className="symbol-glyph"><SymbolGlyph symbolId={element.symbolId} /></g>
-            </g>
-          ))}
+          {canUngroup
+            ? previewGroupBounds.map(({ id, bounds }) => (
+                <rect
+                  key={id}
+                  x={bounds.left}
+                  y={bounds.top}
+                  width={bounds.right - bounds.left}
+                  height={bounds.bottom - bounds.top}
+                  rx="5"
+                  className="productivity-repeat-preview-group"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))
+            : previewElements.map((element) => (
+                <g
+                  key={element.id}
+                  transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
+                  className="productivity-repeat-preview-stitch"
+                >
+                  <g className="symbol-glyph" style={element.color ? { color: element.color } : undefined}>
+                    <SymbolGlyph symbolId={element.symbolId} />
+                  </g>
+                </g>
+              ))}
         </g>,
         previewTarget,
       )
@@ -187,7 +221,7 @@ export function ProductivityPanel({
           <h2>{copy.title}</h2>
           <span className="muted-text">{selectedCount}</span>
         </div>
-        <p className="productivity-hint">{canUngroup ? copy.groupedPreviewHidden : copy.hint}</p>
+        <p className="productivity-hint">{canUngroup ? copy.groupedPreviewOutline : copy.hint}</p>
 
         <div className="productivity-actions">
           <button disabled={!canGroup} onClick={onGroup}>{copy.group}</button>

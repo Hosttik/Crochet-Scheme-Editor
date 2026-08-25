@@ -220,6 +220,11 @@ export function reconcileParametricRows(
       continue
     }
 
+    const uniformColor = existing.length > 0 && existing.every(
+      (element) => element.color === existing[0]?.color,
+    )
+      ? existing[0]?.color
+      : undefined
     const placements = generateGuideRowPlacements(guide, binding.options)
     const regenerated = rowPlacementsToElements(
       placements,
@@ -227,6 +232,7 @@ export function reconcileParametricRows(
       (_placement, index) => existing[index]?.id ?? idFactory(),
     ).map((element, index) => ({
       ...element,
+      color: existing[index]?.color ?? uniformColor,
       visible: existing[index]?.visible ?? true,
       locked: existing[index]?.locked ?? false,
     }))
