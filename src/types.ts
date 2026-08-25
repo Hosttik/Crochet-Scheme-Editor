@@ -70,6 +70,7 @@ export type ParametricRowBinding = {
   options: GuideRowOptions
   patternOrder?: number
   parentRowId?: string
+  generatedRadialOffset?: number
   shaping?: RowShaping
   topologyOverride?: RowTopologyOverride
   sequence?: RowSequence
