@@ -36,7 +36,7 @@ async function clearCanvasSelection(page: Page) {
   await expect(page.locator('.stitch-element.selected')).toHaveCount(0)
 }
 
-test('groups a colored motif, previews it as outlines and creates a linear array', async ({ page }) => {
+test('hides temporary multi preview but previews a colored group as one ghost motif', async ({ page }) => {
   await openEditor(page)
   await placeAt(page, 'Столбик без накида', 0.36, 0.42)
   await placeAt(page, 'Столбик с накидом', 0.52, 0.48)
@@ -44,10 +44,13 @@ test('groups a colored motif, previews it as outlines and creates a linear array
   await page.keyboard.press('Control+A')
   await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
   const productivity = page.locator('.productivity-panel')
-  await productivity.getByRole('button', { name: 'Группировать', exact: true }).click()
   await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(0)
-  await expect(page.locator('.productivity-repeat-preview-group')).toHaveCount(5)
-  await expect(productivity.locator('.productivity-hint')).toContainText('контуры будущих копий')
+  await expect(productivity.locator('.productivity-hint')).toContainText('Предпросмотр скрыт')
+
+  await productivity.getByRole('button', { name: 'Группировать', exact: true }).click()
+  await expect(page.locator('.productivity-repeat-preview-group')).toHaveCount(0)
+  await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(10)
+  await expect(productivity.locator('.productivity-hint')).toContainText('одним объектом')
 
   await page.getByRole('button', { name: 'Синий', exact: true }).click()
   await expect(page.locator('.stitch-element .symbol-glyph').first()).toHaveCSS('color', 'rgb(37, 99, 235)')
@@ -56,8 +59,7 @@ test('groups a colored motif, previews it as outlines and creates a linear array
   await clearCanvasSelection(page)
   await page.locator('.stitch-element').first().click()
   await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
-  await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(0)
-  await expect(page.locator('.productivity-repeat-preview-group')).toHaveCount(5)
+  await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(10)
 
   await clearCanvasSelection(page)
   await page.locator('.stitch-element').first().click({ modifiers: ['Alt'] })
@@ -81,7 +83,7 @@ test('groups a colored motif, previews it as outlines and creates a linear array
   expect(afterParts[1].x).toBeLessThan(beforeParts[1].x)
 
   await productivity.getByLabel('Копий').fill('2')
-  await expect(page.locator('.productivity-repeat-preview-group')).toHaveCount(2)
+  await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(4)
   await productivity.getByLabel('ΔX').fill('70')
   await productivity.getByLabel('ΔY').fill('0')
   await productivity.getByRole('button', { name: 'Создать копии', exact: true }).click()
