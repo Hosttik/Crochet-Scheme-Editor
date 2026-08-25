@@ -1,7 +1,12 @@
 import type { Locale } from '../i18n'
+import { SYMBOLS } from '../symbols'
 import type { StitchElement, Viewport } from '../types'
-import { selectionPivot } from './productivity'
+import { selectionAabb } from './selection'
 import './selectionQuickToolbar.css'
+
+const SYMBOL_SIZES = Object.fromEntries(
+  SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
+)
 
 const COPY = {
   ru: {
@@ -54,11 +59,12 @@ export function SelectionQuickToolbar({
   onDelete: () => void
 }) {
   if (!selectedIds.length) return null
-  const pivot = selectionPivot(elements, selectedIds)
-  if (!pivot) return null
+  const bounds = selectionAabb(elements, selectedIds, SYMBOL_SIZES)
+  if (!bounds) return null
   const copy = COPY[locale]
-  const left = viewport.panX + pivot.x * viewport.zoom
-  const top = viewport.panY + pivot.y * viewport.zoom
+  const centerX = (bounds.left + bounds.right) / 2
+  const left = viewport.panX + centerX * viewport.zoom
+  const top = viewport.panY + bounds.top * viewport.zoom
 
   return (
     <div
