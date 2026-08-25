@@ -141,3 +141,25 @@
 .row-generator-preview-stitch .symbol-glyph {
   filter: drop-shadow(0 0 2px rgba(77, 128, 105, .2));
 }
+
+.row-advanced-toggle {
+  width: 100%;
+  display: grid;
+  gap: 3px;
+  padding: 8px 9px;
+  border: 1px solid #dedbd4;
+  background: #faf9f6;
+  text-align: left;
+}
+.row-advanced-toggle:hover { background: #f3f5f2; }
+.row-advanced-toggle.active { border-color: #b8c8bf; background: #f2f7f4; }
+.row-advanced-toggle span { font-size: 10px; font-weight: 700; color: #4d5851; }
+.row-advanced-toggle small { font-size: 8px; line-height: 1.35; color: #888c86; }
+.row-advanced-content {
+  display: grid;
+  gap: 10px;
+  padding: 9px;
+  border: 1px solid #e3e0d8;
+  border-radius: 8px;
+  background: #faf9f6;
+}
