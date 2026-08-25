@@ -85,6 +85,7 @@ export type StitchElement = {
   rotation: number
   visible?: boolean
   locked?: boolean
+  groupId?: string
   parametricRow?: ParametricRowBinding
   parentStitchIds?: string[]
 }
@@ -140,7 +141,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
   metadata: {
     title: string
     updatedAt: string

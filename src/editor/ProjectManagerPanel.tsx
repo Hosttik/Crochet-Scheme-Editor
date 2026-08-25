@@ -49,8 +49,14 @@ export function ProjectManagerPanel({
   const refresh = async () => setProjects(await listLocalProjects())
 
   useEffect(() => {
-    setNameDraft(currentTitle)
     void refresh()
+  }, [activeProjectId])
+
+  useEffect(() => {
+    setNameDraft(currentTitle)
+    setProjects((current) => current.map((project) =>
+      project.id === activeProjectId ? { ...project, title: currentTitle } : project,
+    ))
   }, [activeProjectId, currentTitle])
 
   const run = async (action: () => Promise<void>) => {
@@ -61,6 +67,18 @@ export function ProjectManagerPanel({
     } finally {
       setBusy(false)
     }
+  }
+
+  const commitRename = () => {
+    const title = nameDraft.trim()
+    if (!title || title === currentTitle) {
+      setNameDraft(currentTitle)
+      return
+    }
+    setProjects((current) => current.map((project) =>
+      project.id === activeProjectId ? { ...project, title } : project,
+    ))
+    onRename(title)
   }
 
   return (
@@ -75,11 +93,7 @@ export function ProjectManagerPanel({
         <input
           value={nameDraft}
           onChange={(event) => setNameDraft(event.target.value)}
-          onBlur={() => {
-            const title = nameDraft.trim()
-            if (title && title !== currentTitle) onRename(title)
-            else setNameDraft(currentTitle)
-          }}
+          onBlur={commitRename}
           onKeyDown={(event) => {
             if (event.key === 'Enter') event.currentTarget.blur()
           }}

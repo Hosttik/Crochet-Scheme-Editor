@@ -34,9 +34,9 @@ function shapedBinding() {
 }
 
 describe('parseProject', () => {
-  it('migrates legacy projects to schema v11 and normalizes element flags', () => {
+  it('migrates legacy projects to schema v12 and normalizes element flags', () => {
     const project = parseProject(legacyProject(), fallback)
-    expect(project.schemaVersion).toBe(11)
+    expect(project.schemaVersion).toBe(12)
     expect(project.elements[0]).toMatchObject({ visible: true, locked: false })
     expect(project.guides).toEqual([])
   })
@@ -210,6 +210,15 @@ describe('parseProject', () => {
       topologyOverride: { changeParentIds: ['p3'] },
     }
     expect(() => parseProject(noShaping, fallback)).toThrow('Invalid topology override')
+  })
+
+  it('preserves and validates schema v12 group ids', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 12
+    raw.elements[0].groupId = 'motif-a'
+    expect(parseProject(raw, fallback).elements[0].groupId).toBe('motif-a')
+    raw.elements[0].groupId = ''
+    expect(() => parseProject(raw, fallback)).toThrow(ProjectValidationError)
   })
 
   it('rejects malformed stitch coordinates', () => {

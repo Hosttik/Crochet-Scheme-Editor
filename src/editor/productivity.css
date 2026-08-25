@@ -1,0 +1,66 @@
+.productivity-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.productivity-hint {
+  margin: 0;
+  color: var(--muted, #66706b);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.productivity-block {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(70, 82, 76, 0.14);
+}
+
+.productivity-actions,
+.productivity-mode-tabs,
+.productivity-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.productivity-mode-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.productivity-mode-tabs button {
+  padding-inline: 6px;
+  font-size: 11px;
+}
+
+.productivity-mode-tabs button.active {
+  box-shadow: inset 0 0 0 1px currentColor;
+  font-weight: 700;
+}
+
+.productivity-field {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.productivity-field span {
+  color: var(--muted, #66706b);
+}
+
+.productivity-field input,
+.productivity-field select {
+  width: 100%;
+  min-width: 0;
+}
+
+.productivity-warning {
+  color: #9d4a2b;
+  line-height: 1.35;
+}
+
+.productivity-apply {
+  width: 100%;
+  font-weight: 700;
+}
