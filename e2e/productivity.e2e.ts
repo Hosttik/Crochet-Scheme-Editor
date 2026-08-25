@@ -124,7 +124,7 @@ test('repeated Ctrl+D repeats the previous duplicate movement and rotation', asy
   await page.keyboard.press('Control+D')
   await expect(page.locator('.stitch-element')).toHaveCount(2)
 
-  await page.getByRole('button', { name: 'Выбрать и переместить', exact: true }).click()
+  await page.keyboard.press('Escape')
   const selected = page.locator('.stitch-element.selected')
   const selectedBox = await selected.boundingBox()
   expect(selectedBox).not.toBeNull()
