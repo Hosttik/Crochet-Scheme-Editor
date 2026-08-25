@@ -101,15 +101,24 @@ export function ParametricRowEditorPanel({
   const options = binding.options
   const resolvedCount = resolveGuideRowCount(guide, options)
   const shapingBase = parentStitchCount ?? binding.shaping?.baseCount
+  const hasNonDefaultRing =
+    guide.type === 'radial-grid' &&
+    options.ringIndex !== Math.max(1, Math.round(guide.ringCount))
+  const hasRootRadialOffset = !binding.parentRowId && options.radialOffset !== 0
   const hasAdvancedValue = Boolean(
     binding.sequence?.items.length ||
     binding.program ||
     binding.construction ||
     options.distributionMode === 'spacing' ||
-    options.radialOffset ||
-    options.rotationOffset,
+    hasRootRadialOffset ||
+    options.rotationOffset ||
+    hasNonDefaultRing,
   )
   const [advancedOpen, setAdvancedOpen] = useState(hasAdvancedValue)
+
+  useEffect(() => {
+    setAdvancedOpen(hasAdvancedValue)
+  }, [binding.id])
 
   useEffect(() => {
     if (hasAdvancedValue) setAdvancedOpen(true)

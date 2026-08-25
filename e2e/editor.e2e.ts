@@ -102,11 +102,19 @@ test('compiles a semantic rapport into stitch types and exact topology', async (
   await page.getByRole('button', { name: /Радиальная/ }).click()
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
   await expect(patternRow(page, 1)).toBeVisible()
+
+  const rowEditor = page.locator('.parametric-row-editor')
+  const firstRowAdvanced = rowEditor.getByRole('button', { name: 'Дополнительно' })
+  await expect(firstRowAdvanced).toHaveAttribute('aria-expanded', 'false')
+  await firstRowAdvanced.click()
+  await expect(firstRowAdvanced).toHaveAttribute('aria-expanded', 'true')
+
   await page.getByRole('button', { name: 'Без изменений' }).click()
   await expect(patternRow(page, 2)).toBeVisible()
 
-  const rowEditor = page.locator('.parametric-row-editor')
   const advanced = rowEditor.getByRole('button', { name: 'Дополнительно' })
+  await expect(advanced).toHaveAttribute('aria-expanded', 'false')
+  await advanced.click()
   await expect(advanced).toHaveAttribute('aria-expanded', 'true')
   await rowEditor.getByRole('button', { name: 'Семантический', exact: true }).click()
   await expect(page.getByText('Семантический раппорт', { exact: true })).toBeVisible()
