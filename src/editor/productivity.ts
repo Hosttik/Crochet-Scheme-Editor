@@ -15,6 +15,7 @@ export type RepeatOptions =
       mode: 'circular'
       copies: number
       angleStep: number
+      center?: Point
     }
   | {
       mode: 'guide'
@@ -362,9 +363,10 @@ export function repeatSelection(
   }
 
   if (options.mode === 'circular') {
+    const center = options.center ?? pivot
     for (let index = 1; index <= copies; index += 1) {
       const angle = options.angleStep * index
-      const targetPivot = rotateAround(pivot, pivot, angle)
+      const targetPivot = rotateAround(pivot, center, angle)
       created.push(...transformedCopy(source, pivot, targetPivot, angle, createId))
     }
     return created

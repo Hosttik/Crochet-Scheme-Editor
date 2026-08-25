@@ -5,6 +5,7 @@ import { GuideRowGeneratorPanel } from './editor/GuideRowGeneratorPanel'
 import { ParametricRowEditorPanel } from './editor/ParametricRowEditorPanel'
 import { PatternRowsPanel } from './editor/PatternRowsPanel'
 import { ProjectManagerPanel } from './editor/ProjectManagerPanel'
+import { ProductivityPanel } from './editor/ProductivityPanel'
 import { LayersPanel } from './editor/LayersPanel'
 import { StitchLayer } from './editor/StitchLayer'
 import { TopologyEditorPanel } from './editor/TopologyEditorPanel'
@@ -21,6 +22,17 @@ import {
 import type { GuideManipulationMode } from './editor/guideManipulation'
 import { clamp, screenToDocument } from './editor/geometry'
 import { emptyHistory, pushHistory, redoHistory, undoHistory } from './editor/history'
+import {
+  cloneSelectionWithOffset,
+  cloneWithRepeatedDelta,
+  expandIdsToGroups,
+  groupElements,
+  mirrorElements,
+  repeatSelection,
+  ungroupElements,
+  type MirrorAxis,
+  type RepeatOptions,
+} from './editor/productivity'
 import {
   createLocalProject,
   deleteLocalProject,
@@ -233,7 +245,7 @@ function buildProject(
   snapping: SnappingSettings,
 ): CrochetProject {
   return {
-    schemaVersion: 11,
+    schemaVersion: 12,
     metadata: { title, updatedAt: new Date().toISOString() },
     elements: normalizeElements(elements),
     guides,
@@ -275,6 +287,7 @@ function App() {
   const guideManipulationSnapshotRef = useRef<DocumentSnapshot | null>(null)
   const clipboardRef = useRef<StitchElement[]>([])
   const pasteSerialRef = useRef(1)
+  const duplicateSeriesRef = useRef<{ previous: StitchElement[]; currentIds: string[] } | null>(null)
   const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const autosaveRevisionRef = useRef(0)
 
@@ -508,8 +521,20 @@ function App() {
     unlockedSelectedIds,
   ])
 
+  const productivitySelectionIds = useCallback(() => {
+    const unlocked = new Set(unlockedSelectedIds())
+    const manualIds = elements
+      .filter((element) => unlocked.has(element.id) && !element.parametricRow)
+      .map((element) => element.id)
+    const expanded = expandIdsToGroups(elements, manualIds)
+    return expanded.filter((id) => {
+      const element = elements.find((item) => item.id === id)
+      return Boolean(element && !isElementLocked(element) && !element.parametricRow)
+    })
+  }, [elements, unlockedSelectedIds])
+
   const copySelection = useCallback(() => {
-    const copyIds = new Set(unlockedSelectedIds())
+    const copyIds = new Set(expandIdsToGroups(elements, unlockedSelectedIds()))
     if (!copyIds.size) return
     clipboardRef.current = elements
       .filter((element) => copyIds.has(element.id))
@@ -522,15 +547,15 @@ function App() {
     if (!clipboardRef.current.length) return
     const offset = DUPLICATE_OFFSET * pasteSerialRef.current
     pasteSerialRef.current += 1
-    const pasted = clipboardRef.current.map((element) => ({
-      ...element,
-      id: createId(),
-      x: element.x + offset,
-      y: element.y + offset,
-      locked: false,
-      parametricRow: undefined,
-      parentStitchIds: undefined,
-    }))
+    const pasted = cloneSelectionWithOffset(
+      clipboardRef.current,
+      clipboardRef.current.map((element) => element.id),
+      offset,
+      offset,
+      createId,
+    )
+    if (!pasted.length) return
+    duplicateSeriesRef.current = null
     commitElements([...elements, ...pasted])
     setSelectedIds(pasted.map((element) => element.id))
     setSelectedGuideId(null)
@@ -539,24 +564,93 @@ function App() {
   }, [commitElements, elements, t.pasted])
 
   const duplicateSelection = useCallback(() => {
-    const duplicateIds = new Set(unlockedSelectedIds())
+    const duplicateIds = new Set(expandIdsToGroups(elements, unlockedSelectedIds()))
     if (!duplicateIds.size) return
-    const duplicated = elements
-      .filter((element) => duplicateIds.has(element.id))
-      .map((element) => ({
-        ...element,
-        id: createId(),
-        x: element.x + DUPLICATE_OFFSET,
-        y: element.y + DUPLICATE_OFFSET,
-        locked: false,
-        parametricRow: undefined,
-        parentStitchIds: undefined,
-      }))
+    const source = elements.filter((element) => duplicateIds.has(element.id))
+    if (!source.length) return
+
+    const series = duplicateSeriesRef.current
+    const isSeries = Boolean(
+      series &&
+      series.currentIds.length === source.length &&
+      series.currentIds.every((id) => duplicateIds.has(id)),
+    )
+    let duplicated: StitchElement[] = []
+    let previousForNext = source.map((element) => ({ ...element }))
+
+    if (series && isSeries) {
+      const current = series.currentIds
+        .map((id) => elements.find((element) => element.id === id))
+        .filter((element): element is StitchElement => Boolean(element))
+      if (current.length === series.previous.length) {
+        duplicated = cloneWithRepeatedDelta(series.previous, current, createId)
+        previousForNext = current.map((element) => ({ ...element }))
+      }
+    }
+
+    if (!duplicated.length) {
+      duplicated = cloneSelectionWithOffset(
+        elements,
+        [...duplicateIds],
+        DUPLICATE_OFFSET,
+        DUPLICATE_OFFSET,
+        createId,
+      )
+    }
+    if (!duplicated.length) return
+
+    duplicateSeriesRef.current = {
+      previous: previousForNext,
+      currentIds: duplicated.map((element) => element.id),
+    }
     commitElements([...elements, ...duplicated])
     setSelectedIds(duplicated.map((element) => element.id))
     setSelectedGuideId(null)
     setStatus(`${t.duplicated}: ${duplicated.length}`)
   }, [commitElements, elements, t.duplicated, unlockedSelectedIds])
+
+  const groupSelection = useCallback(() => {
+    const ids = productivitySelectionIds()
+    if (ids.length < 2) return
+    duplicateSeriesRef.current = null
+    commitElements(groupElements(elements, ids, createId()))
+    setSelectedIds(ids)
+    setStatus(locale === 'ru' ? `Группа создана: ${ids.length}` : `Group created: ${ids.length}`)
+  }, [commitElements, elements, locale, productivitySelectionIds])
+
+  const ungroupSelection = useCallback(() => {
+    const ids = productivitySelectionIds()
+    if (!ids.length) return
+    duplicateSeriesRef.current = null
+    commitElements(ungroupElements(elements, ids))
+    setSelectedIds(ids)
+    setStatus(locale === 'ru' ? 'Группа снята' : 'Group removed')
+  }, [commitElements, elements, locale, productivitySelectionIds])
+
+  const mirrorSelection = useCallback((axis: MirrorAxis) => {
+    const ids = productivitySelectionIds()
+    if (!ids.length) return
+    duplicateSeriesRef.current = null
+    commitElements(mirrorElements(elements, ids, axis))
+    setSelectedIds(ids)
+    setStatus(locale === 'ru' ? `Отражено: ${ids.length}` : `Mirrored: ${ids.length}`)
+  }, [commitElements, elements, locale, productivitySelectionIds])
+
+  const repeatProductivitySelection = useCallback((options: RepeatOptions) => {
+    const ids = productivitySelectionIds()
+    if (!ids.length) return
+    const created = repeatSelection(elements, ids, options, createId)
+    if (!created.length) {
+      setStatus(locale === 'ru' ? 'Не хватило места на направляющей' : 'No room left on the guide')
+      return
+    }
+    duplicateSeriesRef.current = null
+    commitElements([...elements, ...created])
+    setSelectedIds(created.map((element) => element.id))
+    setSelectedGuideId(null)
+    setTool({ type: 'select' })
+    setStatus(locale === 'ru' ? `Создано элементов: ${created.length}` : `Created elements: ${created.length}`)
+  }, [commitElements, elements, locale, productivitySelectionIds])
 
   const selectAll = useCallback(() => {
     const selectable = elements.filter(
@@ -575,7 +669,7 @@ function App() {
     setSelectedGuideId(null)
     setTool({ type: 'select' })
     setSelectedIds((current) => {
-      const targetIds = expandIdsToParametricRows(elements, [id])
+      const targetIds = expandIdsToGroups(elements, expandIdsToParametricRows(elements, [id]))
       if (!additive) return targetIds
       const targetSet = new Set(targetIds)
       const allSelected = targetIds.every((item) => current.includes(item))
@@ -925,7 +1019,10 @@ function App() {
           (element) => isElementVisible(element) && !isElementLocked(element),
         )
         const hits = moved ? idsInMarquee(selectable, rect, SYMBOL_SIZES) : []
-        const next = expandIdsToParametricRows(elements, uniqueIds([...marquee.baseIds, ...hits]))
+        const next = expandIdsToGroups(
+          elements,
+          expandIdsToParametricRows(elements, uniqueIds([...marquee.baseIds, ...hits])),
+        )
         setSelectedIds(next)
         if (next.length) setStatus(`${t.selectedCount}: ${next.length}`)
       }
@@ -972,17 +1069,21 @@ function App() {
       return
     }
 
-    const alreadySelected = selectedIds.includes(element.id)
+    const targetIds = element.groupId && !event.altKey
+      ? elements.filter((item) => item.groupId === element.groupId).map((item) => item.id)
+      : [element.id]
+    const targetSet = new Set(targetIds)
+    const alreadySelected = targetIds.every((id) => selectedIds.includes(id))
     if (event.shiftKey && alreadySelected) {
-      setSelectedIds(selectedIds.filter((id) => id !== element.id))
+      setSelectedIds(selectedIds.filter((id) => !targetSet.has(id)))
       return
     }
 
     const nextSelection = event.shiftKey
-      ? uniqueIds([...selectedIds, element.id])
+      ? uniqueIds([...selectedIds, ...targetIds])
       : alreadySelected
         ? selectedIds
-        : [element.id]
+        : targetIds
 
     setSelectedIds(nextSelection)
     setSelectedGuideId(null)
@@ -1268,7 +1369,7 @@ function App() {
     try {
       const raw = JSON.parse(await file.text()) as CrochetProject
       if (
-        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].includes(raw.schemaVersion) ||
+        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].includes(raw.schemaVersion) ||
         !Array.isArray(raw.elements)
       ) {
         throw new Error(t.unsupportedProject)
@@ -1628,6 +1729,19 @@ function App() {
             onCreateSequence={handleCreatePatternSequence}
           />
         </section>
+
+        <ProductivityPanel
+          locale={locale}
+          guides={guides}
+          selectedCount={productivitySelectionIds().length}
+          canTransform={productivitySelectionIds().length > 0}
+          canGroup={productivitySelectionIds().length > 1}
+          canUngroup={productivitySelectionIds().some((id) => Boolean(elements.find((element) => element.id === id)?.groupId))}
+          onGroup={groupSelection}
+          onUngroup={ungroupSelection}
+          onMirror={mirrorSelection}
+          onRepeat={repeatProductivitySelection}
+        />
 
         <section className="panel-section">
           <div className="section-title-row"><h2>{t.selection}</h2></div>

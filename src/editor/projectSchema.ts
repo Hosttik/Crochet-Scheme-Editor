@@ -162,6 +162,7 @@ function parseElement(value: unknown): StitchElement {
     !nonEmptyString(value.id) || !nonEmptyString(value.symbolId) ||
     !finite(value.x) || !finite(value.y) || !finite(value.rotation) ||
     !optionalBoolean(value.visible) || !optionalBoolean(value.locked) ||
+    !(value.groupId === undefined || nonEmptyString(value.groupId)) ||
     !optionalStringArray(value.parentStitchIds)
   ) throw new ProjectValidationError('Invalid stitch element fields')
   return {
@@ -172,6 +173,7 @@ function parseElement(value: unknown): StitchElement {
     rotation: value.rotation,
     visible: value.visible !== false,
     locked: value.locked === true,
+    groupId: value.groupId as string | undefined,
     parametricRow: parseParametricRow(value.parametricRow),
     parentStitchIds: value.parentStitchIds as string[] | undefined,
   }
@@ -207,7 +209,7 @@ function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSett
 
 export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): CrochetProject {
   if (!isRecord(raw)) throw new ProjectValidationError('Project must be an object')
-  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 11) throw new ProjectValidationError('Unsupported project schema')
+  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 12) throw new ProjectValidationError('Unsupported project schema')
   if (!Array.isArray(raw.elements)) throw new ProjectValidationError('Project elements are missing')
   if (raw.guides !== undefined && !Array.isArray(raw.guides)) throw new ProjectValidationError('Project guides are invalid')
 
@@ -217,7 +219,7 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
   const guides = (raw.guides ?? []).map(parseGuide)
 
   return {
-    schemaVersion: 11,
+    schemaVersion: 12,
     metadata: {
       title: typeof metadata.title === 'string' && metadata.title.trim() ? metadata.title : 'Crochet scheme',
       updatedAt: typeof metadata.updatedAt === 'string' ? metadata.updatedAt : new Date().toISOString(),
