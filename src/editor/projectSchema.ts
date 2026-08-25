@@ -6,6 +6,7 @@ import type {
   SnappingSettings,
   StitchElement,
 } from '../types'
+import { isStitchColor } from './elementColor'
 import { rowProgramMetrics } from './rowProgram'
 
 export class ProjectValidationError extends Error {
@@ -128,6 +129,9 @@ function parseParametricRow(value: unknown): ParametricRowBinding | undefined {
   ) throw new ProjectValidationError('Invalid parametric row options')
   if (value.patternOrder !== undefined && !finite(value.patternOrder)) throw new ProjectValidationError('Invalid row order')
   if (value.parentRowId !== undefined && !nonEmptyString(value.parentRowId)) throw new ProjectValidationError('Invalid parent row id')
+  if (value.generatedRadialOffset !== undefined && !finite(value.generatedRadialOffset)) {
+    throw new ProjectValidationError('Invalid generated radial offset')
+  }
   if (value.shaping !== undefined) {
     if (!isRecord(value.shaping)) throw new ProjectValidationError('Invalid row shaping')
     if (
@@ -161,6 +165,7 @@ function parseElement(value: unknown): StitchElement {
   if (
     !nonEmptyString(value.id) || !nonEmptyString(value.symbolId) ||
     !finite(value.x) || !finite(value.y) || !finite(value.rotation) ||
+    !(value.color === undefined || isStitchColor(value.color)) ||
     !optionalBoolean(value.visible) || !optionalBoolean(value.locked) ||
     !(value.groupId === undefined || nonEmptyString(value.groupId)) ||
     !optionalStringArray(value.parentStitchIds)
@@ -171,6 +176,7 @@ function parseElement(value: unknown): StitchElement {
     x: value.x,
     y: value.y,
     rotation: value.rotation,
+    color: typeof value.color === 'string' ? value.color.toLowerCase() : undefined,
     visible: value.visible !== false,
     locked: value.locked === true,
     groupId: value.groupId as string | undefined,
@@ -209,7 +215,7 @@ function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSett
 
 export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): CrochetProject {
   if (!isRecord(raw)) throw new ProjectValidationError('Project must be an object')
-  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 12) throw new ProjectValidationError('Unsupported project schema')
+  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 13) throw new ProjectValidationError('Unsupported project schema')
   if (!Array.isArray(raw.elements)) throw new ProjectValidationError('Project elements are missing')
   if (raw.guides !== undefined && !Array.isArray(raw.guides)) throw new ProjectValidationError('Project guides are invalid')
 
@@ -219,7 +225,7 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
   const guides = (raw.guides ?? []).map(parseGuide)
 
   return {
-    schemaVersion: 12,
+    schemaVersion: 13,
     metadata: {
       title: typeof metadata.title === 'string' && metadata.title.trim() ? metadata.title : 'Crochet scheme',
       updatedAt: typeof metadata.updatedAt === 'string' ? metadata.updatedAt : new Date().toISOString(),
