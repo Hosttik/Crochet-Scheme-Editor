@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { SYMBOLS, SymbolGlyph } from '../symbols'
+import { SymbolGlyph } from '../symbols'
 import type { Guide, StitchElement } from '../types'
 import type { Locale } from '../i18n'
 import {
@@ -9,18 +9,15 @@ import {
   type RepeatOptions,
   type GuideRepeatOrientation,
 } from './productivity'
-import { selectionAabb } from './selection'
+import { repeatPreviewSelectionKind, shouldShowRepeatPreview } from './repeatPreview'
 import './productivity.css'
-
-const SYMBOL_SIZES = Object.fromEntries(
-  SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
-)
 
 const COPY = {
   ru: {
     title: 'Ускорители',
     hint: 'Результат повтора показывается на холсте до создания.',
-    groupedPreviewOutline: 'Для группы показываются только контуры будущих копий, без наложения фантомных элементов.',
+    groupedPreview: 'Группа считается одним объектом: показывается ghost-preview всего мотива.',
+    multiplePreviewHidden: 'Предпросмотр скрыт для временного множественного выделения. Сгруппируйте элементы, чтобы повтор воспринимался как один объект.',
     group: 'Группировать',
     ungroup: 'Разгруппировать',
     mirror: 'Отразить',
@@ -51,7 +48,8 @@ const COPY = {
   en: {
     title: 'Productivity',
     hint: 'Repeat results are previewed on the canvas before creation.',
-    groupedPreviewOutline: 'Grouped repeats show only future-copy outlines, without overlapping ghost stitches.',
+    groupedPreview: 'A group is treated as one object, so the whole motif is shown as a ghost preview.',
+    multiplePreviewHidden: 'Preview is hidden for a temporary multi-selection. Group the stitches to repeat them as one object.',
     group: 'Group',
     ungroup: 'Ungroup',
     mirror: 'Mirror',
@@ -143,6 +141,11 @@ export function ProductivityPanel({
   )
   const needsGuide = mode === 'guide'
   const disabled = !canTransform || (needsGuide && !selectedGuide)
+  const previewSelectionKind = useMemo(
+    () => repeatPreviewSelectionKind(elements, selectedIds),
+    [elements, selectedIds],
+  )
+  const previewEnabled = shouldShowRepeatPreview(previewSelectionKind)
 
   const options = useMemo<RepeatOptions | null>(() => {
     if (mode === 'linear') return { mode, copies, deltaX, deltaY }
@@ -157,61 +160,40 @@ export function ProductivityPanel({
   }, [angleStep, copies, deltaX, deltaY, mode, orientation, selectedGuide, spacing])
 
   const previewElements = useMemo(() => {
-    if (!canTransform || !options) return []
+    if (!canTransform || !options || !previewEnabled) return []
     let index = 0
     return repeatSelection(elements, selectedIds, options, () => `__repeat-preview__:${index++}`)
-  }, [canTransform, elements, options, selectedIds])
-
-  const previewGroupBounds = useMemo(() => {
-    if (!canUngroup || !previewElements.length) return []
-    const idsByGroup = new Map<string, string[]>()
-    for (const element of previewElements) {
-      const key = element.groupId ?? element.id
-      idsByGroup.set(key, [...(idsByGroup.get(key) ?? []), element.id])
-    }
-    return [...idsByGroup.entries()].flatMap(([id, ids]) => {
-      const bounds = selectionAabb(previewElements, ids, SYMBOL_SIZES)
-      return bounds ? [{ id, bounds }] : []
-    })
-  }, [canUngroup, previewElements])
+  }, [canTransform, elements, options, previewEnabled, selectedIds])
 
   const apply = () => {
     if (disabled || !options) return
     onRepeat(options)
   }
 
-  const hasPreview = canUngroup ? previewGroupBounds.length > 0 : previewElements.length > 0
-  const previewPortal = previewTarget && hasPreview
+  const previewPortal = previewTarget && previewElements.length > 0
     ? createPortal(
         <g className="productivity-repeat-preview" pointerEvents="none" aria-hidden="true">
-          {canUngroup
-            ? previewGroupBounds.map(({ id, bounds }) => (
-                <rect
-                  key={id}
-                  x={bounds.left}
-                  y={bounds.top}
-                  width={bounds.right - bounds.left}
-                  height={bounds.bottom - bounds.top}
-                  rx="5"
-                  className="productivity-repeat-preview-group"
-                  vectorEffect="non-scaling-stroke"
-                />
-              ))
-            : previewElements.map((element) => (
-                <g
-                  key={element.id}
-                  transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
-                  className="productivity-repeat-preview-stitch"
-                >
-                  <g className="symbol-glyph" style={element.color ? { color: element.color } : undefined}>
-                    <SymbolGlyph symbolId={element.symbolId} />
-                  </g>
-                </g>
-              ))}
+          {previewElements.map((element) => (
+            <g
+              key={element.id}
+              transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
+              className="productivity-repeat-preview-stitch"
+            >
+              <g className="symbol-glyph" style={element.color ? { color: element.color } : undefined}>
+                <SymbolGlyph symbolId={element.symbolId} />
+              </g>
+            </g>
+          ))}
         </g>,
         previewTarget,
       )
     : null
+
+  const previewHint = previewSelectionKind === 'single-group'
+    ? copy.groupedPreview
+    : previewSelectionKind === 'multiple'
+      ? copy.multiplePreviewHidden
+      : copy.hint
 
   return (
     <>
@@ -221,7 +203,7 @@ export function ProductivityPanel({
           <h2>{copy.title}</h2>
           <span className="muted-text">{selectedCount}</span>
         </div>
-        <p className="productivity-hint">{canUngroup ? copy.groupedPreviewOutline : copy.hint}</p>
+        <p className="productivity-hint">{previewHint}</p>
 
         <div className="productivity-actions">
           <button disabled={!canGroup} onClick={onGroup}>{copy.group}</button>
