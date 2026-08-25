@@ -255,8 +255,7 @@ export function ParametricRowEditorPanel({
                 disabled={maxRowShapingChanges(shapingBase, 'decrease') === 0}
                 onClick={() => applyShaping('decrease')}
               >
-                {copy.decrease}
-              </button>
+                {copy.decrease}</button>
             </div>
             {binding.shaping && (
               <label className="row-generator-field row-shaping-count-field">
@@ -334,7 +333,7 @@ export function ParametricRowEditorPanel({
                   min="1"
                   step="1"
                   value={options.spacing}
-                  onChange={(event) => patchOptions({ spacing: Math.max(1, Number(event.target.value) || 1 })}
+                  onChange={(event) => patchOptions({ spacing: Math.max(1, Number(event.target.value) || 1) })}
                 />
               </label>
             )}
