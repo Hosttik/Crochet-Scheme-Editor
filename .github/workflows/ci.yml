@@ -8,30 +8,6 @@ permissions:
   contents: read
 
 jobs:
-  integrate-v18:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/productivity-tools-v18'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout feature branch
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-      - name: Apply guarded integration
-        run: node scripts/integrate-v18.mjs
-      - name: Commit integrated files
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/App.tsx src/i18n.ts src/editor/productivity.ts src/editor/projectSchema.ts src/editor/projectSchema.test.ts
-          if git diff --cached --quiet; then
-            echo "No integration changes"
-          else
-            git commit -m "feat: integrate v1.8 productivity tools"
-            git push origin HEAD:${{ github.event.pull_request.head.ref }}
-          fi
-
   verify:
     runs-on: ubuntu-latest
     steps:
