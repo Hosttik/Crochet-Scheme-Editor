@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { SYMBOLS } from '../symbols'
 import { symbolName, type Locale } from '../i18n'
 import type {
@@ -44,6 +45,8 @@ const COPY = {
     rotationOffset: 'Смещение угла °',
     radialOffset: 'Смещение от направляющей',
     actual: 'Элементов в ряду',
+    advanced: 'Дополнительно',
+    advancedHint: 'Раппорт, способ вязания, распределение и точные смещения.',
     automatic: 'Изменения применяются сразу. Перемещение или изменение направляющей автоматически перестраивает ряд.',
     delete: 'Удалить весь ряд',
   },
@@ -72,6 +75,8 @@ const COPY = {
     rotationOffset: 'Rotation offset °',
     radialOffset: 'Guide offset',
     actual: 'Stitches in row',
+    advanced: 'Advanced',
+    advancedHint: 'Rapport, construction, distribution and precise offsets.',
     automatic: 'Changes apply immediately. Moving or editing the guide automatically rebuilds the row.',
     delete: 'Delete entire row',
   },
@@ -96,6 +101,19 @@ export function ParametricRowEditorPanel({
   const options = binding.options
   const resolvedCount = resolveGuideRowCount(guide, options)
   const shapingBase = parentStitchCount ?? binding.shaping?.baseCount
+  const hasAdvancedValue = Boolean(
+    binding.sequence?.items.length ||
+    binding.program ||
+    binding.construction ||
+    options.distributionMode === 'spacing' ||
+    options.radialOffset ||
+    options.rotationOffset,
+  )
+  const [advancedOpen, setAdvancedOpen] = useState(hasAdvancedValue)
+
+  useEffect(() => {
+    if (hasAdvancedValue) setAdvancedOpen(true)
+  }, [hasAdvancedValue])
 
   const patchOptions = (patch: Partial<GuideRowOptions>) => {
     const manualDistributionChange =
@@ -184,15 +202,20 @@ export function ParametricRowEditorPanel({
         </select>
       </label>
 
-      <RowSequenceEditor
-        binding={binding}
-        locale={locale}
-        stitchCount={resolvedCount}
-        parentStitchCount={parentStitchCount}
-        onChange={onChange}
-      />
-
-      <RowConstructionEditor binding={binding} locale={locale} onChange={onChange} />
+      {options.distributionMode === 'count' && (
+        <label className="row-generator-field row-basic-count">
+          <span>{copy.count}</span>
+          <input
+            type="number"
+            min="1"
+            max="500"
+            value={options.count}
+            onChange={(event) => patchOptions({
+              count: Math.max(1, Math.min(500, Number(event.target.value) || 1)),
+            })}
+          />
+        </label>
+      )}
 
       <fieldset className="row-generator-fieldset row-shaping-fieldset" disabled={!shapingBase}>
         <legend>{copy.shaping}</legend>
@@ -240,87 +263,6 @@ export function ParametricRowEditorPanel({
         )}
       </fieldset>
 
-      <fieldset className="row-generator-fieldset">
-        <legend>{copy.distribution}</legend>
-        <div className="segmented-control">
-          {(['count', 'spacing'] as RowDistributionMode[]).map((mode) => (
-            <button
-              key={mode}
-              className={options.distributionMode === mode ? 'active' : ''}
-              onClick={() => patchOptions({ distributionMode: mode })}
-            >
-              {mode === 'count' ? copy.countMode : copy.spacingMode}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-
-      <div className="row-generator-grid">
-        {options.distributionMode === 'count' ? (
-          <label className="row-generator-field">
-            <span>{copy.count}</span>
-            <input
-              type="number"
-              min="1"
-              max="500"
-              value={options.count}
-              onChange={(event) => patchOptions({
-                count: Math.max(1, Math.min(500, Number(event.target.value) || 1)),
-              })}
-            />
-          </label>
-        ) : (
-          <label className="row-generator-field">
-            <span>{copy.spacing}</span>
-            <input
-              type="number"
-              min="1"
-              step="1"
-              value={options.spacing}
-              onChange={(event) => patchOptions({ spacing: Math.max(1, Number(event.target.value) || 1) })}
-            />
-          </label>
-        )}
-
-        {guide.type === 'radial-grid' && (
-          <label className="row-generator-field">
-            <span>{copy.ring}</span>
-            <input
-              type="number"
-              min="1"
-              max={Math.max(1, Math.round(guide.ringCount))}
-              value={options.ringIndex}
-              onChange={(event) => patchOptions({
-                ringIndex: Math.max(
-                  1,
-                  Math.min(Math.round(guide.ringCount), Math.round(Number(event.target.value) || 1)),
-                ),
-              })}
-            />
-          </label>
-        )}
-
-        <label className="row-generator-field">
-          <span>{copy.radialOffset}</span>
-          <input
-            type="number"
-            step="1"
-            value={options.radialOffset}
-            onChange={(event) => patchOptions({ radialOffset: Number(event.target.value) || 0 })}
-          />
-        </label>
-
-        <label className="row-generator-field">
-          <span>{copy.rotationOffset}</span>
-          <input
-            type="number"
-            step="1"
-            value={options.rotationOffset}
-            onChange={(event) => patchOptions({ rotationOffset: Number(event.target.value) || 0 })}
-          />
-        </label>
-      </div>
-
       <label className="row-generator-field">
         <span>{copy.orientation}</span>
         <select
@@ -332,6 +274,97 @@ export function ParametricRowEditorPanel({
           <option value="fixed">{copy.fixed}</option>
         </select>
       </label>
+
+      <button
+        className={`row-advanced-toggle ${advancedOpen ? 'active' : ''}`}
+        aria-expanded={advancedOpen}
+        onClick={() => setAdvancedOpen((value) => !value)}
+      >
+        <span>{advancedOpen ? '▾' : '▸'} {copy.advanced}</span>
+        <small>{copy.advancedHint}</small>
+      </button>
+
+      {advancedOpen && (
+        <div className="row-advanced-content">
+          <RowSequenceEditor
+            binding={binding}
+            locale={locale}
+            stitchCount={resolvedCount}
+            parentStitchCount={parentStitchCount}
+            onChange={onChange}
+          />
+
+          <RowConstructionEditor binding={binding} locale={locale} onChange={onChange} />
+
+          <fieldset className="row-generator-fieldset">
+            <legend>{copy.distribution}</legend>
+            <div className="segmented-control">
+              {(['count', 'spacing'] as RowDistributionMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  className={options.distributionMode === mode ? 'active' : ''}
+                  onClick={() => patchOptions({ distributionMode: mode })}
+                >
+                  {mode === 'count' ? copy.countMode : copy.spacingMode}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <div className="row-generator-grid">
+            {options.distributionMode === 'spacing' && (
+              <label className="row-generator-field">
+                <span>{copy.spacing}</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={options.spacing}
+                  onChange={(event) => patchOptions({ spacing: Math.max(1, Number(event.target.value) || 1) })}
+                />
+              </label>
+            )}
+
+            {guide.type === 'radial-grid' && (
+              <label className="row-generator-field">
+                <span>{copy.ring}</span>
+                <input
+                  type="number"
+                  min="1"
+                  max={Math.max(1, Math.round(guide.ringCount))}
+                  value={options.ringIndex}
+                  onChange={(event) => patchOptions({
+                    ringIndex: Math.max(
+                      1,
+                      Math.min(Math.round(guide.ringCount), Math.round(Number(event.target.value) || 1)),
+                    ),
+                  })}
+                />
+              </label>
+            )}
+
+            <label className="row-generator-field">
+              <span>{copy.radialOffset}</span>
+              <input
+                type="number"
+                step="1"
+                value={options.radialOffset}
+                onChange={(event) => patchOptions({ radialOffset: Number(event.target.value) || 0 })}
+              />
+            </label>
+
+            <label className="row-generator-field">
+              <span>{copy.rotationOffset}</span>
+              <input
+                type="number"
+                step="1"
+                value={options.rotationOffset}
+                onChange={(event) => patchOptions({ rotationOffset: Number(event.target.value) || 0 })}
+              />
+            </label>
+          </div>
+        </div>
+      )}
 
       <p className="row-generator-result">{copy.actual}: <strong>{resolvedCount}</strong></p>
       <p className="row-generator-hint">{copy.automatic}</p>

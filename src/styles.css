@@ -102,10 +102,14 @@ kbd { padding: 2px 5px; background: #f0eee9; border: 1px solid #d8d4cd; border-r
 .symbol-glyph { color: #202622; }
 
 .workspace { grid-area: workspace; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #ddd9d1; }
-.editor-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; user-select: none; }
+.editor-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: default; user-select: none; }
+.editor-canvas.placing { cursor: crosshair; }
+.editor-canvas.selecting { cursor: default; }
 .editor-canvas.panning { cursor: grabbing; }
 .origin-line { stroke: #beb9af; stroke-width: 1; vector-effect: non-scaling-stroke; opacity: .75; }
-.stitch-element { cursor: pointer; color: #202622; }
+.stitch-element { cursor: grab; color: #202622; }
+.editor-canvas.placing .stitch-element { cursor: pointer; }
+.stitch-element:active { cursor: grabbing; }
 .stitch-element:hover .symbol-glyph { color: #386a56; }
 .stitch-element.selected .symbol-glyph { color: #1f6548; }
 .selection-box { fill: rgba(70, 125, 99, .07); stroke: #3f8367; stroke-width: 1.2; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }

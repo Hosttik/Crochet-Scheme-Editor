@@ -59,6 +59,7 @@
   background: #fff;
   overflow: hidden;
 }
+.layer-row.compact { border-radius: 6px; }
 .layer-row.selected { border-color: #608b78; box-shadow: inset 0 0 0 1px #608b78; }
 .layer-row.hidden .layer-main-button { opacity: .48; }
 .layer-row.locked .layer-main-button { opacity: .55; cursor: not-allowed; }
@@ -91,6 +92,31 @@
 .layer-main-button small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .layer-main-button strong { font-size: 9px; font-weight: 600; color: #4e524d; }
 .layer-main-button small { margin-top: 2px; font-size: 8px; color: #999b96; }
+
+.layer-cluster {
+  border: 1px solid #dedbd4;
+  border-radius: 8px;
+  background: #fdfcf9;
+  overflow: hidden;
+}
+.layer-cluster.selected { border-color: #7e9f90; }
+.layer-cluster summary {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 8px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.layer-cluster summary::-webkit-details-marker { display: none; }
+.layer-cluster summary:hover { background: #f2f5f2; }
+.layer-cluster summary strong { min-width: 0; font-size: 10px; color: #4d554f; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layer-cluster summary small { font-size: 9px; color: #8e928c; }
+.layer-cluster-icon { font-size: 12px; color: #4e7967; }
+.layer-cluster-items { display: grid; gap: 4px; padding: 4px 5px 6px 16px; border-top: 1px solid #ece9e3; background: #f7f5f0; }
 
 .stitch-element.locked { cursor: default; }
 .stitch-element.locked .symbol-glyph { opacity: .72; }

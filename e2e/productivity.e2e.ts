@@ -43,7 +43,8 @@ test('groups a motif, selects it as one object, mirrors it and creates a linear 
 
   await page.keyboard.press('Control+A')
   await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
-  await page.getByRole('button', { name: 'Группировать', exact: true }).click()
+  const productivity = page.locator('.productivity-panel')
+  await productivity.getByRole('button', { name: 'Группировать', exact: true }).click()
 
   await clearCanvasSelection(page)
   await page.locator('.stitch-element').first().click()
@@ -58,7 +59,7 @@ test('groups a motif, selects it as one object, mirrors it and creates a linear 
   const before = await page.locator('.stitch-element').evaluateAll((nodes) =>
     nodes.map((node) => node.getAttribute('transform')),
   )
-  await page.getByRole('button', { name: '↔ По горизонтали', exact: true }).click()
+  await productivity.getByRole('button', { name: '↔ По горизонтали', exact: true }).click()
   const after = await page.locator('.stitch-element').evaluateAll((nodes) =>
     nodes.map((node) => node.getAttribute('transform')),
   )
@@ -67,7 +68,6 @@ test('groups a motif, selects it as one object, mirrors it and creates a linear 
   expect(afterParts[0].x).toBeGreaterThan(beforeParts[0].x)
   expect(afterParts[1].x).toBeLessThan(beforeParts[1].x)
 
-  const productivity = page.locator('.productivity-panel')
   await productivity.getByLabel('Копий').fill('2')
   await productivity.getByLabel('ΔX').fill('70')
   await productivity.getByLabel('ΔY').fill('0')
@@ -90,6 +90,7 @@ test('creates circular and along-guide repeats without losing the motif selectio
 
   const productivity = page.locator('.productivity-panel')
   await productivity.getByRole('button', { name: 'По кругу', exact: true }).click()
+  await productivity.getByLabel('Центр').selectOption({ index: 1 })
   await productivity.getByLabel('Копий').fill('3')
   await productivity.getByLabel('Шаг °').fill('90')
   await productivity.getByRole('button', { name: 'Создать копии', exact: true }).click()
@@ -103,6 +104,7 @@ test('creates circular and along-guide repeats without losing the motif selectio
   await page.locator('.stitch-element').first().click({ modifiers: ['Alt'] })
   await expect(page.locator('.stitch-element.selected')).toHaveCount(1)
   await productivity.getByRole('button', { name: 'По направляющей', exact: true }).click()
+  await productivity.getByLabel('Направляющая').selectOption({ index: 1 })
   await productivity.getByLabel('Копий').fill('3')
   await productivity.getByLabel('Шаг по пути').fill('55')
   await productivity.getByLabel('Ориентация').selectOption('tangent')
@@ -152,7 +154,7 @@ test('persists group ids in schema v12 and updates a renamed project immediately
   await placeAt(page, 'Столбик без накида', 0.40, 0.43)
   await placeAt(page, 'Воздушная петля', 0.48, 0.48)
   await page.keyboard.press('Control+A')
-  await page.getByRole('button', { name: 'Группировать', exact: true }).click()
+  await page.locator('.productivity-panel').getByRole('button', { name: 'Группировать', exact: true }).click()
 
   const name = page.getByLabel('Название схемы')
   await name.fill('Быстрый мотив')
