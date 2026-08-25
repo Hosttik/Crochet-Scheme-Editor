@@ -2,22 +2,27 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
-## v1.8
+## v1.9
 
-The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.8 adds productivity tools for building repeated motifs much faster.
+The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.9 is a usability pass: it keeps the v1.8 domain model and schema while reducing mode errors, panel noise and the number of clicks needed for common motif editing.
 
 ### Editing and productivity
 
 - 8 vector crochet symbols
 - free placement, multi-select, marquee selection and group move
+- Smart Place/Select: clicking or dragging an existing stitch while a placement tool is active selects/grabs that stitch instead of placing an accidental duplicate
+- mode-aware canvas cursors distinguish placement, selection and panning
+- contextual floating selection toolbar provides duplicate, group/ungroup, mirror, rotate and delete next to the selected motif
 - permanent manual groups: group / ungroup, click one member to select the motif, Alt+click to select a single stitch inside it
 - mirror a manual selection left/right or top/bottom while preserving the group's geometry and correcting stitch rotations
-- Repeat tool with three modes:
+- Repeat tool with three modes and live ghost preview on the canvas before creation:
   - Linear: create N motif copies with ΔX / ΔY
-  - Circular: rotate copies around the center of a selected Arc, Grid or Radial Grid guide
+  - Circular: rotate copies around the selection center by default, or optionally around an Arc, Grid or Radial Grid center
   - Along guide: walk copies along Arc, Grid or Radial Grid geometry using path spacing and Keep / Tangent / Radial orientation
 - repeated Ctrl/Cmd+D acts as repeat-last-transform: duplicate once, move/rotate the duplicate, then press Ctrl/Cmd+D again to repeat the same per-stitch translation and rotation delta
 - repeated motif copies are grouped independently so every generated copy can immediately be moved as one object
+- Productivity controls are contextual and only appear for compatible manual selections
+- semantic Layers tree collapses parametric rows and manual groups instead of presenting every stitch as a permanently flat list
 - rotation handles, copy/paste/duplicate and layer ordering
 - hide/lock elements
 - zoom around pointer, pan, Fit All and Fit Selection
@@ -48,6 +53,8 @@ The editor combines an SVG canvas with a document model that understands guides,
 - rich semantic rapports where `stitch`, `increase` and `decrease` are explicit AST operations
 - one nested repeat-group level plus a root repeat, e.g. `[(2 SC, increase) × 3, 2 CH] × 4`
 - the rich rapport compiler produces both child stitch types and exact parent-group topology from the same source
+- the row editor uses progressive disclosure: common stitch/count/shaping/orientation controls stay visible, while rapport, construction, distribution mode and precise offsets live under Advanced settings
+- Advanced settings automatically open when an existing project already uses advanced row semantics
 
 ### Row construction semantics
 
@@ -64,7 +71,7 @@ The editor combines an SVG canvas with a document model that understands guides,
 
 ### Persistence and export
 
-- project JSON schema v12; v1-v11 remain loadable through runtime validation/migration
+- project JSON schema remains v12; v1-v11 remain loadable through runtime validation/migration
 - manual group ids, topology parent ids, manual topology overrides, mixed/rich row programs and row construction semantics are persisted and validated
 - rich programs are mutually exclusive with legacy shaping/sequence topology to avoid conflicting sources of truth
 - local multi-project storage in IndexedDB
@@ -132,4 +139,4 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - local persistence
 - rendering and React UI
 
-The next domain milestone remains counted row-boundary semantics: turning/start chains that may count as the first stitch, skipped first stitches, explicit row start/end attachment and more exact joined-round closure behavior. Further productivity work can build on v1.8 with reusable linked motifs and local offsets inside parametric rows.
+The next usability candidates are keyboard nudge, align/distribute, reusable linked motifs and local offsets inside parametric rows. The next domain milestone remains counted row-boundary semantics: turning/start chains that may count as the first stitch, skipped first stitches, explicit row start/end attachment and more exact joined-round closure behavior.
