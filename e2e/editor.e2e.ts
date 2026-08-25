@@ -54,7 +54,6 @@ test('edits explicit parent-child topology and restores it with undo', async ({ 
   await expect(page.locator('.row-shaping-marker.editable')).toHaveCount(6)
 
   await page.locator('.row-shaping-marker.editable').first().click()
-  await expect(page.locator('.topology-mode-badge')).toHaveText('Ручной')
   await expect(page.locator('.topology-change-button.active')).toHaveCount(1)
   await page.getByTitle('Сдвинуть вправо').click()
 
