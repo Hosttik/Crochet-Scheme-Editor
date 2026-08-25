@@ -107,7 +107,6 @@ test('compiles a semantic rapport into stitch types and exact topology', async (
 
   const rowEditor = page.locator('.parametric-row-editor')
   const advanced = rowEditor.getByRole('button', { name: 'Дополнительно' })
-  await advanced.click()
   await expect(advanced).toHaveAttribute('aria-expanded', 'true')
   await rowEditor.getByRole('button', { name: 'Семантический', exact: true }).click()
   await expect(page.getByText('Семантический раппорт', { exact: true })).toBeVisible()
