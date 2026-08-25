@@ -49,8 +49,14 @@ export function ProjectManagerPanel({
   const refresh = async () => setProjects(await listLocalProjects())
 
   useEffect(() => {
-    setNameDraft(currentTitle)
     void refresh()
+  }, [activeProjectId])
+
+  useEffect(() => {
+    setNameDraft(currentTitle)
+    setProjects((current) => current.map((project) =>
+      project.id === activeProjectId ? { ...project, title: currentTitle } : project,
+    ))
   }, [activeProjectId, currentTitle])
 
   const run = async (action: () => Promise<void>) => {
@@ -69,10 +75,10 @@ export function ProjectManagerPanel({
       setNameDraft(currentTitle)
       return
     }
-    onRename(title)
     setProjects((current) => current.map((project) =>
       project.id === activeProjectId ? { ...project, title } : project,
     ))
+    onRename(title)
   }
 
   return (
