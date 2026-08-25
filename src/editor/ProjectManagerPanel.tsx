@@ -63,6 +63,18 @@ export function ProjectManagerPanel({
     }
   }
 
+  const commitRename = () => {
+    const title = nameDraft.trim()
+    if (!title || title === currentTitle) {
+      setNameDraft(currentTitle)
+      return
+    }
+    onRename(title)
+    setProjects((current) => current.map((project) =>
+      project.id === activeProjectId ? { ...project, title } : project,
+    ))
+  }
+
   return (
     <section className="panel-section project-manager-panel">
       <div className="section-title-row">
@@ -75,11 +87,7 @@ export function ProjectManagerPanel({
         <input
           value={nameDraft}
           onChange={(event) => setNameDraft(event.target.value)}
-          onBlur={() => {
-            const title = nameDraft.trim()
-            if (title && title !== currentTitle) onRename(title)
-            else setNameDraft(currentTitle)
-          }}
+          onBlur={commitRename}
           onKeyDown={(event) => {
             if (event.key === 'Enter') event.currentTarget.blur()
           }}
