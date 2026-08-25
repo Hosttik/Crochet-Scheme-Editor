@@ -564,21 +564,19 @@ function App() {
   }, [commitElements, elements, t.pasted])
 
   const duplicateSelection = useCallback(() => {
-    const duplicateIds = new Set(expandIdsToGroups(elements, unlockedSelectedIds()))
-    if (!duplicateIds.size) return
-    const source = elements.filter((element) => duplicateIds.has(element.id))
-    if (!source.length) return
+    const selected = new Set(unlockedSelectedIds())
+    if (!selected.size) return
 
     const series = duplicateSeriesRef.current
-    const isSeries = Boolean(
+    const repeatSeries = Boolean(
       series &&
-      series.currentIds.length === source.length &&
-      series.currentIds.every((id) => duplicateIds.has(id)),
+      selected.size === series.currentIds.length &&
+      series.currentIds.every((id) => selected.has(id)),
     )
     let duplicated: StitchElement[] = []
-    let previousForNext = source.map((element) => ({ ...element }))
+    let previousForNext: StitchElement[] = []
 
-    if (series && isSeries) {
+    if (series && repeatSeries) {
       const current = series.currentIds
         .map((id) => elements.find((element) => element.id === id))
         .filter((element): element is StitchElement => Boolean(element))
@@ -589,6 +587,11 @@ function App() {
     }
 
     if (!duplicated.length) {
+      const duplicateIds = new Set(expandIdsToGroups(elements, [...selected]))
+      if (!duplicateIds.size) return
+      const current = elements.filter((element) => duplicateIds.has(element.id))
+      if (!current.length) return
+      previousForNext = current.map((element) => ({ ...element }))
       duplicated = cloneSelectionWithOffset(
         elements,
         [...duplicateIds],
@@ -756,7 +759,7 @@ function App() {
           pasteSelection()
         } else if (key === 'd') {
           event.preventDefault()
-          duplicateSelection()
+          if (!event.repeat) duplicateSelection()
         } else if (key === 'a') {
           event.preventDefault()
           selectAll()
