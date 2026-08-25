@@ -65,5 +65,12 @@
   font-weight: 700;
 }
 
-.productivity-repeat-preview { opacity: .38; color: #236b4e; }
+.productivity-repeat-preview { color: #236b4e; }
+.productivity-repeat-preview-stitch { opacity: .38; }
 .productivity-repeat-preview-stitch .symbol-glyph { color: #236b4e; }
+.productivity-repeat-preview-group {
+  fill: rgba(35, 107, 78, .05);
+  stroke: rgba(35, 107, 78, .72);
+  stroke-width: 1.4;
+  stroke-dasharray: 7 5;
+}
