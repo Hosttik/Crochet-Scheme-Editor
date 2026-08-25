@@ -14,9 +14,7 @@ async function canvasBox(page: Page) {
 }
 
 async function placeAt(page: Page, title: string, rx: number, ry: number) {
-  await page.locator('.symbols-section .symbol-button').filter({ has: page.locator(`[title="${title}"]`) }).first().click().catch(async () => {
-    await page.locator(`.symbols-section .symbol-button[title="${title}"]`).click()
-  })
+  await page.locator(`.symbols-section .symbol-button[title="${title}"]`).click()
   const box = await canvasBox(page)
   await page.mouse.click(box.x + box.width * rx, box.y + box.height * ry)
 }
@@ -69,10 +67,11 @@ test('groups a motif, selects it as one object, mirrors it and creates a linear 
   expect(afterParts[0].x).toBeGreaterThan(beforeParts[0].x)
   expect(afterParts[1].x).toBeLessThan(beforeParts[1].x)
 
-  await page.getByLabel('Копий').fill('2')
-  await page.getByLabel('ΔX').fill('70')
-  await page.getByLabel('ΔY').fill('0')
-  await page.getByRole('button', { name: 'Создать копии', exact: true }).click()
+  const productivity = page.locator('.productivity-panel')
+  await productivity.getByLabel('Копий').fill('2')
+  await productivity.getByLabel('ΔX').fill('70')
+  await productivity.getByLabel('ΔY').fill('0')
+  await productivity.getByRole('button', { name: 'Создать копии', exact: true }).click()
   await expect(page.locator('.stitch-element')).toHaveCount(6)
   await expect(page.locator('.stitch-element.selected')).toHaveCount(4)
 
@@ -89,10 +88,11 @@ test('creates circular and along-guide repeats without losing the motif selectio
   await placeAt(page, 'Столбик без накида', 0.72, 0.50)
   await expect(page.locator('.stitch-element.selected')).toHaveCount(1)
 
-  await page.getByRole('button', { name: 'По кругу', exact: true }).click()
-  await page.getByLabel('Копий').fill('3')
-  await page.getByLabel('Шаг °').fill('90')
-  await page.getByRole('button', { name: 'Создать копии', exact: true }).click()
+  const productivity = page.locator('.productivity-panel')
+  await productivity.getByRole('button', { name: 'По кругу', exact: true }).click()
+  await productivity.getByLabel('Копий').fill('3')
+  await productivity.getByLabel('Шаг °').fill('90')
+  await productivity.getByRole('button', { name: 'Создать копии', exact: true }).click()
   await expect(page.locator('.stitch-element')).toHaveCount(4)
   await expect(page.locator('.stitch-element.selected')).toHaveCount(3)
   const circular = (await page.locator('.stitch-element').evaluateAll((nodes) =>
@@ -102,11 +102,11 @@ test('creates circular and along-guide repeats without losing the motif selectio
 
   await page.locator('.stitch-element').first().click({ modifiers: ['Alt'] })
   await expect(page.locator('.stitch-element.selected')).toHaveCount(1)
-  await page.getByRole('button', { name: 'По направляющей', exact: true }).click()
-  await page.getByLabel('Копий').fill('3')
-  await page.getByLabel('Шаг по пути').fill('55')
-  await page.getByLabel('Ориентация').selectOption('tangent')
-  await page.getByRole('button', { name: 'Создать копии', exact: true }).click()
+  await productivity.getByRole('button', { name: 'По направляющей', exact: true }).click()
+  await productivity.getByLabel('Копий').fill('3')
+  await productivity.getByLabel('Шаг по пути').fill('55')
+  await productivity.getByLabel('Ориентация').selectOption('tangent')
+  await productivity.getByRole('button', { name: 'Создать копии', exact: true }).click()
   await expect(page.locator('.stitch-element')).toHaveCount(7)
   await expect(page.locator('.stitch-element.selected')).toHaveCount(3)
   const guideCopies = (await page.locator('.stitch-element.selected').evaluateAll((nodes) =>
@@ -131,7 +131,7 @@ test('repeated Ctrl+D repeats the previous duplicate movement and rotation', asy
   await page.mouse.down()
   await page.mouse.move(selectedBox!.x + selectedBox!.width / 2 + 58, selectedBox!.y + selectedBox!.height / 2 + 31, { steps: 6 })
   await page.mouse.up()
-  await page.getByRole('button', { name: '+15°', exact: true }).click()
+  await page.locator('.right-sidebar').getByRole('button', { name: '+15°', exact: true }).click()
 
   const current = transformParts(await selected.getAttribute('transform'))
   await page.keyboard.press('Control+D')
