@@ -4,7 +4,7 @@ Browser-based semantic editor for crochet charts and written patterns.
 
 ## v1.10
 
-The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.10 adds visual styling without changing crochet instruction semantics: stitches can carry independent colors, while grouped Repeat previews become lightweight motif outlines instead of dense piles of ghost stitches.
+The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.10 adds visual styling without changing crochet instruction semantics: stitches can carry independent colors, while Repeat preview follows semantic selection boundaries instead of raw selection count.
 
 ### Editing and productivity
 
@@ -21,7 +21,7 @@ The editor combines an SVG canvas with a document model that understands guides,
   - Linear: create N motif copies with ΔX / ΔY
   - Circular: rotate copies around the selection center by default, or optionally around an Arc, Grid or Radial Grid center
   - Along guide: walk copies along Arc, Grid or Radial Grid geometry using path spacing and Keep / Tangent / Radial orientation
-- single-stitch Repeat keeps the ghost-stitch preview; grouped Repeat shows one dashed bounding outline per future motif copy to avoid visual overload
+- Repeat ghost preview is shown for one stitch or one complete manual group; a group is treated as one composite object and previews the whole motif, while temporary multi-selection or several groups do not render ghosts
 - repeated Ctrl/Cmd+D acts as repeat-last-transform: duplicate once, move/rotate the duplicate, then press Ctrl/Cmd+D again to repeat the same per-stitch translation and rotation delta
 - repeated motif copies are grouped independently so every generated copy can immediately be moved as one object
 - Duplicate, paste and Repeat preserve element colors
