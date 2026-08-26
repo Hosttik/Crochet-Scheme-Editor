@@ -9,7 +9,10 @@ import type {
   StitchElement,
 } from '../types'
 import { patternRows, rowElements } from './parametricRows'
-import { rowConstructionInstructionParts } from './rowConstruction'
+import {
+  rowConstructionInstructionParts,
+  rowConstructionRowTotal,
+} from './rowConstruction'
 import { normalizeRowProgram, rowProgramMetrics } from './rowProgram'
 import {
   normalizeRowSequence,
@@ -23,6 +26,7 @@ export type PatternInstructionRow = {
   rowNumber: number
   symbolId: string
   stitchCount: number
+  rowTotalCount: number
   parentRowNumber?: number
   text: string
 }
@@ -53,6 +57,7 @@ const COPY = {
     abbreviations: 'Сокращения',
     programMismatch: 'ожидается по раппорту',
     actual: 'фактически',
+    rowTotal: 'всего в счёте ряда',
   },
   en: {
     row: 'Row',
@@ -68,6 +73,7 @@ const COPY = {
     abbreviations: 'Abbreviations',
     programMismatch: 'rapport expects',
     actual: 'actual',
+    rowTotal: 'row total',
   },
 } as const
 
@@ -252,9 +258,13 @@ function constructionAwareInstruction(
   rowNumber: number,
   body: string,
   locale: Locale,
+  workedStitchCount: number,
 ) {
   const construction = rowConstructionInstructionParts(binding.construction, locale)
-  const details = [...construction.prefix, body, ...construction.suffix]
+  const rowTotal = rowConstructionRowTotal(workedStitchCount, binding.construction)
+  const details = [...construction.prefix, body]
+  if (rowTotal !== workedStitchCount) details.push(`${COPY[locale].rowTotal}: ${rowTotal}`)
+  details.push(...construction.suffix)
   return `${COPY[locale].row} ${rowNumber}: ${details.join('; ')}`
 }
 
@@ -267,7 +277,13 @@ export function formatPatternRowInstruction(
 ) {
   const program = richProgramComposition(binding, stitchCount, locale)
   if (program) {
-    return constructionAwareInstruction(binding, rowNumber, `${program} = ${stitchCount}`, locale)
+    return constructionAwareInstruction(
+      binding,
+      rowNumber,
+      `${program} = ${stitchCount}`,
+      locale,
+      stitchCount,
+    )
   }
 
   const composition = mixedSequenceComposition(binding, stitchCount, locale)
@@ -278,13 +294,16 @@ export function formatPatternRowInstruction(
       rowNumber,
       `${composition}${shaping ? `; ${shaping}` : ''} = ${stitchCount}`,
       locale,
+      stitchCount,
     )
   }
 
   const shaped = manualTopologyBody(binding, stitchCount, locale, parentPositions)
     ?? compactShapingBody(binding, stitchCount, locale)
     ?? fallbackShapingBody(binding, stitchCount, locale)
-  if (shaped) return constructionAwareInstruction(binding, rowNumber, shaped, locale)
+  if (shaped) {
+    return constructionAwareInstruction(binding, rowNumber, shaped, locale, stitchCount)
+  }
 
   const stitch = stitchAbbreviation(binding.symbolId, locale)
   return constructionAwareInstruction(
@@ -292,6 +311,7 @@ export function formatPatternRowInstruction(
     rowNumber,
     `${stitchCount} ${stitch} = ${stitchCount}`,
     locale,
+    stitchCount,
   )
 }
 
@@ -320,6 +340,7 @@ export function generatePatternInstructions(
       rowNumber: row.displayOrder,
       symbolId: row.binding.symbolId,
       stitchCount: row.stitchCount,
+      rowTotalCount: rowConstructionRowTotal(row.stitchCount, row.binding.construction),
       parentRowNumber: row.binding.parentRowId
         ? rowNumberById.get(row.binding.parentRowId)
         : undefined,
