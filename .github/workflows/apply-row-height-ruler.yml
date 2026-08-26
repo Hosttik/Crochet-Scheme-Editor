@@ -30,7 +30,9 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Apply row-height ruler follow-up
-        run: python3 scripts/apply_row_height_ruler.py
+        run: |
+          python3 scripts/apply_row_height_ruler.py
+          python3 scripts/fix_row_height_ruler_e2e.py
 
       - name: Verify typecheck, unit tests and build
         run: npm run build
