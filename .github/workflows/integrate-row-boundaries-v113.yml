@@ -1,0 +1,140 @@
+name: Integrate v1.13 row boundaries
+
+on:
+  push:
+    branches:
+      - feature/row-boundaries-v113
+    paths:
+      - .github/workflows/integrate-row-boundaries-v113.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feature/row-boundaries-v113
+          fetch-depth: 0
+
+      - name: Patch app, instructions and release metadata
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{path}: expected exactly one match, got {count}: {old[:100]!r}')
+              p.write_text(text.replace(old, new, 1))
+
+          # Pattern instructions: keep worked stitch count and logical row total separate.
+          replace_once(
+              'src/editor/patternInstructions.ts',
+              "import { rowConstructionInstructionParts } from './rowConstruction'",
+              "import {\n  rowConstructionInstructionParts,\n  rowConstructionRowTotal,\n} from './rowConstruction'",
+          )
+          replace_once(
+              'src/editor/patternInstructions.ts',
+              "  stitchCount: number\n  parentRowNumber?: number",
+              "  stitchCount: number\n  rowTotalCount: number\n  parentRowNumber?: number",
+          )
+          replace_once(
+              'src/editor/patternInstructions.ts',
+              "    actual: 'фактически',\n  },",
+              "    actual: 'фактически',\n    rowTotal: 'всего в счёте ряда',\n  },",
+          )
+          replace_once(
+              'src/editor/patternInstructions.ts',
+              "    actual: 'actual',\n  },",
+              "    actual: 'actual',\n    rowTotal: 'row total',\n  },",
+          )
+          replace_once(
+              'src/editor/patternInstructions.ts',
+              "function constructionAwareInstruction(\n  binding: ParametricRowBinding,\n  rowNumber: number,\n  body: string,\n  locale: Locale,\n) {\n  const construction = rowConstructionInstructionParts(binding.construction, locale)\n  const details = [...construction.prefix, body, ...construction.suffix]\n  return `${COPY[locale].row} ${rowNumber}: ${details.join('; ')}`\n}",
+              "function constructionAwareInstruction(\n  binding: ParametricRowBinding,\n  rowNumber: number,\n  body: string,\n  locale: Locale,\n  workedStitchCount: number,\n) {\n  const construction = rowConstructionInstructionParts(binding.construction, locale)\n  const rowTotal = rowConstructionRowTotal(workedStitchCount, binding.construction)\n  const details = [...construction.prefix, body]\n  if (rowTotal !== workedStitchCount) details.push(`${COPY[locale].rowTotal}: ${rowTotal}`)\n  details.push(...construction.suffix)\n  return `${COPY[locale].row} ${rowNumber}: ${details.join('; ')}`\n}",
+          )
+          replace_once(
+              'src/editor/patternInstructions.ts',
+              "    return constructionAwareInstruction(binding, rowNumber, `${program} = ${stitchCount}`, locale)",
+              "    return constructionAwareInstruction(binding, rowNumber, `${program} = ${stitchCount}`, locale, stitchCount)",
+          )
+          replace_once(
+              'src/editor/patternInstructions.ts',
+              "      locale,\n    )\n  }\n\n  const shaped = manualTopologyBody",
+              "      locale,\n      stitchCount,\n    )\n  }\n\n  const shaped = manualTopologyBody",
+          )
+          replace_once(
+              'src/editor/patternInstructions.ts',
+              "  if (shaped) return constructionAwareInstruction(binding, rowNumber, shaped, locale)",
+              "  if (shaped) return constructionAwareInstruction(binding, rowNumber, shaped, locale, stitchCount)",
+          )
+          replace_once(
+              'src/editor/patternInstructions.ts',
+              "    `${stitchCount} ${stitch} = ${stitchCount}`,\n    locale,\n  )",
+              "    `${stitchCount} ${stitch} = ${stitchCount}`,\n    locale,\n    stitchCount,\n  )",
+          )
+          replace_once(
+              'src/editor/patternInstructions.ts',
+              "      stitchCount: row.stitchCount,\n      parentRowNumber:",
+              "      stitchCount: row.stitchCount,\n      rowTotalCount: rowConstructionRowTotal(row.stitchCount, row.binding.construction),\n      parentRowNumber:",
+          )
+
+          # Current project format and file loader.
+          replace_once('src/App.tsx', '    schemaVersion: 15,', '    schemaVersion: 16,')
+          replace_once(
+              'src/App.tsx',
+              '! [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].includes(raw.schemaVersion)',
+              '! [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].includes(raw.schemaVersion)',
+          )
+
+          # Release metadata.
+          replace_once('package.json', '"version": "1.12.0"', '"version": "1.13.0"')
+          p = Path('src/i18n.ts')
+          text = p.read_text()
+          if text.count('v1.12.0') != 2:
+              raise RuntimeError(f'i18n: expected two v1.12.0 labels, got {text.count("v1.12.0")}')
+          p.write_text(text.replace('v1.12.0', 'v1.13.0'))
+
+          # Migration assertions now normalize to the current schema.
+          p = Path('src/editor/document.test.ts')
+          text = p.read_text().replace('schema v15', 'schema v16').replace('toBe(15)', 'toBe(16)')
+          p.write_text(text)
+
+          p = Path('src/editor/projectSchema.test.ts')
+          text = p.read_text()
+          text = text.replace('migrates legacy projects to schema v15', 'migrates legacy projects to schema v16')
+          text = text.replace('migrating to v15', 'migrating to v16')
+          text = text.replace('toBe(15)', 'toBe(16)')
+          p.write_text(text)
+
+          # Old construction instruction assertions now name the exact closure target.
+          p = Path('src/editor/rowConstructionInstructions.test.ts')
+          text = p.read_text()
+          text = text.replace(
+              'замкнутый круг ↻; замкнуть СС',
+              'замкнутый круг ↻; замкнуть СС в первую провязанную петлю',
+          )
+          p.write_text(text)
+
+          # Existing browser assertion is intentionally prefix-based, but make its expected semantics explicit.
+          p = Path('e2e/editor.e2e.ts')
+          text = p.read_text().replace(
+              'замкнутый круг ↻; замкнуть СС/',
+              'замкнутый круг ↻; замкнуть СС в первую провязанную петлю/',
+          )
+          p.write_text(text)
+          PY
+
+      - name: Remove staging workflow and commit
+        run: |
+          rm .github/workflows/integrate-row-boundaries-v113.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Integrate v1.13 row boundary semantics"
+          git push origin HEAD:feature/row-boundaries-v113
