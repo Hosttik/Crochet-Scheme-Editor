@@ -110,6 +110,8 @@ export function StitchLayer({
         const definition = SYMBOL_BY_ID.get(element.symbolId)
         const width = definition?.width ?? 30
         const height = definition?.height ?? 30
+        const hitWidth = Math.max(38, width + 18)
+        const hitHeight = Math.max(38, height + 18)
         const handleY = -height / 2 - 30
 
         return (
@@ -120,6 +122,16 @@ export function StitchLayer({
             pointerEvents={locked ? 'none' : undefined}
             onPointerDown={locked ? undefined : (event) => onElementPointerDown(event, element)}
           >
+            <rect
+              x={-hitWidth / 2}
+              y={-hitHeight / 2}
+              width={hitWidth}
+              height={hitHeight}
+              rx="7"
+              className="stitch-hit-target"
+              aria-hidden="true"
+            />
+
             {selected && (
               <rect
                 x={-width / 2 - 8}
