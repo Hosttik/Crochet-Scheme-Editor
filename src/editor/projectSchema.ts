@@ -1,5 +1,6 @@
 import type {
   AutosaveDelayMs,
+  BackgroundImage,
   CrochetProject,
   Guide,
   GuideAttachment,
@@ -273,6 +274,32 @@ function parseRowMarker(value: unknown): RowMarker {
   }
 }
 
+function parseBackgroundImage(value: unknown): BackgroundImage | undefined {
+  if (value === undefined) return undefined
+  if (
+    !isRecord(value) ||
+    !nonEmptyString(value.dataUrl) || !value.dataUrl.startsWith('data:image/') || value.dataUrl.length > 25_000_000 ||
+    !(value.sourceName === undefined || typeof value.sourceName === 'string') ||
+    !finite(value.x) || !finite(value.y) ||
+    !finite(value.width) || value.width <= 0 ||
+    !finite(value.height) || value.height <= 0 ||
+    !finite(value.opacity) || value.opacity < 0 || value.opacity > 1 ||
+    !optionalBoolean(value.visible) || !optionalBoolean(value.locked) || !optionalBoolean(value.includeInExport)
+  ) throw new ProjectValidationError('Invalid background image')
+  return {
+    dataUrl: value.dataUrl,
+    sourceName: value.sourceName as string | undefined,
+    x: value.x,
+    y: value.y,
+    width: value.width,
+    height: value.height,
+    opacity: value.opacity,
+    visible: value.visible !== false,
+    locked: value.locked === true,
+    includeInExport: value.includeInExport === true,
+  }
+}
+
 function parseLegend(value: unknown) {
   if (value === undefined) return { visible: true }
   if (!isRecord(value) || typeof value.visible !== 'boolean') {
@@ -304,7 +331,7 @@ function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSett
 
 export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): CrochetProject {
   if (!isRecord(raw)) throw new ProjectValidationError('Project must be an object')
-  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 16) throw new ProjectValidationError('Unsupported project schema')
+  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 17) throw new ProjectValidationError('Unsupported project schema')
   if (!Array.isArray(raw.elements)) throw new ProjectValidationError('Project elements are missing')
   if (raw.guides !== undefined && !Array.isArray(raw.guides)) throw new ProjectValidationError('Project guides are invalid')
   if (raw.rowMarkers !== undefined && !Array.isArray(raw.rowMarkers)) throw new ProjectValidationError('Project row markers are invalid')
@@ -314,9 +341,10 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
   const elements = raw.elements.map(parseElement)
   const guides = (raw.guides ?? []).map(parseGuide)
   const rowMarkers = (raw.rowMarkers ?? []).map(parseRowMarker)
+  const backgroundImage = parseBackgroundImage(raw.backgroundImage)
 
   return {
-    schemaVersion: 16,
+    schemaVersion: 17,
     metadata: {
       title: typeof metadata.title === 'string' && metadata.title.trim() ? metadata.title : 'Crochet scheme',
       updatedAt: typeof metadata.updatedAt === 'string' ? metadata.updatedAt : new Date().toISOString(),
@@ -324,6 +352,7 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
     elements,
     guides,
     rowMarkers,
+    backgroundImage,
     settings: {
       snapping: parseSnapping(settings.snapping, fallbackSnapping),
       legend: parseLegend(settings.legend),

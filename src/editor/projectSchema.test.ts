@@ -34,9 +34,9 @@ function shapedBinding() {
 }
 
 describe('parseProject', () => {
-  it('migrates legacy projects to schema v16 and normalizes element flags', () => {
+  it('migrates legacy projects to schema v17 and normalizes element flags', () => {
     const project = parseProject(legacyProject(), fallback)
-    expect(project.schemaVersion).toBe(16)
+    expect(project.schemaVersion).toBe(17)
     expect(project.elements[0]).toMatchObject({ visible: true, locked: false })
     expect(project.guides).toEqual([])
   })
@@ -220,13 +220,13 @@ describe('parseProject', () => {
     expect(() => parseProject(raw, fallback)).toThrow(ProjectValidationError)
   })
 
-  it('preserves and validates schema v13 stitch colors while migrating to v16', () => {
+  it('preserves and validates schema v13 stitch colors while migrating to v17', () => {
     const raw = legacyProject() as any
     raw.schemaVersion = 13
     raw.elements[0].color = '#C2413B'
     const parsed = parseProject(raw, fallback)
     expect(parsed.elements[0].color).toBe('#c2413b')
-    expect(parsed.schemaVersion).toBe(16)
+    expect(parsed.schemaVersion).toBe(17)
 
     raw.elements[0].color = 'red'
     expect(() => parseProject(raw, fallback)).toThrow(ProjectValidationError)
@@ -252,7 +252,7 @@ describe('parseProject', () => {
     }
 
     const parsed = parseProject(raw, fallback)
-    expect(parsed.schemaVersion).toBe(16)
+    expect(parsed.schemaVersion).toBe(17)
     expect(parsed.guides?.map((guide) => guide.type)).toEqual(['line', 'curve'])
     expect(parsed.elements[0].guideAttachment).toEqual({
       guideId: 'line-1', t: 0.4, orientation: 'tangent', rotationOffset: 5, normalOffset: 3,
@@ -294,7 +294,7 @@ describe('parseProject', () => {
     raw.rowMarkers = [{ id: 'row-number-1', number: 1, x: -20, y: 15, visible: true, locked: false }]
     raw.settings.legend = { visible: false }
     const parsed = parseProject(raw, fallback)
-    expect(parsed.schemaVersion).toBe(16)
+    expect(parsed.schemaVersion).toBe(17)
     expect(parsed.guides?.[0].locked).toBe(true)
     expect(parsed.rowMarkers).toEqual([{ id: 'row-number-1', number: 1, x: -20, y: 15, visible: true, locked: false }])
     expect(parsed.settings.legend).toEqual({ visible: false })
