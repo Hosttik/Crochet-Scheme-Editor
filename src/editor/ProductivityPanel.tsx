@@ -4,6 +4,7 @@ import { SymbolGlyph } from '../symbols'
 import type { Guide, StitchElement } from '../types'
 import type { Locale } from '../i18n'
 import { DraftNumberInput } from './DraftNumberInput'
+import { guideCenter } from './guideManipulation'
 import {
   repeatSelection,
   type RepeatMode,
@@ -89,9 +90,13 @@ const COPY = {
 function guideName(guide: Guide, locale: Locale, index: number) {
   const name = guide.type === 'arc'
     ? locale === 'ru' ? 'Дуга' : 'Arc'
-    : guide.type === 'grid'
-      ? locale === 'ru' ? 'Сетка' : 'Grid'
-      : locale === 'ru' ? 'Радиальная сетка' : 'Radial grid'
+    : guide.type === 'line'
+      ? locale === 'ru' ? 'Линия' : 'Line'
+      : guide.type === 'curve'
+        ? locale === 'ru' ? 'Кривая' : 'Curve'
+        : guide.type === 'grid'
+          ? locale === 'ru' ? 'Сетка' : 'Grid'
+          : locale === 'ru' ? 'Радиальная сетка' : 'Radial grid'
   return `${index + 1}. ${name}`
 }
 
@@ -159,9 +164,7 @@ export function ProductivityPanel({
   const options = useMemo<RepeatOptions | null>(() => {
     if (mode === 'linear') return { mode, copies, deltaX, deltaY }
     if (mode === 'circular') {
-      const center = selectedGuide
-        ? selectedGuide.type === 'grid' ? selectedGuide.origin : selectedGuide.center
-        : undefined
+      const center = selectedGuide ? guideCenter(selectedGuide) : undefined
       return { mode, copies, angleStep, center }
     }
     if (!selectedGuide) return null

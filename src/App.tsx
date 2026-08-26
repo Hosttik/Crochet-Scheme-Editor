@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { GuideRenderer } from './editor/GuideRenderer'
+import { GuideAttachmentPanel } from './editor/GuideAttachmentPanel'
 import { GuideRowGeneratorPanel } from './editor/GuideRowGeneratorPanel'
 import { ParametricRowEditorPanel } from './editor/ParametricRowEditorPanel'
 import { PatternRowsPanel } from './editor/PatternRowsPanel'
@@ -25,6 +26,13 @@ import { DEFAULT_STITCH_COLOR } from './editor/elementColor'
 import type { GuideManipulationMode } from './editor/guideManipulation'
 import { clamp, screenToDocument } from './editor/geometry'
 import { emptyHistory, pushHistory, redoHistory, undoHistory } from './editor/history'
+import {
+  attachElementToGuide,
+  elementFromAttachment,
+  isPathGuide,
+  moveAttachedElement,
+  reconcileGuideAttachments,
+} from './editor/pathGuides'
 import { createMirroredCopy } from './editor/mirrorCopy'
 import {
   cloneSelectionWithOffset,
@@ -82,6 +90,8 @@ import type {
   AnchorName,
   CrochetProject,
   Guide,
+  GuideAttachment,
+  GuideAttachmentOrientation,
   OrientationMode,
   ParametricRowBinding,
   Point,
@@ -143,6 +153,10 @@ function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
+function reconcileLinkedElements(elements: StitchElement[], guides: Guide[]) {
+  return reconcileGuideAttachments(reconcileParametricRows(elements, guides, createId), guides)
+}
+
 function downloadText(filename: string, content: string, type: string) {
   const blob = new Blob([content], { type })
   const url = URL.createObjectURL(blob)
@@ -156,6 +170,8 @@ function downloadText(filename: string, content: string, type: string) {
 function guideLabel(guide: Guide, locale: Locale) {
   const t = UI[locale]
   if (guide.type === 'arc') return t.arc
+  if (guide.type === 'line') return locale === 'ru' ? 'Линия' : 'Line'
+  if (guide.type === 'curve') return locale === 'ru' ? 'Кривая' : 'Curve'
   if (guide.type === 'grid') return t.rectangularGrid
   return t.radialGrid
 }
@@ -249,7 +265,7 @@ function buildProject(
   snapping: SnappingSettings,
 ): CrochetProject {
   return {
-    schemaVersion: 13,
+    schemaVersion: 14,
     metadata: { title, updatedAt: new Date().toISOString() },
     elements: normalizeElements(elements),
     guides,
@@ -337,7 +353,7 @@ function App() {
         if (saved) {
           const project = normalizeProject(saved, DEFAULT_SNAPPING)
           setProjectTitle(project.metadata.title)
-          setElements(reconcileParametricRows(project.elements, project.guides ?? [], createId))
+          setElements(reconcileLinkedElements(project.elements, project.guides ?? []))
           setGuides(project.guides ?? [])
           setSnapping(project.settings.snapping)
           setStatus(UI[locale].autosaveRestored)
@@ -385,7 +401,7 @@ function App() {
 
   useEffect(() => {
     if (!hydrated) return
-    setElements((current) => reconcileParametricRows(current, guides, createId))
+    setElements((current) => reconcileLinkedElements(current, guides))
   }, [guides, hydrated])
 
   const primaryId = selectedIds.at(-1) ?? null
@@ -758,13 +774,17 @@ function App() {
     )
     if (!movable) return
     duplicateSeriesRef.current = null
-    commitElements(elements.map((element) =>
-      selected.has(element.id) && !element.parametricRow && !isElementLocked(element)
-        ? { ...element, x: element.x + dx, y: element.y + dy }
-        : element,
-    ))
+    commitElements(elements.map((element) => {
+      if (!selected.has(element.id) || element.parametricRow || isElementLocked(element)) return element
+      const attachment = element.guideAttachment
+      const guide = attachment ? guides.find((item) => item.id === attachment.guideId) : undefined
+      if (attachment && guide && isPathGuide(guide)) {
+        return moveAttachedElement(element, guide, { x: element.x + dx, y: element.y + dy })
+      }
+      return { ...element, x: element.x + dx, y: element.y + dy }
+    }))
     setStatus(locale === 'ru' ? `Сдвиг: ${dx}, ${dy}` : `Nudged: ${dx}, ${dy}`)
-  }, [commitElements, elements, locale, unlockedSelectedIds])
+  }, [commitElements, elements, guides, locale, unlockedSelectedIds])
 
   const zoomCanvas = useCallback((factor: number) => {
     const rect = svgRef.current?.getBoundingClientRect()
@@ -1079,6 +1099,23 @@ function App() {
         x: documentPoint.x - drag.startPointer.x,
         y: documentPoint.y - drag.startPointer.y,
       }
+
+      if (drag.selectedIds.length === 1 && reference.guideAttachment) {
+        const attachedGuide = guides.find((guide) => guide.id === reference.guideAttachment?.guideId)
+        if (attachedGuide && isPathGuide(attachedGuide)) {
+          const moved = moveAttachedElement(reference, attachedGuide, {
+            x: reference.x + rawDelta.x,
+            y: reference.y + rawDelta.y,
+          })
+          interactionMovedRef.current = Math.hypot(moved.x - reference.x, moved.y - reference.y) > 0.5
+          setSnapTarget(null)
+          setElements(drag.startSnapshot.elements.map((element) =>
+            element.id === reference.id ? moved : element,
+          ))
+          return
+        }
+      }
+
       const proposedReference: StitchElement = {
         ...reference,
         x: reference.x + rawDelta.x,
@@ -1297,7 +1334,7 @@ function App() {
       if (cancelled || !moved || !before) return
       recordSnapshot(before)
       if (mode === 'move') setStatus(t.guideMoved)
-      else if (mode === 'resize') setStatus(t.guideResized)
+      else if (mode === 'resize' || mode === 'start' || mode === 'end' || mode === 'control1' || mode === 'control2') setStatus(t.guideResized)
       else setStatus(t.guideRotated)
     },
     [recordSnapshot, t.guideMoved, t.guideResized, t.guideRotated],
@@ -1306,13 +1343,18 @@ function App() {
   const rotateSelected = (delta: number) => {
     const selected = new Set(unlockedSelectedIds())
     if (!selected.size) return
-    commitElements(
-      elements.map((element) =>
-        selected.has(element.id) && !element.parametricRow
-          ? { ...element, rotation: element.rotation + delta }
-          : element,
-      ),
-    )
+    commitElements(elements.map((element) => {
+      if (!selected.has(element.id) || element.parametricRow) return element
+      const attachment = element.guideAttachment
+      const guide = attachment ? guides.find((item) => item.id === attachment.guideId) : undefined
+      if (attachment && attachment.orientation !== 'keep' && guide && isPathGuide(guide)) {
+        return elementFromAttachment(element, guide, {
+          ...attachment,
+          rotationOffset: attachment.rotationOffset + delta,
+        })
+      }
+      return { ...element, rotation: element.rotation + delta }
+    }))
   }
 
   const applySelectionColor = (color?: string) => {
@@ -1324,6 +1366,34 @@ function App() {
       ),
     )
     setStatus(locale === 'ru' ? 'Цвет выделения изменён' : 'Selection color changed')
+  }
+
+  const attachSelectedToGuide = (guideId: string, orientation: GuideAttachmentOrientation) => {
+    if (!selectedElement || selectedElement.parametricRow) return
+    const guide = guides.find((item) => item.id === guideId)
+    if (!guide || !isPathGuide(guide)) return
+    const attached = attachElementToGuide(selectedElement, guide, orientation)
+    commitElements(elements.map((element) => element.id === selectedElement.id ? attached : element))
+    setSelectedIds([selectedElement.id])
+    setStatus(locale === 'ru' ? 'Элемент закреплён на направляющей' : 'Stitch attached to guide')
+  }
+
+  const updateSelectedGuideAttachment = (attachment: GuideAttachment) => {
+    if (!selectedElement || selectedElement.parametricRow) return
+    const guide = guides.find((item) => item.id === attachment.guideId)
+    if (!guide || !isPathGuide(guide)) return
+    const attached = elementFromAttachment(selectedElement, guide, attachment)
+    commitElements(elements.map((element) => element.id === selectedElement.id ? attached : element))
+    setSelectedIds([selectedElement.id])
+  }
+
+  const detachSelectedFromGuide = () => {
+    if (!selectedElement?.guideAttachment) return
+    commitElements(elements.map((element) =>
+      element.id === selectedElement.id ? { ...element, guideAttachment: undefined } : element,
+    ))
+    setSelectedIds([selectedElement.id])
+    setStatus(locale === 'ru' ? 'Связь с направляющей снята' : 'Guide attachment removed')
   }
 
   const addGuide = (type: Guide['type']) => {
@@ -1344,6 +1414,26 @@ function App() {
         startAngle: 0,
         endAngle: 180,
         divisions: 12,
+        visible: true,
+      }
+    } else if (type === 'line') {
+      guide = {
+        id,
+        type,
+        start: { x: center.x - 130, y: center.y },
+        end: { x: center.x + 130, y: center.y },
+        divisions: 12,
+        visible: true,
+      }
+    } else if (type === 'curve') {
+      guide = {
+        id,
+        type,
+        start: { x: center.x - 150, y: center.y },
+        control1: { x: center.x - 70, y: center.y - 90 },
+        control2: { x: center.x + 70, y: center.y + 90 },
+        end: { x: center.x + 150, y: center.y },
+        divisions: 16,
         visible: true,
       }
     } else if (type === 'grid') {
@@ -1475,7 +1565,7 @@ function App() {
     setActiveProjectIdState(id)
     setProjectTitle(normalized.metadata.title)
     setHistory(emptyHistory<DocumentSnapshot>())
-    setElements(reconcileParametricRows(normalized.elements, normalized.guides ?? [], createId))
+    setElements(reconcileLinkedElements(normalized.elements, normalized.guides ?? []))
     setGuides(normalized.guides ?? [])
     setSnapping(normalized.settings.snapping)
     clearElementSelection()
@@ -1527,7 +1617,7 @@ function App() {
     try {
       const raw = JSON.parse(await file.text()) as CrochetProject
       if (
-        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].includes(raw.schemaVersion) ||
+        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].includes(raw.schemaVersion) ||
         !Array.isArray(raw.elements)
       ) {
         throw new Error(t.unsupportedProject)
@@ -1535,7 +1625,7 @@ function App() {
       const project = normalizeProject(raw, DEFAULT_SNAPPING)
       setProjectTitle(project.metadata.title)
       setHistory({ past: [currentSnapshot()], future: [] })
-      setElements(reconcileParametricRows(project.elements, project.guides ?? [], createId))
+      setElements(reconcileLinkedElements(project.elements, project.guides ?? []))
       setGuides(project.guides ?? [])
       setSnapping(project.settings.snapping)
       clearElementSelection()
@@ -1654,6 +1744,8 @@ function App() {
           <div className="section-title-row"><h2>{t.guides}</h2><span className="muted-text">{guides.length}</span></div>
           <div className="guide-add-grid">
             <button onClick={() => addGuide('arc')}><strong>⌒</strong><span>{t.arc}</span></button>
+            <button onClick={() => addGuide('line')}><strong>／</strong><span>{locale === 'ru' ? 'Линия' : 'Line'}</span></button>
+            <button onClick={() => addGuide('curve')}><strong>∿</strong><span>{locale === 'ru' ? 'Кривая' : 'Curve'}</span></button>
             <button onClick={() => addGuide('grid')}><strong>▦</strong><span>{t.grid}</span></button>
             <button onClick={() => addGuide('radial-grid')}><strong>◎</strong><span>{t.radial}</span></button>
           </div>
@@ -1979,6 +2071,14 @@ function App() {
                 <button onClick={() => rotateSelected(-15)}>−15°</button>
                 <button onClick={() => rotateSelected(15)}>+15°</button>
               </div>
+              <GuideAttachmentPanel
+                locale={locale}
+                element={selectedElement}
+                guides={guides}
+                onAttach={attachSelectedToGuide}
+                onChange={updateSelectedGuideAttachment}
+                onDetach={detachSelectedFromGuide}
+              />
               <div className="selection-actions">
                 <button onClick={copySelection}>{t.copy}</button>
                 <button onClick={duplicateSelection}>{t.duplicate}</button>
@@ -2022,6 +2122,30 @@ function App() {
                 </div>
               )}
 
+              {selectedGuide.type === 'line' && (
+                <div className="number-field-grid">
+                  <NumberField label={locale === 'ru' ? 'Начало X' : 'Start X'} value={selectedGuide.start.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? { ...guide, start: { ...guide.start, x: value } } : guide)} />
+                  <NumberField label={locale === 'ru' ? 'Начало Y' : 'Start Y'} value={selectedGuide.start.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? { ...guide, start: { ...guide.start, y: value } } : guide)} />
+                  <NumberField label={locale === 'ru' ? 'Конец X' : 'End X'} value={selectedGuide.end.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? { ...guide, end: { ...guide.end, x: value } } : guide)} />
+                  <NumberField label={locale === 'ru' ? 'Конец Y' : 'End Y'} value={selectedGuide.end.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? { ...guide, end: { ...guide.end, y: value } } : guide)} />
+                  <NumberField label={t.divisions} value={selectedGuide.divisions} min={1} max={100} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? { ...guide, divisions: Math.round(clamp(value, 1, 100)) } : guide)} />
+                </div>
+              )}
+
+              {selectedGuide.type === 'curve' && (
+                <div className="number-field-grid">
+                  <NumberField label={locale === 'ru' ? 'Начало X' : 'Start X'} value={selectedGuide.start.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, start: { ...guide.start, x: value } } : guide)} />
+                  <NumberField label={locale === 'ru' ? 'Начало Y' : 'Start Y'} value={selectedGuide.start.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, start: { ...guide.start, y: value } } : guide)} />
+                  <NumberField label="C1 X" value={selectedGuide.control1.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, control1: { ...guide.control1, x: value } } : guide)} />
+                  <NumberField label="C1 Y" value={selectedGuide.control1.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, control1: { ...guide.control1, y: value } } : guide)} />
+                  <NumberField label="C2 X" value={selectedGuide.control2.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, control2: { ...guide.control2, x: value } } : guide)} />
+                  <NumberField label="C2 Y" value={selectedGuide.control2.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, control2: { ...guide.control2, y: value } } : guide)} />
+                  <NumberField label={locale === 'ru' ? 'Конец X' : 'End X'} value={selectedGuide.end.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, end: { ...guide.end, x: value } } : guide)} />
+                  <NumberField label={locale === 'ru' ? 'Конец Y' : 'End Y'} value={selectedGuide.end.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, end: { ...guide.end, y: value } } : guide)} />
+                  <NumberField label={t.divisions} value={selectedGuide.divisions} min={1} max={100} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, divisions: Math.round(clamp(value, 1, 100)) } : guide)} />
+                </div>
+              )}
+
               {selectedGuide.type === 'grid' && (
                 <div className="number-field-grid">
                   <NumberField label={t.centerX} value={selectedGuide.origin.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, origin: { ...guide.origin, x: value } } : guide)} />
@@ -2045,11 +2169,13 @@ function App() {
                 </div>
               )}
 
-              <GuideRowGeneratorPanel
-                guide={selectedGuide}
-                locale={locale}
-                onGenerate={handleGenerateGuideRow}
-              />
+              {(selectedGuide.type === 'arc' || selectedGuide.type === 'radial-grid') && (
+                <GuideRowGeneratorPanel
+                  guide={selectedGuide}
+                  locale={locale}
+                  onGenerate={handleGenerateGuideRow}
+                />
+              )}
 
               <p className="guide-note">{t.guideNote}</p>
               <button className="danger-button" onClick={deleteSelected}>{t.deleteGuide}</button>
