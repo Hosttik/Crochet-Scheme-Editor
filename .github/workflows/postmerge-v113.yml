@@ -8,7 +8,7 @@ on:
 permissions:
   contents: read
 
-# Verification branch contains main product sources unchanged.
+# Verification branch contains main product sources unchanged; only review tests/workflow differ.
 jobs:
   verify:
     runs-on: ubuntu-latest
