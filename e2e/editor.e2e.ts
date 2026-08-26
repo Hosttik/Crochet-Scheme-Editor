@@ -185,11 +185,11 @@ test('persists joined and turning row construction semantics', async ({ page }) 
   await expect(page.getByLabel('Замыкать соединительным столбиком')).toBeChecked()
   await expect(page.locator('.row-construction-marker')).toHaveCount(2)
   await expect(page.locator('.row-construction-path')).toHaveCount(1)
-  await expect(page.getByText(/2 ВП подъёма \(вне счёта ряда\); 12 СБН = 12; замкнутый круг ↻; замкнуть СС/)).toBeVisible()
+  await expect(page.getByText(/2 ВП подъёма \(вне счёта ряда\); 12 СБН = 12; замкнутый круг ↻; замкнуть СС в первую провязанную петлю/)).toBeVisible()
 
   await page.locator('.pattern-row-next-actions').getByRole('button', { name: 'Без изменений' }).click()
   await expect(patternRow(page, 2)).toBeVisible()
-  await expect(page.getByText(/замкнутый круг ↻; замкнуть СС/).last()).toBeVisible()
+  await expect(page.getByText(/замкнутый круг ↻; замкнуть СС в первую провязанную петлю/).last()).toBeVisible()
 
   await page.getByRole('button', { name: 'Поворотный', exact: true }).click()
   await expect(page.locator('.row-construction-status strong')).toHaveText('→')

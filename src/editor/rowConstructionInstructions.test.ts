@@ -32,7 +32,7 @@ describe('construction-aware pattern instructions', () => {
       mode: 'joined', direction: 'along', startChainCount: 2, joinWithSlipStitch: true,
     })
     expect(formatPatternRowInstruction(row, 2, 12, 'ru')).toBe(
-      'Ряд 2: 2 ВП подъёма (вне счёта ряда); 12 СБН = 12; замкнутый круг ↻; замкнуть СС',
+      'Ряд 2: 2 ВП подъёма (вне счёта ряда); 12 СБН = 12; замкнутый круг ↻; замкнуть СС в первую провязанную петлю',
     )
   })
 

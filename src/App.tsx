@@ -308,7 +308,7 @@ function buildProject(
   legendVisible = true,
 ): CrochetProject {
   return {
-    schemaVersion: 15,
+    schemaVersion: 16,
     metadata: { title, updatedAt: new Date().toISOString() },
     elements: normalizeElements(elements),
     guides,
@@ -1818,7 +1818,7 @@ function App() {
     try {
       const raw = JSON.parse(await file.text()) as CrochetProject
       if (
-        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].includes(raw.schemaVersion) ||
+        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].includes(raw.schemaVersion) ||
         !Array.isArray(raw.elements)
       ) {
         throw new Error(t.unsupportedProject)
