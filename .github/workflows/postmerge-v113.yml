@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
 
+# Verification branch contains main product sources unchanged.
 jobs:
   verify:
     runs-on: ubuntu-latest
