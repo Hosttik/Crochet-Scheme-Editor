@@ -1,0 +1,25 @@
+name: Move mirror axis overlay above stitches
+
+on:
+  push:
+    branches: [feature/custom-mirror-axis-v1111]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feature/custom-mirror-axis-v1111
+      - name: Apply layering fix
+        run: python scripts/move_mirror_axis_overlay.py
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Render custom mirror axis above stitches"
+          git push origin HEAD:feature/custom-mirror-axis-v1111
