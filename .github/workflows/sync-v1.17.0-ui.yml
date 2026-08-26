@@ -1,0 +1,33 @@
+name: Sync displayed v1.17.0 version
+
+on:
+  push:
+    branches:
+      - release/v1.17.0
+    paths:
+      - .github/workflows/sync-v1.17.0-ui.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: release/v1.17.0
+      - name: Update displayed version
+        run: sed -i 's/v1\.15\.1/v1.17.0/g' src/i18n.ts
+      - name: Verify package and displayed version
+        run: |
+          test "$(node -p "require('./package.json').version")" = "1.17.0"
+          grep -q "v1.17.0" src/i18n.ts
+          ! grep -q "v1.15.1" src/i18n.ts
+      - name: Commit displayed version
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/i18n.ts
+          git commit -m "Show v1.17.0 in the editor UI"
+          git push origin HEAD:release/v1.17.0
