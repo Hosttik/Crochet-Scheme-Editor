@@ -64,6 +64,18 @@ describe('selection geometry', () => {
     expect(pointInPolygon({ x: 50, y: 0 }, polygon)).toBe(true)
   })
 
+  it('does not treat an explicitly closed zero-length edge as matching every point', () => {
+    const polygon = [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 100 },
+      { x: 0, y: 100 },
+      { x: 0, y: 0 },
+    ]
+    expect(pointInPolygon({ x: 50, y: 50 }, polygon)).toBe(true)
+    expect(pointInPolygon({ x: 200, y: 200 }, polygon)).toBe(false)
+  })
+
   it('selects stitch centers enclosed by a free-form lasso', () => {
     const elements = [
       element({ id: 'inside', x: 50, y: 50 }),
