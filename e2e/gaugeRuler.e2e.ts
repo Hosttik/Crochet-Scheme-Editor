@@ -58,7 +58,7 @@ test('calibrates a swatch, estimates a row and measures it with a smart ruler', 
   const rowRuler = page.locator('.measurement-ruler').first()
   await expect(rowRuler.locator('.ruler-label')).toContainText('2 р.')
   await expect(rowRuler.locator('.ruler-label')).toContainText('≈ 0,8 см')
-  await expect(gauge).toContainText('Автоматически между рядами: 2 рядов')
+  await expect(gauge).toContainText('Автоматически между рядами: 2 р.')
 
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Сохранить JSON' }).click()
