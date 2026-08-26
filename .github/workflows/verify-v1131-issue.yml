@@ -1,0 +1,24 @@
+name: v1.13.1 One-shot Verification
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.event.issue.title == '[verify-v1131-stabilization]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: fix/v1131-stabilization
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
