@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { ArcGuide, GridGuide, RadialGridGuide } from '../types'
-import { applyGuideManipulation, gridRotationHandle, guideResizeHandle } from './guideManipulation'
+import type { ArcGuide, CurveGuide, GridGuide, LineGuide, RadialGridGuide } from '../types'
+import { applyGuideManipulation, gridRotationHandle, guideCenter, guideResizeHandle } from './guideManipulation'
 
 const arc: ArcGuide = {
   id: 'arc',
@@ -10,6 +10,26 @@ const arc: ArcGuide = {
   startAngle: 0,
   endAngle: 180,
   divisions: 6,
+  visible: true,
+}
+
+const line: LineGuide = {
+  id: 'line',
+  type: 'line',
+  start: { x: 0, y: 10 },
+  end: { x: 120, y: 30 },
+  divisions: 6,
+  visible: true,
+}
+
+const curve: CurveGuide = {
+  id: 'curve',
+  type: 'curve',
+  start: { x: 0, y: 0 },
+  control1: { x: 40, y: -60 },
+  control2: { x: 80, y: 60 },
+  end: { x: 120, y: 0 },
+  divisions: 8,
   visible: true,
 }
 
@@ -41,6 +61,43 @@ describe('guide direct manipulation', () => {
     const next = applyGuideManipulation(arc, 'move', { x: 10, y: 10 }, { x: 35, y: 5 })
     expect(next.type).toBe('arc')
     if (next.type === 'arc') expect(next.center).toEqual({ x: 125, y: 75 })
+  })
+
+  it('moves a line as one object and edits its endpoints independently', () => {
+    const moved = applyGuideManipulation(line, 'move', { x: 0, y: 0 }, { x: 20, y: 30 })
+    expect(moved.type).toBe('line')
+    if (moved.type === 'line') {
+      expect(moved.start).toEqual({ x: 20, y: 40 })
+      expect(moved.end).toEqual({ x: 140, y: 60 })
+    }
+
+    const edited = applyGuideManipulation(line, 'end', line.end, { x: 180, y: 75 })
+    expect(edited.type).toBe('line')
+    if (edited.type === 'line') {
+      expect(edited.start).toEqual(line.start)
+      expect(edited.end).toEqual({ x: 180, y: 75 })
+    }
+  })
+
+  it('moves all cubic points together and exposes a center pose', () => {
+    const moved = applyGuideManipulation(curve, 'move', { x: 5, y: 5 }, { x: 15, y: 25 })
+    expect(moved.type).toBe('curve')
+    if (moved.type === 'curve') {
+      expect(moved.start).toEqual({ x: 10, y: 20 })
+      expect(moved.control1).toEqual({ x: 50, y: -40 })
+      expect(moved.control2).toEqual({ x: 90, y: 80 })
+      expect(moved.end).toEqual({ x: 130, y: 20 })
+    }
+    expect(guideCenter(curve).x).toBeCloseTo(60)
+  })
+
+  it('edits cubic control points independently', () => {
+    const edited = applyGuideManipulation(curve, 'control1', curve.control1, { x: 50, y: -90 })
+    expect(edited.type).toBe('curve')
+    if (edited.type === 'curve') {
+      expect(edited.control1).toEqual({ x: 50, y: -90 })
+      expect(edited.control2).toEqual(curve.control2)
+    }
   })
 
   it('resizes an arc from its center', () => {
@@ -85,9 +142,11 @@ describe('guide direct manipulation', () => {
     }
   })
 
-  it('provides visible resize and rotation handles', () => {
+  it('provides visible resize and rotation handles only where they apply', () => {
     expect(guideResizeHandle(arc)).not.toBeNull()
     expect(guideResizeHandle(radial)).not.toBeNull()
+    expect(guideResizeHandle(line)).toBeNull()
+    expect(guideResizeHandle(curve)).toBeNull()
     expect(gridRotationHandle(grid)).not.toBeNull()
   })
 })
