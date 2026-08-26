@@ -31,12 +31,11 @@ test('persists a background underlay and previews tiled print pages', async ({ p
   await geometry.nth(2).fill('3000')
   await geometry.nth(3).fill('2000')
 
-  await page.getByTestId('background-opacity').evaluate((node) => {
-    const input = node as HTMLInputElement
-    input.value = '0.3'
-    input.dispatchEvent(new Event('input', { bubbles: true }))
-    input.dispatchEvent(new Event('change', { bubbles: true }))
-  })
+  const opacity = page.getByTestId('background-opacity')
+  await opacity.focus()
+  await opacity.press('Home')
+  for (let step = 0; step < 5; step += 1) await opacity.press('ArrowRight')
+  await expect(opacity).toHaveValue('0.3')
   await page.getByTestId('background-lock').check()
 
   await expect(page.getByTestId('print-page-count')).not.toHaveText('1')
