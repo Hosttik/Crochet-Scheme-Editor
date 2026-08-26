@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -19,7 +19,7 @@ async function placeAt(page: Page, title: string, rx: number, ry: number) {
   await page.mouse.click(box.x + box.width * rx, box.y + box.height * ry)
 }
 
-async function drawLassoAround(page: Page, locator: ReturnType<Page['locator']>, modifier?: 'Shift' | 'Alt') {
+async function drawLassoAround(page: Page, locator: Locator, modifier?: 'Shift' | 'Alt') {
   const box = await locator.boundingBox()
   expect(box).not.toBeNull()
   const margin = 10
@@ -47,7 +47,7 @@ test('free-form lasso replaces, adds and subtracts semantic selections', async (
   await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
   await page.locator('.productivity-panel').getByRole('button', { name: 'Группировать', exact: true }).click()
 
-  const lassoButton = page.getByRole('button', { name: 'Лассо', exact: true })
+  const lassoButton = page.locator('.left-sidebar .tool-button').filter({ hasText: 'Лассо' })
   await lassoButton.click()
   await expect(lassoButton).toHaveClass(/active/)
   await expect(page.locator('svg.editor-canvas')).toHaveClass(/lassoing/)
