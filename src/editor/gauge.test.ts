@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { GaugeProfile, GaugeSettings, MeasurementRuler, StitchElement } from '../types'
 import {
   patternHeightEstimateCm,
+  rowHeightCm,
   rowLengthEstimateCm,
   rulerEstimate,
   snapRulerPoint,
@@ -56,6 +57,7 @@ const elements = [
 describe('gauge calculations', () => {
   it('derives stitch width and row estimates from a measured swatch', () => {
     expect(stitchWidthCm(profile)).toBe(0.5)
+    expect(rowHeightCm(profile)).toBeCloseTo(10 / 24, 8)
     expect(rowLengthEstimateCm(elements, 'row-1', profile)).toBe(2)
     expect(patternHeightEstimateCm(elements, profile)).toBeCloseTo(20 / 24, 6)
   })
@@ -73,6 +75,41 @@ describe('gauge calculations', () => {
       lengthCm: 1.5,
       source: 'automatic',
       rowId: 'row-1',
+    })
+  })
+
+  it('counts inclusive semantic rows automatically between two parametric rows', () => {
+    const ruler: MeasurementRuler = {
+      id: 'rows-1',
+      start: { x: 0, y: 40 },
+      end: { x: 0, y: 80 },
+      startElementId: 'a',
+      endElementId: 'e',
+      mode: 'rows',
+    }
+    expect(rulerEstimate(ruler, elements, gauge)).toMatchObject({
+      mode: 'rows',
+      rowCount: 2,
+      lengthCm: 20 / 24,
+      source: 'automatic',
+      startRowId: 'row-1',
+      endRowId: 'row-2',
+    })
+  })
+
+  it('uses an explicit manual row count for a free vertical ruler', () => {
+    const ruler: MeasurementRuler = {
+      id: 'rows-2',
+      start: { x: 0, y: 0 },
+      end: { x: 0, y: 100 },
+      mode: 'rows',
+      manualRowCount: 6,
+    }
+    expect(rulerEstimate(ruler, elements, gauge)).toMatchObject({
+      mode: 'rows',
+      rowCount: 6,
+      lengthCm: 2.5,
+      source: 'manual',
     })
   })
 

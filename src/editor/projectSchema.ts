@@ -346,7 +346,9 @@ function parseMeasurementRuler(value: unknown): MeasurementRuler {
     !(value.startElementId === undefined || nonEmptyString(value.startElementId)) ||
     !(value.endElementId === undefined || nonEmptyString(value.endElementId)) ||
     !(value.profileId === undefined || nonEmptyString(value.profileId)) ||
-    !(value.manualStitchCount === undefined || positiveInteger(value.manualStitchCount, MAX_PROJECT_ELEMENTS))
+    !(value.mode === undefined || value.mode === 'stitches' || value.mode === 'rows') ||
+    !(value.manualStitchCount === undefined || positiveInteger(value.manualStitchCount, MAX_PROJECT_ELEMENTS)) ||
+    !(value.manualRowCount === undefined || positiveInteger(value.manualRowCount, MAX_PROJECT_ELEMENTS))
   ) throw new ProjectValidationError('Invalid measurement ruler')
   return {
     id: value.id,
@@ -355,7 +357,9 @@ function parseMeasurementRuler(value: unknown): MeasurementRuler {
     startElementId: value.startElementId as string | undefined,
     endElementId: value.endElementId as string | undefined,
     profileId: value.profileId as string | undefined,
+    mode: value.mode as 'stitches' | 'rows' | undefined,
     manualStitchCount: value.manualStitchCount as number | undefined,
+    manualRowCount: value.manualRowCount as number | undefined,
   }
 }
 

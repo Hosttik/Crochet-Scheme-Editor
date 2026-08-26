@@ -139,7 +139,9 @@ export function projectIntegrityIssue(project: CrochetProject, strictReferences 
   }
   for (const ruler of rulers) {
     if (![ruler.start.x, ruler.start.y, ruler.end.x, ruler.end.y].every((value) => bounded(value))) return 'Measurement ruler geometry is out of bounds'
+    if (ruler.mode !== undefined && ruler.mode !== 'stitches' && ruler.mode !== 'rows') return 'Measurement ruler mode is invalid'
     if (ruler.manualStitchCount !== undefined && !positiveInteger(ruler.manualStitchCount, MAX_PROJECT_ELEMENTS)) return 'Measurement ruler stitch count is out of bounds'
+    if (ruler.manualRowCount !== undefined && !positiveInteger(ruler.manualRowCount, MAX_PROJECT_ELEMENTS)) return 'Measurement ruler row count is out of bounds'
     if (strictReferences && ruler.profileId && !gaugeProfileIds.has(ruler.profileId)) return 'Measurement ruler gauge profile is missing'
   }
 
