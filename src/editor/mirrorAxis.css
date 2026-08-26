@@ -1,0 +1,30 @@
+.mirror-axis-overlay {
+  cursor: grab;
+}
+
+.mirror-axis-overlay.vertical {
+  cursor: col-resize;
+}
+
+.mirror-axis-overlay.horizontal {
+  cursor: row-resize;
+}
+
+.mirror-axis-hit {
+  stroke: transparent;
+  stroke-width: 16;
+  pointer-events: stroke;
+}
+
+.mirror-axis-line {
+  stroke: #c2413b;
+  stroke-width: 1.5;
+  stroke-dasharray: 7 5;
+  opacity: 0.9;
+}
+
+.mirror-axis-handle {
+  fill: #fff;
+  stroke: #c2413b;
+  stroke-width: 1.5;
+}
