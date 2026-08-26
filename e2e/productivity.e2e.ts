@@ -14,7 +14,7 @@ async function canvasBox(page: Page) {
 }
 
 async function placeAt(page: Page, title: string, rx: number, ry: number) {
-  await page.locator(`.symbols-section .symbol-button[title^="${title}"]`).click()
+  await page.locator(`.symbols-section .symbol-button[title^="${title} ·"]`).click()
   const box = await canvasBox(page)
   await page.mouse.click(box.x + box.width * rx, box.y + box.height * ry)
 }
@@ -157,7 +157,7 @@ test('interaction pass makes selection, pan, zoom, snap and numeric editing dire
   await copies.fill('2')
   await expect(copies).toHaveValue('2')
 
-  const doubleButton = page.locator('.symbols-section .symbol-button[title^="Столбик с накидом"]')
+  const doubleButton = page.locator('.symbols-section .symbol-button[title^="Столбик с накидом ·"]')
   await doubleButton.click()
   await expect(doubleButton).toHaveClass(/active/)
   await doubleButton.click()
