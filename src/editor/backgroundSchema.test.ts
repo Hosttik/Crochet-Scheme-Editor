@@ -33,10 +33,10 @@ function rawProject() {
   }
 }
 
-describe('schema v17 background image', () => {
+describe('schema v18 background image', () => {
   it('preserves valid editor underlay metadata', () => {
     const parsed = parseProject(rawProject(), snapping)
-    expect(parsed.schemaVersion).toBe(17)
+    expect(parsed.schemaVersion).toBe(18)
     expect(parsed.backgroundImage).toEqual(rawProject().backgroundImage)
   })
 
@@ -59,7 +59,7 @@ describe('schema v17 background image', () => {
     legacy.schemaVersion = 16
     delete legacy.backgroundImage
     const parsed = parseProject(legacy, snapping)
-    expect(parsed.schemaVersion).toBe(17)
+    expect(parsed.schemaVersion).toBe(18)
     expect(parsed.backgroundImage).toBeUndefined()
   })
 })

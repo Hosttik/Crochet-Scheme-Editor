@@ -2,6 +2,18 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
+## v1.15.1
+
+Stability and data-integrity release. It hardens local project persistence, autosave transitions, semantic locking, project import validation, large background handling and release verification without changing the authoring model introduced in v1.15.
+
+- pending document changes are flushed before project switches and cannot race project deletion
+- Undo/Redo snapshots cover persisted document settings instead of only canvas entities
+- groups and parametric rows now obey one lock-aware semantic selection model
+- project schema v18 adds strict integrity/resource validation while v1-v17 remain migration-compatible
+- project lists read metadata only; large underlays are bounded and compressed before persistence
+- Repeat and snapping have explicit performance safeguards
+- Chromium E2E is now a required Pages deployment gate
+
 ## v1.15.0
 
 The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.11 added continuous path guides and persistent manual stitch-to-guide attachment; v1.11.1 completed mirror authoring with a draggable custom axis; v1.12 added guide locking, row-number annotations and an automatic exportable legend; v1.13 makes crochet row starts and closures explicit; v1.14 adds persisted tracing underlays and page-tiled print output; v1.15 completes the original interaction backlog with free-form lasso selection.

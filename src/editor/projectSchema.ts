@@ -12,6 +12,8 @@ import type {
 } from '../types'
 import { isStitchColor } from './elementColor'
 import { rowProgramMetrics } from './rowProgram'
+import { MAX_PROJECT_ELEMENTS, MAX_PROJECT_GUIDES, MAX_PROJECT_ROW_MARKERS, projectIntegrityIssue } from './projectIntegrity'
+import { CURRENT_PROJECT_SCHEMA_VERSION, MIN_PROJECT_SCHEMA_VERSION, STRICT_PROJECT_SCHEMA_VERSION } from './projectVersion'
 
 export class ProjectValidationError extends Error {
   constructor(message: string) {
@@ -331,10 +333,16 @@ function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSett
 
 export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): CrochetProject {
   if (!isRecord(raw)) throw new ProjectValidationError('Project must be an object')
-  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 17) throw new ProjectValidationError('Unsupported project schema')
+  if (
+    !finite(raw.schemaVersion) || !Number.isInteger(raw.schemaVersion) ||
+    raw.schemaVersion < MIN_PROJECT_SCHEMA_VERSION || raw.schemaVersion > CURRENT_PROJECT_SCHEMA_VERSION
+  ) throw new ProjectValidationError('Unsupported project schema')
   if (!Array.isArray(raw.elements)) throw new ProjectValidationError('Project elements are missing')
+  if (raw.elements.length > MAX_PROJECT_ELEMENTS) throw new ProjectValidationError('Project contains too many stitch elements')
   if (raw.guides !== undefined && !Array.isArray(raw.guides)) throw new ProjectValidationError('Project guides are invalid')
+  if (Array.isArray(raw.guides) && raw.guides.length > MAX_PROJECT_GUIDES) throw new ProjectValidationError('Project contains too many guides')
   if (raw.rowMarkers !== undefined && !Array.isArray(raw.rowMarkers)) throw new ProjectValidationError('Project row markers are invalid')
+  if (Array.isArray(raw.rowMarkers) && raw.rowMarkers.length > MAX_PROJECT_ROW_MARKERS) throw new ProjectValidationError('Project contains too many row markers')
 
   const metadata = isRecord(raw.metadata) ? raw.metadata : {}
   const settings = isRecord(raw.settings) ? raw.settings : {}
@@ -343,8 +351,8 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
   const rowMarkers = (raw.rowMarkers ?? []).map(parseRowMarker)
   const backgroundImage = parseBackgroundImage(raw.backgroundImage)
 
-  return {
-    schemaVersion: 17,
+  const project: CrochetProject = {
+    schemaVersion: CURRENT_PROJECT_SCHEMA_VERSION,
     metadata: {
       title: typeof metadata.title === 'string' && metadata.title.trim() ? metadata.title : 'Crochet scheme',
       updatedAt: typeof metadata.updatedAt === 'string' ? metadata.updatedAt : new Date().toISOString(),
@@ -359,4 +367,7 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
       autosave: parseAutosave(settings.autosave),
     },
   }
+  const integrityIssue = projectIntegrityIssue(project, raw.schemaVersion >= STRICT_PROJECT_SCHEMA_VERSION)
+  if (integrityIssue) throw new ProjectValidationError(integrityIssue)
+  return project
 }

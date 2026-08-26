@@ -60,9 +60,12 @@ test('keeps a stitch attached to a line through guide edits, autosave and detach
   await guideEditor.getByLabel('Конец Y').fill(String(endY + 60))
   await guideEditor.getByLabel('Конец Y').press('Enter')
 
+  await expect.poll(async () => {
+    const pose = transformParts(await stitch.getAttribute('transform'))
+    return pose.y - attachedBefore.y
+  }).toBeCloseTo(60, 2)
   const attachedAfter = transformParts(await stitch.getAttribute('transform'))
   expect(attachedAfter.x).toBeCloseTo(attachedBefore.x, 2)
-  expect(attachedAfter.y - attachedBefore.y).toBeCloseTo(60, 2)
 
   await stitch.click()
   await expect(attachment).toContainText('Закреплено')
@@ -91,7 +94,7 @@ test('keeps a stitch attached to a line through guide edits, autosave and detach
   const jsonPath = await (await jsonDownload).path()
   expect(jsonPath).not.toBeNull()
   const project = JSON.parse(await readFile(jsonPath!, 'utf8'))
-  expect(project.schemaVersion).toBe(17)
+  expect(project.schemaVersion).toBe(18)
   expect(project.guides).toHaveLength(1)
   expect(project.guides[0].type).toBe('line')
   expect(project.elements[0].guideAttachment.guideId).toBe(project.guides[0].id)

@@ -51,7 +51,7 @@ test('persists a background underlay and previews tiled print pages', async ({ p
 
   const json = await readDownload('Сохранить JSON')
   const project = JSON.parse(json)
-  expect(project.schemaVersion).toBe(17)
+  expect(project.schemaVersion).toBe(18)
   expect(project.backgroundImage.sourceName).toBe('reference.svg')
   expect(project.backgroundImage.opacity).toBe(0.3)
   expect(project.backgroundImage.locked).toBe(true)
