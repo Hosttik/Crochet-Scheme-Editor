@@ -40,7 +40,7 @@ export function RowMarkersPanel({
         <kbd>Esc</kbd>
       </button>
       <small className="muted-text">
-        {ru ? 'Красная точка + номер. После удаления следующий маркер заполняет первый пропуск.' : 'Red dot + number. After deletion, the next marker fills the first gap.'}
+        {ru ? 'Красная точка + номер. После удаления последующие номера сдвигаются автоматически.' : 'Red dot + number. After deletion, following row numbers shift automatically.'}
       </small>
 
       {markers.length > 0 && (
