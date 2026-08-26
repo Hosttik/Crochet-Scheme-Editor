@@ -45,6 +45,7 @@ type GuideWalk = {
 }
 
 const EPSILON = 1e-6
+export const MAX_REPEAT_CREATED_ELEMENTS = 5_000
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
@@ -391,7 +392,9 @@ export function repeatSelection(
   const source = elements.filter((element) => selected.has(element.id) && !element.parametricRow)
   const pivot = selectionPivot(source, source.map((element) => element.id))
   if (!source.length || !pivot) return []
-  const copies = clamp(Math.round(options.copies), 1, 100)
+  const requestedCopies = clamp(Math.round(options.copies), 1, 100)
+  const copies = Math.min(requestedCopies, Math.floor(MAX_REPEAT_CREATED_ELEMENTS / source.length))
+  if (copies < 1) return []
   const created: StitchElement[] = []
 
   if (options.mode === 'linear') {

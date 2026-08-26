@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { DraftNumberInput } from './DraftNumberInput'
 import type { BackgroundImage } from '../types'
 
 type Props = {
@@ -73,10 +74,10 @@ export function BackgroundImagePanel({ locale, background, onUpload, onChange, o
           <fieldset disabled={background.locked === true}>
             <legend>{ru ? 'Положение и размер' : 'Position and size'}</legend>
             <div className="number-field-grid background-geometry-grid">
-              <label className="number-field"><span>X</span><input type="number" value={background.x} onChange={(event) => onChange({ x: numeric(event.target.value, background.x) })} /></label>
-              <label className="number-field"><span>Y</span><input type="number" value={background.y} onChange={(event) => onChange({ y: numeric(event.target.value, background.y) })} /></label>
-              <label className="number-field"><span>{ru ? 'Ширина' : 'Width'}</span><input type="number" min="1" value={background.width} onChange={(event) => onChange({ width: Math.max(1, numeric(event.target.value, background.width)) })} /></label>
-              <label className="number-field"><span>{ru ? 'Высота' : 'Height'}</span><input type="number" min="1" value={background.height} onChange={(event) => onChange({ height: Math.max(1, numeric(event.target.value, background.height)) })} /></label>
+              <label className="number-field"><span>X</span><DraftNumberInput commitOnBlur value={background.x} onChange={(x) => onChange({ x })} /></label>
+              <label className="number-field"><span>Y</span><DraftNumberInput commitOnBlur value={background.y} onChange={(y) => onChange({ y })} /></label>
+              <label className="number-field"><span>{ru ? 'Ширина' : 'Width'}</span><DraftNumberInput commitOnBlur min={1} value={background.width} onChange={(width) => onChange({ width })} /></label>
+              <label className="number-field"><span>{ru ? 'Высота' : 'Height'}</span><DraftNumberInput commitOnBlur min={1} value={background.height} onChange={(height) => onChange({ height })} /></label>
             </div>
           </fieldset>
           <small className="muted-text">{ru ? 'Блокировка защищает положение и размер, но прозрачность и видимость остаются доступными.' : 'Lock protects position and size while opacity and visibility remain editable.'}</small>

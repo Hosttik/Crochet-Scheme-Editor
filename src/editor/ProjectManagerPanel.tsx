@@ -45,6 +45,7 @@ export function ProjectManagerPanel({
   const [projects, setProjects] = useState<LocalProjectSummary[]>([])
   const [busy, setBusy] = useState(false)
   const [nameDraft, setNameDraft] = useState(currentTitle)
+  const [error, setError] = useState('')
 
   const refresh = async () => setProjects(await listLocalProjects())
 
@@ -61,9 +62,12 @@ export function ProjectManagerPanel({
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true)
+    setError('')
     try {
       await action()
       await refresh()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : (locale === 'ru' ? 'Операция с проектом не выполнена' : 'Project operation failed'))
     } finally {
       setBusy(false)
     }
@@ -121,11 +125,17 @@ export function ProjectManagerPanel({
         <button
           className="danger"
           disabled={busy || projects.length <= 1}
-          onClick={() => void run(() => onDelete(activeProjectId))}
+          onClick={() => {
+            const message = locale === 'ru'
+              ? `Удалить проект «${currentTitle}»? Это действие нельзя отменить.`
+              : `Delete “${currentTitle}”? This cannot be undone.`
+            if (window.confirm(message)) void run(() => onDelete(activeProjectId))
+          }}
         >
           {copy.delete}
         </button>
       </div>
+      {error && <p className="project-error" role="alert">{error}</p>}
     </section>
   )
 }

@@ -22,7 +22,7 @@ export function normalizeElements(elements: StitchElement[]) {
 }
 
 export function normalizeProject(
-  project: CrochetProject,
+  project: unknown,
   fallbackSnapping: SnappingSettings,
 ): CrochetProject {
   return parseProject(project, fallbackSnapping)

@@ -30,7 +30,7 @@ import {
   sendToBack as sendElementsToBack,
 } from './editor/document'
 import { DEFAULT_STITCH_COLOR } from './editor/elementColor'
-import { clampBackgroundOpacity, fittedBackgroundImage } from './editor/backgroundImage'
+import { clampBackgroundOpacity, prepareBackgroundImage } from './editor/backgroundImage'
 import { buildTiledPrintHtml, parseSvgViewBox, type PrintSettings } from './editor/printLayout'
 import { usedLegendItems } from './editor/legend'
 import { deleteRowMarkerAndRenumber, isRowMarkerLocked, nextRowMarkerNumber, normalizedRowMarkerNumber } from './editor/rowMarkers'
@@ -48,7 +48,6 @@ import { createMirroredCopy, createMirroredCopyAroundAxis } from './editor/mirro
 import {
   cloneSelectionWithOffset,
   cloneWithRepeatedDelta,
-  expandIdsToGroups,
   groupElements,
   mirrorElements,
   mirrorElementsAroundAxis,
@@ -71,11 +70,11 @@ import {
   setActiveProjectId as persistActiveProjectId,
 } from './editor/persistence'
 import { viewportForElements } from './editor/viewportFit'
+import { semanticLockIds, semanticSelectionIds } from './editor/selectionModel'
 import {
   createNextPatternRow,
   createPatternIncreaseSequence,
   deleteParametricRow,
-  expandIdsToParametricRows,
   nextPatternOrder,
   parametricRowFromSelection,
   reconcileParametricRows,
@@ -133,7 +132,15 @@ const SYMBOL_SIZES = Object.fromEntries(
 )
 
 type Tool = { type: 'select' } | { type: 'lasso' } | { type: 'place'; symbolId: string } | { type: 'row-marker' }
-type DocumentSnapshot = { elements: StitchElement[]; guides: Guide[]; rowMarkers: RowMarker[] }
+type DocumentSnapshot = {
+  elements: StitchElement[]
+  guides: Guide[]
+  rowMarkers: RowMarker[]
+  backgroundImage: BackgroundImage | null
+  legendVisible: boolean
+  snapping: SnappingSettings
+  projectTitle: string
+}
 type PanState = {
   pointerId: number
   startPointer: Point
@@ -391,6 +398,7 @@ function App() {
   const duplicateSeriesRef = useRef<{ previous: StitchElement[]; currentIds: string[] } | null>(null)
   const duplicateKeyDownRef = useRef(false)
   const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const autosaveTimerRef = useRef<number | null>(null)
   const autosaveRevisionRef = useRef(0)
   const autosaveSettingsWriteRef = useRef<AutosaveDelayMs | null>(null)
 
@@ -483,7 +491,8 @@ function App() {
 
     const revision = ++autosaveRevisionRef.current
     setAutosaveState('saving')
-    const timeout = window.setTimeout(() => {
+    autosaveTimerRef.current = window.setTimeout(() => {
+      autosaveTimerRef.current = null
       const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage)
       const task = autosaveQueueRef.current
         .catch(() => undefined)
@@ -498,7 +507,12 @@ function App() {
         })
     }, autosaveDelayMs)
 
-    return () => window.clearTimeout(timeout)
+    return () => {
+      if (autosaveTimerRef.current !== null) {
+        window.clearTimeout(autosaveTimerRef.current)
+        autosaveTimerRef.current = null
+      }
+    }
   }, [activeProjectId, autosaveDelayMs, backgroundImage, elements, guides, hydrated, legendVisible, projectTitle, rowMarkers, snapping])
 
   useEffect(() => {
@@ -575,9 +589,18 @@ function App() {
   )
 
   const currentSnapshot = useCallback(
-    (): DocumentSnapshot => ({ elements, guides, rowMarkers }),
-    [elements, guides, rowMarkers],
+    (): DocumentSnapshot => ({ elements, guides, rowMarkers, backgroundImage, legendVisible, snapping, projectTitle }),
+    [backgroundImage, elements, guides, legendVisible, projectTitle, rowMarkers, snapping],
   )
+  const applySnapshot = useCallback((snapshot: DocumentSnapshot) => {
+    setElements(snapshot.elements)
+    setGuides(snapshot.guides)
+    setRowMarkers(snapshot.rowMarkers)
+    setBackgroundImage(snapshot.backgroundImage)
+    setLegendVisible(snapshot.legendVisible)
+    setSnapping(snapshot.snapping)
+    setProjectTitle(snapshot.projectTitle)
+  }, [])
   const recordSnapshot = useCallback((before: DocumentSnapshot) => {
     setHistory((current) => pushHistory(current, before))
   }, [])
@@ -602,6 +625,46 @@ function App() {
     },
     [currentSnapshot, recordSnapshot],
   )
+  const commitBackgroundImage = useCallback((next: BackgroundImage | null) => {
+    recordSnapshot(currentSnapshot())
+    setBackgroundImage(next)
+  }, [currentSnapshot, recordSnapshot])
+  const commitLegendVisible = useCallback((next: boolean) => {
+    recordSnapshot(currentSnapshot())
+    setLegendVisible(next)
+  }, [currentSnapshot, recordSnapshot])
+  const commitSnapping = useCallback((next: SnappingSettings) => {
+    recordSnapshot(currentSnapshot())
+    setSnapping(next)
+  }, [currentSnapshot, recordSnapshot])
+
+  const cancelPendingAutosave = useCallback(() => {
+    if (autosaveTimerRef.current !== null) {
+      window.clearTimeout(autosaveTimerRef.current)
+      autosaveTimerRef.current = null
+    }
+  }, [])
+  const enqueueProjectSave = useCallback((projectId: string, project: CrochetProject) => {
+    const task = autosaveQueueRef.current
+      .catch(() => undefined)
+      .then(() => saveLocalProject(projectId, project))
+    autosaveQueueRef.current = task
+    return task
+  }, [])
+  const flushCurrentProject = useCallback(async () => {
+    if (!hydrated) return
+    cancelPendingAutosave()
+    const revision = ++autosaveRevisionRef.current
+    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage)
+    setAutosaveState('saving')
+    try {
+      await enqueueProjectSave(activeProjectId, project)
+      if (autosaveRevisionRef.current === revision) setAutosaveState(autosaveDelayMs === 0 ? 'off' : 'saved')
+    } catch {
+      if (autosaveRevisionRef.current === revision) setAutosaveState('error')
+      throw new Error(locale === 'ru' ? 'Не удалось сохранить текущий проект' : 'Could not save current project')
+    }
+  }, [activeProjectId, autosaveDelayMs, backgroundImage, cancelPendingAutosave, elements, enqueueProjectSave, guides, hydrated, legendVisible, locale, projectTitle, rowMarkers, snapping])
 
   const clearElementSelection = useCallback(() => setSelectedIds([]), [])
 
@@ -609,27 +672,23 @@ function App() {
     const step = undoHistory(history, currentSnapshot())
     if (!step) return
     setHistory(step.history)
-    setElements(step.value.elements)
-    setGuides(step.value.guides)
-    setRowMarkers(step.value.rowMarkers)
+    applySnapshot(step.value)
     clearElementSelection()
     setSelectedGuideId(null)
     setSelectedRowMarkerId(null)
     setStatus(t.statusUndo)
-  }, [clearElementSelection, currentSnapshot, history, t.statusUndo])
+  }, [applySnapshot, clearElementSelection, currentSnapshot, history, t.statusUndo])
 
   const redo = useCallback(() => {
     const step = redoHistory(history, currentSnapshot())
     if (!step) return
     setHistory(step.history)
-    setElements(step.value.elements)
-    setGuides(step.value.guides)
-    setRowMarkers(step.value.rowMarkers)
+    applySnapshot(step.value)
     clearElementSelection()
     setSelectedGuideId(null)
     setSelectedRowMarkerId(null)
     setStatus(t.statusRedo)
-  }, [clearElementSelection, currentSnapshot, history, t.statusRedo])
+  }, [applySnapshot, clearElementSelection, currentSnapshot, history, t.statusRedo])
 
   const unlockedSelectedIds = useCallback(() => {
     const selected = new Set(selectedIds)
@@ -640,7 +699,7 @@ function App() {
 
   const deleteSelected = useCallback(() => {
     if (selectedIds.length) {
-      const deletable = new Set(expandIdsToParametricRows(elements, unlockedSelectedIds()))
+      const deletable = new Set(semanticSelectionIds(elements, unlockedSelectedIds(), { expandGroups: false, expandRows: true }))
       if (!deletable.size) return
       commitElements(reconcileParametricRows(
         elements.filter((element) => !deletable.has(element.id)),
@@ -685,18 +744,13 @@ function App() {
 
   const productivitySelectionIds = useCallback(() => {
     const unlocked = new Set(unlockedSelectedIds())
-    const manualIds = elements
+    return elements
       .filter((element) => unlocked.has(element.id) && !element.parametricRow)
       .map((element) => element.id)
-    const expanded = expandIdsToGroups(elements, manualIds)
-    return expanded.filter((id) => {
-      const element = elements.find((item) => item.id === id)
-      return Boolean(element && !isElementLocked(element) && !element.parametricRow)
-    })
   }, [elements, unlockedSelectedIds])
 
   const copySelection = useCallback(() => {
-    const copyIds = new Set(expandIdsToGroups(elements, unlockedSelectedIds()))
+    const copyIds = new Set(unlockedSelectedIds())
     if (!copyIds.size) return
     clipboardRef.current = elements
       .filter((element) => copyIds.has(element.id))
@@ -749,7 +803,7 @@ function App() {
     }
 
     if (!duplicated.length) {
-      const duplicateIds = new Set(expandIdsToGroups(elements, [...selected]))
+      const duplicateIds = selected
       if (!duplicateIds.size) return
       const current = elements.filter((element) => duplicateIds.has(element.id))
       if (!current.length) return
@@ -879,14 +933,13 @@ function App() {
   }, [commitElements, elements, locale, productivitySelectionIds])
 
   const selectAll = useCallback(() => {
-    const selectable = elements.filter(
-      (element) => isElementVisible(element) && !isElementLocked(element),
-    )
-    if (!selectable.length) return
-    setSelectedIds(selectable.map((element) => element.id))
+    const selectable = elements.filter((element) => isElementVisible(element) && !isElementLocked(element))
+    const ids = semanticSelectionIds(elements, selectable.map((element) => element.id), { visibleSeedsOnly: true })
+    if (!ids.length) return
+    setSelectedIds(ids)
     setSelectedGuideId(null)
     setTool({ type: 'select' })
-    setStatus(`${t.selectedCount}: ${selectable.length}`)
+    setStatus(`${t.selectedCount}: ${ids.length}`)
   }, [elements, t.selectedCount])
 
   const handleLayerSelect = useCallback((id: string, additive: boolean) => {
@@ -895,7 +948,7 @@ function App() {
     setSelectedGuideId(null)
     setTool({ type: 'select' })
     setSelectedIds((current) => {
-      const targetIds = expandIdsToGroups(elements, expandIdsToParametricRows(elements, [id]))
+      const targetIds = semanticSelectionIds(elements, [id])
       if (!additive) return targetIds
       const targetSet = new Set(targetIds)
       const allSelected = targetIds.every((item) => current.includes(item))
@@ -919,11 +972,10 @@ function App() {
   const toggleElementLocked = useCallback((id: string) => {
     const element = elements.find((item) => item.id === id)
     if (!element) return
+    const lockIds = new Set(semanticLockIds(elements, id))
     const nextLocked = !isElementLocked(element)
-    commitElements(
-      elements.map((item) => item.id === id ? { ...item, locked: nextLocked } : item),
-    )
-    if (nextLocked) setSelectedIds((current) => current.filter((item) => item !== id))
+    commitElements(elements.map((item) => lockIds.has(item.id) ? { ...item, locked: nextLocked } : item))
+    if (nextLocked) setSelectedIds((current) => current.filter((item) => !lockIds.has(item)))
     setStatus(t.lockChanged)
   }, [commitElements, elements, t.lockChanged])
 
@@ -1029,13 +1081,13 @@ function App() {
 
   const toggleSnapping = useCallback(() => {
     const enabled = !snapping.enabled
-    setSnapping((current) => ({ ...current, enabled }))
+    commitSnapping({ ...snapping, enabled })
     setSnapTarget(null)
     snapLockRef.current = null
     setStatus(locale === 'ru'
       ? enabled ? 'Привязка включена' : 'Свободное размещение: привязка выключена'
       : enabled ? 'Snapping enabled' : 'Free placement: snapping disabled')
-  }, [locale, snapping.enabled])
+  }, [commitSnapping, locale, snapping])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1432,10 +1484,7 @@ function App() {
           (element) => isElementVisible(element) && !isElementLocked(element),
         )
         const hits = idsInLasso(selectable, lasso.points)
-        const expandedHits = expandIdsToGroups(
-          elements,
-          expandIdsToParametricRows(elements, hits),
-        )
+        const expandedHits = semanticSelectionIds(elements, hits, { visibleSeedsOnly: true })
         const hitSet = new Set(expandedHits)
         const next = lasso.mode === 'subtract'
           ? lasso.baseIds.filter((id) => !hitSet.has(id))
@@ -1462,10 +1511,7 @@ function App() {
           (element) => isElementVisible(element) && !isElementLocked(element),
         )
         const hits = moved ? idsInMarquee(selectable, rect, SYMBOL_SIZES) : []
-        const next = expandIdsToGroups(
-          elements,
-          expandIdsToParametricRows(elements, uniqueIds([...marquee.baseIds, ...hits])),
-        )
+        const next = semanticSelectionIds(elements, uniqueIds([...marquee.baseIds, ...hits]), { visibleSeedsOnly: false })
         setSelectedIds(next)
         if (next.length) setStatus(`${t.selectedCount}: ${next.length}`)
       }
@@ -1501,7 +1547,8 @@ function App() {
     }
 
     if (element.parametricRow) {
-      const rowIds = rowElements(elements, element.parametricRow.id).map((item) => item.id)
+      const rowIds = semanticSelectionIds(elements, [element.id], { expandGroups: false, expandRows: true })
+      if (!rowIds.length) return
       const rowSet = new Set(rowIds)
       const rowAlreadySelected = rowIds.every((id) => selectedIds.includes(id))
       setSelectedIds(
@@ -1517,9 +1564,10 @@ function App() {
       return
     }
 
-    const targetIds = element.groupId && !event.altKey
-      ? elements.filter((item) => item.groupId === element.groupId).map((item) => item.id)
-      : [element.id]
+    const targetIds = event.altKey
+      ? [element.id]
+      : semanticSelectionIds(elements, [element.id], { expandGroups: true, expandRows: false })
+    if (!targetIds.length) return
     const targetSet = new Set(targetIds)
     const alreadySelected = targetIds.every((id) => selectedIds.includes(id))
     if (event.shiftKey && alreadySelected) {
@@ -1870,6 +1918,8 @@ function App() {
   }
 
   const openLocalProjectDocument = (project: CrochetProject, id: string) => {
+    cancelPendingAutosave()
+    autosaveRevisionRef.current += 1
     const normalized = normalizeProject(project, DEFAULT_SNAPPING)
     persistActiveProjectId(id)
     setActiveProjectIdState(id)
@@ -1891,11 +1941,14 @@ function App() {
   }
 
   const handleOpenLocalProject = async (id: string) => {
+    if (id === activeProjectId) return
+    await flushCurrentProject()
     const project = await loadLocalProject(id)
     if (project) openLocalProjectDocument(project, id)
   }
 
   const handleNewLocalProject = async () => {
+    await flushCurrentProject()
     const existing = await listLocalProjects()
     const base = locale === 'ru' ? 'Новая схема' : 'New pattern'
     const title = base + ' ' + (existing.length + 1)
@@ -1905,6 +1958,7 @@ function App() {
   }
 
   const handleDuplicateLocalProject = async () => {
+    await flushCurrentProject()
     const title = projectTitle + (locale === 'ru' ? ' — копия' : ' — copy')
     const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage)
     const id = await duplicateLocalProject(project, title)
@@ -1913,16 +1967,26 @@ function App() {
   }
 
   const handleDeleteLocalProject = async (id: string) => {
+    if (id === activeProjectId) {
+      cancelPendingAutosave()
+      await autosaveQueueRef.current.catch(() => undefined)
+      autosaveRevisionRef.current += 1
+    }
     await deleteLocalProject(id)
     const remaining = await listLocalProjects()
     if (remaining[0]) {
-      await handleOpenLocalProject(remaining[0].id)
-    } else {
-      await handleNewLocalProject()
+      const project = await loadLocalProject(remaining[0].id)
+      if (project) openLocalProjectDocument(project, remaining[0].id)
+      return
     }
+    const base = locale === 'ru' ? 'Новая схема' : 'New pattern'
+    const project = buildProject(`${base} 1`, [], [], DEFAULT_SNAPPING)
+    const nextId = await createLocalProject(project)
+    openLocalProjectDocument(project, nextId)
   }
 
   const handleAutosaveDelayChange = (delayMs: AutosaveDelayMs) => {
+    cancelPendingAutosave()
     autosaveSettingsWriteRef.current = delayMs
     const revision = ++autosaveRevisionRef.current
     setAutosaveDelayMs(delayMs)
@@ -1946,44 +2010,37 @@ function App() {
       })
   }
 
-  const handleBackgroundUpload = async (file: File) => {
+const handleBackgroundUpload = async (file: File) => {
+  const projectIdAtStart = activeProjectId
   try {
-    if (!file.type.startsWith('image/')) throw new Error(locale === 'ru' ? 'Выберите файл изображения' : 'Choose an image file')
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not read image'))
-      reader.onerror = () => reject(reader.error ?? new Error('Could not read image'))
-      reader.readAsDataURL(file)
-    })
-    const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
-      const image = new Image()
-      image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight })
-      image.onerror = () => reject(new Error(locale === 'ru' ? 'Не удалось открыть изображение' : 'Could not open image'))
-      image.src = dataUrl
-    })
     const rect = svgRef.current?.getBoundingClientRect()
     const center = rect
       ? screenToDocument({ x: rect.width / 2, y: rect.height / 2 }, viewport)
       : { x: 0, y: 0 }
-    setBackgroundImage(fittedBackgroundImage(dataUrl, file.name, dimensions.width, dimensions.height, center))
+    const prepared = await prepareBackgroundImage(file, center)
+    if (getActiveProjectId() !== projectIdAtStart) return
+    commitBackgroundImage(prepared)
     setStatus(locale === 'ru' ? 'Фоновое изображение добавлено' : 'Background image added')
   } catch (error) {
-    setStatus(error instanceof Error ? error.message : (locale === 'ru' ? 'Не удалось добавить изображение' : 'Could not add image'))
+    const fallback = locale === 'ru' ? 'Не удалось добавить изображение' : 'Could not add image'
+    setStatus(error instanceof Error ? error.message : fallback)
   }
 }
 
 const updateBackgroundImage = (patch: Partial<BackgroundImage>) => {
-  setBackgroundImage((current) => current ? {
-    ...current,
+  if (!backgroundImage) return
+  commitBackgroundImage({
+    ...backgroundImage,
     ...patch,
-    width: patch.width === undefined ? current.width : Math.max(1, patch.width),
-    height: patch.height === undefined ? current.height : Math.max(1, patch.height),
-    opacity: patch.opacity === undefined ? current.opacity : clampBackgroundOpacity(patch.opacity),
-  } : current)
+    width: patch.width === undefined ? backgroundImage.width : Math.max(1, patch.width),
+    height: patch.height === undefined ? backgroundImage.height : Math.max(1, patch.height),
+    opacity: patch.opacity === undefined ? backgroundImage.opacity : clampBackgroundOpacity(patch.opacity),
+  })
 }
 
 const removeBackgroundImage = () => {
-  setBackgroundImage(null)
+  if (!backgroundImage) return
+  commitBackgroundImage(null)
   setStatus(locale === 'ru' ? 'Фоновое изображение удалено' : 'Background image removed')
 }
 
@@ -1997,7 +2054,19 @@ const openTiledPrint = (settings: PrintSettings) => {
   popup.document.open()
   popup.document.write(html)
   popup.document.close()
-  window.setTimeout(() => popup.print(), 150)
+  const images = Array.from(popup.document.images)
+  void Promise.all(images.map(async (image) => {
+    if (!image.complete) {
+      await new Promise<void>((resolve) => {
+        image.addEventListener('load', () => resolve(), { once: true })
+        image.addEventListener('error', () => resolve(), { once: true })
+      })
+    }
+    if ('decode' in image) await image.decode().catch(() => undefined)
+  })).then(() => {
+    popup.focus()
+    popup.print()
+  })
   setStatus(locale === 'ru' ? 'Макет печати открыт' : 'Print layout opened')
 }
 
@@ -2009,16 +2078,10 @@ const saveProject = () => {
 
   const loadProject = async (file: File) => {
     try {
-      const raw = JSON.parse(await file.text()) as CrochetProject
-      if (
-        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].includes(raw.schemaVersion) ||
-        !Array.isArray(raw.elements)
-      ) {
-        throw new Error(t.unsupportedProject)
-      }
+      const raw = JSON.parse(await file.text()) as unknown
       const project = normalizeProject(raw, DEFAULT_SNAPPING)
       setProjectTitle(project.metadata.title)
-      setHistory({ past: [currentSnapshot()], future: [] })
+      setHistory(emptyHistory<DocumentSnapshot>())
       setElements(reconcileLinkedElements(project.elements, project.guides ?? []))
       setGuides(project.guides ?? [])
       setRowMarkers(project.rowMarkers ?? [])
@@ -2460,7 +2523,7 @@ const saveProject = () => {
               type="checkbox"
               checked={snapping.enabled}
               onChange={(event) => {
-                setSnapping((value) => ({ ...value, enabled: event.target.checked }))
+                commitSnapping({ ...snapping, enabled: event.target.checked })
                 setSnapTarget(null)
                 snapLockRef.current = null
               }}
@@ -2471,7 +2534,7 @@ const saveProject = () => {
             <legend>{t.snapPoint}</legend>
             <div className="segmented-control">
               {(['top', 'center', 'bottom'] as AnchorName[]).map((anchor) => (
-                <button key={anchor} className={snapping.sourceAnchor === anchor ? 'active' : ''} onClick={() => setSnapping((value) => ({ ...value, sourceAnchor: anchor }))}>
+                <button key={anchor} className={snapping.sourceAnchor === anchor ? 'active' : ''} onClick={() => commitSnapping({ ...snapping, sourceAnchor: anchor })}>
                   {anchorLabels[anchor]}
                 </button>
               ))}
@@ -2480,7 +2543,7 @@ const saveProject = () => {
 
           <fieldset disabled={!snapping.enabled}>
             <legend>{t.orientation}</legend>
-            <select value={snapping.orientationMode} onChange={(event) => setSnapping((value) => ({ ...value, orientationMode: event.target.value as OrientationMode }))}>
+            <select value={snapping.orientationMode} onChange={(event) => commitSnapping({ ...snapping, orientationMode: event.target.value as OrientationMode })}>
               <option value="none">{t.keepCurrent}</option>
               <option value="along">{t.alongTarget}</option>
               <option value="perpendicular">{t.perpendicular}</option>
@@ -2489,11 +2552,11 @@ const saveProject = () => {
 
           <label className="toggle-row compact-toggle">
             <span>{t.snapToVertices}</span>
-            <input type="checkbox" checked={snapping.snapToVertices} disabled={!snapping.enabled} onChange={(event) => setSnapping((value) => ({ ...value, snapToVertices: event.target.checked }))} />
+            <input type="checkbox" checked={snapping.snapToVertices} disabled={!snapping.enabled} onChange={(event) => commitSnapping({ ...snapping, snapToVertices: event.target.checked })} />
           </label>
           <label className="range-row">
             <span>{t.snapRadius} <strong>{snapping.tolerancePx}px</strong></span>
-            <input type="range" min="6" max="24" value={snapping.tolerancePx} disabled={!snapping.enabled} onChange={(event) => setSnapping((value) => ({ ...value, tolerancePx: Number(event.target.value) }))} />
+            <input type="range" min="6" max="24" value={snapping.tolerancePx} disabled={!snapping.enabled} onChange={(event) => commitSnapping({ ...snapping, tolerancePx: Number(event.target.value) })} />
           </label>
         </section>
 
@@ -2533,7 +2596,7 @@ const saveProject = () => {
           <div className="section-title-row"><h2>{locale === 'ru' ? 'Легенда' : 'Legend'}</h2></div>
           <label className="toggle-row">
             <span><strong>{locale === 'ru' ? 'Автоматическая легенда' : 'Automatic legend'}</strong><small>{locale === 'ru' ? 'Только реально используемые элементы; включается и в SVG.' : 'Only symbols actually used; also included in SVG.'}</small></span>
-            <input type="checkbox" checked={legendVisible} onChange={(event) => setLegendVisible(event.target.checked)} />
+            <input type="checkbox" checked={legendVisible} onChange={(event) => commitLegendVisible(event.target.checked)} />
           </label>
         </section>
 

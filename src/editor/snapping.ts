@@ -142,13 +142,14 @@ export function solveSnap(
   ) {
     winner = locked
   } else {
-    winner = candidates
-      .map((candidate) => ({
-        candidate,
-        distancePx: distance(sourcePosition, candidate.point) * viewport.zoom,
-      }))
-      .filter(({ distancePx }) => distancePx <= settings.tolerancePx)
-      .sort((a, b) => a.distancePx - b.distancePx)[0]?.candidate
+    let bestDistance = Number.POSITIVE_INFINITY
+    for (const candidate of candidates) {
+      const distancePx = distance(sourcePosition, candidate.point) * viewport.zoom
+      if (distancePx <= settings.tolerancePx && distancePx < bestDistance) {
+        bestDistance = distancePx
+        winner = candidate
+      }
+    }
   }
 
   if (!winner) {

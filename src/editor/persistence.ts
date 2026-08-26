@@ -1,9 +1,10 @@
 import type { CrochetProject } from '../types'
 
 const DB_NAME = 'crochet-scheme-editor'
-const DB_VERSION = 2
+const DB_VERSION = 3
 const LEGACY_STORE_NAME = 'autosave'
 const PROJECTS_STORE_NAME = 'projects'
+const SUMMARIES_STORE_NAME = 'project-summaries'
 const LEGACY_CURRENT_KEY = 'current-project'
 const ACTIVE_PROJECT_KEY = 'crochet-scheme-editor-active-project'
 const DEFAULT_PROJECT_ID = 'default-project'
@@ -23,6 +24,14 @@ function randomProjectId() {
   return `project-${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
+function summaryFor(id: string, project: CrochetProject): LocalProjectSummary {
+  return {
+    id,
+    title: project.metadata?.title || 'Crochet scheme',
+    updatedAt: project.metadata?.updatedAt || '',
+  }
+}
+
 export function getActiveProjectId() {
   if (typeof window === 'undefined') return DEFAULT_PROJECT_ID
   return window.localStorage.getItem(ACTIVE_PROJECT_KEY) || DEFAULT_PROJECT_ID
@@ -40,20 +49,30 @@ function openDatabase(): Promise<IDBDatabase | null> {
     request.onupgradeneeded = () => {
       const database = request.result
       const transaction = request.transaction
-      if (!database.objectStoreNames.contains(PROJECTS_STORE_NAME)) {
-        database.createObjectStore(PROJECTS_STORE_NAME)
+      if (!database.objectStoreNames.contains(PROJECTS_STORE_NAME)) database.createObjectStore(PROJECTS_STORE_NAME)
+      if (!database.objectStoreNames.contains(SUMMARIES_STORE_NAME)) database.createObjectStore(SUMMARIES_STORE_NAME)
+
+      if (!transaction) return
+      const projects = transaction.objectStore(PROJECTS_STORE_NAME)
+      const summaries = transaction.objectStore(SUMMARIES_STORE_NAME)
+
+      // Backfill summaries without pulling full project payloads during normal listing.
+      const cursor = projects.openCursor()
+      cursor.onsuccess = () => {
+        const current = cursor.result
+        if (!current) return
+        const project = current.value as CrochetProject
+        summaries.put(summaryFor(String(current.key), project), current.key)
+        current.continue()
       }
 
-      if (
-        transaction &&
-        database.objectStoreNames.contains(LEGACY_STORE_NAME) &&
-        database.objectStoreNames.contains(PROJECTS_STORE_NAME)
-      ) {
+      if (database.objectStoreNames.contains(LEGACY_STORE_NAME)) {
         const legacy = transaction.objectStore(LEGACY_STORE_NAME).get(LEGACY_CURRENT_KEY)
         legacy.onsuccess = () => {
-          if (legacy.result) {
-            transaction.objectStore(PROJECTS_STORE_NAME).put(legacy.result, DEFAULT_PROJECT_ID)
-          }
+          if (!legacy.result) return
+          const project = legacy.result as CrochetProject
+          projects.put(project, DEFAULT_PROJECT_ID)
+          summaries.put(summaryFor(DEFAULT_PROJECT_ID, project), DEFAULT_PROJECT_ID)
         }
       }
     }
@@ -82,8 +101,9 @@ async function writeProject(id: string, project: CrochetProject): Promise<void> 
   if (!database) return
   try {
     await new Promise<void>((resolve, reject) => {
-      const transaction = database.transaction(PROJECTS_STORE_NAME, 'readwrite')
+      const transaction = database.transaction([PROJECTS_STORE_NAME, SUMMARIES_STORE_NAME], 'readwrite')
       transaction.objectStore(PROJECTS_STORE_NAME).put(project, id)
+      transaction.objectStore(SUMMARIES_STORE_NAME).put(summaryFor(id, project), id)
       transaction.oncomplete = () => resolve()
       transaction.onerror = () => reject(transaction.error ?? new Error('Could not save project'))
       transaction.onabort = () => reject(transaction.error ?? new Error('Project transaction aborted'))
@@ -129,25 +149,14 @@ export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
   if (!database) return []
   try {
     return await new Promise<LocalProjectSummary[]>((resolve, reject) => {
-      const transaction = database.transaction(PROJECTS_STORE_NAME, 'readonly')
-      const store = transaction.objectStore(PROJECTS_STORE_NAME)
-      const keysRequest = store.getAllKeys()
-      const valuesRequest = store.getAll()
-      transaction.oncomplete = () => {
-        const keys = keysRequest.result
-        const values = valuesRequest.result as CrochetProject[]
-        const summaries = keys.map((key, index) => {
-          const project = values[index]
-          return {
-            id: String(key),
-            title: project?.metadata?.title || 'Crochet scheme',
-            updatedAt: project?.metadata?.updatedAt || '',
-          }
-        })
+      const transaction = database.transaction(SUMMARIES_STORE_NAME, 'readonly')
+      const request = transaction.objectStore(SUMMARIES_STORE_NAME).getAll()
+      request.onsuccess = () => {
+        const summaries = (request.result as LocalProjectSummary[]).slice()
         summaries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
         resolve(summaries)
       }
-      transaction.onerror = () => reject(transaction.error ?? new Error('Could not list projects'))
+      request.onerror = () => reject(request.error ?? new Error('Could not list projects'))
     })
   } finally {
     database.close()
@@ -159,8 +168,9 @@ export async function deleteLocalProject(id: string): Promise<void> {
   if (!database) return
   try {
     await new Promise<void>((resolve, reject) => {
-      const transaction = database.transaction(PROJECTS_STORE_NAME, 'readwrite')
+      const transaction = database.transaction([PROJECTS_STORE_NAME, SUMMARIES_STORE_NAME], 'readwrite')
       transaction.objectStore(PROJECTS_STORE_NAME).delete(id)
+      transaction.objectStore(SUMMARIES_STORE_NAME).delete(id)
       transaction.oncomplete = () => resolve()
       transaction.onerror = () => reject(transaction.error ?? new Error('Could not delete project'))
     })

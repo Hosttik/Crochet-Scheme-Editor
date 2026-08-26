@@ -7,6 +7,7 @@ type Props = {
   max?: number
   step?: number
   ariaLabel?: string
+  commitOnBlur?: boolean
 }
 
 function clampOptional(value: number, min?: number, max?: number) {
@@ -16,7 +17,7 @@ function clampOptional(value: number, min?: number, max?: number) {
   return result
 }
 
-export function DraftNumberInput({ value, onChange, min, max, step = 1, ariaLabel }: Props) {
+export function DraftNumberInput({ value, onChange, min, max, step = 1, ariaLabel, commitOnBlur = false }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [draft, setDraft] = useState(String(value))
 
@@ -60,7 +61,7 @@ export function DraftNumberInput({ value, onChange, min, max, step = 1, ariaLabe
         if (!Number.isFinite(parsed)) return
         if (min != null && parsed < min) return
         if (max != null && parsed > max) return
-        if (parsed !== value) onChange(parsed)
+        if (!commitOnBlur && parsed !== value) onChange(parsed)
       }}
       onBlur={commit}
       onKeyDown={handleKeyDown}

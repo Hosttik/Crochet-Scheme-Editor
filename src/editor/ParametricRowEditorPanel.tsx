@@ -11,6 +11,7 @@ import type {
 } from '../types'
 import { resolveGuideRowCount } from './rowGenerator'
 import { RowConstructionEditor } from './RowConstructionEditor'
+import { DraftNumberInput } from './DraftNumberInput'
 import { RowSequenceEditor } from './RowSequenceEditor'
 import {
   createRowShaping,
@@ -219,15 +220,7 @@ export function ParametricRowEditorPanel({
       {options.distributionMode === 'count' && (
         <label className="row-generator-field row-basic-count">
           <span>{copy.count}</span>
-          <input
-            type="number"
-            min="1"
-            max="500"
-            value={options.count}
-            onChange={(event) => patchOptions({
-              count: Math.max(1, Math.min(500, Number(event.target.value) || 1)),
-            })}
-          />
+          <DraftNumberInput commitOnBlur min={1} max={500} value={options.count} onChange={(count) => patchOptions({ count })} />
         </label>
       )}
 
@@ -260,13 +253,7 @@ export function ParametricRowEditorPanel({
             {binding.shaping && (
               <label className="row-generator-field row-shaping-count-field">
                 <span>{copy.shapingCount}</span>
-                <input
-                  type="number"
-                  min="1"
-                  max={maxRowShapingChanges(shapingBase, binding.shaping.kind)}
-                  value={binding.shaping.count}
-                  onChange={(event) => updateShapingCount(Number(event.target.value) || 1)}
-                />
+                <DraftNumberInput commitOnBlur min={1} max={maxRowShapingChanges(shapingBase, binding.shaping.kind)} value={binding.shaping.count} onChange={updateShapingCount} />
               </label>
             )}
             <p className="row-generator-hint">{copy.shapingHint}</p>
@@ -328,52 +315,25 @@ export function ParametricRowEditorPanel({
             {options.distributionMode === 'spacing' && (
               <label className="row-generator-field">
                 <span>{copy.spacing}</span>
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={options.spacing}
-                  onChange={(event) => patchOptions({ spacing: Math.max(1, Number(event.target.value) || 1) })}
-                />
+                <DraftNumberInput commitOnBlur min={1} step={1} value={options.spacing} onChange={(spacing) => patchOptions({ spacing })} />
               </label>
             )}
 
             {guide.type === 'radial-grid' && (
               <label className="row-generator-field">
                 <span>{copy.ring}</span>
-                <input
-                  type="number"
-                  min="1"
-                  max={Math.max(1, Math.round(guide.ringCount))}
-                  value={options.ringIndex}
-                  onChange={(event) => patchOptions({
-                    ringIndex: Math.max(
-                      1,
-                      Math.min(Math.round(guide.ringCount), Math.round(Number(event.target.value) || 1)),
-                    ),
-                  })}
-                />
+                <DraftNumberInput commitOnBlur min={1} max={Math.max(1, Math.round(guide.ringCount))} value={options.ringIndex} onChange={(ringIndex) => patchOptions({ ringIndex: Math.round(ringIndex) })} />
               </label>
             )}
 
             <label className="row-generator-field">
               <span>{copy.radialOffset}</span>
-              <input
-                type="number"
-                step="1"
-                value={options.radialOffset}
-                onChange={(event) => patchOptions({ radialOffset: Number(event.target.value) || 0 })}
-              />
+              <DraftNumberInput commitOnBlur step={1} value={options.radialOffset} onChange={(radialOffset) => patchOptions({ radialOffset })} />
             </label>
 
             <label className="row-generator-field">
               <span>{copy.rotationOffset}</span>
-              <input
-                type="number"
-                step="1"
-                value={options.rotationOffset}
-                onChange={(event) => patchOptions({ rotationOffset: Number(event.target.value) || 0 })}
-              />
+              <DraftNumberInput commitOnBlur step={1} value={options.rotationOffset} onChange={(rotationOffset) => patchOptions({ rotationOffset })} />
             </label>
           </div>
         </div>
