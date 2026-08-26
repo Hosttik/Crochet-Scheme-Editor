@@ -1,4 +1,4 @@
-import { SYMBOLS } from '../symbols'
+import { STITCH_SYMBOLS } from '../symbols'
 import { symbolName, type Locale } from '../i18n'
 import type {
   ParametricRowBinding,
@@ -80,7 +80,7 @@ export function RichRapportEditor({ binding, locale, parentStitchCount, onChange
       </select></label>
       <label className="rich-count-field"><span>{copy.count}</span><input type="number" min="1" max="500" value={leaf.count} onChange={(event) => patch({ ...leaf, count: clamp(Number(event.target.value), 500) })} /></label>
       <label><span>{copy.symbol}</span><select value={leaf.symbolId} onChange={(event) => patch({ ...leaf, symbolId: event.target.value })}>
-        {SYMBOLS.map((symbol) => <option key={symbol.id} value={symbol.id}>{symbolName(symbol.id, symbol.name, locale)}</option>)}
+        {STITCH_SYMBOLS.map((symbol) => <option key={symbol.id} value={symbol.id}>{symbolName(symbol.id, symbol.name, locale)}</option>)}
       </select></label>
     </div>
   )
