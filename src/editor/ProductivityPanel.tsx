@@ -21,9 +21,12 @@ const COPY = {
     multiplePreviewHidden: 'Выбрано несколько элементов: Repeat повторит их вместе как временный мотив. Предпросмотр скрыт; «Группировать» сохранит мотив как один объект.',
     group: 'Группировать',
     ungroup: 'Разгруппировать',
-    mirror: 'Отразить',
-    mirrorHorizontal: '↔ По горизонтали',
-    mirrorVertical: '↕ По вертикали',
+    mirror: 'Отражение',
+    mirrorHint: 'Flip использует ось через центр выделения. Зеркальная копия создаётся рядом с оригиналом.',
+    flipLeftRight: '↔ Слева / справа',
+    flipTopBottom: '↕ Сверху / снизу',
+    mirrorCopyLeftRight: '⧉↔ Копия справа',
+    mirrorCopyTopBottom: '⧉↕ Копия снизу',
     repeat: 'Повтор',
     linear: 'Линейно',
     circular: 'По кругу',
@@ -53,9 +56,12 @@ const COPY = {
     multiplePreviewHidden: 'Multiple stitches are selected: Repeat will treat them as a temporary motif. Preview is hidden; Group saves the motif as one persistent object.',
     group: 'Group',
     ungroup: 'Ungroup',
-    mirror: 'Mirror',
-    mirrorHorizontal: '↔ Left / right',
-    mirrorVertical: '↕ Top / bottom',
+    mirror: 'Reflection',
+    mirrorHint: 'Flip uses an axis through the selection center. Mirrored copy creates a separate adjacent object.',
+    flipLeftRight: '↔ Left / right',
+    flipTopBottom: '↕ Top / bottom',
+    mirrorCopyLeftRight: '⧉↔ Copy right',
+    mirrorCopyTopBottom: '⧉↕ Copy below',
     repeat: 'Repeat',
     linear: 'Linear',
     circular: 'Circular',
@@ -101,6 +107,7 @@ export function ProductivityPanel({
   onGroup,
   onUngroup,
   onMirror,
+  onMirrorCopy,
   onRepeat,
 }: {
   locale: Locale
@@ -114,6 +121,7 @@ export function ProductivityPanel({
   onGroup: () => void
   onUngroup: () => void
   onMirror: (axis: 'left-right' | 'top-bottom') => void
+  onMirrorCopy: (axis: 'left-right' | 'top-bottom') => void
   onRepeat: (options: RepeatOptions) => void
 }) {
   const copy = COPY[locale]
@@ -214,9 +222,14 @@ export function ProductivityPanel({
 
         <div className="productivity-block">
           <strong>{copy.mirror}</strong>
+          <small className="muted-text">{copy.mirrorHint}</small>
           <div className="productivity-actions">
-            <button disabled={!canTransform} onClick={() => onMirror('left-right')}>{copy.mirrorHorizontal}</button>
-            <button disabled={!canTransform} onClick={() => onMirror('top-bottom')}>{copy.mirrorVertical}</button>
+            <button disabled={!canTransform} onClick={() => onMirror('left-right')}>{copy.flipLeftRight}</button>
+            <button disabled={!canTransform} onClick={() => onMirror('top-bottom')}>{copy.flipTopBottom}</button>
+          </div>
+          <div className="productivity-actions">
+            <button disabled={!canTransform} onClick={() => onMirrorCopy('left-right')}>{copy.mirrorCopyLeftRight}</button>
+            <button disabled={!canTransform} onClick={() => onMirrorCopy('top-bottom')}>{copy.mirrorCopyTopBottom}</button>
           </div>
         </div>
 
