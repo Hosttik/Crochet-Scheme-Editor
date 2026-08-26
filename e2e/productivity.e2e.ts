@@ -14,7 +14,7 @@ async function canvasBox(page: Page) {
 }
 
 async function placeAt(page: Page, title: string, rx: number, ry: number) {
-  await page.locator(`.symbols-section .symbol-button[title="${title}"]`).click()
+  await page.locator(`.symbols-section .symbol-button[title^="${title}"]`).click()
   const box = await canvasBox(page)
   await page.mouse.click(box.x + box.width * rx, box.y + box.height * ry)
 }
@@ -45,7 +45,7 @@ test('hides temporary multi preview but previews a colored group as one ghost mo
   await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
   const productivity = page.locator('.productivity-panel')
   await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(0)
-  await expect(productivity.locator('.productivity-hint')).toContainText('Предпросмотр скрыт')
+  await expect(productivity.locator('.productivity-hint')).toContainText('временный мотив')
 
   await productivity.getByRole('button', { name: 'Группировать', exact: true }).click()
   await expect(page.locator('.productivity-repeat-preview-group')).toHaveCount(0)
@@ -73,7 +73,7 @@ test('hides temporary multi preview but previews a colored group as one ghost mo
   const before = await page.locator('.stitch-element').evaluateAll((nodes) =>
     nodes.map((node) => node.getAttribute('transform')),
   )
-  await productivity.getByRole('button', { name: '↔ По горизонтали', exact: true }).click()
+  await productivity.getByRole('button', { name: '↔ Слева / справа', exact: true }).click()
   const after = await page.locator('.stitch-element').evaluateAll((nodes) =>
     nodes.map((node) => node.getAttribute('transform')),
   )
@@ -99,6 +99,73 @@ test('hides temporary multi preview but previews a colored group as one ghost mo
   await clearCanvasSelection(page)
   await page.locator('.stitch-element').nth(2).click()
   await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
+})
+
+test('interaction pass makes selection, pan, zoom, snap and numeric editing direct', async ({ page }) => {
+  await openEditor(page)
+  await expect(page.locator('.layers-section')).not.toHaveAttribute('open', '')
+
+  await placeAt(page, 'Столбик без накида', 0.44, 0.46)
+  const stitch = page.locator('.stitch-element').first()
+  const initial = transformParts(await stitch.getAttribute('transform'))
+
+  await clearCanvasSelection(page)
+  const stitchBox = await stitch.boundingBox()
+  expect(stitchBox).not.toBeNull()
+  await page.mouse.click(stitchBox!.x + 3, stitchBox!.y + 3)
+  await expect(stitch).toHaveClass(/selected/)
+
+  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('Shift+ArrowRight')
+  const nudged = transformParts(await stitch.getAttribute('transform'))
+  expect(nudged.x - initial.x).toBeCloseTo(11, 3)
+  expect(nudged.y - initial.y).toBeCloseTo(1, 3)
+
+  const zoomReadout = page.locator('.zoom-readout')
+  await expect(zoomReadout).toHaveText('100%')
+  await page.keyboard.press('=')
+  await expect(zoomReadout).not.toHaveText('100%')
+  await page.keyboard.press('0')
+  await expect(zoomReadout).toHaveText('100%')
+
+  const snapToggle = page.locator('.canvas-toolbar .snap-toggle')
+  await expect(snapToggle).toHaveAttribute('aria-pressed', 'true')
+  await page.keyboard.press('s')
+  await expect(snapToggle).toHaveAttribute('aria-pressed', 'false')
+  await expect(snapToggle).toContainText('Свободно')
+  await page.keyboard.press('s')
+  await expect(snapToggle).toHaveAttribute('aria-pressed', 'true')
+
+  const canvas = page.locator('svg.editor-canvas')
+  const world = canvas.locator(':scope > g')
+  const worldBefore = await world.getAttribute('transform')
+  const box = await canvasBox(page)
+  await page.keyboard.down('Space')
+  await page.mouse.move(box.x + box.width * 0.55, box.y + box.height * 0.55)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width * 0.55 + 45, box.y + box.height * 0.55 + 30, { steps: 4 })
+  await page.mouse.up()
+  await page.keyboard.up('Space')
+  expect(await world.getAttribute('transform')).not.toBe(worldBefore)
+
+  const productivity = page.locator('.productivity-panel')
+  const copies = productivity.getByLabel('Копий')
+  await copies.fill('')
+  await expect(copies).toHaveValue('')
+  await copies.fill('2')
+  await expect(copies).toHaveValue('2')
+
+  const doubleButton = page.locator('.symbols-section .symbol-button[title^="Столбик с накидом"]')
+  await doubleButton.click()
+  await expect(doubleButton).toHaveClass(/active/)
+  await doubleButton.click()
+  await expect(doubleButton).not.toHaveClass(/active/)
+
+  await stitch.click()
+  await productivity.getByRole('button', { name: '⧉↔ Копия справа', exact: true }).click()
+  await expect(page.locator('.stitch-element')).toHaveCount(2)
+  await expect(page.locator('.stitch-element.selected')).toHaveCount(1)
 })
 
 test('creates circular and along-guide repeats without losing the motif selection', async ({ page }) => {
