@@ -74,11 +74,16 @@ export function idsInMarquee(
 }
 
 function pointOnSegment(point: Point, a: Point, b: Point, epsilon = 1e-7) {
-  const cross = (point.y - a.y) * (b.x - a.x) - (point.x - a.x) * (b.y - a.y)
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const lengthSquared = dx * dx + dy * dy
+  if (lengthSquared <= epsilon * epsilon) {
+    return (point.x - a.x) ** 2 + (point.y - a.y) ** 2 <= epsilon * epsilon
+  }
+  const cross = (point.y - a.y) * dx - (point.x - a.x) * dy
   if (Math.abs(cross) > epsilon) return false
-  const dot = (point.x - a.x) * (b.x - a.x) + (point.y - a.y) * (b.y - a.y)
+  const dot = (point.x - a.x) * dx + (point.y - a.y) * dy
   if (dot < -epsilon) return false
-  const lengthSquared = (b.x - a.x) ** 2 + (b.y - a.y) ** 2
   return dot <= lengthSquared + epsilon
 }
 
