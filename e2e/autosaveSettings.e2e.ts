@@ -4,7 +4,7 @@ async function placeSingleCrochet(page: Page) {
   const canvas = page.locator('svg.editor-canvas')
   const box = await canvas.boundingBox()
   if (!box) throw new Error('Canvas is not visible')
-  await page.getByRole('button', { name: 'Столбик без накида' }).click()
+  await page.locator('.symbols-section .symbol-button[title^="Столбик без накида ·"]').click()
   await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5)
 }
 

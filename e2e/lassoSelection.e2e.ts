@@ -14,7 +14,7 @@ async function canvasBox(page: Page) {
 }
 
 async function placeAt(page: Page, title: string, rx: number, ry: number) {
-  await page.locator(`.symbols-section .symbol-button[title^="${title}"]`).click()
+  await page.locator(`.symbols-section .symbol-button[title^="${title} ·"]`).click()
   const box = await canvasBox(page)
   await page.mouse.click(box.x + box.width * rx, box.y + box.height * ry)
 }

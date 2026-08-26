@@ -1,4 +1,4 @@
-import { SYMBOLS } from '../symbols'
+import { STITCH_SYMBOLS } from '../symbols'
 import { symbolName, type Locale } from '../i18n'
 import type { ParametricRowBinding, RowSequenceItem } from '../types'
 import { defaultRichProgram, RichRapportEditor } from './RichRapportEditor'
@@ -161,7 +161,7 @@ export function RowSequenceEditor({
                     value={item.symbolId}
                     onChange={(event) => patchItem(index, { symbolId: event.target.value })}
                   >
-                    {SYMBOLS.map((symbol) => (
+                    {STITCH_SYMBOLS.map((symbol) => (
                       <option key={symbol.id} value={symbol.id}>
                         {symbolName(symbol.id, symbol.name, locale)}
                       </option>

@@ -19,7 +19,7 @@ async function clickCanvas(page: Page, rx: number, ry: number) {
 }
 
 async function placeStitch(page: Page, title: string, rx: number, ry: number) {
-  await page.locator(`.symbols-section .symbol-button[title^="${title}"]`).click()
+  await page.locator(`.symbols-section .symbol-button[title^="${title} ·"]`).click()
   await clickCanvas(page, rx, ry)
 }
 
