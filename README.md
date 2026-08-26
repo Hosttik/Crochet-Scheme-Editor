@@ -100,6 +100,7 @@ The editor combines an SVG canvas with a document model that understands guides,
 - independent red-dot row-number annotations support automatic first-gap numbering, drag, manual numbering, visibility and lock
 - row-number annotations persist through autosave/JSON and are included in SVG export
 - automatic legend is derived from actually used visible stitch symbols, shows abbreviation plus localized RU/EN name, can be toggled, and is included in SVG export
+- autosave delay is configurable per project: Off, legacy Fast (0.65 s), 5 s, 15 s, 30 s or 60 s; switching Off is persisted immediately
 - project JSON schema is v16; v1-v15 remain loadable through runtime validation/migration
 - schema v13 introduced optional six-digit hex visual color per stitch; default black is omitted from storage
 - schema v14 adds Line/Curve guide persistence and optional manual `guideAttachment` metadata
@@ -173,4 +174,4 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - local persistence
 - rendering and React UI
 
-Next larger product milestones are document/output workflows: configurable autosave, background image underlays with opacity/lock, tiled multi-page printing with overlap/crop marks, and free-form lasso selection. A future color-domain milestone can turn visual colors into explicit yarn/color-change semantics without conflating presentation color with stitch topology.
+Next larger product milestones are document/output workflows: background image underlays with opacity/lock, tiled multi-page printing with overlap/crop marks, and free-form lasso selection. A future color-domain milestone can turn visual colors into explicit yarn/color-change semantics without conflating presentation color with stitch topology.

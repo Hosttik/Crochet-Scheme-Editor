@@ -1,4 +1,5 @@
 import type {
+  AutosaveDelayMs,
   CrochetProject,
   Guide,
   GuideAttachment,
@@ -280,6 +281,16 @@ function parseLegend(value: unknown) {
   return { visible: value.visible }
 }
 
+const AUTOSAVE_DELAYS = [0, 650, 5000, 15000, 30000, 60000]
+
+function parseAutosave(value: unknown) {
+  if (value === undefined) return { delayMs: 650 as AutosaveDelayMs }
+  if (!isRecord(value) || !finite(value.delayMs) || !AUTOSAVE_DELAYS.includes(value.delayMs)) {
+    throw new ProjectValidationError('Invalid autosave settings')
+  }
+  return { delayMs: value.delayMs as AutosaveDelayMs }
+}
+
 function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSettings {
   if (!isRecord(value)) return fallback
   if (
@@ -316,6 +327,7 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
     settings: {
       snapping: parseSnapping(settings.snapping, fallbackSnapping),
       legend: parseLegend(settings.legend),
+      autosave: parseAutosave(settings.autosave),
     },
   }
 }

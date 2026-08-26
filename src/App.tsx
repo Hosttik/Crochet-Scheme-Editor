@@ -95,6 +95,7 @@ import {
 } from './i18n'
 import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph, symbolSvgMarkup } from './symbols'
 import type {
+  AutosaveDelayMs,
   AnchorName,
   CrochetProject,
   Guide,
@@ -119,7 +120,7 @@ const DEFAULT_SNAPPING: SnappingSettings = {
 }
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
 const DUPLICATE_OFFSET = 24
-const AUTOSAVE_DELAY_MS = 650
+const DEFAULT_AUTOSAVE_DELAY_MS: AutosaveDelayMs = 650
 const SYMBOL_SIZES = Object.fromEntries(
   SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
 )
@@ -155,7 +156,7 @@ type HistoryState = {
   past: DocumentSnapshot[]
   future: DocumentSnapshot[]
 }
-type AutosaveState = 'loading' | 'saving' | 'saved' | 'error'
+type AutosaveState = 'loading' | 'saving' | 'saved' | 'error' | 'off'
 
 function createId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
@@ -306,6 +307,7 @@ function buildProject(
   snapping: SnappingSettings,
   rowMarkers: RowMarker[] = [],
   legendVisible = true,
+  autosaveDelayMs: AutosaveDelayMs = DEFAULT_AUTOSAVE_DELAY_MS,
 ): CrochetProject {
   return {
     schemaVersion: 16,
@@ -313,7 +315,11 @@ function buildProject(
     elements: normalizeElements(elements),
     guides,
     rowMarkers,
-    settings: { snapping, legend: { visible: legendVisible } },
+    settings: {
+      snapping,
+      legend: { visible: legendVisible },
+      autosave: { delayMs: autosaveDelayMs },
+    },
   }
 }
 
@@ -367,6 +373,7 @@ function App() {
   const [guides, setGuides] = useState<Guide[]>([])
   const [rowMarkers, setRowMarkers] = useState<RowMarker[]>([])
   const [legendVisible, setLegendVisible] = useState(true)
+  const [autosaveDelayMs, setAutosaveDelayMs] = useState<AutosaveDelayMs>(DEFAULT_AUTOSAVE_DELAY_MS)
   const [history, setHistory] = useState<HistoryState>(emptyHistory<DocumentSnapshot>())
   const [tool, setTool] = useState<Tool>({ type: 'select' })
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -406,6 +413,7 @@ function App() {
           setGuides(project.guides ?? [])
           setRowMarkers(project.rowMarkers ?? [])
           setLegendVisible(project.settings.legend?.visible ?? true)
+          setAutosaveDelayMs(project.settings.autosave?.delayMs ?? DEFAULT_AUTOSAVE_DELAY_MS)
           setSnapping(project.settings.snapping)
           setStatus(UI[locale].autosaveRestored)
         } else {
@@ -429,11 +437,16 @@ function App() {
 
   useEffect(() => {
     if (!hydrated) return
+    if (autosaveDelayMs === 0) {
+      autosaveRevisionRef.current += 1
+      setAutosaveState('off')
+      return
+    }
 
     const revision = ++autosaveRevisionRef.current
     setAutosaveState('saving')
     const timeout = window.setTimeout(() => {
-      const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible)
+      const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs)
       const task = autosaveQueueRef.current
         .catch(() => undefined)
         .then(() => saveLocalProject(activeProjectId, project))
@@ -445,10 +458,10 @@ function App() {
         .catch(() => {
           if (autosaveRevisionRef.current === revision) setAutosaveState('error')
         })
-    }, AUTOSAVE_DELAY_MS)
+    }, autosaveDelayMs)
 
     return () => window.clearTimeout(timeout)
-  }, [activeProjectId, elements, guides, hydrated, legendVisible, projectTitle, rowMarkers, snapping])
+  }, [activeProjectId, autosaveDelayMs, elements, guides, hydrated, legendVisible, projectTitle, rowMarkers, snapping])
 
   useEffect(() => {
     if (!hydrated) return
@@ -1767,6 +1780,7 @@ function App() {
     setGuides(normalized.guides ?? [])
     setRowMarkers(normalized.rowMarkers ?? [])
     setLegendVisible(normalized.settings.legend?.visible ?? true)
+    setAutosaveDelayMs(normalized.settings.autosave?.delayMs ?? DEFAULT_AUTOSAVE_DELAY_MS)
     setSnapping(normalized.settings.snapping)
     clearElementSelection()
     setSelectedGuideId(null)
@@ -1792,7 +1806,7 @@ function App() {
 
   const handleDuplicateLocalProject = async () => {
     const title = projectTitle + (locale === 'ru' ? ' — копия' : ' — copy')
-    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible)
+    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs)
     const id = await duplicateLocalProject(project, title)
     const copy = await loadLocalProject(id)
     if (copy) openLocalProjectDocument(copy, id)
@@ -1808,8 +1822,20 @@ function App() {
     }
   }
 
+  const handleAutosaveDelayChange = (delayMs: AutosaveDelayMs) => {
+    setAutosaveDelayMs(delayMs)
+    if (delayMs !== 0) return
+
+    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, delayMs)
+    const task = autosaveQueueRef.current
+      .catch(() => undefined)
+      .then(() => saveLocalProject(activeProjectId, project))
+    autosaveQueueRef.current = task
+    void task.catch(() => setAutosaveState('error'))
+  }
+
   const saveProject = () => {
-    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible)
+    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs)
     downloadText('crochet-scheme.json', JSON.stringify(project, null, 2), 'application/json')
     setStatus(t.projectSaved)
   }
@@ -1830,6 +1856,7 @@ function App() {
       setGuides(project.guides ?? [])
       setRowMarkers(project.rowMarkers ?? [])
       setLegendVisible(project.settings.legend?.visible ?? true)
+      setAutosaveDelayMs(project.settings.autosave?.delayMs ?? DEFAULT_AUTOSAVE_DELAY_MS)
       setSnapping(project.settings.snapping)
       clearElementSelection()
       setSelectedGuideId(null)
@@ -1866,7 +1893,8 @@ function App() {
     autosaveState === 'loading' ? t.autosaveLoading
       : autosaveState === 'saving' ? t.autosaveSaving
         : autosaveState === 'error' ? t.autosaveError
-          : t.autosaveSaved
+          : autosaveState === 'off' ? (locale === 'ru' ? 'Автосохранение выключено' : 'Autosave off')
+            : t.autosaveSaved
 
   if (!hydrated) {
     return (
@@ -1892,6 +1920,21 @@ function App() {
 
         <div className="topbar-actions">
           <span className={`autosave-indicator ${autosaveState}`}>{autosaveLabel}</span>
+          <label className="autosave-control">
+            <span>{locale === 'ru' ? 'Автосохранение' : 'Autosave'}</span>
+            <select
+              aria-label={locale === 'ru' ? 'Автосохранение' : 'Autosave'}
+              value={autosaveDelayMs}
+              onChange={(event) => handleAutosaveDelayChange(Number(event.target.value) as AutosaveDelayMs)}
+            >
+              <option value={0}>{locale === 'ru' ? 'Выкл' : 'Off'}</option>
+              <option value={650}>{locale === 'ru' ? 'Быстро · 0,65 с' : 'Fast · 0.65 s'}</option>
+              <option value={5000}>5 s</option>
+              <option value={15000}>15 s</option>
+              <option value={30000}>30 s</option>
+              <option value={60000}>60 s</option>
+            </select>
+          </label>
           <div className="language-switch" aria-label={t.language}>
             <button className={`ghost-button ${locale === 'ru' ? 'active-lang' : ''}`} onClick={() => setLocale('ru')}>RU</button>
             <button className={`ghost-button ${locale === 'en' ? 'active-lang' : ''}`} onClick={() => setLocale('en')}>EN</button>

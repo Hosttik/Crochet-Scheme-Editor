@@ -8,6 +8,7 @@ export type RowShapingKind = 'increase' | 'decrease'
 export type RowConstructionMode = 'spiral' | 'joined' | 'turning'
 export type RowWorkDirection = 'along' | 'reverse'
 export type RowJoinTarget = 'first-stitch' | 'start-chain-top'
+export type AutosaveDelayMs = 0 | 650 | 5000 | 15000 | 30000 | 60000
 
 export type GuideRowOptions = {
   distributionMode: RowDistributionMode
@@ -188,6 +189,11 @@ export type LegendSettings = {
   visible: boolean
 }
 
+export type AutosaveSettings = {
+  /** Delay after the latest document change; 0 disables automatic document saves. */
+  delayMs: AutosaveDelayMs
+}
+
 export type Viewport = {
   zoom: number
   panX: number
@@ -214,5 +220,6 @@ export type CrochetProject = {
   settings: {
     snapping: SnappingSettings
     legend?: LegendSettings
+    autosave?: AutosaveSettings
   }
 }
