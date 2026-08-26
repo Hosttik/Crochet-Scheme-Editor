@@ -51,3 +51,51 @@ test('loading JSON starts a clean document history', async ({ page }) => {
   await expect(page.locator('.stitch-element')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Отменить' })).toBeDisabled()
 })
+
+
+test('preserves an invalid stored project when hydration validation fails', async ({ page }) => {
+  await page.goto('/Crochet-Scheme-Editor/')
+  await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('crochet-scheme-editor', 3)
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    const invalid = {
+      schemaVersion: 17,
+      metadata: { title: 'Recovery target', updatedAt: '2026-08-26T00:00:00Z' },
+      elements: [{ id: 'keep-me', symbolId: 'unknown-legacy-symbol', x: 10, y: 20, rotation: 0 }],
+      guides: [], rowMarkers: [],
+      settings: { snapping: { enabled: true, sourceAnchor: 'bottom', orientationMode: 'none', snapToVertices: true, tolerancePx: 12 } },
+    }
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(['projects', 'project-summaries'], 'readwrite')
+      transaction.objectStore('projects').put(invalid, 'default-project')
+      transaction.objectStore('project-summaries').put({ id: 'default-project', title: 'Recovery target', updatedAt: invalid.metadata.updatedAt }, 'default-project')
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+    })
+    database.close()
+    localStorage.setItem('crochet-scheme-editor-active-project', 'default-project')
+  })
+
+  await page.reload()
+  await expect(page.locator('.autosave-indicator')).toContainText(/ошиб|error/i)
+  await page.waitForTimeout(1200)
+
+  const storedSymbol = await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('crochet-scheme-editor', 3)
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    const project = await new Promise<any>((resolve, reject) => {
+      const request = database.transaction('projects', 'readonly').objectStore('projects').get('default-project')
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    database.close()
+    return project?.elements?.[0]?.symbolId
+  })
+  expect(storedSymbol).toBe('unknown-legacy-symbol')
+})

@@ -4,7 +4,7 @@ import { parseProject } from './projectSchema'
 
 const snapping: SnappingSettings = { enabled: true, sourceAnchor: 'bottom', orientationMode: 'none', snapToVertices: true, tolerancePx: 12 }
 const base = (): CrochetProject => ({
-  schemaVersion: 17,
+  schemaVersion: 18,
   metadata: { title: 'Test', updatedAt: '2026-08-26T00:00:00Z' },
   elements: [{ id: 'a', symbolId: 'single', x: 0, y: 0, rotation: 0 }],
   guides: [], rowMarkers: [], settings: { snapping },

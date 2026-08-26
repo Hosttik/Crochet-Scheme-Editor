@@ -71,6 +71,7 @@ import {
 } from './editor/persistence'
 import { viewportForElements } from './editor/viewportFit'
 import { semanticLockIds, semanticSelectionIds } from './editor/selectionModel'
+import { CURRENT_PROJECT_SCHEMA_VERSION } from './editor/projectVersion'
 import {
   createNextPatternRow,
   createPatternIncreaseSequence,
@@ -346,7 +347,7 @@ function buildProject(
   backgroundImage: BackgroundImage | null = null,
 ): CrochetProject {
   return {
-    schemaVersion: 17,
+    schemaVersion: CURRENT_PROJECT_SCHEMA_VERSION,
     metadata: { title, updatedAt: new Date().toISOString() },
     elements: normalizeElements(elements),
     guides,
@@ -401,6 +402,7 @@ function App() {
   const autosaveTimerRef = useRef<number | null>(null)
   const autosaveRevisionRef = useRef(0)
   const autosaveSettingsWriteRef = useRef<AutosaveDelayMs | null>(null)
+  const persistenceBlockedRef = useRef(false)
 
   const [locale, setLocale] = useState<Locale>(initialLocale)
   const t = UI[locale]
@@ -449,6 +451,7 @@ function App() {
         if (cancelled) return
         if (saved) {
           const project = normalizeProject(saved, DEFAULT_SNAPPING)
+          persistenceBlockedRef.current = false
           setProjectTitle(project.metadata.title)
           setElements(reconcileLinkedElements(project.elements, project.guides ?? []))
           setGuides(project.guides ?? [])
@@ -461,11 +464,15 @@ function App() {
         } else {
           const initial = buildProject(UI[locale].projectTitle, [], [], DEFAULT_SNAPPING)
           await saveAutosave(initial)
+          persistenceBlockedRef.current = false
           setProjectTitle(initial.metadata.title)
         }
         setAutosaveState('saved')
       } catch {
-        if (!cancelled) setAutosaveState('error')
+        if (!cancelled) {
+          persistenceBlockedRef.current = true
+          setAutosaveState('error')
+        }
       } finally {
         if (!cancelled) setHydrated(true)
       }
@@ -479,6 +486,10 @@ function App() {
 
   useEffect(() => {
     if (!hydrated) return
+    if (persistenceBlockedRef.current) {
+      setAutosaveState('error')
+      return
+    }
     if (autosaveSettingsWriteRef.current === autosaveDelayMs) {
       autosaveSettingsWriteRef.current = null
       return
@@ -652,7 +663,7 @@ function App() {
     return task
   }, [])
   const flushCurrentProject = useCallback(async () => {
-    if (!hydrated) return
+    if (!hydrated || persistenceBlockedRef.current) return
     cancelPendingAutosave()
     const revision = ++autosaveRevisionRef.current
     const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage)
@@ -1921,6 +1932,7 @@ function App() {
     cancelPendingAutosave()
     autosaveRevisionRef.current += 1
     const normalized = normalizeProject(project, DEFAULT_SNAPPING)
+    persistenceBlockedRef.current = false
     persistActiveProjectId(id)
     setActiveProjectIdState(id)
     setProjectTitle(normalized.metadata.title)
@@ -1987,6 +1999,11 @@ function App() {
 
   const handleAutosaveDelayChange = (delayMs: AutosaveDelayMs) => {
     cancelPendingAutosave()
+    if (persistenceBlockedRef.current) {
+      setAutosaveDelayMs(delayMs)
+      setAutosaveState('error')
+      return
+    }
     autosaveSettingsWriteRef.current = delayMs
     const revision = ++autosaveRevisionRef.current
     setAutosaveDelayMs(delayMs)
@@ -2080,6 +2097,7 @@ const saveProject = () => {
     try {
       const raw = JSON.parse(await file.text()) as unknown
       const project = normalizeProject(raw, DEFAULT_SNAPPING)
+      persistenceBlockedRef.current = false
       setProjectTitle(project.metadata.title)
       setHistory(emptyHistory<DocumentSnapshot>())
       setElements(reconcileLinkedElements(project.elements, project.guides ?? []))

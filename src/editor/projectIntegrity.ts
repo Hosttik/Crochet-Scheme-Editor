@@ -5,6 +5,7 @@ export const MAX_PROJECT_ELEMENTS = 20_000
 export const MAX_PROJECT_GUIDES = 500
 export const MAX_PROJECT_ROW_MARKERS = 1_000
 export const MAX_BACKGROUND_DATA_URL_LENGTH = 8_000_000
+const MAX_LEGACY_BACKGROUND_DATA_URL_LENGTH = 25_000_000
 const MAX_COORDINATE = 1_000_000
 const MAX_GUIDE_SPACING = 100_000
 
@@ -157,7 +158,8 @@ export function projectIntegrityIssue(project: CrochetProject, strictReferences 
   }
   const background = project.backgroundImage
   if (background) {
-    if (background.dataUrl.length > MAX_BACKGROUND_DATA_URL_LENGTH) return 'Background image is too large'
+    const maxBackgroundLength = strictReferences ? MAX_BACKGROUND_DATA_URL_LENGTH : MAX_LEGACY_BACKGROUND_DATA_URL_LENGTH
+    if (background.dataUrl.length > maxBackgroundLength) return 'Background image is too large'
     if (!bounded(background.x) || !bounded(background.y) || !positive(background.width, MAX_COORDINATE) || !positive(background.height, MAX_COORDINATE)) return 'Background image geometry is out of bounds'
   }
   if (!Number.isFinite(project.settings.snapping.tolerancePx) || project.settings.snapping.tolerancePx < 1 || project.settings.snapping.tolerancePx > 100) return 'Snapping tolerance is out of bounds'
