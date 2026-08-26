@@ -74,6 +74,18 @@ function translatePoint(point: Point, dx: number, dy: number): Point {
   return { x: point.x + dx, y: point.y + dy }
 }
 
+function snapLineEndpoint(origin: Point, point: Point): Point {
+  const length = distance(origin, point)
+  if (length < 1e-6) return point
+  const rawAngle = angleDegrees(origin, point)
+  const angle = Math.round(rawAngle / ROTATION_SNAP_DEGREES) * ROTATION_SNAP_DEGREES
+  const radians = (angle * Math.PI) / 180
+  return {
+    x: origin.x + Math.cos(radians) * length,
+    y: origin.y + Math.sin(radians) * length,
+  }
+}
+
 export function applyGuideManipulation(
   guide: Guide,
   mode: GuideManipulationMode,
@@ -117,10 +129,16 @@ export function applyGuideManipulation(
   }
 
   if (mode === 'start' && (guide.type === 'line' || guide.type === 'curve')) {
-    return { ...guide, start: currentPointer }
+    const start = guide.type === 'line' && snapRotation
+      ? snapLineEndpoint(guide.end, currentPointer)
+      : currentPointer
+    return { ...guide, start }
   }
   if (mode === 'end' && (guide.type === 'line' || guide.type === 'curve')) {
-    return { ...guide, end: currentPointer }
+    const end = guide.type === 'line' && snapRotation
+      ? snapLineEndpoint(guide.start, currentPointer)
+      : currentPointer
+    return { ...guide, end }
   }
   if (mode === 'control1' && guide.type === 'curve') {
     return { ...guide, control1: currentPointer }

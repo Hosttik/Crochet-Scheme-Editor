@@ -79,6 +79,35 @@ test('previews repeat live and creates a circular array without a guide', async 
   await expect(page.locator('.stitch-element')).toHaveCount(4)
 })
 
+test('keeps the quick toolbar clear of the rotation handle and shows a live used-symbol legend', async ({ page }) => {
+  await openEditor(page)
+  await placeAt(page, 'Столбик без накида', 0.48, 0.48)
+
+  const toolbarBox = await page.locator('.selection-quick-toolbar').boundingBox()
+  const rotationBox = await page.locator('.stitch-rotation-handle').boundingBox()
+  expect(toolbarBox).not.toBeNull()
+  expect(rotationBox).not.toBeNull()
+  const overlaps = !(
+    toolbarBox!.x + toolbarBox!.width <= rotationBox!.x ||
+    rotationBox!.x + rotationBox!.width <= toolbarBox!.x ||
+    toolbarBox!.y + toolbarBox!.height <= rotationBox!.y ||
+    rotationBox!.y + rotationBox!.height <= toolbarBox!.y
+  )
+  expect(overlaps).toBe(false)
+
+  const legendPanel = page.getByTestId('legend-panel')
+  await expect(legendPanel.getByText('Использованные символы')).toBeVisible()
+  await expect(legendPanel.locator('.legend-used-row')).toHaveCount(1)
+  await expect(legendPanel.locator('.legend-used-count')).toHaveText('1')
+  await expect(page.locator('.legend-overlay')).toBeVisible()
+
+  const canvas = await canvasBox(page)
+  const legendBox = await page.locator('.legend-overlay').boundingBox()
+  expect(legendBox).not.toBeNull()
+  expect(legendBox!.x).toBeGreaterThanOrEqual(canvas.x)
+  expect(legendBox!.y).toBeGreaterThanOrEqual(canvas.y)
+})
+
 test('keeps common row controls visible and hides expert settings until requested', async ({ page }) => {
   await openEditor(page)
   await page.getByRole('button', { name: /Радиальная/ }).click()

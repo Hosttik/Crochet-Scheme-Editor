@@ -1,3 +1,4 @@
+import { SYMBOL_BY_ID } from '../symbols'
 import type { Guide, Point, StitchElement } from '../types'
 import {
   nearestPathParameter,
@@ -364,6 +365,27 @@ function guideWalk(guide: Guide, pivot: Point) {
   return gridGuideWalk(guide, pivot)
 }
 
+function motifSpanAlongAngle(source: StitchElement[], pivot: Point, angle: number) {
+  const axisRadians = radians(angle)
+  const axisX = Math.cos(axisRadians)
+  const axisY = Math.sin(axisRadians)
+  let min = Number.POSITIVE_INFINITY
+  let max = Number.NEGATIVE_INFINITY
+
+  for (const element of source) {
+    const definition = SYMBOL_BY_ID.get(element.symbolId)
+    const width = definition?.width ?? 30
+    const height = definition?.height ?? 30
+    const centerProjection = (element.x - pivot.x) * axisX + (element.y - pivot.y) * axisY
+    const relativeRadians = radians(element.rotation - angle)
+    const halfExtent = Math.abs(Math.cos(relativeRadians)) * width / 2 + Math.abs(Math.sin(relativeRadians)) * height / 2
+    min = Math.min(min, centerProjection - halfExtent)
+    max = Math.max(max, centerProjection + halfExtent)
+  }
+
+  return Number.isFinite(min) && Number.isFinite(max) ? Math.max(0, max - min) : 0
+}
+
 function transformedCopy(
   source: StitchElement[],
   pivot: Point,
@@ -424,9 +446,11 @@ export function repeatSelection(
   if (!walk) return []
   const sourceOffset = { x: pivot.x - walk.source.point.x, y: pivot.y - walk.source.point.y }
   const spacing = Math.max(EPSILON, Math.abs(options.spacing))
+  const motifSpan = source.length > 1 ? motifSpanAlongAngle(source, pivot, walk.source.tangent) : 0
+  const pathStep = spacing + motifSpan
 
   for (let index = 1; index <= copies; index += 1) {
-    const target = walk.atOffset(spacing * index)
+    const target = walk.atOffset(pathStep * index)
     if (!target) break
     const pathDelta = normalizeDegrees(target.tangent - walk.source.tangent)
     const offset = rotateVector(sourceOffset, pathDelta)

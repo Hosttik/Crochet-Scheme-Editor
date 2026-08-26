@@ -8,6 +8,8 @@ type Props = {
   step?: number
   ariaLabel?: string
   commitOnBlur?: boolean
+  integer?: boolean
+  onValidityChange?: (valid: boolean) => void
 }
 
 const DEFERRED_COMMIT_MS = 300
@@ -19,7 +21,7 @@ function clampOptional(value: number, min?: number, max?: number) {
   return result
 }
 
-export function DraftNumberInput({ value, onChange, min, max, step = 1, ariaLabel, commitOnBlur = false }: Props) {
+export function DraftNumberInput({ value, onChange, min, max, step = 1, ariaLabel, commitOnBlur = false, integer = false, onValidityChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const commitTimerRef = useRef<number | null>(null)
   const cancelNextBlurRef = useRef(false)
@@ -42,6 +44,7 @@ export function DraftNumberInput({ value, onChange, min, max, step = 1, ariaLabe
     if (source.trim() === '') return null
     const parsed = Number(source)
     if (!Number.isFinite(parsed)) return null
+    if (integer && !Number.isInteger(parsed)) return null
     if (min != null && parsed < min) return null
     if (max != null && parsed > max) return null
     return clampOptional(parsed, min, max)
@@ -56,6 +59,7 @@ export function DraftNumberInput({ value, onChange, min, max, step = 1, ariaLabe
     const next = normalizedDraft(draft)
     if (next === null) {
       setDraft(String(value))
+      onValidityChange?.(true)
       return
     }
     setDraft(String(next))
@@ -82,6 +86,7 @@ export function DraftNumberInput({ value, onChange, min, max, step = 1, ariaLabe
       clearDeferredCommit()
       cancelNextBlurRef.current = true
       setDraft(String(value))
+      onValidityChange?.(true)
       event.currentTarget.blur()
     }
   }
@@ -92,6 +97,7 @@ export function DraftNumberInput({ value, onChange, min, max, step = 1, ariaLabe
       type="number"
       aria-label={ariaLabel}
       value={draft}
+      aria-invalid={normalizedDraft(draft) === null}
       min={min}
       max={max}
       step={step}
@@ -99,6 +105,7 @@ export function DraftNumberInput({ value, onChange, min, max, step = 1, ariaLabe
         const nextDraft = event.target.value
         setDraft(nextDraft)
         const next = normalizedDraft(nextDraft)
+        onValidityChange?.(next !== null)
         if (next === null) {
           clearDeferredCommit()
           return

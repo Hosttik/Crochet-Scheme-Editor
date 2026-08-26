@@ -2,6 +2,10 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
+## v1.18.0
+
+Core usability release: explicit Hand/Pan mode, visible snap-orientation control with guide auto-rotation, 15° Shift snapping for straight-guide endpoints, safer Repeat inputs, motif-aware guide spacing, non-overlapping selection actions and a persistent used-symbol legend window. The symbol library currently contains 44 definitions and project schema remains v19.
+
 ## v1.15.1
 
 Stability and data-integrity release. It hardens local project persistence, autosave transitions, semantic locking, project import validation, large background handling and release verification without changing the authoring model introduced in v1.15.

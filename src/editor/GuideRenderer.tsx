@@ -114,7 +114,7 @@ export function GuideRenderer({
           mode,
           startPointer,
           currentPointer,
-          mode === 'rotate' && nativeEvent.shiftKey,
+          nativeEvent.shiftKey,
         ),
       )
     }

@@ -72,11 +72,32 @@ export function SelectionQuickToolbar({
   const copy = COPY[locale]
   const centerX = (bounds.left + bounds.right) / 2
   const left = viewport.panX + centerX * viewport.zoom
-  const top = viewport.panY + bounds.top * viewport.zoom
+  const selectionTop = viewport.panY + bounds.top * viewport.zoom
+  const selectionBottom = viewport.panY + bounds.bottom * viewport.zoom
+  let highestInteractiveY = selectionTop
+
+  if (selectedIds.length === 1) {
+    const element = elements.find((item) => item.id === selectedIds[0])
+    const definition = element ? SYMBOL_SIZES[element.symbolId] : undefined
+    const directRotation = element && definition && element.locked !== true && !element.parametricRow && (
+      !element.guideAttachment || element.guideAttachment.orientation === 'keep'
+    )
+    if (directRotation && element) {
+      const handleLocalY = -definition.height / 2 - 30
+      const radians = (element.rotation * Math.PI) / 180
+      const handleDocumentY = element.y + handleLocalY * Math.cos(radians)
+      const handleScreenY = viewport.panY + handleDocumentY * viewport.zoom
+      highestInteractiveY = Math.min(highestInteractiveY, handleScreenY - 8)
+    }
+  }
+
+  const aboveAnchor = highestInteractiveY - 10
+  const below = aboveAnchor < 52
+  const top = below ? selectionBottom + 14 : aboveAnchor
 
   return (
     <div
-      className="selection-quick-toolbar"
+      className={`selection-quick-toolbar ${below ? 'below' : ''}`}
       style={{ left, top }}
       role="toolbar"
       aria-label={locale === 'ru' ? 'Быстрые действия с выделением' : 'Selection quick actions'}
