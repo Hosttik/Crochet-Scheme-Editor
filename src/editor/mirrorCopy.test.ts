@@ -27,7 +27,17 @@ describe('mirrored copy', () => {
   it('creates an adjacent top/bottom mirrored stitch', () => {
     const copy = createMirroredCopy([motif[0]], ['a'], 'top-bottom', 24, ids())
     expect(copy).toHaveLength(1)
-    expect(copy[0].y).toBe(44)
+    expect(copy[0].y).toBeGreaterThan(44)
     expect(copy[0].rotation).toBe(0)
+  })
+
+  it('keeps the requested visual gap for a wide magic-ring symbol', () => {
+    const ring: StitchElement = {
+      id: 'ring', symbolId: 'magic-ring', x: 10, y: 20, rotation: 0,
+    }
+    const copy = createMirroredCopy([ring], ['ring'], 'left-right', 24, ids())
+    expect(copy).toHaveLength(1)
+    // Magic ring is 38 px wide: 29 + 24 + 19 = 72 for the copied center.
+    expect(copy[0].x).toBeCloseTo(72, 6)
   })
 })

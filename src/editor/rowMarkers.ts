@@ -11,6 +11,16 @@ export function nextRowMarkerNumber(markers: RowMarker[]) {
   return candidate
 }
 
+export function deleteRowMarkerAndRenumber(markers: RowMarker[], id: string) {
+  const removed = markers.find((marker) => marker.id === id)
+  if (!removed) return markers
+  return markers
+    .filter((marker) => marker.id !== id)
+    .map((marker) =>
+      marker.number > removed.number ? { ...marker, number: marker.number - 1 } : marker,
+    )
+}
+
 export function normalizedRowMarkerNumber(value: number) {
   if (!Number.isFinite(value)) return 1
   return Math.max(1, Math.round(value))

@@ -28,7 +28,7 @@ import {
 } from './editor/document'
 import { DEFAULT_STITCH_COLOR } from './editor/elementColor'
 import { usedLegendItems } from './editor/legend'
-import { isRowMarkerLocked, nextRowMarkerNumber, normalizedRowMarkerNumber } from './editor/rowMarkers'
+import { deleteRowMarkerAndRenumber, isRowMarkerLocked, nextRowMarkerNumber, normalizedRowMarkerNumber } from './editor/rowMarkers'
 import type { GuideManipulationMode } from './editor/guideManipulation'
 import { clamp, screenToDocument } from './editor/geometry'
 import { emptyHistory, pushHistory, redoHistory, undoHistory } from './editor/history'
@@ -362,6 +362,7 @@ function App() {
   const duplicateKeyDownRef = useRef(false)
   const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const autosaveRevisionRef = useRef(0)
+  const autosaveSettingsWriteRef = useRef<AutosaveDelayMs | null>(null)
 
   const [locale, setLocale] = useState<Locale>(initialLocale)
   const t = UI[locale]
@@ -437,6 +438,10 @@ function App() {
 
   useEffect(() => {
     if (!hydrated) return
+    if (autosaveSettingsWriteRef.current === autosaveDelayMs) {
+      autosaveSettingsWriteRef.current = null
+      return
+    }
     if (autosaveDelayMs === 0) {
       autosaveRevisionRef.current += 1
       setAutosaveState('off')
@@ -611,13 +616,15 @@ function App() {
     if (selectedRowMarkerId) {
       const marker = rowMarkers.find((item) => item.id === selectedRowMarkerId)
       if (!marker || isRowMarkerLocked(marker)) return
-      commitRowMarkers(rowMarkers.filter((item) => item.id !== selectedRowMarkerId))
+      commitRowMarkers(deleteRowMarkerAndRenumber(rowMarkers, selectedRowMarkerId))
       setSelectedRowMarkerId(null)
       setStatus(locale === 'ru' ? 'Номер ряда удалён' : 'Row number deleted')
       return
     }
     if (selectedGuideId) {
-      commitGuides(guides.filter((guide) => guide.id !== selectedGuideId))
+      const guide = guides.find((item) => item.id === selectedGuideId)
+      if (!guide || guide.locked === true) return
+      commitGuides(guides.filter((item) => item.id !== selectedGuideId))
       setSelectedGuideId(null)
       setStatus(t.guideDeleted)
     }
@@ -1521,7 +1528,7 @@ function App() {
   const deleteRowMarker = useCallback((id: string) => {
     const marker = rowMarkers.find((item) => item.id === id)
     if (!marker || isRowMarkerLocked(marker)) return
-    commitRowMarkers(rowMarkers.filter((item) => item.id !== id))
+    commitRowMarkers(deleteRowMarkerAndRenumber(rowMarkers, id))
     if (selectedRowMarkerId === id) setSelectedRowMarkerId(null)
     setStatus(locale === 'ru' ? 'Номер ряда удалён' : 'Row number deleted')
   }, [commitRowMarkers, locale, rowMarkers, selectedRowMarkerId])
@@ -1823,15 +1830,27 @@ function App() {
   }
 
   const handleAutosaveDelayChange = (delayMs: AutosaveDelayMs) => {
+    autosaveSettingsWriteRef.current = delayMs
+    const revision = ++autosaveRevisionRef.current
     setAutosaveDelayMs(delayMs)
-    if (delayMs !== 0) return
+    setAutosaveState(delayMs === 0 ? 'off' : 'saving')
 
+    // Persist the selected interval immediately. Otherwise choosing 60 s and
+    // reloading before the first timer fires silently restores the old setting.
     const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, delayMs)
     const task = autosaveQueueRef.current
       .catch(() => undefined)
       .then(() => saveLocalProject(activeProjectId, project))
     autosaveQueueRef.current = task
-    void task.catch(() => setAutosaveState('error'))
+    void task
+      .then(() => {
+        if (autosaveRevisionRef.current === revision) {
+          setAutosaveState(delayMs === 0 ? 'off' : 'saved')
+        }
+      })
+      .catch(() => {
+        if (autosaveRevisionRef.current === revision) setAutosaveState('error')
+      })
   }
 
   const saveProject = () => {
@@ -2482,6 +2501,8 @@ function App() {
                 </div>
               )}
 
+              </fieldset>
+
               {(selectedGuide.type === 'arc' || selectedGuide.type === 'radial-grid') && (
                 <GuideRowGeneratorPanel
                   guide={selectedGuide}
@@ -2490,10 +2511,8 @@ function App() {
                 />
               )}
 
-              </fieldset>
-
               <p className="guide-note">{t.guideNote}</p>
-              <button className="danger-button" onClick={deleteSelected}>{t.deleteGuide}</button>
+              <button className="danger-button" disabled={selectedGuide.locked === true} onClick={deleteSelected}>{t.deleteGuide}</button>
             </div>
           ) : (
             <p className="empty-state">{t.emptySelection}</p>

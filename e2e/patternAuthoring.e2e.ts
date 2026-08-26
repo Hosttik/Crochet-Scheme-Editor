@@ -26,7 +26,7 @@ async function placeStitch(page: Page, title: string, rx: number, ry: number) {
 test('authors locked guides, gap-free row numbers and an exported automatic legend', async ({ page }) => {
   await openEditor(page)
 
-  // #11: a locked guide stays selectable but loses all manipulation controls.
+  // #11: a locked guide stays selectable, loses geometry controls and cannot be deleted.
   await page.locator('.guide-add-grid button').filter({ hasText: 'Линия' }).click()
   const guide = page.locator('.guide-line')
   const guideEditor = page.locator('.guide-editor')
@@ -38,12 +38,15 @@ test('authors locked guides, gap-free row numbers and an exported automatic lege
   await expect(guide).toHaveClass(/locked/)
   await expect(page.locator('.guide-manipulation-ui')).toHaveCount(0)
   await expect(guideEditor.getByLabel('Начало X')).toBeDisabled()
+  await expect(guideEditor.getByRole('button', { name: 'Удалить направляющую', exact: true })).toBeDisabled()
+  await page.keyboard.press('Delete')
+  await expect(guide).toHaveCount(1)
 
   await guideLock.uncheck()
   await expect(page.locator('.guide-manipulation-ui')).toHaveCount(1)
   await expect(guideEditor.getByLabel('Начало X')).toBeEnabled()
 
-  // #12: place 1,2,3; delete 2; the next proposed/placed marker is 2 again.
+  // #12: place 1,2,3; delete 2; existing row 3 becomes 2 and next proposed row is 3.
   const rowPanel = page.locator('.row-markers-panel')
   await rowPanel.getByRole('button', { name: /Поставить ряд №1/ }).click()
   await clickCanvas(page, 0.22, 0.24)
@@ -58,13 +61,14 @@ test('authors locked guides, gap-free row numbers and an exported automatic lege
   await rowPanel.getByRole('button', { name: /Ряд 2/ }).click()
   await rowPanel.getByRole('button', { name: 'Удалить номер ряда', exact: true }).click()
   await expect(page.locator('.row-marker')).toHaveCount(2)
-  await expect(rowPanel.getByRole('button', { name: /Поставить ряд №2/ })).toBeVisible()
+  await expect(rowPanel.getByRole('button', { name: /Ряд 2/ })).toBeVisible()
+  await expect(rowPanel.getByRole('button', { name: /Поставить ряд №3/ })).toBeVisible()
 
-  await rowPanel.getByRole('button', { name: /Поставить ряд №2/ }).click()
+  await rowPanel.getByRole('button', { name: /Поставить ряд №3/ }).click()
   await clickCanvas(page, 0.22, 0.39)
   await page.keyboard.press('Escape')
   await expect(page.locator('.row-marker')).toHaveCount(3)
-  await expect(rowPanel.getByRole('button', { name: /Ряд 2/ })).toBeVisible()
+  await expect(rowPanel.getByRole('button', { name: /Ряд 3/ })).toBeVisible()
 
   // Row-number annotations are independently draggable and lockable.
   const firstMarker = page.locator('.row-marker').first()
