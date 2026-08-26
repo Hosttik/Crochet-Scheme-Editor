@@ -31,7 +31,7 @@ test('does not resurrect a deleted project while autosave is pending', async ({ 
   await placeSingleCrochet(page)
 
   page.once('dialog', (dialog) => dialog.accept())
-  await page.getByRole('button', { name: 'Удалить', exact: true }).click()
+  await page.locator('.project-manager-panel').getByRole('button', { name: 'Удалить', exact: true }).click()
   await expect(page.locator('.project-select option')).toHaveCount(1)
   await page.waitForTimeout(1000)
   await page.reload()
