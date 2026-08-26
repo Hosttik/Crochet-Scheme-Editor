@@ -15,7 +15,16 @@ jobs:
         with:
           ref: feature/custom-mirror-axis-v1111
       - name: Apply integration patch
-        run: python scripts/apply_custom_mirror_axis.py
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply_custom_mirror_axis.py')
+          text = path.read_text()
+          text = text.replace("brandSubtitle: 'Vector crochet chart editor · v1.11'", "brandSubtitle: 'Vector pattern workspace · v1.11'")
+          text = text.replace("brandSubtitle: 'Vector crochet chart editor · v1.11.1'", "brandSubtitle: 'Vector pattern workspace · v1.11.1'")
+          path.write_text(text)
+          PY
+          python scripts/apply_custom_mirror_axis.py
       - name: Commit integration
         run: |
           git config user.name "github-actions[bot]"
