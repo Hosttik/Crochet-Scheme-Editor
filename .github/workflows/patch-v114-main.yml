@@ -1,0 +1,59 @@
+name: Patch v1.14 feature branch
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/patch-v114-main.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feature/document-output-v114
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Execute feature integration patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/patch-v114.yml').read_text()
+          marker = "python - <<'PY'\n"
+          if marker not in workflow:
+              raise SystemExit('embedded patch script not found')
+          block = workflow.split(marker, 1)[1].split('\n          PY', 1)[0]
+          lines = block.splitlines()
+          block = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines)
+          exec(compile(block, 'patch-v114', 'exec'))
+          PY
+
+          npm version 1.14.0 --no-git-tag-version
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Commit feature integration
+        run: |
+          rm .github/workflows/patch-v114.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "v1.14 Document Output"
+          git push origin HEAD:feature/document-output-v114
+
+      - name: Remove temporary main workflow
+        if: always()
+        run: |
+          git fetch origin main
+          git checkout -B main origin/main
+          rm -f .github/workflows/patch-v114-main.yml
+          git add -A
+          git commit -m "Remove v1.14 integration workflow" || true
+          git push origin HEAD:main
