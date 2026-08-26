@@ -5,7 +5,7 @@ export const DEFAULT_LOCALE: Locale = 'ru'
 export const UI = {
   ru: {
     brandTitle: 'Редактор схем вязания',
-    brandSubtitle: 'Векторный редактор схем · v1.14',
+    brandSubtitle: 'Векторный редактор схем · v1.15',
     undo: 'Отменить',
     redo: 'Повторить',
     saveJson: 'Сохранить JSON',

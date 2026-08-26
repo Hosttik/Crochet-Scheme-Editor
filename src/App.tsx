@@ -4,6 +4,7 @@ import { GuideRenderer } from './editor/GuideRenderer'
 import { LegendOverlay } from './editor/LegendOverlay'
 import { RowMarkerLayer } from './editor/RowMarkerLayer'
 import { RowMarkersPanel } from './editor/RowMarkersPanel'
+import { LassoOverlay, type LassoMode } from './editor/LassoOverlay'
 import { BackgroundImagePanel } from './editor/BackgroundImagePanel'
 import { PrintPanel } from './editor/PrintPanel'
 import { GuideAttachmentPanel } from './editor/GuideAttachmentPanel'
@@ -82,6 +83,7 @@ import {
   updateParametricRow,
 } from './editor/parametricRows'
 import {
+  idsInLasso,
   idsInMarquee,
   normalizeRect,
   pointerAngle,
@@ -130,7 +132,7 @@ const SYMBOL_SIZES = Object.fromEntries(
   SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
 )
 
-type Tool = { type: 'select' } | { type: 'place'; symbolId: string } | { type: 'row-marker' }
+type Tool = { type: 'select' } | { type: 'lasso' } | { type: 'place'; symbolId: string } | { type: 'row-marker' }
 type DocumentSnapshot = { elements: StitchElement[]; guides: Guide[]; rowMarkers: RowMarker[] }
 type PanState = {
   pointerId: number
@@ -149,6 +151,12 @@ type MarqueeState = {
   start: Point
   current: Point
   baseIds: string[]
+}
+type LassoState = {
+  pointerId: number
+  points: Point[]
+  baseIds: string[]
+  mode: LassoMode
 }
 type RotateState = {
   pointerId: number
@@ -410,6 +418,7 @@ function App() {
   const [snapTarget, setSnapTarget] = useState<SnapCandidate | null>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
   const [marquee, setMarquee] = useState<MarqueeState | null>(null)
+  const [lasso, setLasso] = useState<LassoState | null>(null)
   const [rotate, setRotate] = useState<RotateState | null>(null)
   const [pan, setPan] = useState<PanState | null>(null)
   const [mirrorAxis, setMirrorAxis] = useState<MirrorAxisState | null>(null)
@@ -1073,6 +1082,14 @@ function App() {
         } else if (event.key.toLowerCase() === 's') {
           event.preventDefault()
           toggleSnapping()
+        } else if (event.key.toLowerCase() === 'l') {
+          event.preventDefault()
+          setTool((current) => current.type === 'lasso' ? { type: 'select' } : { type: 'lasso' })
+          setLasso(null)
+          setPreview(null)
+          setSnapTarget(null)
+          setSelectedGuideId(null)
+          setSelectedRowMarkerId(null)
         }
       }
 
@@ -1109,6 +1126,7 @@ function App() {
         setDrag(null)
         setRotate(null)
         setMarquee(null)
+        setLasso(null)
         setMirrorAxis(null)
         snapLockRef.current = null
         interactionMovedRef.current = false
@@ -1203,6 +1221,18 @@ function App() {
     if (event.button !== 0) return
 
     const point = toDocumentPoint(localPoint(event.clientX, event.clientY))
+    if (tool.type === 'lasso') {
+      event.currentTarget.setPointerCapture(event.pointerId)
+      setSelectedGuideId(null)
+      setSelectedRowMarkerId(null)
+      setLasso({
+        pointerId: event.pointerId,
+        points: [point],
+        baseIds: [...selectedIds],
+        mode: event.altKey ? 'subtract' : event.shiftKey ? 'add' : 'replace',
+      })
+      return
+    }
     if (tool.type === 'row-marker') {
       const marker: RowMarker = {
         id: createId(), number: nextRowNumber, x: point.x, y: point.y, visible: true, locked: false,
@@ -1350,6 +1380,14 @@ function App() {
       return
     }
 
+    if (lasso?.pointerId === event.pointerId) {
+      const last = lasso.points.at(-1)
+      if (!last || Math.hypot(documentPoint.x - last.x, documentPoint.y - last.y) >= 3 / viewport.zoom) {
+        setLasso({ ...lasso, points: [...lasso.points, documentPoint] })
+      }
+      return
+    }
+
     if (marquee?.pointerId === event.pointerId) {
       setMarquee({ ...marquee, current: documentPoint })
       return
@@ -1385,6 +1423,31 @@ function App() {
       setSnapTarget(null)
       snapLockRef.current = null
       interactionMovedRef.current = false
+      return
+    }
+
+    if (lasso?.pointerId === event.pointerId) {
+      if (!cancelled && lasso.points.length >= 3) {
+        const selectable = elements.filter(
+          (element) => isElementVisible(element) && !isElementLocked(element),
+        )
+        const hits = idsInLasso(selectable, lasso.points)
+        const expandedHits = expandIdsToGroups(
+          elements,
+          expandIdsToParametricRows(elements, hits),
+        )
+        const hitSet = new Set(expandedHits)
+        const next = lasso.mode === 'subtract'
+          ? lasso.baseIds.filter((id) => !hitSet.has(id))
+          : lasso.mode === 'add'
+            ? uniqueIds([...lasso.baseIds, ...expandedHits])
+            : expandedHits
+        setSelectedIds(next)
+        setStatus(next.length
+          ? `${locale === 'ru' ? 'Выбрано лассо' : 'Lasso selected'}: ${next.length}`
+          : locale === 'ru' ? 'Лассо: ничего не выбрано' : 'Lasso: nothing selected')
+      }
+      setLasso(null)
       return
     }
 
@@ -2072,13 +2135,28 @@ const saveProject = () => {
             className={`tool-button ${tool.type === 'select' ? 'active' : ''}`}
             onClick={() => {
               setTool({ type: 'select' })
+              setLasso(null)
               setPreview(null)
               setSnapTarget(null)
             }}
           >
             <span>↖</span>{t.selectMove}<kbd>Esc</kbd>
           </button>
-          <small className="muted-text">{locale === 'ru' ? 'Space + перетаскивание — временная «ладонь»' : 'Space + drag — temporary hand/pan'}</small>
+          <button
+            className={`tool-button ${tool.type === 'lasso' ? 'active' : ''}`}
+            aria-label={locale === 'ru' ? 'Лассо' : 'Lasso'}
+            onClick={() => {
+              setTool((current) => current.type === 'lasso' ? { type: 'select' } : { type: 'lasso' })
+              setLasso(null)
+              setPreview(null)
+              setSnapTarget(null)
+              setSelectedGuideId(null)
+              setSelectedRowMarkerId(null)
+            }}
+          >
+            <span>⌁</span>{locale === 'ru' ? 'Лассо' : 'Lasso'}<kbd>L</kbd>
+          </button>
+          <small className="muted-text">{locale === 'ru' ? 'Лассо: Shift добавить · Alt вычесть · Space + drag — ладонь' : 'Lasso: Shift add · Alt subtract · Space + drag — hand'}</small>
         </section>
 
         <ProjectManagerPanel
@@ -2205,6 +2283,20 @@ const saveProject = () => {
             disabled={!selectedIds.length}
           >{locale === 'ru' ? 'Выбор' : 'Sel'}</button>
           <button
+            className={`fit-button ${tool.type === 'lasso' ? 'active' : ''}`}
+            aria-label={locale === 'ru' ? 'Лассо' : 'Lasso'}
+            aria-pressed={tool.type === 'lasso'}
+            title="L"
+            onClick={() => {
+              setTool((current) => current.type === 'lasso' ? { type: 'select' } : { type: 'lasso' })
+              setLasso(null)
+              setPreview(null)
+              setSnapTarget(null)
+              setSelectedGuideId(null)
+              setSelectedRowMarkerId(null)
+            }}
+          >{locale === 'ru' ? 'Лассо' : 'Lasso'}</button>
+          <button
             className={`snap-toggle ${snapping.enabled ? 'active' : ''}`}
             aria-pressed={snapping.enabled}
             title={locale === 'ru' ? 'S — включить/выключить привязку' : 'S — toggle snapping'}
@@ -2231,7 +2323,7 @@ const saveProject = () => {
 
         <svg
           ref={svgRef}
-          className={`editor-canvas ${pan ? 'panning' : ''} ${tool.type === 'place' ? 'placing' : 'selecting'}`}
+          className={`editor-canvas ${pan ? 'panning' : ''} ${tool.type === 'place' ? 'placing' : tool.type === 'lasso' ? 'lassoing' : 'selecting'}`}
           onWheel={handleWheel}
           onPointerDown={handleCanvasPointerDown}
           onPointerMove={handleCanvasPointerMove}
@@ -2331,6 +2423,14 @@ const saveProject = () => {
                 <circle r={8 / viewport.zoom} vectorEffect="non-scaling-stroke" />
                 <circle r={2.5 / viewport.zoom} vectorEffect="non-scaling-stroke" />
               </g>
+            )}
+
+            {tool.type === 'lasso' && (
+              <LassoOverlay
+                points={lasso?.points ?? []}
+                zoom={viewport.zoom}
+                mode={lasso?.mode ?? 'replace'}
+              />
             )}
           </g>
         </svg>
