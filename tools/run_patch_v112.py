@@ -15,3 +15,11 @@ needle = '    number: value.number,\n'
 if schema.count(needle) != 1:
     raise RuntimeError('Could not narrow validated row marker number')
 schema_path.write_text(schema.replace(needle, '    number: value.number as number,\n', 1))
+
+document_test_path = Path('src/editor/document.test.ts')
+document_test = document_test_path.read_text()
+if document_test.count('expect(migrated.schemaVersion).toBe(14)') != 2:
+    raise RuntimeError('Could not update legacy migration schema assertions')
+document_test = document_test.replace('expect(migrated.schemaVersion).toBe(14)', 'expect(migrated.schemaVersion).toBe(15)')
+document_test = document_test.replace('schema v14', 'schema v15')
+document_test_path.write_text(document_test)
