@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ParametricRowBinding, RadialGridGuide, StitchElement } from '../types'
 import { createNextPatternRow } from './parametricRows'
+import { normalizeRowConstruction } from './rowConstruction'
 
 const guide: RadialGridGuide = {
   id: 'g',
@@ -47,7 +48,7 @@ describe('row construction inheritance', () => {
     const parent = binding('joined')
     let serial = 0
     const created = createNextPatternRow(elements(parent), [guide], parent, 0, () => `id-${++serial}`)
-    expect(created?.binding.construction).toEqual(parent.construction)
+    expect(created?.binding.construction).toEqual(normalizeRowConstruction(parent.construction))
   })
 
   it('alternates turning-row direction in the next row', () => {
@@ -55,7 +56,13 @@ describe('row construction inheritance', () => {
     let serial = 0
     const created = createNextPatternRow(elements(parent), [guide], parent, 0, () => `id-${++serial}`)
     expect(created?.binding.construction).toEqual({
-      mode: 'turning', direction: 'reverse', startChainCount: 1, joinWithSlipStitch: false,
+      mode: 'turning',
+      direction: 'reverse',
+      startChainCount: 1,
+      startChainCountsAsStitch: false,
+      skipFirstStitches: 0,
+      joinWithSlipStitch: false,
+      joinTarget: 'first-stitch',
     })
   })
 })
