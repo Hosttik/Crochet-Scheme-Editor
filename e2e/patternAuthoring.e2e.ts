@@ -111,7 +111,7 @@ test('authors locked guides, gap-free row numbers and an exported automatic lege
   const jsonPath = await (await jsonDownloadPromise).path()
   expect(jsonPath).not.toBeNull()
   const project = JSON.parse(await readFile(jsonPath!, 'utf8'))
-  expect(project.schemaVersion).toBe(18)
+  expect(project.schemaVersion).toBe(19)
   expect(project.guides[0].locked).toBe(true)
   expect(project.rowMarkers).toHaveLength(3)
   expect(project.rowMarkers.map((marker: { number: number }) => marker.number).sort()).toEqual([1, 2, 3])

@@ -9,6 +9,37 @@ export type RowConstructionMode = 'spiral' | 'joined' | 'turning'
 export type RowWorkDirection = 'along' | 'reverse'
 export type RowJoinTarget = 'first-stitch' | 'start-chain-top'
 export type AutosaveDelayMs = 0 | 650 | 5000 | 15000 | 30000 | 60000
+export type RulerMeasurementMode = 'stitches' | 'rows'
+
+export type GaugeProfile = {
+  id: string
+  name: string
+  symbolId: string
+  stitchCount: number
+  rowCount: number
+  widthCm: number
+  heightCm: number
+}
+
+export type GaugeSettings = {
+  profiles: GaugeProfile[]
+  activeProfileId?: string
+}
+
+export type MeasurementRuler = {
+  id: string
+  start: Point
+  end: Point
+  startElementId?: string
+  endElementId?: string
+  profileId?: string
+  /** Defaults to stitches for backwards-compatible schema v19 rulers. */
+  mode?: RulerMeasurementMode
+  /** A positive value overrides automatic same-row stitch counting. */
+  manualStitchCount?: number
+  /** A positive value overrides automatic semantic row counting. */
+  manualRowCount?: number
+}
 
 export type GuideRowOptions = {
   distributionMode: RowDistributionMode
@@ -223,7 +254,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19
   metadata: {
     title: string
     updatedAt: string
@@ -232,6 +263,8 @@ export type CrochetProject = {
   guides?: Guide[]
   rowMarkers?: RowMarker[]
   backgroundImage?: BackgroundImage
+  gauge?: GaugeSettings
+  rulers?: MeasurementRuler[]
   settings: {
     snapping: SnappingSettings
     legend?: LegendSettings

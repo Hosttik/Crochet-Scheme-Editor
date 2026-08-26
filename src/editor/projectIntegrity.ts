@@ -4,6 +4,8 @@ import type { CrochetProject, Guide, ParametricRowBinding, StitchElement } from 
 export const MAX_PROJECT_ELEMENTS = 20_000
 export const MAX_PROJECT_GUIDES = 500
 export const MAX_PROJECT_ROW_MARKERS = 1_000
+export const MAX_PROJECT_RULERS = 500
+export const MAX_GAUGE_PROFILES = 50
 export const MAX_BACKGROUND_DATA_URL_LENGTH = 8_000_000
 const MAX_LEGACY_BACKGROUND_DATA_URL_LENGTH = 25_000_000
 const MAX_COORDINATE = 1_000_000
@@ -110,16 +112,39 @@ export function projectIntegrityIssue(project: CrochetProject, strictReferences 
   const elements = project.elements
   const guides = project.guides ?? []
   const markers = project.rowMarkers ?? []
+  const rulers = project.rulers ?? []
+  const gaugeProfiles = project.gauge?.profiles ?? []
   if (elements.length > MAX_PROJECT_ELEMENTS) return 'Project contains too many stitch elements'
   if (guides.length > MAX_PROJECT_GUIDES) return 'Project contains too many guides'
   if (markers.length > MAX_PROJECT_ROW_MARKERS) return 'Project contains too many row markers'
+  if (rulers.length > MAX_PROJECT_RULERS) return 'Project contains too many measurement rulers'
+  if (gaugeProfiles.length > MAX_GAUGE_PROFILES) return 'Project contains too many gauge profiles'
 
   if (!unique(elements.map((element) => element.id))) return 'Duplicate stitch element id'
   if (!unique(guides.map((guide) => guide.id))) return 'Duplicate guide id'
   if (!unique(markers.map((marker) => marker.id))) return 'Duplicate row marker id'
+  if (!unique(rulers.map((ruler) => ruler.id))) return 'Duplicate measurement ruler id'
+  if (!unique(gaugeProfiles.map((profile) => profile.id))) return 'Duplicate gauge profile id'
   if (new Set(markers.map((marker) => marker.number)).size !== markers.length) return 'Duplicate row marker number'
 
   const elementIds = new Set(elements.map((element) => element.id))
+  const gaugeProfileIds = new Set(gaugeProfiles.map((profile) => profile.id))
+  if (strictReferences && project.gauge?.activeProfileId && !gaugeProfileIds.has(project.gauge.activeProfileId)) {
+    return 'Active gauge profile is missing'
+  }
+  for (const profile of gaugeProfiles) {
+    if (!SYMBOL_BY_ID.has(profile.symbolId)) return 'Gauge profile references an unknown stitch symbol'
+    if (!positiveInteger(profile.stitchCount, 10_000) || !positiveInteger(profile.rowCount, 10_000)) return 'Gauge counts are out of bounds'
+    if (!positive(profile.widthCm, 10_000) || !positive(profile.heightCm, 10_000)) return 'Gauge dimensions are out of bounds'
+  }
+  for (const ruler of rulers) {
+    if (![ruler.start.x, ruler.start.y, ruler.end.x, ruler.end.y].every((value) => bounded(value))) return 'Measurement ruler geometry is out of bounds'
+    if (ruler.mode !== undefined && ruler.mode !== 'stitches' && ruler.mode !== 'rows') return 'Measurement ruler mode is invalid'
+    if (ruler.manualStitchCount !== undefined && !positiveInteger(ruler.manualStitchCount, MAX_PROJECT_ELEMENTS)) return 'Measurement ruler stitch count is out of bounds'
+    if (ruler.manualRowCount !== undefined && !positiveInteger(ruler.manualRowCount, MAX_PROJECT_ELEMENTS)) return 'Measurement ruler row count is out of bounds'
+    if (strictReferences && ruler.profileId && !gaugeProfileIds.has(ruler.profileId)) return 'Measurement ruler gauge profile is missing'
+  }
+
   const guideById = new Map(guides.map((guide) => [guide.id, guide]))
   for (const guide of guides) {
     const issue = guideGeometryIssue(guide)

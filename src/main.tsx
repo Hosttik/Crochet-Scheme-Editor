@@ -8,6 +8,7 @@ import './layers.css'
 import './foundation.css'
 import './patternAuthoring.css'
 import './documentOutput.css'
+import './gauge.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

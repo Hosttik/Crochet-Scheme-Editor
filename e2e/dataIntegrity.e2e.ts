@@ -55,6 +55,12 @@ test('loading JSON starts a clean document history', async ({ page }) => {
 
 test('preserves an invalid stored project when hydration validation fails', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
+  // Remove the normal 650 ms autosave race before writing a deliberately
+  // corrupted document directly into IndexedDB. Otherwise a pending valid
+  // save can overwrite the fixture between the direct write and reload.
+  await page.getByLabel('Автосохранение').selectOption('0')
+  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранение выключено')
+
   await page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('crochet-scheme-editor', 3)
