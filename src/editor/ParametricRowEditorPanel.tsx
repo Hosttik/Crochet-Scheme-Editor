@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { SYMBOLS } from '../symbols'
+import { STITCH_SYMBOLS } from '../symbols'
 import { symbolName, type Locale } from '../i18n'
 import type {
   Guide,
@@ -209,7 +209,7 @@ export function ParametricRowEditorPanel({
           value={binding.symbolId}
           onChange={(event) => onChange({ ...binding, symbolId: event.target.value })}
         >
-          {SYMBOLS.map((symbol) => (
+          {STITCH_SYMBOLS.map((symbol) => (
             <option key={symbol.id} value={symbol.id}>
               {symbolName(symbol.id, symbol.name, locale)}
             </option>
