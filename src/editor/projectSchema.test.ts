@@ -34,9 +34,9 @@ function shapedBinding() {
 }
 
 describe('parseProject', () => {
-  it('migrates legacy projects to schema v13 and normalizes element flags', () => {
+  it('migrates legacy projects to schema v14 and normalizes element flags', () => {
     const project = parseProject(legacyProject(), fallback)
-    expect(project.schemaVersion).toBe(13)
+    expect(project.schemaVersion).toBe(14)
     expect(project.elements[0]).toMatchObject({ visible: true, locked: false })
     expect(project.guides).toEqual([])
   })
@@ -187,9 +187,8 @@ describe('parseProject', () => {
   })
 
   it('rejects malformed topology parent ids', () => {
-    const raw = legacyProject() as any
-    raw.schemaVersion = 7
-    raw.elements[0].parentStitchIds = ['parent-1', '']
+    const raw = legacyProject()
+    ;(raw.elements[0] as any).parentStitchIds = ['parent-1', '']
     expect(() => parseProject(raw, fallback)).toThrow(ProjectValidationError)
   })
 
@@ -221,18 +220,71 @@ describe('parseProject', () => {
     expect(() => parseProject(raw, fallback)).toThrow(ProjectValidationError)
   })
 
-  it('preserves and validates schema v13 stitch colors', () => {
+  it('preserves and validates schema v13 stitch colors while migrating to v14', () => {
     const raw = legacyProject() as any
     raw.schemaVersion = 13
     raw.elements[0].color = '#C2413B'
     const parsed = parseProject(raw, fallback)
     expect(parsed.elements[0].color).toBe('#c2413b')
-    expect(parsed.schemaVersion).toBe(13)
+    expect(parsed.schemaVersion).toBe(14)
 
     raw.elements[0].color = 'red'
     expect(() => parseProject(raw, fallback)).toThrow(ProjectValidationError)
     raw.elements[0].color = '#123'
     expect(() => parseProject(raw, fallback)).toThrow(ProjectValidationError)
+  })
+
+  it('preserves schema v14 line and curve guides with manual path attachment', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 14
+    raw.guides = [
+      {
+        id: 'line-1', type: 'line', start: { x: 0, y: 0 }, end: { x: 200, y: 0 },
+        divisions: 12, visible: true,
+      },
+      {
+        id: 'curve-1', type: 'curve', start: { x: 0, y: 0 }, control1: { x: 50, y: -80 },
+        control2: { x: 150, y: 80 }, end: { x: 200, y: 0 }, divisions: 16, visible: true,
+      },
+    ]
+    raw.elements[0].guideAttachment = {
+      guideId: 'line-1', t: 0.4, orientation: 'tangent', rotationOffset: 5, normalOffset: 3,
+    }
+
+    const parsed = parseProject(raw, fallback)
+    expect(parsed.schemaVersion).toBe(14)
+    expect(parsed.guides?.map((guide) => guide.type)).toEqual(['line', 'curve'])
+    expect(parsed.elements[0].guideAttachment).toEqual({
+      guideId: 'line-1', t: 0.4, orientation: 'tangent', rotationOffset: 5, normalOffset: 3,
+    })
+  })
+
+  it('rejects malformed schema v14 attachments and line/curve geometry', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 14
+    raw.elements[0].guideAttachment = {
+      guideId: 'line-1', t: 1.5, orientation: 'tangent', rotationOffset: 0, normalOffset: 0,
+    }
+    expect(() => parseProject(raw, fallback)).toThrow('Invalid guide attachment')
+
+    raw.elements[0].guideAttachment = undefined
+    raw.guides = [{ id: 'line-1', type: 'line', start: { x: 0, y: 0 }, end: { x: 'bad', y: 0 }, divisions: 8, visible: true }]
+    expect(() => parseProject(raw, fallback)).toThrow('Invalid line guide')
+
+    raw.guides = [{ id: 'curve-1', type: 'curve', start: { x: 0, y: 0 }, control1: { x: 10, y: 10 }, control2: null, end: { x: 20, y: 0 }, divisions: 8, visible: true }]
+    expect(() => parseProject(raw, fallback)).toThrow('Invalid curve guide')
+  })
+
+  it('rejects a stitch that mixes parametric-row and manual attachment semantics', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 14
+    raw.elements[0].parametricRow = shapedBinding()
+    raw.elements[0].guideAttachment = {
+      guideId: 'g', t: 0.5, orientation: 'keep', rotationOffset: 0, normalOffset: 0,
+    }
+    expect(() => parseProject(raw, fallback)).toThrow(
+      'Parametric rows cannot also use manual guide attachments',
+    )
   })
 
   it('rejects malformed stitch coordinates', () => {
