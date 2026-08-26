@@ -71,8 +71,8 @@ describe('crochet chart glyphs', () => {
     expect(symbolSvgMarkup('half-double')).toContain('M -9 -18 L 9 -18')
     expect(symbolSvgMarkup('double')).toContain('M -9 -25 L 9 -25')
     expect(symbolSvgMarkup('treble')).toContain('M -9 -30 L 9 -30')
-    expect(symbolSvgMarkup('double-treble')).toContain('M -9 -35 L 9 -35')
-    expect(symbolSvgMarkup('triple-treble')).toContain('M -9 -40 L 9 -40')
+    expect(symbolSvgMarkup('double-treble')).toContain('M -9 -32 L 9 -32')
+    expect(symbolSvgMarkup('triple-treble')).toContain('M -9 -34 L 9 -34')
   })
 
   it('renders the magic ring as a plain circle', () => {
