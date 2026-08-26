@@ -1973,17 +1973,6 @@ function App() {
               />
             ))}
 
-            {mirrorAxis && productivitySelectionIds().length > 0 && (
-              <MirrorAxisOverlay
-                state={mirrorAxis}
-                elements={elements}
-                selectedIds={productivitySelectionIds()}
-                zoom={viewport.zoom}
-                clientToDocument={clientToDocument}
-                onChange={moveMirrorAxis}
-              />
-            )}
-
             <StitchLayer
               elements={elements}
               selectedIds={selectedIds}
@@ -1996,6 +1985,17 @@ function App() {
               onRotatePointerDown={handleRotatePointerDown}
               onTopologyMarkerPointerDown={handleTopologyMarkerPointerDown}
             />
+
+            {mirrorAxis && productivitySelectionIds().length > 0 && (
+              <MirrorAxisOverlay
+                state={mirrorAxis}
+                elements={elements}
+                selectedIds={productivitySelectionIds()}
+                zoom={viewport.zoom}
+                clientToDocument={clientToDocument}
+                onChange={moveMirrorAxis}
+              />
+            )}
 
             {preview && (
               <g transform={`translate(${preview.x} ${preview.y}) rotate(${preview.rotation})`} className="preview-stitch">
