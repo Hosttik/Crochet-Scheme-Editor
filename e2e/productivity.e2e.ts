@@ -31,6 +31,7 @@ function transformParts(value: string | null) {
 }
 
 async function clearCanvasSelection(page: Page) {
+  await page.keyboard.press('Escape')
   const box = await canvasBox(page)
   await page.mouse.click(box.x + 8, box.y + 8)
   await expect(page.locator('.stitch-element.selected')).toHaveCount(0)
