@@ -2,12 +2,13 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
-## v1.14.0
+## v1.15.0
 
-The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.11 added continuous path guides and persistent manual stitch-to-guide attachment; v1.11.1 completed mirror authoring with a draggable custom axis; v1.12 added guide locking, row-number annotations and an automatic exportable legend; v1.13 makes crochet row starts and closures explicit; v1.14 adds persisted tracing underlays and page-tiled print output.
+The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.11 added continuous path guides and persistent manual stitch-to-guide attachment; v1.11.1 completed mirror authoring with a draggable custom axis; v1.12 added guide locking, row-number annotations and an automatic exportable legend; v1.13 makes crochet row starts and closures explicit; v1.14 adds persisted tracing underlays and page-tiled print output; v1.15 completes the original interaction backlog with free-form lasso selection.
 
 ### Editing and productivity
 
+- free-form lasso selection uses a drawn polygon; Shift adds to the current semantic selection and Alt subtracts from it, while groups and parametric rows expand as whole authoring objects
 - 8 vector crochet symbols shared by palette, canvas, Repeat preview and SVG export
 - core notation uses `ch`, `sl st`, `sc`, `hdc`, `dc`, `tr` and `p` abbreviations; SC is an upright `+`, HDC/DC/TR use perpendicular top bars, and Magic Ring is a simple circle
 - free placement, multi-select, marquee selection and group move
@@ -177,4 +178,4 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - local persistence
 - rendering and React UI
 
-The next larger interaction milestone is free-form lasso selection. A future color-domain milestone can turn visual colors into explicit yarn/color-change semantics without conflating presentation color with stitch topology.
+The original 25-item usability backlog is now functionally covered. A future color-domain milestone can turn visual colors into explicit yarn/color-change semantics without conflating presentation color with stitch topology.

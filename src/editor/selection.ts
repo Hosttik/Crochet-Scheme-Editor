@@ -73,6 +73,42 @@ export function idsInMarquee(
     .map((element) => element.id)
 }
 
+function pointOnSegment(point: Point, a: Point, b: Point, epsilon = 1e-7) {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const lengthSquared = dx * dx + dy * dy
+  if (lengthSquared <= epsilon * epsilon) {
+    return (point.x - a.x) ** 2 + (point.y - a.y) ** 2 <= epsilon * epsilon
+  }
+  const cross = (point.y - a.y) * dx - (point.x - a.x) * dy
+  if (Math.abs(cross) > epsilon) return false
+  const dot = (point.x - a.x) * dx + (point.y - a.y) * dy
+  if (dot < -epsilon) return false
+  return dot <= lengthSquared + epsilon
+}
+
+export function pointInPolygon(point: Point, polygon: Point[]) {
+  if (polygon.length < 3) return false
+  let inside = false
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index++) {
+    const a = polygon[previous]
+    const b = polygon[index]
+    if (pointOnSegment(point, a, b)) return true
+    const crosses = (a.y > point.y) !== (b.y > point.y)
+    if (!crosses) continue
+    const intersectionX = ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x
+    if (point.x < intersectionX) inside = !inside
+  }
+  return inside
+}
+
+export function idsInLasso(elements: StitchElement[], polygon: Point[]) {
+  if (polygon.length < 3) return []
+  return elements
+    .filter((element) => pointInPolygon({ x: element.x, y: element.y }, polygon))
+    .map((element) => element.id)
+}
+
 export function selectionAabb(
   elements: StitchElement[],
   selectedIds: Iterable<string>,

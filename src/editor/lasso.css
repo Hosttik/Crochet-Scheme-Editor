@@ -1,0 +1,31 @@
+.lasso-overlay {
+  pointer-events: none;
+}
+
+.lasso-overlay .lasso-capture {
+  fill: transparent;
+  pointer-events: all;
+  cursor: crosshair;
+}
+
+.lasso-overlay .lasso-path {
+  fill: rgba(37, 99, 235, 0.08);
+  stroke: #2563eb;
+  stroke-dasharray: 5 4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.lasso-overlay.add .lasso-path {
+  fill: rgba(47, 133, 90, 0.08);
+  stroke: #2f855a;
+}
+
+.lasso-overlay.subtract .lasso-path {
+  fill: rgba(194, 65, 59, 0.08);
+  stroke: #c2413b;
+}
+
+.editor-canvas.lassoing {
+  cursor: crosshair;
+}

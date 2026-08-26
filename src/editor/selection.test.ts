@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   elementAabb,
+  idsInLasso,
   idsInMarquee,
   normalizeRect,
+  pointInPolygon,
   pointerAngle,
   rotationFromPointer,
   selectionAabb,
@@ -48,6 +50,46 @@ describe('selection geometry', () => {
     expect(
       idsInMarquee(elements, { left: 80, top: 70, right: 120, bottom: 130 }, sizes),
     ).toEqual(['a'])
+  })
+
+  it('detects points inside, outside and on a lasso boundary', () => {
+    const polygon = [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 80, y: 90 },
+      { x: 10, y: 70 },
+    ]
+    expect(pointInPolygon({ x: 40, y: 40 }, polygon)).toBe(true)
+    expect(pointInPolygon({ x: 120, y: 40 }, polygon)).toBe(false)
+    expect(pointInPolygon({ x: 50, y: 0 }, polygon)).toBe(true)
+  })
+
+  it('does not treat an explicitly closed zero-length edge as matching every point', () => {
+    const polygon = [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 100 },
+      { x: 0, y: 100 },
+      { x: 0, y: 0 },
+    ]
+    expect(pointInPolygon({ x: 50, y: 50 }, polygon)).toBe(true)
+    expect(pointInPolygon({ x: 200, y: 200 }, polygon)).toBe(false)
+  })
+
+  it('selects stitch centers enclosed by a free-form lasso', () => {
+    const elements = [
+      element({ id: 'inside', x: 50, y: 50 }),
+      element({ id: 'outside', x: 180, y: 50 }),
+      element({ id: 'edge', x: 0, y: 40 }),
+    ]
+    const polygon = [
+      { x: 0, y: 0 },
+      { x: 100, y: 10 },
+      { x: 90, y: 100 },
+      { x: 0, y: 80 },
+    ]
+    expect(idsInLasso(elements, polygon)).toEqual(['inside', 'edge'])
+    expect(idsInLasso(elements, polygon.slice(0, 2))).toEqual([])
   })
 
   it('computes bounds for multiple selected elements', () => {
