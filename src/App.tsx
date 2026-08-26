@@ -1472,7 +1472,6 @@ function App() {
     setSelectedRowMarkerId(id)
     clearElementSelection()
     setSelectedGuideId(null)
-    setSelectedRowMarkerId(null)
     setTool({ type: 'select' })
     setPreview(null)
     setSnapTarget(null)
