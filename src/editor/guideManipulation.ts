@@ -1,8 +1,16 @@
 import type { Guide, Point } from '../types'
 import { distance, rotatePoint } from './geometry'
 import { gridLocalBounds } from './guides'
+import { pathPoseAt } from './pathGuides'
 
-export type GuideManipulationMode = 'move' | 'resize' | 'rotate'
+export type GuideManipulationMode =
+  | 'move'
+  | 'resize'
+  | 'rotate'
+  | 'start'
+  | 'end'
+  | 'control1'
+  | 'control2'
 
 const ROTATION_SNAP_DEGREES = 15
 
@@ -18,20 +26,20 @@ function normalizeDelta(value: number) {
 }
 
 export function guideCenter(guide: Guide): Point {
-  return guide.type === 'grid' ? guide.origin : guide.center
+  if (guide.type === 'grid') return guide.origin
+  if (guide.type === 'arc' || guide.type === 'radial-grid') return guide.center
+  return pathPoseAt(guide, 0.5).point
 }
 
 export function guideResizeHandle(guide: Guide): Point | null {
-  if (guide.type === 'grid') return null
+  if (guide.type === 'grid' || guide.type === 'line' || guide.type === 'curve') return null
 
-  const angle =
-    guide.type === 'arc'
-      ? (guide.startAngle + guide.endAngle) / 2
-      : guide.startAngle
-  const radius =
-    guide.type === 'arc'
-      ? guide.radius
-      : Math.max(1, Math.round(guide.ringCount)) * guide.ringSpacing
+  const angle = guide.type === 'arc'
+    ? (guide.startAngle + guide.endAngle) / 2
+    : guide.startAngle
+  const radius = guide.type === 'arc'
+    ? guide.radius
+    : Math.max(1, Math.round(guide.ringCount)) * guide.ringSpacing
   const radians = (angle * Math.PI) / 180
 
   return {
@@ -62,6 +70,10 @@ export function gridRotationStemPoint(guide: Guide): Point | null {
   }
 }
 
+function translatePoint(point: Point, dx: number, dy: number): Point {
+  return { x: point.x + dx, y: point.y + dy }
+}
+
 export function applyGuideManipulation(
   guide: Guide,
   mode: GuideManipulationMode,
@@ -76,14 +88,45 @@ export function applyGuideManipulation(
     if (guide.type === 'grid') {
       return {
         ...guide,
-        origin: { x: guide.origin.x + dx, y: guide.origin.y + dy },
+        origin: translatePoint(guide.origin, dx, dy),
+      }
+    }
+
+    if (guide.type === 'arc' || guide.type === 'radial-grid') {
+      return {
+        ...guide,
+        center: translatePoint(guide.center, dx, dy),
+      }
+    }
+
+    if (guide.type === 'line') {
+      return {
+        ...guide,
+        start: translatePoint(guide.start, dx, dy),
+        end: translatePoint(guide.end, dx, dy),
       }
     }
 
     return {
       ...guide,
-      center: { x: guide.center.x + dx, y: guide.center.y + dy },
+      start: translatePoint(guide.start, dx, dy),
+      control1: translatePoint(guide.control1, dx, dy),
+      control2: translatePoint(guide.control2, dx, dy),
+      end: translatePoint(guide.end, dx, dy),
     }
+  }
+
+  if (mode === 'start' && (guide.type === 'line' || guide.type === 'curve')) {
+    return { ...guide, start: currentPointer }
+  }
+  if (mode === 'end' && (guide.type === 'line' || guide.type === 'curve')) {
+    return { ...guide, end: currentPointer }
+  }
+  if (mode === 'control1' && guide.type === 'curve') {
+    return { ...guide, control1: currentPointer }
+  }
+  if (mode === 'control2' && guide.type === 'curve') {
+    return { ...guide, control2: currentPointer }
   }
 
   if (mode === 'resize') {
