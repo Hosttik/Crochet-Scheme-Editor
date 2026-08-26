@@ -1,4 +1,6 @@
+import { SYMBOL_BY_ID } from '../symbols'
 import type { StitchElement } from '../types'
+import { elementAabb, type Rect } from './selection'
 import {
   cloneSelectionWithOffset,
   groupElements,
@@ -6,6 +8,23 @@ import {
   mirrorElementsAroundAxis,
   type MirrorAxis,
 } from './productivity'
+
+function boundsOf(elements: StitchElement[]): Rect | null {
+  const bounds = elements.map((element) => {
+    const symbol = SYMBOL_BY_ID.get(element.symbolId)
+    return elementAabb(element, {
+      width: symbol?.width ?? 30,
+      height: symbol?.height ?? 30,
+    })
+  })
+  if (!bounds.length) return null
+  return {
+    left: Math.min(...bounds.map((item) => item.left)),
+    top: Math.min(...bounds.map((item) => item.top)),
+    right: Math.max(...bounds.map((item) => item.right)),
+    bottom: Math.max(...bounds.map((item) => item.bottom)),
+  }
+}
 
 export function createMirroredCopy(
   elements: StitchElement[],
@@ -16,19 +35,28 @@ export function createMirroredCopy(
 ) {
   const selected = new Set(ids)
   const source = elements.filter((element) => selected.has(element.id) && !element.parametricRow)
-  if (!source.length) return []
+  const sourceBounds = boundsOf(source)
+  if (!source.length || !sourceBounds) return []
 
-  const minX = Math.min(...source.map((element) => element.x))
-  const maxX = Math.max(...source.map((element) => element.x))
-  const minY = Math.min(...source.map((element) => element.y))
-  const maxY = Math.max(...source.map((element) => element.y))
-  const safeGap = Math.max(1, Math.abs(gap))
-  const deltaX = axis === 'left-right' ? Math.max(safeGap, maxX - minX + safeGap) : 0
-  const deltaY = axis === 'top-bottom' ? Math.max(safeGap, maxY - minY + safeGap) : 0
-  const copied = cloneSelectionWithOffset(elements, ids, deltaX, deltaY, createId)
+  const copied = cloneSelectionWithOffset(elements, ids, 0, 0, createId)
   const copiedIds = copied.map((element) => element.id)
   const mirrored = mirrorElements(copied, copiedIds, axis)
-  return mirrored.length > 1 ? groupElements(mirrored, copiedIds, createId()) : mirrored
+  const mirroredBounds = boundsOf(mirrored)
+  if (!mirroredBounds) return []
+
+  const safeGap = Math.max(1, Math.abs(gap))
+  const deltaX = axis === 'left-right'
+    ? sourceBounds.right + safeGap - mirroredBounds.left
+    : 0
+  const deltaY = axis === 'top-bottom'
+    ? sourceBounds.bottom + safeGap - mirroredBounds.top
+    : 0
+  const positioned = mirrored.map((element) => ({
+    ...element,
+    x: element.x + deltaX,
+    y: element.y + deltaY,
+  }))
+  return positioned.length > 1 ? groupElements(positioned, copiedIds, createId()) : positioned
 }
 
 export function createMirroredCopyAroundAxis(
