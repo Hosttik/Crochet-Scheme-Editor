@@ -1,0 +1,429 @@
+name: Apply custom mirror axis integration
+
+on:
+  push:
+    branches: [feature/custom-mirror-axis-v1111]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feature/custom-mirror-axis-v1111
+      - name: Apply integration patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected 1 match, got {count}')
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              'src/editor/productivity.ts',
+              '''export function mirrorElements(
+            elements: StitchElement[],
+            ids: string[],
+            axis: MirrorAxis,
+          ) {
+            const selected = new Set(ids)
+            const pivot = selectionPivot(elements, ids)
+            if (!pivot) return elements
+
+            return elements.map((element) => {
+              if (!selected.has(element.id) || element.parametricRow) return element
+              if (axis === 'left-right') {
+                return {
+                  ...element,
+                  x: pivot.x * 2 - element.x,
+                  rotation: normalizeDegrees(180 - element.rotation),
+                  guideAttachment: undefined,
+                }
+              }
+              return {
+                ...element,
+                y: pivot.y * 2 - element.y,
+                rotation: normalizeDegrees(-element.rotation),
+                guideAttachment: undefined,
+              }
+            })
+          }
+          ''',
+              '''export function mirrorElementsAroundAxis(
+            elements: StitchElement[],
+            ids: string[],
+            axis: MirrorAxis,
+            coordinate: number,
+          ) {
+            if (!Number.isFinite(coordinate)) return elements
+            const selected = new Set(ids)
+
+            return elements.map((element) => {
+              if (!selected.has(element.id) || element.parametricRow) return element
+              if (axis === 'left-right') {
+                return {
+                  ...element,
+                  x: coordinate * 2 - element.x,
+                  rotation: normalizeDegrees(180 - element.rotation),
+                  guideAttachment: undefined,
+                }
+              }
+              return {
+                ...element,
+                y: coordinate * 2 - element.y,
+                rotation: normalizeDegrees(-element.rotation),
+                guideAttachment: undefined,
+              }
+            })
+          }
+
+          export function mirrorElements(
+            elements: StitchElement[],
+            ids: string[],
+            axis: MirrorAxis,
+          ) {
+            const pivot = selectionPivot(elements, ids)
+            if (!pivot) return elements
+            const coordinate = axis === 'left-right' ? pivot.x : pivot.y
+            return mirrorElementsAroundAxis(elements, ids, axis, coordinate)
+          }
+          ''',
+          )
+
+          replace_once(
+              'src/editor/ProductivityPanel.tsx',
+              "import { repeatPreviewSelectionKind, shouldShowRepeatPreview } from './repeatPreview'\n",
+              "import { repeatPreviewSelectionKind, shouldShowRepeatPreview } from './repeatPreview'\nimport type { MirrorAxisState } from './MirrorAxisOverlay'\n",
+          )
+          replace_once(
+              'src/editor/ProductivityPanel.tsx',
+              "    mirrorHint: 'Flip использует ось через центр выделения. Зеркальная копия создаётся рядом с оригиналом.',\n",
+              "    mirrorHint: 'Быстрый Flip использует центр выделения. Для произвольного центра включите редактируемую ось.',\n    verticalAxis: 'Вертикальная ось',\n    horizontalAxis: 'Горизонтальная ось',\n    axisX: 'Позиция оси X',\n    axisY: 'Позиция оси Y',\n    axisCenter: 'По центру',\n    flipCustom: 'Отразить по оси',\n    mirrorCopyCustom: 'Копия через ось',\n    hideAxis: 'Скрыть ось',\n    axisHint: 'Красную пунктирную ось можно перетаскивать прямо на холсте.',\n",
+          )
+          replace_once(
+              'src/editor/ProductivityPanel.tsx',
+              "    mirrorHint: 'Flip uses an axis through the selection center. Mirrored copy creates a separate adjacent object.',\n",
+              "    mirrorHint: 'Quick Flip uses the selection center. Enable an editable axis for a custom mirror center.',\n    verticalAxis: 'Vertical axis',\n    horizontalAxis: 'Horizontal axis',\n    axisX: 'Axis X position',\n    axisY: 'Axis Y position',\n    axisCenter: 'Center on selection',\n    flipCustom: 'Flip across axis',\n    mirrorCopyCustom: 'Copy across axis',\n    hideAxis: 'Hide axis',\n    axisHint: 'Drag the red dashed axis directly on the canvas.',\n",
+          )
+          replace_once(
+              'src/editor/ProductivityPanel.tsx',
+              '''  onMirror,
+            onMirrorCopy,
+            onRepeat,
+          }: {
+          ''',
+              '''  onMirror,
+            onMirrorCopy,
+            mirrorAxis,
+            onConfigureMirrorAxis,
+            onMirrorAxisCoordinateChange,
+            onCenterMirrorAxis,
+            onHideMirrorAxis,
+            onMirrorAtCustomAxis,
+            onMirrorCopyAtCustomAxis,
+            onRepeat,
+          }: {
+          ''',
+          )
+          replace_once(
+              'src/editor/ProductivityPanel.tsx',
+              '''  onMirror: (axis: 'left-right' | 'top-bottom') => void
+            onMirrorCopy: (axis: 'left-right' | 'top-bottom') => void
+            onRepeat: (options: RepeatOptions) => void
+          }) {
+          ''',
+              '''  onMirror: (axis: 'left-right' | 'top-bottom') => void
+            onMirrorCopy: (axis: 'left-right' | 'top-bottom') => void
+            mirrorAxis: MirrorAxisState | null
+            onConfigureMirrorAxis: (axis: MirrorAxisState['axis']) => void
+            onMirrorAxisCoordinateChange: (coordinate: number) => void
+            onCenterMirrorAxis: () => void
+            onHideMirrorAxis: () => void
+            onMirrorAtCustomAxis: () => void
+            onMirrorCopyAtCustomAxis: () => void
+            onRepeat: (options: RepeatOptions) => void
+          }) {
+          ''',
+          )
+          replace_once(
+              'src/editor/ProductivityPanel.tsx',
+              '''          <div className="productivity-actions">
+                    <button disabled={!canTransform} onClick={() => onMirrorCopy('left-right')}>{copy.mirrorCopyLeftRight}</button>
+                    <button disabled={!canTransform} onClick={() => onMirrorCopy('top-bottom')}>{copy.mirrorCopyTopBottom}</button>
+                  </div>
+                </div>
+          ''',
+              '''          <div className="productivity-actions">
+                    <button disabled={!canTransform} onClick={() => onMirrorCopy('left-right')}>{copy.mirrorCopyLeftRight}</button>
+                    <button disabled={!canTransform} onClick={() => onMirrorCopy('top-bottom')}>{copy.mirrorCopyTopBottom}</button>
+                  </div>
+                  <div className="mirror-axis-config">
+                    <div className="productivity-mode-tabs mirror-axis-tabs">
+                      <button
+                        className={mirrorAxis?.axis === 'left-right' ? 'active' : ''}
+                        disabled={!canTransform}
+                        onClick={() => onConfigureMirrorAxis('left-right')}
+                      >{copy.verticalAxis}</button>
+                      <button
+                        className={mirrorAxis?.axis === 'top-bottom' ? 'active' : ''}
+                        disabled={!canTransform}
+                        onClick={() => onConfigureMirrorAxis('top-bottom')}
+                      >{copy.horizontalAxis}</button>
+                    </div>
+                    {mirrorAxis && (
+                      <>
+                        <small className="muted-text mirror-axis-hint">{copy.axisHint}</small>
+                        <label className="productivity-field">
+                          <span>{mirrorAxis.axis === 'left-right' ? copy.axisX : copy.axisY}</span>
+                          <DraftNumberInput
+                            ariaLabel={mirrorAxis.axis === 'left-right' ? copy.axisX : copy.axisY}
+                            value={mirrorAxis.coordinate}
+                            step={1}
+                            onChange={onMirrorAxisCoordinateChange}
+                          />
+                        </label>
+                        <div className="productivity-actions">
+                          <button onClick={onCenterMirrorAxis}>{copy.axisCenter}</button>
+                          <button onClick={onHideMirrorAxis}>{copy.hideAxis}</button>
+                        </div>
+                        <div className="productivity-actions mirror-axis-actions">
+                          <button disabled={!canTransform} onClick={onMirrorAtCustomAxis}>{copy.flipCustom}</button>
+                          <button disabled={!canTransform} onClick={onMirrorCopyAtCustomAxis}>{copy.mirrorCopyCustom}</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+          ''',
+          )
+
+          replace_once(
+              'src/App.tsx',
+              "import { GuideAttachmentPanel } from './editor/GuideAttachmentPanel'\n",
+              "import { GuideAttachmentPanel } from './editor/GuideAttachmentPanel'\nimport { MirrorAxisOverlay, type MirrorAxisState } from './editor/MirrorAxisOverlay'\n",
+          )
+          replace_once(
+              'src/App.tsx',
+              "import { createMirroredCopy } from './editor/mirrorCopy'\n",
+              "import { createMirroredCopy, createMirroredCopyAroundAxis } from './editor/mirrorCopy'\n",
+          )
+          replace_once(
+              'src/App.tsx',
+              '''  mirrorElements,
+            repeatSelection,
+            ungroupElements,
+          ''',
+              '''  mirrorElements,
+            mirrorElementsAroundAxis,
+            repeatSelection,
+            selectionPivot,
+            ungroupElements,
+          ''',
+          )
+          replace_once(
+              'src/App.tsx',
+              "  const [pan, setPan] = useState<PanState | null>(null)\n  const [status, setStatus]",
+              "  const [pan, setPan] = useState<PanState | null>(null)\n  const [mirrorAxis, setMirrorAxis] = useState<MirrorAxisState | null>(null)\n  const [status, setStatus]",
+          )
+          replace_once(
+              'src/App.tsx',
+              '''  const selectedGuide = useMemo(
+              () => guides.find((guide) => guide.id === selectedGuideId) ?? null,
+              [guides, selectedGuideId],
+            )
+          ''',
+              '''  const selectedGuide = useMemo(
+              () => guides.find((guide) => guide.id === selectedGuideId) ?? null,
+              [guides, selectedGuideId],
+            )
+            useEffect(() => {
+              if (!selectedIds.length) setMirrorAxis(null)
+            }, [selectedIds.length])
+          ''',
+          )
+          replace_once(
+              'src/App.tsx',
+              '''  const mirrorCopySelection = useCallback((axis: MirrorAxis) => {
+              const ids = productivitySelectionIds()
+              if (!ids.length) return
+              const created = createMirroredCopy(elements, ids, axis, DUPLICATE_OFFSET, createId)
+              if (!created.length) return
+              duplicateSeriesRef.current = null
+              commitElements([...elements, ...created])
+              setSelectedIds(created.map((element) => element.id))
+              setSelectedGuideId(null)
+              setTool({ type: 'select' })
+              setStatus(locale === 'ru' ? `Создана зеркальная копия: ${created.length}` : `Mirrored copy created: ${created.length}`)
+            }, [commitElements, elements, locale, productivitySelectionIds])
+          ''',
+              '''  const mirrorCopySelection = useCallback((axis: MirrorAxis) => {
+              const ids = productivitySelectionIds()
+              if (!ids.length) return
+              const created = createMirroredCopy(elements, ids, axis, DUPLICATE_OFFSET, createId)
+              if (!created.length) return
+              duplicateSeriesRef.current = null
+              commitElements([...elements, ...created])
+              setSelectedIds(created.map((element) => element.id))
+              setSelectedGuideId(null)
+              setTool({ type: 'select' })
+              setStatus(locale === 'ru' ? `Создана зеркальная копия: ${created.length}` : `Mirrored copy created: ${created.length}`)
+            }, [commitElements, elements, locale, productivitySelectionIds])
+
+            const configureMirrorAxis = useCallback((axis: MirrorAxis) => {
+              const ids = productivitySelectionIds()
+              const pivot = selectionPivot(elements, ids)
+              if (!pivot) return
+              const coordinate = axis === 'left-right' ? pivot.x : pivot.y
+              setMirrorAxis((current) => current?.axis === axis ? current : { axis, coordinate })
+              setStatus(locale === 'ru'
+                ? axis === 'left-right' ? 'Вертикальная ось зеркалирования активна' : 'Горизонтальная ось зеркалирования активна'
+                : axis === 'left-right' ? 'Vertical mirror axis active' : 'Horizontal mirror axis active')
+            }, [elements, locale, productivitySelectionIds])
+
+            const moveMirrorAxis = useCallback((coordinate: number) => {
+              if (!Number.isFinite(coordinate)) return
+              setMirrorAxis((current) => current ? { ...current, coordinate } : current)
+            }, [])
+
+            const centerMirrorAxis = useCallback(() => {
+              if (!mirrorAxis) return
+              const ids = productivitySelectionIds()
+              const pivot = selectionPivot(elements, ids)
+              if (!pivot) return
+              const coordinate = mirrorAxis.axis === 'left-right' ? pivot.x : pivot.y
+              setMirrorAxis({ ...mirrorAxis, coordinate })
+            }, [elements, mirrorAxis, productivitySelectionIds])
+
+            const mirrorSelectionAroundCustomAxis = useCallback(() => {
+              if (!mirrorAxis) return
+              const ids = productivitySelectionIds()
+              if (!ids.length) return
+              duplicateSeriesRef.current = null
+              commitElements(mirrorElementsAroundAxis(elements, ids, mirrorAxis.axis, mirrorAxis.coordinate))
+              setSelectedIds(ids)
+              setStatus(locale === 'ru'
+                ? `Отражено по пользовательской оси: ${ids.length}`
+                : `Flipped across custom axis: ${ids.length}`)
+            }, [commitElements, elements, locale, mirrorAxis, productivitySelectionIds])
+
+            const mirrorCopySelectionAroundCustomAxis = useCallback(() => {
+              if (!mirrorAxis) return
+              const ids = productivitySelectionIds()
+              if (!ids.length) return
+              const created = createMirroredCopyAroundAxis(
+                elements,
+                ids,
+                mirrorAxis.axis,
+                mirrorAxis.coordinate,
+                createId,
+              )
+              if (!created.length) return
+              duplicateSeriesRef.current = null
+              commitElements([...elements, ...created])
+              setSelectedIds(created.map((element) => element.id))
+              setSelectedGuideId(null)
+              setTool({ type: 'select' })
+              setStatus(locale === 'ru'
+                ? `Создана копия через пользовательскую ось: ${created.length}`
+                : `Custom-axis mirrored copy created: ${created.length}`)
+            }, [commitElements, elements, locale, mirrorAxis, productivitySelectionIds])
+          ''',
+          )
+          replace_once(
+              'src/App.tsx',
+              '''        setRotate(null)
+                setMarquee(null)
+                snapLockRef.current = null
+          ''',
+              '''        setRotate(null)
+                setMarquee(null)
+                setMirrorAxis(null)
+                snapLockRef.current = null
+          ''',
+          )
+          replace_once(
+              'src/App.tsx',
+              '''            {guides.map((guide) => (
+                    <GuideRenderer
+                      key={guide.id}
+                      guide={guide}
+                      selected={guide.id === selectedGuideId}
+                      zoom={viewport.zoom}
+                      onPointerDown={handleGuidePointerDown}
+                      clientToDocument={clientToDocument}
+                      onManipulationStart={handleGuideManipulationStart}
+                      onManipulationPreview={handleGuideManipulationPreview}
+                      onManipulationEnd={handleGuideManipulationEnd}
+                    />
+                  ))}
+
+                  <StitchLayer
+          ''',
+              '''            {guides.map((guide) => (
+                    <GuideRenderer
+                      key={guide.id}
+                      guide={guide}
+                      selected={guide.id === selectedGuideId}
+                      zoom={viewport.zoom}
+                      onPointerDown={handleGuidePointerDown}
+                      clientToDocument={clientToDocument}
+                      onManipulationStart={handleGuideManipulationStart}
+                      onManipulationPreview={handleGuideManipulationPreview}
+                      onManipulationEnd={handleGuideManipulationEnd}
+                    />
+                  ))}
+
+                  {mirrorAxis && productivitySelectionIds().length > 0 && (
+                    <MirrorAxisOverlay
+                      state={mirrorAxis}
+                      elements={elements}
+                      selectedIds={productivitySelectionIds()}
+                      zoom={viewport.zoom}
+                      clientToDocument={clientToDocument}
+                      onChange={moveMirrorAxis}
+                    />
+                  )}
+
+                  <StitchLayer
+          ''',
+          )
+          replace_once(
+              'src/App.tsx',
+              '''            onMirror={mirrorSelection}
+                onMirrorCopy={mirrorCopySelection}
+                onRepeat={repeatProductivitySelection}
+          ''',
+              '''            onMirror={mirrorSelection}
+                onMirrorCopy={mirrorCopySelection}
+                mirrorAxis={mirrorAxis}
+                onConfigureMirrorAxis={configureMirrorAxis}
+                onMirrorAxisCoordinateChange={moveMirrorAxis}
+                onCenterMirrorAxis={centerMirrorAxis}
+                onHideMirrorAxis={() => setMirrorAxis(null)}
+                onMirrorAtCustomAxis={mirrorSelectionAroundCustomAxis}
+                onMirrorCopyAtCustomAxis={mirrorCopySelectionAroundCustomAxis}
+                onRepeat={repeatProductivitySelection}
+          ''',
+          )
+
+          replace_once('src/i18n.ts', "brandSubtitle: 'Векторный редактор схем · v1.11'", "brandSubtitle: 'Векторный редактор схем · v1.11.1'")
+          replace_once('src/i18n.ts', "brandSubtitle: 'Vector crochet chart editor · v1.11'", "brandSubtitle: 'Vector crochet chart editor · v1.11.1'")
+
+          workflow = Path('.github/workflows/apply-custom-mirror-axis.yml')
+          workflow.unlink()
+          PY
+      - name: Commit integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Integrate draggable custom mirror axis"
+          git push origin HEAD:feature/custom-mirror-axis-v1111
