@@ -58,6 +58,7 @@ test('moves and applies an explicit vertical or horizontal mirror axis', async (
 
   const axisY = productivity.getByLabel('Позиция оси Y')
   const beforeDrag = Number(await axisY.inputValue())
+  // The editor overlay must be above StitchLayer so the center handle wins hit testing.
   const handle = page.locator('.mirror-axis-handle')
   const handleBox = await handle.boundingBox()
   expect(handleBox).not.toBeNull()
