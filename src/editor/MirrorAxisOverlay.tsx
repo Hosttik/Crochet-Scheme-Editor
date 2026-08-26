@@ -81,7 +81,7 @@ export function MirrorAxisOverlay({
         r={7 / Math.max(0.1, zoom)}
         className="mirror-axis-handle"
         vectorEffect="non-scaling-stroke"
-        pointerEvents="none"
+        pointerEvents="all"
       />
     </g>
   )
