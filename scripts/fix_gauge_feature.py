@@ -33,4 +33,18 @@ schema_text = schema_text.replace('    stitchCount: value.stitchCount,', '    st
 schema_text = schema_text.replace('    rowCount: value.rowCount,', '    rowCount: value.rowCount as number,', 1)
 schema.write_text(schema_text)
 
-print('Gauge compile fixes applied')
+version = Path('src/editor/projectVersion.ts')
+version_text = version.read_text().replace(
+    'export const STRICT_PROJECT_SCHEMA_VERSION = 19',
+    'export const STRICT_PROJECT_SCHEMA_VERSION = 18',
+)
+version.write_text(version_text)
+
+for root in (Path('src'), Path('e2e')):
+    for test_file in root.rglob('*.ts'):
+        test_text = test_file.read_text()
+        updated = test_text.replace('schemaVersion).toBe(18)', 'schemaVersion).toBe(19)')
+        if updated != test_text:
+            test_file.write_text(updated)
+
+print('Gauge compile and schema migration fixes applied')
