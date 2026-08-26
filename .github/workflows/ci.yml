@@ -1,5 +1,6 @@
 name: CI
 
+# Temporary no-op trigger for the v1.13.1 staging workflow; removed after patching.
 on:
   pull_request:
   workflow_dispatch:
