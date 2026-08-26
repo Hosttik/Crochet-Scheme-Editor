@@ -30,7 +30,7 @@ jobs:
       - name: Verify typecheck, unit tests and build
         run: npm run build
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
       - name: Verify Chromium E2E
         run: npm run test:e2e
       - name: Commit verified sources
