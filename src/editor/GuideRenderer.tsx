@@ -47,6 +47,7 @@ export function GuideRenderer({
 }: Props) {
   if (!guide.visible) return null
 
+  const locked = guide.locked === true
   const snapPoints = selected ? guideSnapPoints(guide) : []
   const center = guideCenter(guide)
   const resizeHandle = selected ? guideResizeHandle(guide) : null
@@ -61,6 +62,7 @@ export function GuideRenderer({
 
     onPointerDown(event as unknown as ReactPointerEvent<SVGGElement>, guide)
     if (!event.isPropagationStopped()) return
+    if (locked) return
 
     event.preventDefault()
 
@@ -157,7 +159,7 @@ export function GuideRenderer({
 
   return (
     <g
-      className={`guide-layer guide-${guide.type} ${selected ? 'selected' : ''}`}
+      className={`guide-layer guide-${guide.type} ${selected ? 'selected' : ''} ${locked ? 'locked' : ''}`}
       onPointerDown={(event) => startInteraction(event, 'move')}
     >
       {guide.type === 'arc' && (
@@ -186,7 +188,7 @@ export function GuideRenderer({
             fill="none"
             vectorEffect="non-scaling-stroke"
           />
-          {selected && (
+          {selected && !locked && (
             <g className="guide-curve-controls" pointerEvents="none">
               <line
                 x1={guide.start.x}
@@ -277,6 +279,10 @@ export function GuideRenderer({
         </g>
       )}
 
+      {selected && locked && (
+        <text x={center.x + 10 / zoom} y={center.y - 10 / zoom} fontSize={12 / zoom} className="guide-lock-indicator">🔒</text>
+      )}
+
       {snapPoints.map((snapPoint) => (
         <circle
           key={snapPoint.key}
@@ -288,7 +294,7 @@ export function GuideRenderer({
         />
       ))}
 
-      {selected && (
+      {selected && !locked && (
         <g className="guide-manipulation-ui">
           {guide.type === 'line' && (
             <>

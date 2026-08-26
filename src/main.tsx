@@ -6,6 +6,7 @@ import './guides.css'
 import './selection.css'
 import './layers.css'
 import './foundation.css'
+import './patternAuthoring.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

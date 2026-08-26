@@ -4,6 +4,7 @@ import type {
   GuideAttachment,
   ParametricRowBinding,
   RowProgram,
+  RowMarker,
   SnappingSettings,
   StitchElement,
 } from '../types'
@@ -206,7 +207,7 @@ function parseElement(value: unknown): StitchElement {
 }
 
 function parseGuide(value: unknown): Guide {
-  if (!isRecord(value) || !nonEmptyString(value.id) || typeof value.visible !== 'boolean') throw new ProjectValidationError('Invalid guide')
+  if (!isRecord(value) || !nonEmptyString(value.id) || typeof value.visible !== 'boolean' || !optionalBoolean(value.locked)) throw new ProjectValidationError('Invalid guide')
   if (value.type === 'arc') {
     if (!point(value.center) || !finite(value.radius) || !finite(value.startAngle) || !finite(value.endAngle) || !finite(value.divisions)) throw new ProjectValidationError('Invalid arc guide')
     return value as unknown as Guide
@@ -230,6 +231,30 @@ function parseGuide(value: unknown): Guide {
   throw new ProjectValidationError('Unknown guide type')
 }
 
+function parseRowMarker(value: unknown): RowMarker {
+  if (
+    !isRecord(value) || !nonEmptyString(value.id) ||
+    !positiveInteger(value.number, 999) || !finite(value.x) || !finite(value.y) ||
+    !optionalBoolean(value.visible) || !optionalBoolean(value.locked)
+  ) throw new ProjectValidationError('Invalid row marker')
+  return {
+    id: value.id,
+    number: value.number as number,
+    x: value.x,
+    y: value.y,
+    visible: value.visible !== false,
+    locked: value.locked === true,
+  }
+}
+
+function parseLegend(value: unknown) {
+  if (value === undefined) return { visible: true }
+  if (!isRecord(value) || typeof value.visible !== 'boolean') {
+    throw new ProjectValidationError('Invalid legend settings')
+  }
+  return { visible: value.visible }
+}
+
 function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSettings {
   if (!isRecord(value)) return fallback
   if (
@@ -243,23 +268,29 @@ function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSett
 
 export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): CrochetProject {
   if (!isRecord(raw)) throw new ProjectValidationError('Project must be an object')
-  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 14) throw new ProjectValidationError('Unsupported project schema')
+  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 15) throw new ProjectValidationError('Unsupported project schema')
   if (!Array.isArray(raw.elements)) throw new ProjectValidationError('Project elements are missing')
   if (raw.guides !== undefined && !Array.isArray(raw.guides)) throw new ProjectValidationError('Project guides are invalid')
+  if (raw.rowMarkers !== undefined && !Array.isArray(raw.rowMarkers)) throw new ProjectValidationError('Project row markers are invalid')
 
   const metadata = isRecord(raw.metadata) ? raw.metadata : {}
   const settings = isRecord(raw.settings) ? raw.settings : {}
   const elements = raw.elements.map(parseElement)
   const guides = (raw.guides ?? []).map(parseGuide)
+  const rowMarkers = (raw.rowMarkers ?? []).map(parseRowMarker)
 
   return {
-    schemaVersion: 14,
+    schemaVersion: 15,
     metadata: {
       title: typeof metadata.title === 'string' && metadata.title.trim() ? metadata.title : 'Crochet scheme',
       updatedAt: typeof metadata.updatedAt === 'string' ? metadata.updatedAt : new Date().toISOString(),
     },
     elements,
     guides,
-    settings: { snapping: parseSnapping(settings.snapping, fallbackSnapping) },
+    rowMarkers,
+    settings: {
+      snapping: parseSnapping(settings.snapping, fallbackSnapping),
+      legend: parseLegend(settings.legend),
+    },
   }
 }
