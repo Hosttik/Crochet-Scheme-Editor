@@ -19,6 +19,8 @@ import { SelectionQuickToolbar } from './editor/SelectionQuickToolbar'
 import { LayersPanel } from './editor/LayersPanel'
 import { StitchLayer } from './editor/StitchLayer'
 import { TopologyEditorPanel } from './editor/TopologyEditorPanel'
+import { GaugeRulerPanel } from './editor/GaugeRulerPanel'
+import { RulerLayer } from './editor/RulerLayer'
 import {
   bringForward as bringElementsForward,
   bringToFront as bringElementsToFront,
@@ -37,6 +39,7 @@ import { deleteRowMarkerAndRenumber, isRowMarkerLocked, nextRowMarkerNumber, nor
 import type { GuideManipulationMode } from './editor/guideManipulation'
 import { clamp, screenToDocument } from './editor/geometry'
 import { emptyHistory, pushHistory, redoHistory, undoHistory } from './editor/history'
+import { emptyGaugeSettings, snapRulerPoint } from './editor/gauge'
 import {
   attachElementToGuide,
   elementFromAttachment,
@@ -105,9 +108,12 @@ import type {
   AnchorName,
   BackgroundImage,
   CrochetProject,
+  GaugeProfile,
+  GaugeSettings,
   Guide,
   GuideAttachment,
   GuideAttachmentOrientation,
+  MeasurementRuler,
   OrientationMode,
   ParametricRowBinding,
   Point,
@@ -132,11 +138,13 @@ const SYMBOL_SIZES = Object.fromEntries(
   SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
 )
 
-type Tool = { type: 'select' } | { type: 'lasso' } | { type: 'place'; symbolId: string } | { type: 'row-marker' }
+type Tool = { type: 'select' } | { type: 'lasso' } | { type: 'ruler' } | { type: 'place'; symbolId: string } | { type: 'row-marker' }
 type DocumentSnapshot = {
   elements: StitchElement[]
   guides: Guide[]
   rowMarkers: RowMarker[]
+  gauge: GaugeSettings
+  rulers: MeasurementRuler[]
   backgroundImage: BackgroundImage | null
   legendVisible: boolean
   snapping: SnappingSettings
@@ -171,6 +179,18 @@ type RotateState = {
   elementId: string
   startRotation: number
   startPointerAngle: number
+  startSnapshot: DocumentSnapshot
+}
+type RulerDraftState = {
+  start: Point
+  current: Point
+  startElementId?: string
+  currentElementId?: string
+}
+type RulerDragState = {
+  pointerId: number
+  rulerId: string
+  endpoint: 'start' | 'end'
   startSnapshot: DocumentSnapshot
 }
 type HistoryState = {
@@ -345,6 +365,8 @@ function buildProject(
   legendVisible = true,
   autosaveDelayMs: AutosaveDelayMs = DEFAULT_AUTOSAVE_DELAY_MS,
   backgroundImage: BackgroundImage | null = null,
+  gauge: GaugeSettings = emptyGaugeSettings(),
+  rulers: MeasurementRuler[] = [],
 ): CrochetProject {
   return {
     schemaVersion: CURRENT_PROJECT_SCHEMA_VERSION,
@@ -353,6 +375,8 @@ function buildProject(
     guides,
     rowMarkers,
     backgroundImage: backgroundImage ?? undefined,
+    gauge,
+    rulers,
     settings: {
       snapping,
       legend: { visible: legendVisible },
@@ -413,6 +437,8 @@ function App() {
   const [elements, setElements] = useState<StitchElement[]>([])
   const [guides, setGuides] = useState<Guide[]>([])
   const [rowMarkers, setRowMarkers] = useState<RowMarker[]>([])
+  const [gauge, setGauge] = useState<GaugeSettings>(emptyGaugeSettings)
+  const [rulers, setRulers] = useState<MeasurementRuler[]>([])
   const [backgroundImage, setBackgroundImage] = useState<BackgroundImage | null>(null)
   const [legendVisible, setLegendVisible] = useState(true)
   const [autosaveDelayMs, setAutosaveDelayMs] = useState<AutosaveDelayMs>(DEFAULT_AUTOSAVE_DELAY_MS)
@@ -421,6 +447,7 @@ function App() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectedGuideId, setSelectedGuideId] = useState<string | null>(null)
   const [selectedRowMarkerId, setSelectedRowMarkerId] = useState<string | null>(null)
+  const [selectedRulerId, setSelectedRulerId] = useState<string | null>(null)
   const [selectedTopologyParentId, setSelectedTopologyParentId] = useState<string | null>(null)
   const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT)
   const [snapping, setSnapping] = useState<SnappingSettings>(DEFAULT_SNAPPING)
@@ -431,6 +458,8 @@ function App() {
   const [lasso, setLasso] = useState<LassoState | null>(null)
   const [rotate, setRotate] = useState<RotateState | null>(null)
   const [pan, setPan] = useState<PanState | null>(null)
+  const [rulerDraft, setRulerDraft] = useState<RulerDraftState | null>(null)
+  const [rulerDrag, setRulerDrag] = useState<RulerDragState | null>(null)
   const [mirrorAxis, setMirrorAxis] = useState<MirrorAxisState | null>(null)
   const [status, setStatus] = useState<string>(UI[DEFAULT_LOCALE].ready)
   const [hydrated, setHydrated] = useState(false)
@@ -456,6 +485,8 @@ function App() {
           setElements(reconcileLinkedElements(project.elements, project.guides ?? []))
           setGuides(project.guides ?? [])
           setRowMarkers(project.rowMarkers ?? [])
+          setGauge(project.gauge ?? emptyGaugeSettings())
+          setRulers(project.rulers ?? [])
           setBackgroundImage(project.backgroundImage ?? null)
           setLegendVisible(project.settings.legend?.visible ?? true)
           setAutosaveDelayMs(project.settings.autosave?.delayMs ?? DEFAULT_AUTOSAVE_DELAY_MS)
@@ -504,7 +535,7 @@ function App() {
     setAutosaveState('saving')
     autosaveTimerRef.current = window.setTimeout(() => {
       autosaveTimerRef.current = null
-      const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage)
+      const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage, gauge, rulers)
       const task = autosaveQueueRef.current
         .catch(() => undefined)
         .then(() => saveLocalProject(activeProjectId, project))
@@ -524,7 +555,7 @@ function App() {
         autosaveTimerRef.current = null
       }
     }
-  }, [activeProjectId, autosaveDelayMs, backgroundImage, elements, guides, hydrated, legendVisible, projectTitle, rowMarkers, snapping])
+  }, [activeProjectId, autosaveDelayMs, backgroundImage, elements, gauge, guides, hydrated, legendVisible, projectTitle, rowMarkers, rulers, snapping])
 
   useEffect(() => {
     if (!hydrated) return
@@ -547,6 +578,13 @@ function App() {
     () => rowMarkers.find((marker) => marker.id === selectedRowMarkerId) ?? null,
     [rowMarkers, selectedRowMarkerId],
   )
+  const selectedRuler = useMemo(
+    () => rulers.find((ruler) => ruler.id === selectedRulerId) ?? null,
+    [rulers, selectedRulerId],
+  )
+  useEffect(() => {
+    if (selectedRulerId && !selectedRuler) setSelectedRulerId(null)
+  }, [selectedRuler, selectedRulerId])
   const nextRowNumber = useMemo(() => nextRowMarkerNumber(rowMarkers), [rowMarkers])
   useEffect(() => {
     if (!selectedIds.length) setMirrorAxis(null)
@@ -600,13 +638,15 @@ function App() {
   )
 
   const currentSnapshot = useCallback(
-    (): DocumentSnapshot => ({ elements, guides, rowMarkers, backgroundImage, legendVisible, snapping, projectTitle }),
-    [backgroundImage, elements, guides, legendVisible, projectTitle, rowMarkers, snapping],
+    (): DocumentSnapshot => ({ elements, guides, rowMarkers, gauge, rulers, backgroundImage, legendVisible, snapping, projectTitle }),
+    [backgroundImage, elements, gauge, guides, legendVisible, projectTitle, rowMarkers, rulers, snapping],
   )
   const applySnapshot = useCallback((snapshot: DocumentSnapshot) => {
     setElements(snapshot.elements)
     setGuides(snapshot.guides)
     setRowMarkers(snapshot.rowMarkers)
+    setGauge(snapshot.gauge)
+    setRulers(snapshot.rulers)
     setBackgroundImage(snapshot.backgroundImage)
     setLegendVisible(snapshot.legendVisible)
     setSnapping(snapshot.snapping)
@@ -636,6 +676,14 @@ function App() {
     },
     [currentSnapshot, recordSnapshot],
   )
+  const commitGauge = useCallback((next: GaugeSettings) => {
+    recordSnapshot(currentSnapshot())
+    setGauge(next)
+  }, [currentSnapshot, recordSnapshot])
+  const commitRulers = useCallback((next: MeasurementRuler[]) => {
+    recordSnapshot(currentSnapshot())
+    setRulers(next)
+  }, [currentSnapshot, recordSnapshot])
   const commitBackgroundImage = useCallback((next: BackgroundImage | null) => {
     recordSnapshot(currentSnapshot())
     setBackgroundImage(next)
@@ -666,7 +714,7 @@ function App() {
     if (!hydrated || persistenceBlockedRef.current) return
     cancelPendingAutosave()
     const revision = ++autosaveRevisionRef.current
-    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage)
+    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage, gauge, rulers)
     setAutosaveState('saving')
     try {
       await enqueueProjectSave(activeProjectId, project)
@@ -687,6 +735,7 @@ function App() {
     clearElementSelection()
     setSelectedGuideId(null)
     setSelectedRowMarkerId(null)
+    setSelectedRulerId(null)
     setStatus(t.statusUndo)
   }, [applySnapshot, clearElementSelection, currentSnapshot, history, t.statusUndo])
 
@@ -698,6 +747,7 @@ function App() {
     clearElementSelection()
     setSelectedGuideId(null)
     setSelectedRowMarkerId(null)
+    setSelectedRulerId(null)
     setStatus(t.statusRedo)
   }, [applySnapshot, clearElementSelection, currentSnapshot, history, t.statusRedo])
 
@@ -721,6 +771,12 @@ function App() {
       setStatus(deletable.size > 1 ? t.elementsDeleted : t.elementDeleted)
       return
     }
+    if (selectedRulerId) {
+      commitRulers(rulers.filter((ruler) => ruler.id !== selectedRulerId))
+      setSelectedRulerId(null)
+      setStatus(locale === 'ru' ? 'Линейка удалена' : 'Ruler deleted')
+      return
+    }
     if (selectedRowMarkerId) {
       const marker = rowMarkers.find((item) => item.id === selectedRowMarkerId)
       if (!marker || isRowMarkerLocked(marker)) return
@@ -740,12 +796,15 @@ function App() {
     commitElements,
     commitGuides,
     commitRowMarkers,
+    commitRulers,
     elements,
     guides,
     locale,
     rowMarkers,
+    rulers,
     selectedGuideId,
     selectedRowMarkerId,
+    selectedRulerId,
     selectedIds.length,
     t.elementDeleted,
     t.elementsDeleted,
@@ -1090,6 +1149,99 @@ function App() {
     if (next) setViewport(next)
   }, [selectedIds, visibleElements])
 
+  const addGaugeProfile = useCallback(() => {
+    const id = createId()
+    const profile: GaugeProfile = {
+      id,
+      name: locale === 'ru' ? `Образец ${gauge.profiles.length + 1}` : `Swatch ${gauge.profiles.length + 1}`,
+      symbolId: 'single',
+      stitchCount: 20,
+      rowCount: 20,
+      widthCm: 10,
+      heightCm: 10,
+    }
+    commitGauge({ profiles: [...gauge.profiles, profile], activeProfileId: id })
+  }, [commitGauge, gauge.profiles, locale])
+
+  const updateGaugeProfile = useCallback((id: string, patch: Partial<GaugeProfile>) => {
+    commitGauge({
+      ...gauge,
+      profiles: gauge.profiles.map((profile) => profile.id === id ? { ...profile, ...patch } : profile),
+    })
+  }, [commitGauge, gauge])
+
+  const setActiveGaugeProfile = useCallback((id: string) => {
+    if (!gauge.profiles.some((profile) => profile.id === id)) return
+    commitGauge({ ...gauge, activeProfileId: id })
+  }, [commitGauge, gauge])
+
+  const deleteGaugeProfile = useCallback((id: string) => {
+    const nextProfiles = gauge.profiles.filter((profile) => profile.id !== id)
+    const nextActive = gauge.activeProfileId === id ? nextProfiles[0]?.id : gauge.activeProfileId
+    recordSnapshot(currentSnapshot())
+    setGauge({ profiles: nextProfiles, activeProfileId: nextActive })
+    setRulers(rulers.map((ruler) => ruler.profileId === id ? { ...ruler, profileId: undefined } : ruler))
+  }, [currentSnapshot, gauge.activeProfileId, gauge.profiles, recordSnapshot, rulers])
+
+  const updateRuler = useCallback((id: string, patch: Partial<MeasurementRuler>) => {
+    commitRulers(rulers.map((ruler) => ruler.id === id ? { ...ruler, ...patch } : ruler))
+  }, [commitRulers, rulers])
+
+  const deleteRuler = useCallback((id: string) => {
+    commitRulers(rulers.filter((ruler) => ruler.id !== id))
+    if (selectedRulerId === id) setSelectedRulerId(null)
+  }, [commitRulers, rulers, selectedRulerId])
+
+  const selectRuler = useCallback((id: string) => {
+    if (!rulers.some((ruler) => ruler.id === id)) return
+    setSelectedRulerId(id)
+    clearElementSelection()
+    setSelectedGuideId(null)
+    setSelectedRowMarkerId(null)
+    setTool({ type: 'select' })
+    setRulerDraft(null)
+  }, [clearElementSelection, rulers])
+
+  const toggleRulerTool = useCallback(() => {
+    const active = tool.type === 'ruler'
+    setTool(active ? { type: 'select' } : { type: 'ruler' })
+    setRulerDraft(null)
+    setRulerDrag(null)
+    setPreview(null)
+    setSnapTarget(null)
+    if (!active) {
+      clearElementSelection()
+      setSelectedGuideId(null)
+      setSelectedRowMarkerId(null)
+      setSelectedRulerId(null)
+      setStatus(locale === 'ru' ? 'Укажите начало линейки' : 'Pick ruler start')
+    }
+  }, [clearElementSelection, locale, tool.type])
+
+  const handleRulerHandlePointerDown = useCallback((
+    event: ReactPointerEvent<SVGCircleElement>,
+    ruler: MeasurementRuler,
+    endpoint: 'start' | 'end',
+  ) => {
+    if (event.button !== 0 || spacePressedRef.current) return
+    event.preventDefault()
+    event.stopPropagation()
+    setSelectedRulerId(ruler.id)
+    clearElementSelection()
+    setSelectedGuideId(null)
+    setSelectedRowMarkerId(null)
+    setTool({ type: 'select' })
+    setRulerDraft(null)
+    setRulerDrag({
+      pointerId: event.pointerId,
+      rulerId: ruler.id,
+      endpoint,
+      startSnapshot: currentSnapshot(),
+    })
+    interactionMovedRef.current = false
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }, [clearElementSelection, currentSnapshot])
+
   const toggleSnapping = useCallback(() => {
     const enabled = !snapping.enabled
     commitSnapping({ ...snapping, enabled })
@@ -1145,6 +1297,9 @@ function App() {
         } else if (event.key.toLowerCase() === 's') {
           event.preventDefault()
           toggleSnapping()
+        } else if (event.key.toLowerCase() === 'r') {
+          event.preventDefault()
+          toggleRulerTool()
         } else if (event.key.toLowerCase() === 'l') {
           event.preventDefault()
           setTool((current) => current.type === 'lasso' ? { type: 'select' } : { type: 'lasso' })
@@ -1183,6 +1338,7 @@ function App() {
       if (event.key === 'Escape') {
         if (drag) setElements(drag.startSnapshot.elements)
         if (rotate) setElements(rotate.startSnapshot.elements)
+        if (rulerDrag) setRulers(rulerDrag.startSnapshot.rulers)
         setTool({ type: 'select' })
         setPreview(null)
         setSnapTarget(null)
@@ -1190,6 +1346,8 @@ function App() {
         setRotate(null)
         setMarquee(null)
         setLasso(null)
+        setRulerDraft(null)
+        setRulerDrag(null)
         setMirrorAxis(null)
         snapLockRef.current = null
         interactionMovedRef.current = false
@@ -1223,8 +1381,10 @@ function App() {
     pasteSelection,
     redo,
     rotate,
+    rulerDrag,
     selectAll,
     setCanvasZoom,
+    toggleRulerTool,
     toggleSnapping,
     undo,
     zoomCanvas,
@@ -1284,6 +1444,32 @@ function App() {
     if (event.button !== 0) return
 
     const point = toDocumentPoint(localPoint(event.clientX, event.clientY))
+    if (tool.type === 'ruler') {
+      const snapped = snapRulerPoint(point, visibleElements, viewport.zoom)
+      if (!rulerDraft) {
+        setRulerDraft({
+          start: snapped.point,
+          current: snapped.point,
+          startElementId: snapped.elementId,
+          currentElementId: snapped.elementId,
+        })
+        setStatus(locale === 'ru' ? 'Укажите конец линейки' : 'Pick ruler end')
+        return
+      }
+      const ruler: MeasurementRuler = {
+        id: createId(),
+        start: rulerDraft.start,
+        end: snapped.point,
+        startElementId: rulerDraft.startElementId,
+        endElementId: snapped.elementId,
+      }
+      commitRulers([...rulers, ruler])
+      setSelectedRulerId(ruler.id)
+      setRulerDraft(null)
+      setTool({ type: 'select' })
+      setStatus(locale === 'ru' ? 'Линейка добавлена' : 'Ruler added')
+      return
+    }
     if (tool.type === 'lasso') {
       event.currentTarget.setPointerCapture(event.pointerId)
       setSelectedGuideId(null)
@@ -1364,6 +1550,21 @@ function App() {
     }
 
     const documentPoint = toDocumentPoint(screen)
+    if (rulerDrag?.pointerId === event.pointerId) {
+      const snapped = snapRulerPoint(documentPoint, visibleElements, viewport.zoom)
+      const original = rulerDrag.startSnapshot.rulers.find((ruler) => ruler.id === rulerDrag.rulerId)
+      const originalPoint = original?.[rulerDrag.endpoint]
+      if (originalPoint) {
+        interactionMovedRef.current = Math.hypot(snapped.point.x - originalPoint.x, snapped.point.y - originalPoint.y) > 0.5
+      }
+      setRulers((current) => current.map((ruler) => {
+        if (ruler.id !== rulerDrag.rulerId) return ruler
+        return rulerDrag.endpoint === 'start'
+          ? { ...ruler, start: snapped.point, startElementId: snapped.elementId }
+          : { ...ruler, end: snapped.point, endElementId: snapped.elementId }
+      }))
+      return
+    }
     if (rotate?.pointerId === event.pointerId) {
       const original = rotate.startSnapshot.elements.find((element) => element.id === rotate.elementId)
       if (!original) return
@@ -1456,6 +1657,12 @@ function App() {
       return
     }
 
+    if (tool.type === 'ruler' && rulerDraft) {
+      const snapped = snapRulerPoint(documentPoint, visibleElements, viewport.zoom)
+      setRulerDraft({ ...rulerDraft, current: snapped.point, currentElementId: snapped.elementId })
+      return
+    }
+
     updatePreview(documentPoint)
   }
 
@@ -1485,6 +1692,17 @@ function App() {
       setDrag(null)
       setSnapTarget(null)
       snapLockRef.current = null
+      interactionMovedRef.current = false
+      return
+    }
+
+    if (rulerDrag?.pointerId === event.pointerId) {
+      if (cancelled) setRulers(rulerDrag.startSnapshot.rulers)
+      else if (interactionMovedRef.current) {
+        recordSnapshot(rulerDrag.startSnapshot)
+        setStatus(locale === 'ru' ? 'Линейка изменена' : 'Ruler changed')
+      }
+      setRulerDrag(null)
       interactionMovedRef.current = false
       return
     }
@@ -1549,7 +1767,9 @@ function App() {
       spacePressedRef.current ||
       isElementLocked(element)
     ) return
+    if (tool.type === 'ruler') return
     event.stopPropagation()
+    setSelectedRulerId(null)
 
     if (tool.type === 'place') {
       setTool({ type: 'select' })
@@ -1635,12 +1855,14 @@ function App() {
     event.stopPropagation()
     setSelectedGuideId(guide.id)
     setSelectedRowMarkerId(null)
+    setSelectedRulerId(null)
     clearElementSelection()
     setStatus(`${guideLabel(guide, locale)} ${t.selected}`)
   }
 
   const handleSelectRowMarker = useCallback((id: string) => {
     setSelectedRowMarkerId(id)
+    setSelectedRulerId(null)
     clearElementSelection()
     setSelectedGuideId(null)
     setTool({ type: 'select' })
@@ -1940,6 +2162,8 @@ function App() {
     setElements(reconcileLinkedElements(normalized.elements, normalized.guides ?? []))
     setGuides(normalized.guides ?? [])
     setRowMarkers(normalized.rowMarkers ?? [])
+    setGauge(normalized.gauge ?? emptyGaugeSettings())
+    setRulers(normalized.rulers ?? [])
     setBackgroundImage(normalized.backgroundImage ?? null)
     setLegendVisible(normalized.settings.legend?.visible ?? true)
     setAutosaveDelayMs(normalized.settings.autosave?.delayMs ?? DEFAULT_AUTOSAVE_DELAY_MS)
@@ -1947,6 +2171,9 @@ function App() {
     clearElementSelection()
     setSelectedGuideId(null)
     setSelectedRowMarkerId(null)
+    setSelectedRulerId(null)
+    setRulerDraft(null)
+    setRulerDrag(null)
     setTool({ type: 'select' })
     setPreview(null)
     setSnapTarget(null)
@@ -1972,7 +2199,7 @@ function App() {
   const handleDuplicateLocalProject = async () => {
     await flushCurrentProject()
     const title = projectTitle + (locale === 'ru' ? ' — копия' : ' — copy')
-    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage)
+    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage, gauge, rulers)
     const id = await duplicateLocalProject(project, title)
     const copy = await loadLocalProject(id)
     if (copy) openLocalProjectDocument(copy, id)
@@ -2011,7 +2238,7 @@ function App() {
 
     // Persist the selected interval immediately. Otherwise choosing 60 s and
     // reloading before the first timer fires silently restores the old setting.
-    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, delayMs, backgroundImage)
+    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, delayMs, backgroundImage, gauge, rulers)
     const task = autosaveQueueRef.current
       .catch(() => undefined)
       .then(() => saveLocalProject(activeProjectId, project))
@@ -2088,7 +2315,7 @@ const openTiledPrint = (settings: PrintSettings) => {
 }
 
 const saveProject = () => {
-    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage)
+    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage, gauge, rulers)
     downloadText('crochet-scheme.json', JSON.stringify(project, null, 2), 'application/json')
     setStatus(t.projectSaved)
   }
@@ -2103,6 +2330,8 @@ const saveProject = () => {
       setElements(reconcileLinkedElements(project.elements, project.guides ?? []))
       setGuides(project.guides ?? [])
       setRowMarkers(project.rowMarkers ?? [])
+      setGauge(project.gauge ?? emptyGaugeSettings())
+      setRulers(project.rulers ?? [])
       setBackgroundImage(project.backgroundImage ?? null)
       setLegendVisible(project.settings.legend?.visible ?? true)
       setAutosaveDelayMs(project.settings.autosave?.delayMs ?? DEFAULT_AUTOSAVE_DELAY_MS)
@@ -2110,6 +2339,9 @@ const saveProject = () => {
       clearElementSelection()
       setSelectedGuideId(null)
       setSelectedRowMarkerId(null)
+      setSelectedRulerId(null)
+      setRulerDraft(null)
+      setRulerDrag(null)
       setTool({ type: 'select' })
       setPreview(null)
       setSnapTarget(null)
@@ -2237,7 +2469,15 @@ const saveProject = () => {
           >
             <span>⌁</span>{locale === 'ru' ? 'Лассо' : 'Lasso'}<kbd>L</kbd>
           </button>
-          <small className="muted-text">{locale === 'ru' ? 'Лассо: Shift добавить · Alt вычесть · Space + drag — ладонь' : 'Lasso: Shift add · Alt subtract · Space + drag — hand'}</small>
+          <button
+            className={`tool-button ${tool.type === 'ruler' ? 'active' : ''}`}
+            aria-label={locale === 'ru' ? 'Линейка' : 'Ruler'}
+            aria-pressed={tool.type === 'ruler'}
+            onClick={toggleRulerTool}
+          >
+            <span>↔</span>{locale === 'ru' ? 'Линейка' : 'Ruler'}<kbd>R</kbd>
+          </button>
+          <small className="muted-text">{locale === 'ru' ? 'Лассо: Shift добавить · Alt вычесть · Линейка: две точки · Space + drag — ладонь' : 'Lasso: Shift add · Alt subtract · Ruler: two points · Space + drag — hand'}</small>
         </section>
 
         <ProjectManagerPanel
@@ -2378,6 +2618,13 @@ const saveProject = () => {
             }}
           >{locale === 'ru' ? 'Лассо' : 'Lasso'}</button>
           <button
+            className={`fit-button ${tool.type === 'ruler' ? 'active' : ''}`}
+            aria-label={locale === 'ru' ? 'Линейка' : 'Ruler'}
+            aria-pressed={tool.type === 'ruler'}
+            title="R"
+            onClick={toggleRulerTool}
+          >{locale === 'ru' ? 'Линейка' : 'Ruler'}</button>
+          <button
             className={`snap-toggle ${snapping.enabled ? 'active' : ''}`}
             aria-pressed={snapping.enabled}
             title={locale === 'ru' ? 'S — включить/выключить привязку' : 'S — toggle snapping'}
@@ -2404,7 +2651,7 @@ const saveProject = () => {
 
         <svg
           ref={svgRef}
-          className={`editor-canvas ${pan ? 'panning' : ''} ${tool.type === 'place' ? 'placing' : tool.type === 'lasso' ? 'lassoing' : 'selecting'}`}
+          className={`editor-canvas ${pan ? 'panning' : ''} ${tool.type === 'place' ? 'placing' : tool.type === 'lasso' ? 'lassoing' : tool.type === 'ruler' ? 'measuring' : 'selecting'}`}
           onWheel={handleWheel}
           onPointerDown={handleCanvasPointerDown}
           onPointerMove={handleCanvasPointerMove}
@@ -2469,6 +2716,18 @@ const saveProject = () => {
               onTopologyMarkerPointerDown={handleTopologyMarkerPointerDown}
             />
 
+            <RulerLayer
+              rulers={rulers}
+              selectedId={selectedRulerId}
+              draft={rulerDraft ? { start: rulerDraft.start, end: rulerDraft.current } : null}
+              elements={elements}
+              gauge={gauge}
+              locale={locale}
+              zoom={viewport.zoom}
+              onSelect={selectRuler}
+              onHandlePointerDown={handleRulerHandlePointerDown}
+            />
+
             <RowMarkerLayer
               markers={rowMarkers}
               selectedId={selectedRowMarkerId}
@@ -2518,7 +2777,7 @@ const saveProject = () => {
 
         <div className="statusbar">
           <span>{status}</span>
-          <span>{elements.length} {t.stitchCount} · {guides.length} {t.guideCount} · {rowMarkers.length} {locale === 'ru' ? 'номеров рядов' : 'row numbers'}{selectedIds.length ? ` · ${selectedIds.length} ${t.selectedShort}` : ''}</span>
+          <span>{elements.length} {t.stitchCount} · {guides.length} {t.guideCount} · {rowMarkers.length} {locale === 'ru' ? 'номеров рядов' : 'row numbers'} · {rulers.length} {locale === 'ru' ? 'линеек' : 'rulers'}{selectedIds.length ? ` · ${selectedIds.length} ${t.selectedShort}` : ''}</span>
         </div>
       </main>
 
@@ -2529,6 +2788,25 @@ const saveProject = () => {
           onUpload={(file) => void handleBackgroundUpload(file)}
           onChange={updateBackgroundImage}
           onRemove={removeBackgroundImage}
+        />
+
+        <GaugeRulerPanel
+          locale={locale}
+          gauge={gauge}
+          rulers={rulers}
+          selectedRulerId={selectedRulerId}
+          placingRuler={tool.type === 'ruler'}
+          elements={elements}
+          selectedRowId={selectedParametricRow?.id ?? null}
+          selectedRowIsCircular={selectedParametricGuide?.type === 'arc' || selectedParametricGuide?.type === 'radial-grid'}
+          onAddProfile={addGaugeProfile}
+          onUpdateProfile={updateGaugeProfile}
+          onDeleteProfile={deleteGaugeProfile}
+          onActiveProfileChange={setActiveGaugeProfile}
+          onToggleRulerTool={toggleRulerTool}
+          onSelectRuler={selectRuler}
+          onUpdateRuler={updateRuler}
+          onDeleteRuler={deleteRuler}
         />
 
         <PrintPanel locale={locale} bounds={outputBounds} onPrint={openTiledPrint} />
@@ -2601,6 +2879,8 @@ const saveProject = () => {
               clearElementSelection()
               setSelectedGuideId(null)
               setSelectedRowMarkerId(null)
+              setSelectedRulerId(null)
+              setRulerDraft(null)
               setPreview(null)
               setSnapTarget(null)
             }}

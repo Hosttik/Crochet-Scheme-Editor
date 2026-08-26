@@ -62,7 +62,7 @@ describe('schema v16 row boundaries', () => {
       joinTarget: 'start-chain-top',
     }
     const parsed = parseProject(projectWithConstruction(construction), snapping)
-    expect(parsed.schemaVersion).toBe(18)
+    expect(parsed.schemaVersion).toBe(19)
     expect(parsed.elements[0].parametricRow?.construction).toEqual(construction)
   })
 
@@ -75,7 +75,7 @@ describe('schema v16 row boundaries', () => {
     })
     raw.schemaVersion = 15
     const parsed = parseProject(raw, snapping)
-    expect(parsed.schemaVersion).toBe(18)
+    expect(parsed.schemaVersion).toBe(19)
     expect(parsed.elements[0].parametricRow?.construction).toEqual({
       mode: 'turning',
       direction: 'reverse',

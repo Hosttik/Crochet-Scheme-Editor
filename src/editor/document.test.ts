@@ -55,7 +55,7 @@ describe('project migration', () => {
     } as CrochetProject
 
     const migrated = normalizeProject(legacy, snapping)
-    expect(migrated.schemaVersion).toBe(18)
+    expect(migrated.schemaVersion).toBe(19)
     expect(migrated.elements[0]).toMatchObject({ visible: true, locked: false })
   })
 
@@ -69,7 +69,7 @@ describe('project migration', () => {
     }
 
     const migrated = normalizeProject(project, snapping)
-    expect(migrated.schemaVersion).toBe(18)
+    expect(migrated.schemaVersion).toBe(19)
     expect(migrated.elements[0]).toMatchObject({
       visible: false,
       locked: true,

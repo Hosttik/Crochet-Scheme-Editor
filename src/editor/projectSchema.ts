@@ -2,8 +2,11 @@ import type {
   AutosaveDelayMs,
   BackgroundImage,
   CrochetProject,
+  GaugeProfile,
+  GaugeSettings,
   Guide,
   GuideAttachment,
+  MeasurementRuler,
   ParametricRowBinding,
   RowProgram,
   RowMarker,
@@ -12,7 +15,7 @@ import type {
 } from '../types'
 import { isStitchColor } from './elementColor'
 import { rowProgramMetrics } from './rowProgram'
-import { MAX_PROJECT_ELEMENTS, MAX_PROJECT_GUIDES, MAX_PROJECT_ROW_MARKERS, projectIntegrityIssue } from './projectIntegrity'
+import { MAX_GAUGE_PROFILES, MAX_PROJECT_ELEMENTS, MAX_PROJECT_GUIDES, MAX_PROJECT_ROW_MARKERS, MAX_PROJECT_RULERS, projectIntegrityIssue } from './projectIntegrity'
 import { CURRENT_PROJECT_SCHEMA_VERSION, MIN_PROJECT_SCHEMA_VERSION, STRICT_PROJECT_SCHEMA_VERSION } from './projectVersion'
 
 export class ProjectValidationError extends Error {
@@ -302,6 +305,60 @@ function parseBackgroundImage(value: unknown): BackgroundImage | undefined {
   }
 }
 
+function parseGaugeProfile(value: unknown): GaugeProfile {
+  if (!isRecord(value)) throw new ProjectValidationError('Invalid gauge profile')
+  if (
+    !nonEmptyString(value.id) || typeof value.name !== 'string' || !nonEmptyString(value.symbolId) ||
+    !positiveInteger(value.stitchCount, 10_000) || !positiveInteger(value.rowCount, 10_000) ||
+    !finite(value.widthCm) || value.widthCm <= 0 || value.widthCm > 10_000 ||
+    !finite(value.heightCm) || value.heightCm <= 0 || value.heightCm > 10_000
+  ) throw new ProjectValidationError('Invalid gauge profile')
+  return {
+    id: value.id,
+    name: value.name,
+    symbolId: value.symbolId,
+    stitchCount: value.stitchCount as number,
+    rowCount: value.rowCount as number,
+    widthCm: value.widthCm,
+    heightCm: value.heightCm,
+  }
+}
+
+function parseGauge(value: unknown): GaugeSettings {
+  if (value === undefined) return { profiles: [] }
+  if (!isRecord(value) || !Array.isArray(value.profiles) || value.profiles.length > MAX_GAUGE_PROFILES) {
+    throw new ProjectValidationError('Invalid gauge settings')
+  }
+  if (!(value.activeProfileId === undefined || nonEmptyString(value.activeProfileId))) {
+    throw new ProjectValidationError('Invalid active gauge profile')
+  }
+  return {
+    profiles: value.profiles.map(parseGaugeProfile),
+    activeProfileId: value.activeProfileId as string | undefined,
+  }
+}
+
+function parseMeasurementRuler(value: unknown): MeasurementRuler {
+  if (!isRecord(value) || !nonEmptyString(value.id) || !point(value.start) || !point(value.end)) {
+    throw new ProjectValidationError('Invalid measurement ruler')
+  }
+  if (
+    !(value.startElementId === undefined || nonEmptyString(value.startElementId)) ||
+    !(value.endElementId === undefined || nonEmptyString(value.endElementId)) ||
+    !(value.profileId === undefined || nonEmptyString(value.profileId)) ||
+    !(value.manualStitchCount === undefined || positiveInteger(value.manualStitchCount, MAX_PROJECT_ELEMENTS))
+  ) throw new ProjectValidationError('Invalid measurement ruler')
+  return {
+    id: value.id,
+    start: value.start as unknown as { x: number; y: number },
+    end: value.end as unknown as { x: number; y: number },
+    startElementId: value.startElementId as string | undefined,
+    endElementId: value.endElementId as string | undefined,
+    profileId: value.profileId as string | undefined,
+    manualStitchCount: value.manualStitchCount as number | undefined,
+  }
+}
+
 function parseLegend(value: unknown) {
   if (value === undefined) return { visible: true }
   if (!isRecord(value) || typeof value.visible !== 'boolean') {
@@ -343,6 +400,8 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
   if (Array.isArray(raw.guides) && raw.guides.length > MAX_PROJECT_GUIDES) throw new ProjectValidationError('Project contains too many guides')
   if (raw.rowMarkers !== undefined && !Array.isArray(raw.rowMarkers)) throw new ProjectValidationError('Project row markers are invalid')
   if (Array.isArray(raw.rowMarkers) && raw.rowMarkers.length > MAX_PROJECT_ROW_MARKERS) throw new ProjectValidationError('Project contains too many row markers')
+  if (raw.rulers !== undefined && !Array.isArray(raw.rulers)) throw new ProjectValidationError('Project measurement rulers are invalid')
+  if (Array.isArray(raw.rulers) && raw.rulers.length > MAX_PROJECT_RULERS) throw new ProjectValidationError('Project contains too many measurement rulers')
 
   const metadata = isRecord(raw.metadata) ? raw.metadata : {}
   const settings = isRecord(raw.settings) ? raw.settings : {}
@@ -350,6 +409,8 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
   const guides = (raw.guides ?? []).map(parseGuide)
   const rowMarkers = (raw.rowMarkers ?? []).map(parseRowMarker)
   const backgroundImage = parseBackgroundImage(raw.backgroundImage)
+  const gauge = parseGauge(raw.gauge)
+  const rulers = (raw.rulers ?? []).map(parseMeasurementRuler)
 
   const project: CrochetProject = {
     schemaVersion: CURRENT_PROJECT_SCHEMA_VERSION,
@@ -361,6 +422,8 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
     guides,
     rowMarkers,
     backgroundImage,
+    gauge,
+    rulers,
     settings: {
       snapping: parseSnapping(settings.snapping, fallbackSnapping),
       legend: parseLegend(settings.legend),
