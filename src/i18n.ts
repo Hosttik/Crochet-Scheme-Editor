@@ -5,7 +5,7 @@ export const DEFAULT_LOCALE: Locale = 'ru'
 export const UI = {
   ru: {
     brandTitle: 'Редактор схем вязания',
-    brandSubtitle: 'Векторный редактор схем · v1.16',
+    brandSubtitle: 'Векторный редактор схем · v1.15.1',
     undo: 'Отменить',
     redo: 'Повторить',
     saveJson: 'Сохранить JSON',
@@ -118,7 +118,7 @@ export const UI = {
   },
   en: {
     brandTitle: 'Crochet Scheme Editor',
-    brandSubtitle: 'Vector pattern workspace · v1.16',
+    brandSubtitle: 'Vector pattern workspace · v1.15.1',
     undo: 'Undo',
     redo: 'Redo',
     saveJson: 'Save JSON',
@@ -235,7 +235,7 @@ const symbolNames: Record<string, Record<Locale, string>> = {
   'start-marker': { ru: 'Начало вязания', en: 'Start' },
   'end-marker': { ru: 'Конец вязания', en: 'End' },
   chain: { ru: 'Воздушная петля', en: 'Chain' },
-  slip: { ru: 'Соединительная петля', en: 'Slip stitch' },
+  slip: { ru: 'Соединительный столбик', en: 'Slip stitch' },
   'magic-ring': { ru: 'Кольцо амигуруми', en: 'Magic ring' },
   'solomons-knot': { ru: 'Соломонова петля', en: "Solomon's knot" },
   single: { ru: 'Столбик без накида', en: 'Single crochet' },
