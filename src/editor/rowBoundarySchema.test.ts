@@ -62,11 +62,11 @@ describe('schema v16 row boundaries', () => {
       joinTarget: 'start-chain-top',
     }
     const parsed = parseProject(projectWithConstruction(construction), snapping)
-    expect(parsed.schemaVersion).toBe(16)
+    expect(parsed.schemaVersion).toBe(17)
     expect(parsed.elements[0].parametricRow?.construction).toEqual(construction)
   })
 
-  it('keeps legacy construction fields loadable while migrating to v16', () => {
+  it('keeps legacy construction fields loadable while migrating to v17', () => {
     const raw = projectWithConstruction({
       mode: 'turning',
       direction: 'reverse',
@@ -75,7 +75,7 @@ describe('schema v16 row boundaries', () => {
     })
     raw.schemaVersion = 15
     const parsed = parseProject(raw, snapping)
-    expect(parsed.schemaVersion).toBe(16)
+    expect(parsed.schemaVersion).toBe(17)
     expect(parsed.elements[0].parametricRow?.construction).toEqual({
       mode: 'turning',
       direction: 'reverse',

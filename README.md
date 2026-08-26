@@ -2,9 +2,9 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
-## v1.13.0
+## v1.14.0
 
-The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.11 added continuous path guides and persistent manual stitch-to-guide attachment; v1.11.1 completed mirror authoring with a draggable custom axis; v1.12 added guide locking, row-number annotations and an automatic exportable legend; v1.13 makes crochet row starts and closures explicit.
+The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.11 added continuous path guides and persistent manual stitch-to-guide attachment; v1.11.1 completed mirror authoring with a draggable custom axis; v1.12 added guide locking, row-number annotations and an automatic exportable legend; v1.13 makes crochet row starts and closures explicit; v1.14 adds persisted tracing underlays and page-tiled print output.
 
 ### Editing and productivity
 
@@ -97,15 +97,18 @@ The editor combines an SVG canvas with a document model that understands guides,
 
 ### Persistence and export
 
+- optional background image underlays persist with position, size, opacity, visibility and geometry lock; underlays are editor-only by default and can be explicitly included in SVG/print output
+- tiled print output supports A4/Letter, portrait/landscape, 10-400% physical scale, configurable page overlap and crop marks; the preview reports the exact page grid before opening the browser print view
 - independent red-dot row-number annotations support automatic first-gap numbering, drag, manual numbering, visibility and lock
 - row-number annotations persist through autosave/JSON and are included in SVG export
 - automatic legend is derived from actually used visible stitch symbols, shows abbreviation plus localized RU/EN name, can be toggled, and is included in SVG export
 - autosave delay is configurable per project: Off, legacy Fast (0.65 s), 5 s, 15 s, 30 s or 60 s; switching Off is persisted immediately
-- project JSON schema is v16; v1-v15 remain loadable through runtime validation/migration
+- project JSON schema is v17; v1-v16 remain loadable through runtime validation/migration
 - schema v13 introduced optional six-digit hex visual color per stitch; default black is omitted from storage
 - schema v14 adds Line/Curve guide persistence and optional manual `guideAttachment` metadata
 - schema v15 adds guide lock state, independent row-number annotations and legend visibility settings
 - schema v16 adds counted starting-chain semantics, skipped base stitches and exact joined-round closure targets
+- schema v17 adds persisted background-image underlays and explicit output inclusion
 - manual group ids, topology parent ids, manual topology overrides, mixed/rich row programs, row construction semantics and generated-offset baselines are persisted and validated
 - local multi-project storage in IndexedDB
 - automatic migration of the legacy single autosave into the first local project
@@ -174,4 +177,4 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - local persistence
 - rendering and React UI
 
-Next larger product milestones are document/output workflows: background image underlays with opacity/lock, tiled multi-page printing with overlap/crop marks, and free-form lasso selection. A future color-domain milestone can turn visual colors into explicit yarn/color-change semantics without conflating presentation color with stitch topology.
+The next larger interaction milestone is free-form lasso selection. A future color-domain milestone can turn visual colors into explicit yarn/color-change semantics without conflating presentation color with stitch topology.

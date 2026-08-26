@@ -185,6 +185,20 @@ export type RowMarker = {
   locked?: boolean
 }
 
+export type BackgroundImage = {
+  dataUrl: string
+  sourceName?: string
+  x: number
+  y: number
+  width: number
+  height: number
+  opacity: number
+  visible?: boolean
+  locked?: boolean
+  /** Tracing underlays stay editor-only unless the user explicitly opts into output. */
+  includeInExport?: boolean
+}
+
 export type LegendSettings = {
   visible: boolean
 }
@@ -209,7 +223,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17
   metadata: {
     title: string
     updatedAt: string
@@ -217,6 +231,7 @@ export type CrochetProject = {
   elements: StitchElement[]
   guides?: Guide[]
   rowMarkers?: RowMarker[]
+  backgroundImage?: BackgroundImage
   settings: {
     snapping: SnappingSettings
     legend?: LegendSettings

@@ -4,6 +4,8 @@ import { GuideRenderer } from './editor/GuideRenderer'
 import { LegendOverlay } from './editor/LegendOverlay'
 import { RowMarkerLayer } from './editor/RowMarkerLayer'
 import { RowMarkersPanel } from './editor/RowMarkersPanel'
+import { BackgroundImagePanel } from './editor/BackgroundImagePanel'
+import { PrintPanel } from './editor/PrintPanel'
 import { GuideAttachmentPanel } from './editor/GuideAttachmentPanel'
 import { MirrorAxisOverlay, type MirrorAxisState } from './editor/MirrorAxisOverlay'
 import { GuideRowGeneratorPanel } from './editor/GuideRowGeneratorPanel'
@@ -27,6 +29,8 @@ import {
   sendToBack as sendElementsToBack,
 } from './editor/document'
 import { DEFAULT_STITCH_COLOR } from './editor/elementColor'
+import { clampBackgroundOpacity, fittedBackgroundImage } from './editor/backgroundImage'
+import { buildTiledPrintHtml, parseSvgViewBox, type PrintSettings } from './editor/printLayout'
 import { usedLegendItems } from './editor/legend'
 import { deleteRowMarkerAndRenumber, isRowMarkerLocked, nextRowMarkerNumber, normalizedRowMarkerNumber } from './editor/rowMarkers'
 import type { GuideManipulationMode } from './editor/guideManipulation'
@@ -97,6 +101,7 @@ import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph, symbolSvgMarkup } from './symbols'
 import type {
   AutosaveDelayMs,
   AnchorName,
+  BackgroundImage,
   CrochetProject,
   Guide,
   GuideAttachment,
@@ -245,12 +250,16 @@ function escapeXml(value: string) {
 function serializeSvg(
   elements: StitchElement[],
   rowMarkers: RowMarker[],
+  backgroundImage: BackgroundImage | null,
   legendVisible: boolean,
   locale: Locale,
   emptyLabel: string,
 ) {
   const visibleMarkers = rowMarkers.filter((marker) => marker.visible !== false)
-  if (!elements.length && !visibleMarkers.length) {
+  const exportBackground = backgroundImage && backgroundImage.visible !== false && backgroundImage.includeInExport === true
+    ? backgroundImage
+    : null
+  if (!elements.length && !visibleMarkers.length && !exportBackground) {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480"><text x="320" y="240" text-anchor="middle" font-family="sans-serif" fill="#888">${escapeXml(emptyLabel)}</text></svg>`
   }
 
@@ -262,6 +271,14 @@ function serializeSvg(
   bounds.push(...visibleMarkers.map((marker) => ({
     left: marker.x - 8, right: marker.x + 42, top: marker.y - 14, bottom: marker.y + 14,
   })))
+  if (exportBackground) {
+    bounds.push({
+      left: exportBackground.x,
+      right: exportBackground.x + exportBackground.width,
+      top: exportBackground.y,
+      bottom: exportBackground.y + exportBackground.height,
+    })
+  }
 
   const padding = 36
   let left = Math.min(...bounds.map((item) => item.left)) - padding
@@ -269,6 +286,9 @@ function serializeSvg(
   const top = Math.min(...bounds.map((item) => item.top)) - padding
   let bottom = Math.max(...bounds.map((item) => item.bottom)) + padding
 
+  const backgroundContent = exportBackground
+    ? `<image href="${escapeXml(exportBackground.dataUrl)}" x="${exportBackground.x}" y="${exportBackground.y}" width="${exportBackground.width}" height="${exportBackground.height}" opacity="${exportBackground.opacity}" preserveAspectRatio="none"/>`
+    : ''
   const content = elements
     .map((element) => `<g transform="translate(${element.x} ${element.y}) rotate(${element.rotation})" style="color:${element.color ?? DEFAULT_STITCH_COLOR}">${symbolSvgMarkup(element.symbolId)}</g>`)
     .join('')
@@ -297,7 +317,7 @@ function serializeSvg(
 
   const width = Math.max(1, right - left)
   const height = Math.max(1, bottom - top)
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" width="${width}" height="${height}"><rect x="${left}" y="${top}" width="${width}" height="${height}" fill="white"/>${content}${markerContent}${legendContent}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" width="${width}" height="${height}"><rect x="${left}" y="${top}" width="${width}" height="${height}" fill="white"/>${backgroundContent}${content}${markerContent}${legendContent}</svg>`
 }
 
 function buildProject(
@@ -308,13 +328,15 @@ function buildProject(
   rowMarkers: RowMarker[] = [],
   legendVisible = true,
   autosaveDelayMs: AutosaveDelayMs = DEFAULT_AUTOSAVE_DELAY_MS,
+  backgroundImage: BackgroundImage | null = null,
 ): CrochetProject {
   return {
-    schemaVersion: 16,
+    schemaVersion: 17,
     metadata: { title, updatedAt: new Date().toISOString() },
     elements: normalizeElements(elements),
     guides,
     rowMarkers,
+    backgroundImage: backgroundImage ?? undefined,
     settings: {
       snapping,
       legend: { visible: legendVisible },
@@ -373,6 +395,7 @@ function App() {
   const [elements, setElements] = useState<StitchElement[]>([])
   const [guides, setGuides] = useState<Guide[]>([])
   const [rowMarkers, setRowMarkers] = useState<RowMarker[]>([])
+  const [backgroundImage, setBackgroundImage] = useState<BackgroundImage | null>(null)
   const [legendVisible, setLegendVisible] = useState(true)
   const [autosaveDelayMs, setAutosaveDelayMs] = useState<AutosaveDelayMs>(DEFAULT_AUTOSAVE_DELAY_MS)
   const [history, setHistory] = useState<HistoryState>(emptyHistory<DocumentSnapshot>())
@@ -413,6 +436,7 @@ function App() {
           setElements(reconcileLinkedElements(project.elements, project.guides ?? []))
           setGuides(project.guides ?? [])
           setRowMarkers(project.rowMarkers ?? [])
+          setBackgroundImage(project.backgroundImage ?? null)
           setLegendVisible(project.settings.legend?.visible ?? true)
           setAutosaveDelayMs(project.settings.autosave?.delayMs ?? DEFAULT_AUTOSAVE_DELAY_MS)
           setSnapping(project.settings.snapping)
@@ -451,7 +475,7 @@ function App() {
     const revision = ++autosaveRevisionRef.current
     setAutosaveState('saving')
     const timeout = window.setTimeout(() => {
-      const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs)
+      const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage)
       const task = autosaveQueueRef.current
         .catch(() => undefined)
         .then(() => saveLocalProject(activeProjectId, project))
@@ -466,7 +490,7 @@ function App() {
     }, autosaveDelayMs)
 
     return () => window.clearTimeout(timeout)
-  }, [activeProjectId, autosaveDelayMs, elements, guides, hydrated, legendVisible, projectTitle, rowMarkers, snapping])
+  }, [activeProjectId, autosaveDelayMs, backgroundImage, elements, guides, hydrated, legendVisible, projectTitle, rowMarkers, snapping])
 
   useEffect(() => {
     if (!hydrated) return
@@ -515,6 +539,11 @@ function App() {
     return count || undefined
   }, [elements, selectedParametricRow])
   const visibleElements = useMemo(() => elements.filter(isElementVisible), [elements])
+  const outputSvg = useMemo(
+    () => serializeSvg(visibleElements, rowMarkers, backgroundImage, legendVisible, locale, t.emptySvg),
+    [backgroundImage, legendVisible, locale, rowMarkers, t.emptySvg, visibleElements],
+  )
+  const outputBounds = useMemo(() => parseSvgViewBox(outputSvg), [outputSvg])
   const groupedSymbols = useMemo(() => {
     const groups = new Map<string, typeof SYMBOLS>()
     for (const symbol of SYMBOLS) {
@@ -1786,6 +1815,7 @@ function App() {
     setElements(reconcileLinkedElements(normalized.elements, normalized.guides ?? []))
     setGuides(normalized.guides ?? [])
     setRowMarkers(normalized.rowMarkers ?? [])
+    setBackgroundImage(normalized.backgroundImage ?? null)
     setLegendVisible(normalized.settings.legend?.visible ?? true)
     setAutosaveDelayMs(normalized.settings.autosave?.delayMs ?? DEFAULT_AUTOSAVE_DELAY_MS)
     setSnapping(normalized.settings.snapping)
@@ -1813,7 +1843,7 @@ function App() {
 
   const handleDuplicateLocalProject = async () => {
     const title = projectTitle + (locale === 'ru' ? ' — копия' : ' — copy')
-    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs)
+    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage)
     const id = await duplicateLocalProject(project, title)
     const copy = await loadLocalProject(id)
     if (copy) openLocalProjectDocument(copy, id)
@@ -1837,7 +1867,7 @@ function App() {
 
     // Persist the selected interval immediately. Otherwise choosing 60 s and
     // reloading before the first timer fires silently restores the old setting.
-    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, delayMs)
+    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, delayMs, backgroundImage)
     const task = autosaveQueueRef.current
       .catch(() => undefined)
       .then(() => saveLocalProject(activeProjectId, project))
@@ -1853,8 +1883,63 @@ function App() {
       })
   }
 
-  const saveProject = () => {
-    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs)
+  const handleBackgroundUpload = async (file: File) => {
+  try {
+    if (!file.type.startsWith('image/')) throw new Error(locale === 'ru' ? 'Выберите файл изображения' : 'Choose an image file')
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not read image'))
+      reader.onerror = () => reject(reader.error ?? new Error('Could not read image'))
+      reader.readAsDataURL(file)
+    })
+    const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      const image = new Image()
+      image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight })
+      image.onerror = () => reject(new Error(locale === 'ru' ? 'Не удалось открыть изображение' : 'Could not open image'))
+      image.src = dataUrl
+    })
+    const rect = svgRef.current?.getBoundingClientRect()
+    const center = rect
+      ? screenToDocument({ x: rect.width / 2, y: rect.height / 2 }, viewport)
+      : { x: 0, y: 0 }
+    setBackgroundImage(fittedBackgroundImage(dataUrl, file.name, dimensions.width, dimensions.height, center))
+    setStatus(locale === 'ru' ? 'Фоновое изображение добавлено' : 'Background image added')
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : (locale === 'ru' ? 'Не удалось добавить изображение' : 'Could not add image'))
+  }
+}
+
+const updateBackgroundImage = (patch: Partial<BackgroundImage>) => {
+  setBackgroundImage((current) => current ? {
+    ...current,
+    ...patch,
+    width: patch.width === undefined ? current.width : Math.max(1, patch.width),
+    height: patch.height === undefined ? current.height : Math.max(1, patch.height),
+    opacity: patch.opacity === undefined ? current.opacity : clampBackgroundOpacity(patch.opacity),
+  } : current)
+}
+
+const removeBackgroundImage = () => {
+  setBackgroundImage(null)
+  setStatus(locale === 'ru' ? 'Фоновое изображение удалено' : 'Background image removed')
+}
+
+const openTiledPrint = (settings: PrintSettings) => {
+  const popup = window.open('', '_blank')
+  if (!popup) {
+    setStatus(locale === 'ru' ? 'Разрешите всплывающие окна для печати' : 'Allow pop-ups to open the print view')
+    return
+  }
+  const html = buildTiledPrintHtml(outputSvg, outputBounds, settings, projectTitle, locale)
+  popup.document.open()
+  popup.document.write(html)
+  popup.document.close()
+  window.setTimeout(() => popup.print(), 150)
+  setStatus(locale === 'ru' ? 'Макет печати открыт' : 'Print layout opened')
+}
+
+const saveProject = () => {
+    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage)
     downloadText('crochet-scheme.json', JSON.stringify(project, null, 2), 'application/json')
     setStatus(t.projectSaved)
   }
@@ -1863,7 +1948,7 @@ function App() {
     try {
       const raw = JSON.parse(await file.text()) as CrochetProject
       if (
-        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].includes(raw.schemaVersion) ||
+        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].includes(raw.schemaVersion) ||
         !Array.isArray(raw.elements)
       ) {
         throw new Error(t.unsupportedProject)
@@ -1874,6 +1959,7 @@ function App() {
       setElements(reconcileLinkedElements(project.elements, project.guides ?? []))
       setGuides(project.guides ?? [])
       setRowMarkers(project.rowMarkers ?? [])
+      setBackgroundImage(project.backgroundImage ?? null)
       setLegendVisible(project.settings.legend?.visible ?? true)
       setAutosaveDelayMs(project.settings.autosave?.delayMs ?? DEFAULT_AUTOSAVE_DELAY_MS)
       setSnapping(project.settings.snapping)
@@ -1894,7 +1980,7 @@ function App() {
   const exportSvg = () => {
     downloadText(
       'crochet-scheme.svg',
-      serializeSvg(visibleElements, rowMarkers, legendVisible, locale, t.emptySvg),
+      outputSvg,
       'image/svg+xml',
     )
     setStatus(t.svgExported)
@@ -2169,6 +2255,20 @@ function App() {
             <line x1="-6000" y1="0" x2="6000" y2="0" className="origin-line" />
             <line x1="0" y1="-6000" x2="0" y2="6000" className="origin-line" />
 
+            {backgroundImage && backgroundImage.visible !== false && (
+              <image
+                data-testid="background-image"
+                className="background-canvas-image"
+                href={backgroundImage.dataUrl}
+                x={backgroundImage.x}
+                y={backgroundImage.y}
+                width={backgroundImage.width}
+                height={backgroundImage.height}
+                opacity={backgroundImage.opacity}
+                preserveAspectRatio="none"
+              />
+            )}
+
             {guides.map((guide) => (
               <GuideRenderer
                 key={guide.id}
@@ -2242,6 +2342,16 @@ function App() {
       </main>
 
       <aside className="sidebar right-sidebar">
+        <BackgroundImagePanel
+          locale={locale}
+          background={backgroundImage}
+          onUpload={(file) => void handleBackgroundUpload(file)}
+          onChange={updateBackgroundImage}
+          onRemove={removeBackgroundImage}
+        />
+
+        <PrintPanel locale={locale} bounds={outputBounds} onPrint={openTiledPrint} />
+
         <section className="panel-section">
           <div className="section-title-row"><h2>{t.snapping}</h2></div>
           <label className="toggle-row">
