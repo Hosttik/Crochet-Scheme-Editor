@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { SYMBOLS, SymbolGlyph } from '../symbols'
+import { STITCH_SYMBOLS, SymbolGlyph } from '../symbols'
 import { symbolName, type Locale } from '../i18n'
 import type { Guide, ParametricRowBinding, StitchElement } from '../types'
 import {
@@ -191,7 +191,7 @@ export function GuideRowGeneratorPanel({
               setPreviewVisible(true)
             }}
           >
-            {SYMBOLS.map((symbol) => (
+            {STITCH_SYMBOLS.map((symbol) => (
               <option key={symbol.id} value={symbol.id}>
                 {symbolName(symbol.id, symbol.name, locale)}
               </option>
