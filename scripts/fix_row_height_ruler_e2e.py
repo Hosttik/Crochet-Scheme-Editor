@@ -4,7 +4,7 @@ path = Path('e2e/gaugeRuler.e2e.ts')
 text = path.read_text()
 
 old = """  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()\n  await expect(page.locator('.stitch-element')).toHaveCount(24)\n"""
-new = """  await page.locator('.guide-list button').filter({ hasText: 'Радиальная' }).click()\n  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()\n  await expect(page.locator('.stitch-element')).toHaveCount(24)\n"""
+new = """  await page.locator('.guide-list button').filter({ hasText: 'Радиальная' }).click()\n  await page.locator('.guide-row-generator').getByLabel('Смещение от направляющей').fill('40')\n  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()\n  await expect(page.locator('.stitch-element')).toHaveCount(24)\n"""
 if old not in text:
     raise SystemExit('row-height E2E guide reselection snippet not found')
 text = text.replace(old, new, 1)
@@ -34,4 +34,4 @@ if old not in text:
 text = text.replace(old, new, 1)
 
 path.write_text(text)
-print('Row-height E2E cleanup and guide reselection fixes applied')
+print('Row-height E2E now uses a distinct radial row and overlay-safe ruler flow')
