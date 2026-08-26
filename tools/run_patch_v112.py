@@ -8,3 +8,10 @@ if source.count(old) != 1:
     raise RuntimeError('Could not patch v1.12 helper')
 source = source.replace(old, new, 1)
 exec(compile(source, str(path), 'exec'), {'__name__': '__main__'})
+
+schema_path = Path('src/editor/projectSchema.ts')
+schema = schema_path.read_text()
+needle = '    number: value.number,\n'
+if schema.count(needle) != 1:
+    raise RuntimeError('Could not narrow validated row marker number')
+schema_path.write_text(schema.replace(needle, '    number: value.number as number,\n', 1))
