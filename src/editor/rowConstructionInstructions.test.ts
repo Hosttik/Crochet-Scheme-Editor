@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { ParametricRowBinding, StitchElement } from '../types'
-import { formatPatternRowInstruction, patternInstructionsMarkdown } from './patternInstructions'
+import {
+  formatPatternRowInstruction,
+  generatePatternInstructions,
+  patternInstructionsMarkdown,
+} from './patternInstructions'
 
 function binding(construction: NonNullable<ParametricRowBinding['construction']>): ParametricRowBinding {
   return {
@@ -34,6 +38,27 @@ describe('construction-aware pattern instructions', () => {
     expect(formatPatternRowInstruction(row, 2, 12, 'ru')).toBe(
       'Ряд 2: 2 ВП подъёма (вне счёта ряда); 12 СБН = 12; замкнутый круг ↻; замкнуть СС в первую провязанную петлю',
     )
+  })
+
+  it('reports a counted starting chain as one logical stitch without changing worked elements', () => {
+    const row = binding({
+      mode: 'joined',
+      direction: 'along',
+      startChainCount: 3,
+      startChainCountsAsStitch: true,
+      skipFirstStitches: 1,
+      joinWithSlipStitch: true,
+      joinTarget: 'start-chain-top',
+    })
+    const rowElements = elements(row)
+    expect(formatPatternRowInstruction(row, 1, 12, 'ru')).toBe(
+      'Ряд 1: 3 ВП подъёма (считаются первой петлёй ряда); пропустить 1 петлю основания; 12 СБН = 12; всего в счёте ряда: 13; замкнутый круг ↻; замкнуть СС в верхнюю ВП подъёма',
+    )
+    expect(rowElements).toHaveLength(12)
+    expect(generatePatternInstructions(rowElements, 'ru')[0]).toMatchObject({
+      stitchCount: 12,
+      rowTotalCount: 13,
+    })
   })
 
   it('describes turning direction and includes auxiliary construction abbreviations in markdown', () => {
