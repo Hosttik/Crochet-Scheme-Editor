@@ -3,6 +3,7 @@ import type {
   RowConstructionMode,
   RowJoinTarget,
   RowWorkDirection,
+  StitchElement,
 } from '../types'
 import type { Locale } from '../i18n'
 
@@ -144,6 +145,18 @@ export function nextRowConstruction(construction?: RowConstruction) {
     ...normalized,
     direction: normalized.direction === 'along' ? 'reverse' as const : 'along' as const,
   }
+}
+
+export function rowConstructionTopologyParents(
+  parents: StitchElement[],
+  construction?: RowConstruction,
+) {
+  const normalized = normalizeRowConstruction(construction)
+  if (!normalized) return parents
+  const ordered = normalized.direction === 'reverse' ? [...parents].reverse() : parents
+  return normalized.skipFirstStitches > 0
+    ? ordered.slice(normalized.skipFirstStitches)
+    : ordered
 }
 
 export function rowConstructionDirectionSymbol(construction?: RowConstruction) {

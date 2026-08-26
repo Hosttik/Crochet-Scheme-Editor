@@ -4,7 +4,7 @@ import {
   resolveGuideRowCount,
   rowPlacementsToElements,
 } from './rowGenerator'
-import { nextRowConstruction } from './rowConstruction'
+import { nextRowConstruction, rowConstructionTopologyParents } from './rowConstruction'
 import { createRowShaping, targetCountForRowShaping } from './rowShaping'
 import {
   applyCompiledProgram,
@@ -167,8 +167,10 @@ function reconcileTopology(elements: StitchElement[]) {
       continue
     }
 
+    const topologyParents = rowConstructionTopologyParents(parents, binding.construction)
+
     if (binding.program) {
-      const compiled = compileRowProgram(binding.program, parents)
+      const compiled = compileRowProgram(binding.program, topologyParents)
       const resolvedBinding = binding.shaping || binding.topologyOverride
         ? { ...binding, shaping: undefined, topologyOverride: undefined }
         : binding
@@ -180,7 +182,7 @@ function reconcileTopology(elements: StitchElement[]) {
       continue
     }
 
-    const topologyOverride = isTopologyOverrideValid(parents, binding.shaping, binding.topologyOverride)
+    const topologyOverride = isTopologyOverrideValid(topologyParents, binding.shaping, binding.topologyOverride)
       ? binding.topologyOverride
       : undefined
     const resolvedBinding = topologyOverride === binding.topologyOverride
@@ -193,7 +195,7 @@ function reconcileTopology(elements: StitchElement[]) {
     next = replaceRowBlock(
       next,
       binding.id,
-      applyRowTopology(reboundChildren, parents, binding.shaping, topologyOverride),
+      applyRowTopology(reboundChildren, topologyParents, binding.shaping, topologyOverride),
     )
   }
   return next
@@ -211,7 +213,7 @@ export function reconcileParametricRows(
     const existing = rowElements(next, binding.id)
     const guide = guideById.get(binding.guideId)
 
-    if (!guide || guide.type === 'grid') {
+    if (!guide || (guide.type !== 'arc' && guide.type !== 'radial-grid')) {
       next = next.map((element) =>
         element.parametricRow?.id === binding.id
           ? { ...element, parametricRow: undefined, parentStitchIds: undefined }
@@ -272,10 +274,15 @@ export function createNextPatternRow(
   idFactory: ParametricIdFactory,
 ) {
   const guide = guides.find((item) => item.id === parent.guideId)
-  if (!guide || guide.type === 'grid') return null
+  if (!guide || (guide.type !== 'arc' && guide.type !== 'radial-grid')) return null
 
+  const construction = nextRowConstruction(parent.construction)
   const parentElements = rowElements(elements, parent.id)
-  const baseCount = parentElements.length || resolveGuideRowCount(guide, parent.options)
+  const topologyParents = rowConstructionTopologyParents(parentElements, construction)
+  const baseCount = parentElements.length
+    ? topologyParents.length
+    : resolveGuideRowCount(guide, parent.options)
+  if (parentElements.length && baseCount === 0) return null
   const shapingKind = shapingKindFromIncrement(countIncrement)
   const shaping = shapingKind
     ? createRowShaping(baseCount, shapingKind, Math.abs(countIncrement))
@@ -290,7 +297,7 @@ export function createNextPatternRow(
     guideId: parent.guideId,
     symbolId: parent.symbolId,
     sequence: parent.sequence,
-    construction: nextRowConstruction(parent.construction),
+    construction,
     patternOrder: nextPatternOrder(elements),
     parentRowId: parent.id,
     generatedRadialOffset,
@@ -312,7 +319,7 @@ export function createNextPatternRow(
     ),
     binding,
   )
-  const linked = applyRowTopology(generated, parentElements, shaping)
+  const linked = applyRowTopology(generated, topologyParents, shaping)
 
   return { binding, elements: linked }
 }

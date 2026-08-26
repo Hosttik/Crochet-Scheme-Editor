@@ -1,6 +1,7 @@
 import type { Locale } from '../i18n'
 import type { ParametricRowBinding, StitchElement } from '../types'
 import { rowElements } from './parametricRows'
+import { rowConstructionTopologyParents } from './rowConstruction'
 import {
   automaticTopologyOverride,
   shiftTopologyChange,
@@ -60,7 +61,8 @@ export function TopologyEditorPanel({
   const parentRowId = binding.parentRowId
   if (!shaping || !parentRowId) return null
 
-  const parents = rowElements(elements, parentRowId)
+  const rawParents = rowElements(elements, parentRowId)
+  const parents = rowConstructionTopologyParents(rawParents, binding.construction)
   const markers = topologyChangeMarkers(elements, binding.id)
   if (!parents.length || markers.length !== shaping.count) {
     return (

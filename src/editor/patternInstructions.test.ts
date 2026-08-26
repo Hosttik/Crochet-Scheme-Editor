@@ -234,4 +234,20 @@ describe('pattern instructions', () => {
     expect(markdown).toContain('**ССН** — Столбик с накидом')
     expect(markdown).toContain('**ПСН** — Полустолбик с накидом')
   })
+  it('uses canonical abbreviations for symbols added in the expanded library', () => {
+    expect(stitchAbbreviation('double-treble', 'en')).toBe('dtr')
+    expect(stitchAbbreviation('front-post-double', 'en')).toBe('FPdc')
+    expect(stitchAbbreviation('single-2-together', 'ru')).toBe('sc2tog')
+  })
+
+  it('does not hide a rich-program parent-count mismatch in written instructions', () => {
+    const rich: ParametricRowBinding = {
+      ...binding('row-2', 2, undefined, 'row-1'),
+      program: { repeat: 1, items: [{ kind: 'stitch', symbolId: 'single', count: 2 }] },
+    }
+    expect(formatPatternRowInstruction(rich, 2, 2, 'ru', undefined, 3)).toContain(
+      'потребляет 2 из 3 петель предыдущего ряда',
+    )
+  })
+
 })

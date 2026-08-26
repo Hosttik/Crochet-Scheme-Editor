@@ -12,6 +12,7 @@ import { patternRows, rowElements } from './parametricRows'
 import {
   rowConstructionInstructionParts,
   rowConstructionRowTotal,
+  rowConstructionTopologyParents,
 } from './rowConstruction'
 import { normalizeRowProgram, rowProgramMetrics } from './rowProgram'
 import {
@@ -78,7 +79,9 @@ const COPY = {
 } as const
 
 export function stitchAbbreviation(symbolId: string, locale: Locale) {
-  return ABBREVIATIONS[symbolId]?.[locale] ?? symbolId
+  return ABBREVIATIONS[symbolId]?.[locale]
+    ?? SYMBOL_BY_ID.get(symbolId)?.abbreviation
+    ?? symbolId
 }
 
 function actionLabel(
@@ -150,15 +153,24 @@ function richProgramComposition(
   binding: ParametricRowBinding,
   stitchCount: number,
   locale: Locale,
+  parentStitchCount?: number,
 ) {
   const program = normalizeRowProgram(binding.program)
   if (!program) return null
   const body = program.items.map((item) => programItemText(item, locale)).join(', ')
   const expression = program.repeat === 1 ? body : `[${body}] × ${program.repeat}`
   const metrics = rowProgramMetrics(program)
-  if (metrics.producedChildren === stitchCount) return expression
+  const warnings: string[] = []
   const copy = COPY[locale]
-  return `${expression}; ${copy.programMismatch} ${metrics.producedChildren}, ${copy.actual} ${stitchCount}`
+  if (metrics.producedChildren !== stitchCount) {
+    warnings.push(`${copy.programMismatch} ${metrics.producedChildren}, ${copy.actual} ${stitchCount}`)
+  }
+  if (parentStitchCount !== undefined && metrics.consumedParents !== parentStitchCount) {
+    warnings.push(locale === 'ru'
+      ? `потребляет ${metrics.consumedParents} из ${parentStitchCount} петель предыдущего ряда`
+      : `consumes ${metrics.consumedParents} of ${parentStitchCount} parent stitches`)
+  }
+  return warnings.length ? `${expression}; ${warnings.join('; ')}` : expression
 }
 
 function mixedShapingDetail(
@@ -274,8 +286,9 @@ export function formatPatternRowInstruction(
   stitchCount: number,
   locale: Locale,
   parentPositions?: number[],
+  parentStitchCount?: number,
 ) {
-  const program = richProgramComposition(binding, stitchCount, locale)
+  const program = richProgramComposition(binding, stitchCount, locale, parentStitchCount)
   if (program) {
     return constructionAwareInstruction(
       binding,
@@ -324,8 +337,13 @@ export function generatePatternInstructions(
 
   return rows.map((row) => {
     let parentPositions: number[] | undefined
+    let parentStitchCount: number | undefined
+    const rawParents = row.binding.parentRowId
+      ? rowElements(elements, row.binding.parentRowId)
+      : []
+    const parents = rowConstructionTopologyParents(rawParents, row.binding.construction)
+    if (row.binding.parentRowId) parentStitchCount = parents.length
     if (row.binding.topologyOverride && row.binding.parentRowId) {
-      const parents = rowElements(elements, row.binding.parentRowId)
       const indexById = new Map(parents.map((parent, index) => [parent.id, index + 1]))
       const positions = row.binding.topologyOverride.changeParentIds
         .map((id) => indexById.get(id))
@@ -350,6 +368,7 @@ export function generatePatternInstructions(
         row.stitchCount,
         locale,
         parentPositions,
+        parentStitchCount,
       ),
     }
   })

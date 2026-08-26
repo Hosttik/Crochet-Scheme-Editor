@@ -1,4 +1,6 @@
 import type { GaugeProfile, GaugeSettings, MeasurementRuler, Point, StitchElement } from '../types'
+import { patternRows } from './parametricRows'
+import { rowConstructionRowTotal } from './rowConstruction'
 
 export function emptyGaugeSettings(): GaugeSettings {
   return { profiles: [] }
@@ -25,8 +27,10 @@ export function rowHeightCm(profile: GaugeProfile) {
 }
 
 export function rowLengthEstimateCm(elements: StitchElement[], rowId: string, profile: GaugeProfile) {
-  const count = elements.filter((element) => element.parametricRow?.id === rowId).length
-  return count ? count * stitchWidthCm(profile) : null
+  const row = elements.filter((element) => element.parametricRow?.id === rowId)
+  if (!row.length) return null
+  const count = rowConstructionRowTotal(row.length, row[0]?.parametricRow?.construction)
+  return count * stitchWidthCm(profile)
 }
 
 export function patternHeightEstimateCm(elements: StitchElement[], profile: GaugeProfile) {
@@ -58,6 +62,26 @@ export function snapRulerPoint(
     : { point }
 }
 
+export function reconcileRulerElementReferences(
+  rulers: MeasurementRuler[],
+  elements: StitchElement[],
+) {
+  const elementIds = new Set(elements.map((element) => element.id))
+  let changed = false
+  const next = rulers.map((ruler) => {
+    const startElementId = ruler.startElementId && elementIds.has(ruler.startElementId)
+      ? ruler.startElementId
+      : undefined
+    const endElementId = ruler.endElementId && elementIds.has(ruler.endElementId)
+      ? ruler.endElementId
+      : undefined
+    if (startElementId === ruler.startElementId && endElementId === ruler.endElementId) return ruler
+    changed = true
+    return { ...ruler, startElementId, endElementId }
+  })
+  return changed ? next : rulers
+}
+
 function automaticRulerStitchCount(ruler: MeasurementRuler, elements: StitchElement[]) {
   if (!ruler.startElementId || !ruler.endElementId) return null
   const start = elements.find((element) => element.id === ruler.startElementId)
@@ -71,23 +95,6 @@ function automaticRulerStitchCount(ruler: MeasurementRuler, elements: StitchElem
   return { count: Math.abs(endIndex - startIndex) + 1, rowId }
 }
 
-function semanticRows(elements: StitchElement[]) {
-  const rows = new Map<string, { id: string; patternOrder?: number; firstIndex: number }>()
-  elements.forEach((element, index) => {
-    const row = element.parametricRow
-    if (!row || rows.has(row.id)) return
-    rows.set(row.id, { id: row.id, patternOrder: row.patternOrder, firstIndex: index })
-  })
-  return [...rows.values()].sort((left, right) => {
-    if (left.patternOrder != null && right.patternOrder != null && left.patternOrder !== right.patternOrder) {
-      return left.patternOrder - right.patternOrder
-    }
-    if (left.patternOrder != null && right.patternOrder == null) return -1
-    if (left.patternOrder == null && right.patternOrder != null) return 1
-    return left.firstIndex - right.firstIndex
-  })
-}
-
 function automaticRulerRowCount(ruler: MeasurementRuler, elements: StitchElement[]) {
   if (!ruler.startElementId || !ruler.endElementId) return null
   const start = elements.find((element) => element.id === ruler.startElementId)
@@ -95,7 +102,7 @@ function automaticRulerRowCount(ruler: MeasurementRuler, elements: StitchElement
   const startRowId = start?.parametricRow?.id
   const endRowId = end?.parametricRow?.id
   if (!start || !end || !startRowId || !endRowId) return null
-  const rows = semanticRows(elements)
+  const rows = patternRows(elements)
   const startIndex = rows.findIndex((row) => row.id === startRowId)
   const endIndex = rows.findIndex((row) => row.id === endRowId)
   if (startIndex < 0 || endIndex < 0) return null
