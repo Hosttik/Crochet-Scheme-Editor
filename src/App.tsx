@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { GuideRenderer } from './editor/GuideRenderer'
+import { LegendOverlay } from './editor/LegendOverlay'
+import { RowMarkerLayer } from './editor/RowMarkerLayer'
+import { RowMarkersPanel } from './editor/RowMarkersPanel'
 import { GuideAttachmentPanel } from './editor/GuideAttachmentPanel'
 import { MirrorAxisOverlay, type MirrorAxisState } from './editor/MirrorAxisOverlay'
 import { GuideRowGeneratorPanel } from './editor/GuideRowGeneratorPanel'
@@ -24,6 +27,8 @@ import {
   sendToBack as sendElementsToBack,
 } from './editor/document'
 import { DEFAULT_STITCH_COLOR } from './editor/elementColor'
+import { usedLegendItems } from './editor/legend'
+import { isRowMarkerLocked, nextRowMarkerNumber, normalizedRowMarkerNumber } from './editor/rowMarkers'
 import type { GuideManipulationMode } from './editor/guideManipulation'
 import { clamp, screenToDocument } from './editor/geometry'
 import { emptyHistory, pushHistory, redoHistory, undoHistory } from './editor/history'
@@ -98,6 +103,7 @@ import type {
   OrientationMode,
   ParametricRowBinding,
   Point,
+  RowMarker,
   SnappingSettings,
   StitchElement,
   Viewport,
@@ -118,8 +124,8 @@ const SYMBOL_SIZES = Object.fromEntries(
   SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
 )
 
-type Tool = { type: 'select' } | { type: 'place'; symbolId: string }
-type DocumentSnapshot = { elements: StitchElement[]; guides: Guide[] }
+type Tool = { type: 'select' } | { type: 'place'; symbolId: string } | { type: 'row-marker' }
+type DocumentSnapshot = { elements: StitchElement[]; guides: Guide[]; rowMarkers: RowMarker[] }
 type PanState = {
   pointerId: number
   startPointer: Point
@@ -229,36 +235,68 @@ function NumberField({
   )
 }
 
-function serializeSvg(elements: StitchElement[], emptyLabel: string) {
-  if (!elements.length) {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480"><text x="320" y="240" text-anchor="middle" font-family="sans-serif" fill="#888">${emptyLabel}</text></svg>`
+function escapeXml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;',
+  })[character] ?? character)
+}
+
+function serializeSvg(
+  elements: StitchElement[],
+  rowMarkers: RowMarker[],
+  legendVisible: boolean,
+  locale: Locale,
+  emptyLabel: string,
+) {
+  const visibleMarkers = rowMarkers.filter((marker) => marker.visible !== false)
+  if (!elements.length && !visibleMarkers.length) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480"><text x="320" y="240" text-anchor="middle" font-family="sans-serif" fill="#888">${escapeXml(emptyLabel)}</text></svg>`
   }
 
   const bounds = elements.map((element) => {
     const definition = SYMBOL_BY_ID.get(element.symbolId)
     const half = Math.max(definition?.width ?? 30, definition?.height ?? 30) / 2 + 12
-    return {
-      left: element.x - half,
-      right: element.x + half,
-      top: element.y - half,
-      bottom: element.y + half,
-    }
+    return { left: element.x - half, right: element.x + half, top: element.y - half, bottom: element.y + half }
   })
+  bounds.push(...visibleMarkers.map((marker) => ({
+    left: marker.x - 8, right: marker.x + 42, top: marker.y - 14, bottom: marker.y + 14,
+  })))
+
   const padding = 36
-  const left = Math.min(...bounds.map((item) => item.left)) - padding
-  const right = Math.max(...bounds.map((item) => item.right)) + padding
+  let left = Math.min(...bounds.map((item) => item.left)) - padding
+  let right = Math.max(...bounds.map((item) => item.right)) + padding
   const top = Math.min(...bounds.map((item) => item.top)) - padding
-  const bottom = Math.max(...bounds.map((item) => item.bottom)) + padding
-  const width = Math.max(1, right - left)
-  const height = Math.max(1, bottom - top)
+  let bottom = Math.max(...bounds.map((item) => item.bottom)) + padding
+
   const content = elements
-    .map(
-      (element) =>
-        `<g transform="translate(${element.x} ${element.y}) rotate(${element.rotation})" style="color:${element.color ?? DEFAULT_STITCH_COLOR}">${symbolSvgMarkup(element.symbolId)}</g>`,
-    )
+    .map((element) => `<g transform="translate(${element.x} ${element.y}) rotate(${element.rotation})" style="color:${element.color ?? DEFAULT_STITCH_COLOR}">${symbolSvgMarkup(element.symbolId)}</g>`)
+    .join('')
+  const markerContent = visibleMarkers
+    .map((marker) => `<g transform="translate(${marker.x} ${marker.y})"><circle r="5" fill="#c2413b"/><text x="10" y="4" font-family="sans-serif" font-size="13" font-weight="700" fill="#b23833">${marker.number}</text></g>`)
     .join('')
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" width="${width}" height="${height}"><rect x="${left}" y="${top}" width="${width}" height="${height}" fill="white"/>${content}</svg>`
+  const legendItems = legendVisible ? usedLegendItems(elements) : []
+  let legendContent = ''
+  if (legendItems.length) {
+    const legendX = right + 18
+    const legendY = top + padding
+    const legendWidth = 250
+    const rowHeight = 30
+    const legendHeight = 38 + legendItems.length * rowHeight
+    const rows = legendItems.map((symbol, index) => {
+      const y = legendY + 48 + index * rowHeight
+      const label = symbolName(symbol.id, symbol.name, locale)
+      const text = `${symbol.abbreviation ? `${symbol.abbreviation} · ` : ''}${label}`
+      return `<g style="color:#202622"><g transform="translate(${legendX + 22} ${y - 4}) scale(0.55)">${symbolSvgMarkup(symbol.id)}</g><text x="${legendX + 48}" y="${y}" font-family="sans-serif" font-size="12" fill="#202622">${escapeXml(text)}</text></g>`
+    }).join('')
+    legendContent = `<g class="crochet-legend"><rect x="${legendX}" y="${legendY}" width="${legendWidth}" height="${legendHeight}" rx="8" fill="white" stroke="#cbc7be"/><text x="${legendX + 12}" y="${legendY + 23}" font-family="sans-serif" font-size="13" font-weight="700" fill="#202622">${locale === 'ru' ? 'Условные обозначения' : 'Legend'}</text>${rows}</g>`
+    right = legendX + legendWidth + padding
+    bottom = Math.max(bottom, legendY + legendHeight + padding)
+  }
+
+  const width = Math.max(1, right - left)
+  const height = Math.max(1, bottom - top)
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" width="${width}" height="${height}"><rect x="${left}" y="${top}" width="${width}" height="${height}" fill="white"/>${content}${markerContent}${legendContent}</svg>`
 }
 
 function buildProject(
@@ -266,13 +304,16 @@ function buildProject(
   elements: StitchElement[],
   guides: Guide[],
   snapping: SnappingSettings,
+  rowMarkers: RowMarker[] = [],
+  legendVisible = true,
 ): CrochetProject {
   return {
-    schemaVersion: 14,
+    schemaVersion: 15,
     metadata: { title, updatedAt: new Date().toISOString() },
     elements: normalizeElements(elements),
     guides,
-    settings: { snapping },
+    rowMarkers,
+    settings: { snapping, legend: { visible: legendVisible } },
   }
 }
 
@@ -308,6 +349,7 @@ function App() {
   const spacePressedRef = useRef(false)
   const interactionMovedRef = useRef(false)
   const guideManipulationSnapshotRef = useRef<DocumentSnapshot | null>(null)
+  const rowMarkerManipulationSnapshotRef = useRef<DocumentSnapshot | null>(null)
   const clipboardRef = useRef<StitchElement[]>([])
   const pasteSerialRef = useRef(1)
   const duplicateSeriesRef = useRef<{ previous: StitchElement[]; currentIds: string[] } | null>(null)
@@ -323,10 +365,13 @@ function App() {
   const [rightCollapsed, setRightCollapsed] = useState(false)
   const [elements, setElements] = useState<StitchElement[]>([])
   const [guides, setGuides] = useState<Guide[]>([])
+  const [rowMarkers, setRowMarkers] = useState<RowMarker[]>([])
+  const [legendVisible, setLegendVisible] = useState(true)
   const [history, setHistory] = useState<HistoryState>(emptyHistory<DocumentSnapshot>())
   const [tool, setTool] = useState<Tool>({ type: 'select' })
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectedGuideId, setSelectedGuideId] = useState<string | null>(null)
+  const [selectedRowMarkerId, setSelectedRowMarkerId] = useState<string | null>(null)
   const [selectedTopologyParentId, setSelectedTopologyParentId] = useState<string | null>(null)
   const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT)
   const [snapping, setSnapping] = useState<SnappingSettings>(DEFAULT_SNAPPING)
@@ -359,6 +404,8 @@ function App() {
           setProjectTitle(project.metadata.title)
           setElements(reconcileLinkedElements(project.elements, project.guides ?? []))
           setGuides(project.guides ?? [])
+          setRowMarkers(project.rowMarkers ?? [])
+          setLegendVisible(project.settings.legend?.visible ?? true)
           setSnapping(project.settings.snapping)
           setStatus(UI[locale].autosaveRestored)
         } else {
@@ -386,7 +433,7 @@ function App() {
     const revision = ++autosaveRevisionRef.current
     setAutosaveState('saving')
     const timeout = window.setTimeout(() => {
-      const project = buildProject(projectTitle, elements, guides, snapping)
+      const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible)
       const task = autosaveQueueRef.current
         .catch(() => undefined)
         .then(() => saveLocalProject(activeProjectId, project))
@@ -401,7 +448,7 @@ function App() {
     }, AUTOSAVE_DELAY_MS)
 
     return () => window.clearTimeout(timeout)
-  }, [activeProjectId, elements, guides, hydrated, projectTitle, snapping])
+  }, [activeProjectId, elements, guides, hydrated, legendVisible, projectTitle, rowMarkers, snapping])
 
   useEffect(() => {
     if (!hydrated) return
@@ -420,6 +467,11 @@ function App() {
     () => guides.find((guide) => guide.id === selectedGuideId) ?? null,
     [guides, selectedGuideId],
   )
+  const selectedRowMarker = useMemo(
+    () => rowMarkers.find((marker) => marker.id === selectedRowMarkerId) ?? null,
+    [rowMarkers, selectedRowMarkerId],
+  )
+  const nextRowNumber = useMemo(() => nextRowMarkerNumber(rowMarkers), [rowMarkers])
   useEffect(() => {
     if (!selectedIds.length) setMirrorAxis(null)
   }, [selectedIds.length])
@@ -467,8 +519,8 @@ function App() {
   )
 
   const currentSnapshot = useCallback(
-    (): DocumentSnapshot => ({ elements, guides }),
-    [elements, guides],
+    (): DocumentSnapshot => ({ elements, guides, rowMarkers }),
+    [elements, guides, rowMarkers],
   )
   const recordSnapshot = useCallback((before: DocumentSnapshot) => {
     setHistory((current) => pushHistory(current, before))
@@ -487,6 +539,13 @@ function App() {
     },
     [currentSnapshot, recordSnapshot],
   )
+  const commitRowMarkers = useCallback(
+    (next: RowMarker[]) => {
+      recordSnapshot(currentSnapshot())
+      setRowMarkers(next)
+    },
+    [currentSnapshot, recordSnapshot],
+  )
 
   const clearElementSelection = useCallback(() => setSelectedIds([]), [])
 
@@ -496,8 +555,10 @@ function App() {
     setHistory(step.history)
     setElements(step.value.elements)
     setGuides(step.value.guides)
+    setRowMarkers(step.value.rowMarkers)
     clearElementSelection()
     setSelectedGuideId(null)
+    setSelectedRowMarkerId(null)
     setStatus(t.statusUndo)
   }, [clearElementSelection, currentSnapshot, history, t.statusUndo])
 
@@ -507,8 +568,10 @@ function App() {
     setHistory(step.history)
     setElements(step.value.elements)
     setGuides(step.value.guides)
+    setRowMarkers(step.value.rowMarkers)
     clearElementSelection()
     setSelectedGuideId(null)
+    setSelectedRowMarkerId(null)
     setStatus(t.statusRedo)
   }, [clearElementSelection, currentSnapshot, history, t.statusRedo])
 
@@ -532,6 +595,14 @@ function App() {
       setStatus(deletable.size > 1 ? t.elementsDeleted : t.elementDeleted)
       return
     }
+    if (selectedRowMarkerId) {
+      const marker = rowMarkers.find((item) => item.id === selectedRowMarkerId)
+      if (!marker || isRowMarkerLocked(marker)) return
+      commitRowMarkers(rowMarkers.filter((item) => item.id !== selectedRowMarkerId))
+      setSelectedRowMarkerId(null)
+      setStatus(locale === 'ru' ? 'Номер ряда удалён' : 'Row number deleted')
+      return
+    }
     if (selectedGuideId) {
       commitGuides(guides.filter((guide) => guide.id !== selectedGuideId))
       setSelectedGuideId(null)
@@ -540,9 +611,13 @@ function App() {
   }, [
     commitElements,
     commitGuides,
+    commitRowMarkers,
     elements,
     guides,
+    locale,
+    rowMarkers,
     selectedGuideId,
+    selectedRowMarkerId,
     selectedIds.length,
     t.elementDeleted,
     t.elementsDeleted,
@@ -823,6 +898,13 @@ function App() {
   )
 
   const nudgeSelection = useCallback((dx: number, dy: number) => {
+    if (selectedRowMarkerId) {
+      const marker = rowMarkers.find((item) => item.id === selectedRowMarkerId)
+      if (!marker || isRowMarkerLocked(marker)) return
+      commitRowMarkers(rowMarkers.map((item) => item.id === marker.id ? { ...item, x: item.x + dx, y: item.y + dy } : item))
+      setStatus(locale === 'ru' ? `Номер ряда сдвинут: ${dx}, ${dy}` : `Row number nudged: ${dx}, ${dy}`)
+      return
+    }
     const selected = new Set(unlockedSelectedIds())
     if (!selected.size) return
     const movable = elements.some(
@@ -840,7 +922,7 @@ function App() {
       return { ...element, x: element.x + dx, y: element.y + dy }
     }))
     setStatus(locale === 'ru' ? `Сдвиг: ${dx}, ${dy}` : `Nudged: ${dx}, ${dy}`)
-  }, [commitElements, elements, guides, locale, unlockedSelectedIds])
+  }, [commitElements, commitRowMarkers, elements, guides, locale, rowMarkers, selectedRowMarkerId, unlockedSelectedIds])
 
   const zoomCanvas = useCallback((factor: number) => {
     const rect = svgRef.current?.getBoundingClientRect()
@@ -1072,6 +1154,17 @@ function App() {
     if (event.button !== 0) return
 
     const point = toDocumentPoint(localPoint(event.clientX, event.clientY))
+    if (tool.type === 'row-marker') {
+      const marker: RowMarker = {
+        id: createId(), number: nextRowNumber, x: point.x, y: point.y, visible: true, locked: false,
+      }
+      commitRowMarkers([...rowMarkers, marker])
+      setSelectedRowMarkerId(marker.id)
+      clearElementSelection()
+      setSelectedGuideId(null)
+      setStatus(locale === 'ru' ? `Добавлен номер ряда ${marker.number}` : `Added row number ${marker.number}`)
+      return
+    }
     if (tool.type === 'place') {
       const proposed: StitchElement = {
         id: createId(),
@@ -1099,6 +1192,7 @@ function App() {
       commitElements([...elements, placed])
       setSelectedIds([placed.id])
       setSelectedGuideId(null)
+      setSelectedRowMarkerId(null)
       const definition = SYMBOL_BY_ID.get(placed.symbolId)
       setStatus(`${t.placed}: ${symbolName(placed.symbolId, definition?.name ?? placed.symbolId, locale)}`)
       return
@@ -1106,6 +1200,7 @@ function App() {
 
     event.currentTarget.setPointerCapture(event.pointerId)
     setSelectedGuideId(null)
+    setSelectedRowMarkerId(null)
     setMarquee({
       pointerId: event.pointerId,
       start: point,
@@ -1368,9 +1463,55 @@ function App() {
     if (tool.type !== 'select' || event.button !== 0 || spacePressedRef.current) return
     event.stopPropagation()
     setSelectedGuideId(guide.id)
+    setSelectedRowMarkerId(null)
     clearElementSelection()
     setStatus(`${guideLabel(guide, locale)} ${t.selected}`)
   }
+
+  const handleSelectRowMarker = useCallback((id: string) => {
+    setSelectedRowMarkerId(id)
+    clearElementSelection()
+    setSelectedGuideId(null)
+    setTool({ type: 'select' })
+    setPreview(null)
+    setSnapTarget(null)
+  }, [clearElementSelection])
+
+  const handleRowMarkerMoveStart = useCallback(() => {
+    rowMarkerManipulationSnapshotRef.current = currentSnapshot()
+  }, [currentSnapshot])
+
+  const handleRowMarkerMovePreview = useCallback((marker: RowMarker) => {
+    setRowMarkers((current) => current.map((item) => item.id === marker.id ? marker : item))
+  }, [])
+
+  const handleRowMarkerMoveEnd = useCallback((moved: boolean, cancelled: boolean) => {
+    const before = rowMarkerManipulationSnapshotRef.current
+    rowMarkerManipulationSnapshotRef.current = null
+    if (moved && !cancelled && before) {
+      recordSnapshot(before)
+      setStatus(locale === 'ru' ? 'Номер ряда перемещён' : 'Row number moved')
+    }
+  }, [locale, recordSnapshot])
+
+  const updateRowMarker = useCallback((id: string, patch: Partial<RowMarker>) => {
+    const current = rowMarkers.find((marker) => marker.id === id)
+    if (!current) return
+    const nextNumber = patch.number === undefined ? current.number : normalizedRowMarkerNumber(patch.number)
+    if (rowMarkers.some((marker) => marker.id !== id && marker.number === nextNumber)) {
+      setStatus(locale === 'ru' ? `Ряд №${nextNumber} уже существует` : `Row #${nextNumber} already exists`)
+      return
+    }
+    commitRowMarkers(rowMarkers.map((marker) => marker.id === id ? { ...marker, ...patch, number: nextNumber } : marker))
+  }, [commitRowMarkers, locale, rowMarkers])
+
+  const deleteRowMarker = useCallback((id: string) => {
+    const marker = rowMarkers.find((item) => item.id === id)
+    if (!marker || isRowMarkerLocked(marker)) return
+    commitRowMarkers(rowMarkers.filter((item) => item.id !== id))
+    if (selectedRowMarkerId === id) setSelectedRowMarkerId(null)
+    setStatus(locale === 'ru' ? 'Номер ряда удалён' : 'Row number deleted')
+  }, [commitRowMarkers, locale, rowMarkers, selectedRowMarkerId])
 
   const handleGuideManipulationStart = useCallback(() => {
     guideManipulationSnapshotRef.current = currentSnapshot()
@@ -1624,9 +1765,12 @@ function App() {
     setHistory(emptyHistory<DocumentSnapshot>())
     setElements(reconcileLinkedElements(normalized.elements, normalized.guides ?? []))
     setGuides(normalized.guides ?? [])
+    setRowMarkers(normalized.rowMarkers ?? [])
+    setLegendVisible(normalized.settings.legend?.visible ?? true)
     setSnapping(normalized.settings.snapping)
     clearElementSelection()
     setSelectedGuideId(null)
+    setSelectedRowMarkerId(null)
     setTool({ type: 'select' })
     setPreview(null)
     setSnapTarget(null)
@@ -1648,7 +1792,7 @@ function App() {
 
   const handleDuplicateLocalProject = async () => {
     const title = projectTitle + (locale === 'ru' ? ' — копия' : ' — copy')
-    const project = buildProject(projectTitle, elements, guides, snapping)
+    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible)
     const id = await duplicateLocalProject(project, title)
     const copy = await loadLocalProject(id)
     if (copy) openLocalProjectDocument(copy, id)
@@ -1665,7 +1809,7 @@ function App() {
   }
 
   const saveProject = () => {
-    const project = buildProject(projectTitle, elements, guides, snapping)
+    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible)
     downloadText('crochet-scheme.json', JSON.stringify(project, null, 2), 'application/json')
     setStatus(t.projectSaved)
   }
@@ -1674,7 +1818,7 @@ function App() {
     try {
       const raw = JSON.parse(await file.text()) as CrochetProject
       if (
-        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].includes(raw.schemaVersion) ||
+        ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].includes(raw.schemaVersion) ||
         !Array.isArray(raw.elements)
       ) {
         throw new Error(t.unsupportedProject)
@@ -1684,9 +1828,12 @@ function App() {
       setHistory({ past: [currentSnapshot()], future: [] })
       setElements(reconcileLinkedElements(project.elements, project.guides ?? []))
       setGuides(project.guides ?? [])
+      setRowMarkers(project.rowMarkers ?? [])
+      setLegendVisible(project.settings.legend?.visible ?? true)
       setSnapping(project.settings.snapping)
       clearElementSelection()
       setSelectedGuideId(null)
+      setSelectedRowMarkerId(null)
       setTool({ type: 'select' })
       setPreview(null)
       setSnapTarget(null)
@@ -1701,7 +1848,7 @@ function App() {
   const exportSvg = () => {
     downloadText(
       'crochet-scheme.svg',
-      serializeSvg(visibleElements, t.emptySvg),
+      serializeSvg(visibleElements, rowMarkers, legendVisible, locale, t.emptySvg),
       'image/svg+xml',
     )
     setStatus(t.svgExported)
@@ -1820,6 +1967,7 @@ function App() {
                 >
                   <span className={`visibility-dot ${guide.visible ? '' : 'hidden'}`} />
                   <span>{index + 1}. {guideLabel(guide, locale)}</span>
+                  {guide.locked && <span aria-label={locale === 'ru' ? 'Заблокирована' : 'Locked'}>🔒</span>}
                 </button>
               ))}
             </div>
@@ -1986,6 +2134,19 @@ function App() {
               onTopologyMarkerPointerDown={handleTopologyMarkerPointerDown}
             />
 
+            <RowMarkerLayer
+              markers={rowMarkers}
+              selectedId={selectedRowMarkerId}
+              zoom={viewport.zoom}
+              clientToDocument={clientToDocument}
+              onSelect={handleSelectRowMarker}
+              onMoveStart={handleRowMarkerMoveStart}
+              onMovePreview={handleRowMarkerMovePreview}
+              onMoveEnd={handleRowMarkerMoveEnd}
+            />
+
+            {legendVisible && <LegendOverlay elements={elements} locale={locale} zoom={viewport.zoom} />}
+
             {mirrorAxis && productivitySelectionIds().length > 0 && (
               <MirrorAxisOverlay
                 state={mirrorAxis}
@@ -2014,7 +2175,7 @@ function App() {
 
         <div className="statusbar">
           <span>{status}</span>
-          <span>{elements.length} {t.stitchCount} · {guides.length} {t.guideCount}{selectedIds.length ? ` · ${selectedIds.length} ${t.selectedShort}` : ''}</span>
+          <span>{elements.length} {t.stitchCount} · {guides.length} {t.guideCount} · {rowMarkers.length} {locale === 'ru' ? 'номеров рядов' : 'row numbers'}{selectedIds.length ? ` · ${selectedIds.length} ${t.selectedShort}` : ''}</span>
         </div>
       </main>
 
@@ -2073,6 +2234,35 @@ function App() {
             onCreateNext={handleCreateNextPatternRow}
             onCreateSequence={handleCreatePatternSequence}
           />
+        </section>
+
+        <section className="panel-section">
+          <RowMarkersPanel
+            locale={locale}
+            markers={rowMarkers}
+            selectedId={selectedRowMarkerId}
+            nextNumber={nextRowNumber}
+            placing={tool.type === 'row-marker'}
+            onStartPlacement={() => {
+              setTool((current) => current.type === 'row-marker' ? { type: 'select' } : { type: 'row-marker' })
+              clearElementSelection()
+              setSelectedGuideId(null)
+              setSelectedRowMarkerId(null)
+              setPreview(null)
+              setSnapTarget(null)
+            }}
+            onSelect={handleSelectRowMarker}
+            onChange={updateRowMarker}
+            onDelete={deleteRowMarker}
+          />
+        </section>
+
+        <section className="panel-section">
+          <div className="section-title-row"><h2>{locale === 'ru' ? 'Легенда' : 'Legend'}</h2></div>
+          <label className="toggle-row">
+            <span><strong>{locale === 'ru' ? 'Автоматическая легенда' : 'Automatic legend'}</strong><small>{locale === 'ru' ? 'Только реально используемые элементы; включается и в SVG.' : 'Only symbols actually used; also included in SVG.'}</small></span>
+            <input type="checkbox" checked={legendVisible} onChange={(event) => setLegendVisible(event.target.checked)} />
+          </label>
         </section>
 
         {productivitySelectionIds().length > 0 && (
@@ -2185,7 +2375,12 @@ function App() {
                 <span>{t.visible}</span>
                 <input type="checkbox" checked={selectedGuide.visible} onChange={(event) => updateSelectedGuide((guide) => ({ ...guide, visible: event.target.checked }))} />
               </label>
+              <label className="toggle-row compact-toggle">
+                <span>{locale === 'ru' ? 'Заблокировать направляющую' : 'Lock guide'}</span>
+                <input type="checkbox" checked={selectedGuide.locked === true} onChange={(event) => updateSelectedGuide((guide) => ({ ...guide, locked: event.target.checked }))} />
+              </label>
 
+              <fieldset className="guide-locked-fields" disabled={selectedGuide.locked === true}>
               {selectedGuide.type === 'arc' && (
                 <div className="number-field-grid">
                   <NumberField label={t.centerX} value={selectedGuide.center.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, center: { ...guide.center, x: value } } : guide)} />
@@ -2251,6 +2446,8 @@ function App() {
                   onGenerate={handleGenerateGuideRow}
                 />
               )}
+
+              </fieldset>
 
               <p className="guide-note">{t.guideNote}</p>
               <button className="danger-button" onClick={deleteSelected}>{t.deleteGuide}</button>

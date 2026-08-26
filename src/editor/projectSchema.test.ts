@@ -34,9 +34,9 @@ function shapedBinding() {
 }
 
 describe('parseProject', () => {
-  it('migrates legacy projects to schema v14 and normalizes element flags', () => {
+  it('migrates legacy projects to schema v15 and normalizes element flags', () => {
     const project = parseProject(legacyProject(), fallback)
-    expect(project.schemaVersion).toBe(14)
+    expect(project.schemaVersion).toBe(15)
     expect(project.elements[0]).toMatchObject({ visible: true, locked: false })
     expect(project.guides).toEqual([])
   })
@@ -220,13 +220,13 @@ describe('parseProject', () => {
     expect(() => parseProject(raw, fallback)).toThrow(ProjectValidationError)
   })
 
-  it('preserves and validates schema v13 stitch colors while migrating to v14', () => {
+  it('preserves and validates schema v13 stitch colors while migrating to v15', () => {
     const raw = legacyProject() as any
     raw.schemaVersion = 13
     raw.elements[0].color = '#C2413B'
     const parsed = parseProject(raw, fallback)
     expect(parsed.elements[0].color).toBe('#c2413b')
-    expect(parsed.schemaVersion).toBe(14)
+    expect(parsed.schemaVersion).toBe(15)
 
     raw.elements[0].color = 'red'
     expect(() => parseProject(raw, fallback)).toThrow(ProjectValidationError)
@@ -252,7 +252,7 @@ describe('parseProject', () => {
     }
 
     const parsed = parseProject(raw, fallback)
-    expect(parsed.schemaVersion).toBe(14)
+    expect(parsed.schemaVersion).toBe(15)
     expect(parsed.guides?.map((guide) => guide.type)).toEqual(['line', 'curve'])
     expect(parsed.elements[0].guideAttachment).toEqual({
       guideId: 'line-1', t: 0.4, orientation: 'tangent', rotationOffset: 5, normalOffset: 3,
@@ -285,6 +285,29 @@ describe('parseProject', () => {
     expect(() => parseProject(raw, fallback)).toThrow(
       'Parametric rows cannot also use manual guide attachments',
     )
+  })
+
+  it('preserves schema v15 guide locks, row numbers and legend settings', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 15
+    raw.guides = [{ id: 'line-1', type: 'line', start: { x: 0, y: 0 }, end: { x: 100, y: 0 }, divisions: 8, visible: true, locked: true }]
+    raw.rowMarkers = [{ id: 'row-number-1', number: 1, x: -20, y: 15, visible: true, locked: false }]
+    raw.settings.legend = { visible: false }
+    const parsed = parseProject(raw, fallback)
+    expect(parsed.schemaVersion).toBe(15)
+    expect(parsed.guides?.[0].locked).toBe(true)
+    expect(parsed.rowMarkers).toEqual([{ id: 'row-number-1', number: 1, x: -20, y: 15, visible: true, locked: false }])
+    expect(parsed.settings.legend).toEqual({ visible: false })
+  })
+
+  it('rejects malformed schema v15 row numbers and legend settings', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 15
+    raw.rowMarkers = [{ id: 'bad', number: 0, x: 0, y: 0 }]
+    expect(() => parseProject(raw, fallback)).toThrow('Invalid row marker')
+    raw.rowMarkers = []
+    raw.settings.legend = { visible: 'yes' }
+    expect(() => parseProject(raw, fallback)).toThrow('Invalid legend settings')
   })
 
   it('rejects malformed stitch coordinates', () => {

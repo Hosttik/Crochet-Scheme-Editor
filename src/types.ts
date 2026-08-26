@@ -112,6 +112,7 @@ export type ArcGuide = {
   endAngle: number
   divisions: number
   visible: boolean
+  locked?: boolean
 }
 
 export type LineGuide = {
@@ -121,6 +122,7 @@ export type LineGuide = {
   end: Point
   divisions: number
   visible: boolean
+  locked?: boolean
 }
 
 export type CurveGuide = {
@@ -132,6 +134,7 @@ export type CurveGuide = {
   end: Point
   divisions: number
   visible: boolean
+  locked?: boolean
 }
 
 export type GridGuide = {
@@ -144,6 +147,7 @@ export type GridGuide = {
   spacingY: number
   rotation: number
   visible: boolean
+  locked?: boolean
 }
 
 export type RadialGridGuide = {
@@ -155,9 +159,23 @@ export type RadialGridGuide = {
   sectorCount: number
   startAngle: number
   visible: boolean
+  locked?: boolean
 }
 
 export type Guide = ArcGuide | LineGuide | CurveGuide | GridGuide | RadialGridGuide
+
+export type RowMarker = {
+  id: string
+  number: number
+  x: number
+  y: number
+  visible?: boolean
+  locked?: boolean
+}
+
+export type LegendSettings = {
+  visible: boolean
+}
 
 export type Viewport = {
   zoom: number
@@ -174,14 +192,16 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15
   metadata: {
     title: string
     updatedAt: string
   }
   elements: StitchElement[]
   guides?: Guide[]
+  rowMarkers?: RowMarker[]
   settings: {
     snapping: SnappingSettings
+    legend?: LegendSettings
   }
 }
