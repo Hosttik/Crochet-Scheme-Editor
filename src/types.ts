@@ -9,6 +9,7 @@ export type RowConstructionMode = 'spiral' | 'joined' | 'turning'
 export type RowWorkDirection = 'along' | 'reverse'
 export type RowJoinTarget = 'first-stitch' | 'start-chain-top'
 export type AutosaveDelayMs = 0 | 650 | 5000 | 15000 | 30000 | 60000
+export type RulerMeasurementMode = 'stitches' | 'rows'
 
 export type GaugeProfile = {
   id: string
@@ -32,8 +33,12 @@ export type MeasurementRuler = {
   startElementId?: string
   endElementId?: string
   profileId?: string
+  /** Defaults to stitches for backwards-compatible schema v19 rulers. */
+  mode?: RulerMeasurementMode
   /** A positive value overrides automatic same-row stitch counting. */
   manualStitchCount?: number
+  /** A positive value overrides automatic semantic row counting. */
+  manualRowCount?: number
 }
 
 export type GuideRowOptions = {

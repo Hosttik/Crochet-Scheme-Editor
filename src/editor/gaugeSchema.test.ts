@@ -28,11 +28,15 @@ describe('gauge schema v19', () => {
         activeProfileId: 'g1',
         profiles: [{ id: 'g1', name: 'SC', symbolId: 'single', stitchCount: 20, rowCount: 24, widthCm: 10, heightCm: 10 }],
       },
-      rulers: [{ id: 'r1', start: { x: 1, y: 2 }, end: { x: 30, y: 2 }, profileId: 'g1', manualStitchCount: 10 }],
+      rulers: [
+        { id: 'r1', start: { x: 1, y: 2 }, end: { x: 30, y: 2 }, profileId: 'g1', manualStitchCount: 10 },
+        { id: 'r2', start: { x: 1, y: 2 }, end: { x: 1, y: 30 }, profileId: 'g1', mode: 'rows', manualRowCount: 4 },
+      ],
     }, snapping)
     expect(parsed.schemaVersion).toBe(19)
     expect(parsed.gauge?.profiles[0]).toMatchObject({ symbolId: 'single', stitchCount: 20, widthCm: 10 })
     expect(parsed.rulers?.[0]).toMatchObject({ id: 'r1', manualStitchCount: 10 })
+    expect(parsed.rulers?.[1]).toMatchObject({ id: 'r2', mode: 'rows', manualRowCount: 4 })
   })
 
   it('migrates legacy v18 projects to empty gauge/ruler collections', () => {
@@ -40,6 +44,13 @@ describe('gauge schema v19', () => {
     expect(parsed.schemaVersion).toBe(19)
     expect(parsed.gauge).toEqual({ profiles: [] })
     expect(parsed.rulers).toEqual([])
+  })
+
+  it('rejects an invalid ruler measurement mode', () => {
+    expect(() => parseProject({
+      ...base(19),
+      rulers: [{ id: 'r1', start: { x: 0, y: 0 }, end: { x: 0, y: 10 }, mode: 'pixels' }],
+    }, snapping)).toThrow(ProjectValidationError)
   })
 
   it('rejects invalid gauge values in current schema', () => {

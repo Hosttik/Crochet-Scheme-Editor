@@ -228,8 +228,8 @@ export function GaugeRulerPanel({
         </button>
         <small className="muted-text">
           {ru
-            ? 'Две точки. Концы автоматически прилипают к петлям; на одном ряду число петель считается само.'
-            : 'Pick two points. Endpoints snap to stitches; on one row the stitch count is automatic.'}
+            ? 'Две точки. В режиме петель считаются петли одного ряда; в режиме рядов — семантические ряды между точками.'
+            : 'Pick two points. Stitch mode counts one row; row mode counts semantic rows between endpoints.'}
         </small>
 
         {rulers.length > 0 && (
@@ -251,6 +251,19 @@ export function GaugeRulerPanel({
           <div className="ruler-editor">
             <strong>{ru ? 'Выбранная линейка' : 'Selected ruler'}</strong>
             <label className="gauge-field">
+              <span>{ru ? 'Тип измерения' : 'Measurement type'}</span>
+              <select
+                aria-label={ru ? 'Тип измерения' : 'Measurement type'}
+                value={selectedRuler.mode ?? 'stitches'}
+                onChange={(event) => onUpdateRuler(selectedRuler.id, {
+                  mode: event.target.value as 'stitches' | 'rows',
+                })}
+              >
+                <option value="stitches">{ru ? 'Петли → ширина' : 'Stitches → width'}</option>
+                <option value="rows">{ru ? 'Ряды → высота' : 'Rows → height'}</option>
+              </select>
+            </label>
+            <label className="gauge-field">
               <span>{ru ? 'Образец для расчёта' : 'Gauge swatch'}</span>
               <select
                 aria-label={ru ? 'Образец линейки' : 'Ruler gauge swatch'}
@@ -263,22 +276,48 @@ export function GaugeRulerPanel({
                 ))}
               </select>
             </label>
-            <label className="gauge-field">
-              <span>{ru ? 'Петель вручную (0 = авто)' : 'Manual stitches (0 = auto)'}</span>
-              <DraftNumberInput
-                value={selectedRuler.manualStitchCount ?? 0}
-                min={0}
-                max={20000}
-                step={1}
-                commitOnBlur
-                ariaLabel={ru ? 'Петель линейки вручную' : 'Manual ruler stitch count'}
-                onChange={(value) => onUpdateRuler(selectedRuler.id, {
-                  manualStitchCount: value > 0 ? Math.round(value) : undefined,
-                })}
-              />
-            </label>
+            {(selectedRuler.mode ?? 'stitches') === 'rows' ? (
+              <label className="gauge-field">
+                <span>{ru ? 'Рядов вручную (0 = авто)' : 'Manual rows (0 = auto)'}</span>
+                <DraftNumberInput
+                  value={selectedRuler.manualRowCount ?? 0}
+                  min={0}
+                  max={20000}
+                  step={1}
+                  commitOnBlur
+                  ariaLabel={ru ? 'Рядов линейки вручную' : 'Manual ruler row count'}
+                  onChange={(value) => onUpdateRuler(selectedRuler.id, {
+                    manualRowCount: value > 0 ? Math.round(value) : undefined,
+                  })}
+                />
+              </label>
+            ) : (
+              <label className="gauge-field">
+                <span>{ru ? 'Петель вручную (0 = авто)' : 'Manual stitches (0 = auto)'}</span>
+                <DraftNumberInput
+                  value={selectedRuler.manualStitchCount ?? 0}
+                  min={0}
+                  max={20000}
+                  step={1}
+                  commitOnBlur
+                  ariaLabel={ru ? 'Петель линейки вручную' : 'Manual ruler stitch count'}
+                  onChange={(value) => onUpdateRuler(selectedRuler.id, {
+                    manualStitchCount: value > 0 ? Math.round(value) : undefined,
+                  })}
+                />
+              </label>
+            )}
             {(() => {
               const estimate = rulerEstimate(selectedRuler, elements, gauge)
+              if (estimate.mode === 'rows') {
+                if (estimate.source === 'automatic' && estimate.rowCount) {
+                  return <small>{ru ? `Автоматически между рядами: ${estimate.rowCount} р.` : `Automatic between rows: ${estimate.rowCount} rows`}</small>
+                }
+                if (estimate.source === 'manual' && estimate.rowCount) {
+                  return <small>{ru ? `Ручной расчёт: ${estimate.rowCount} р.` : `Manual count: ${estimate.rowCount} rows`}</small>
+                }
+                return <small>{ru ? 'Привяжите точки к параметрическим рядам или укажите число рядов вручную.' : 'Snap endpoints to parametric rows or enter the row count manually.'}</small>
+              }
               if (estimate.source === 'automatic' && estimate.stitchCount) {
                 return <small>{ru ? `Автоматически по ряду: ${estimate.stitchCount} петель` : `Automatic from row: ${estimate.stitchCount} stitches`}</small>
               }

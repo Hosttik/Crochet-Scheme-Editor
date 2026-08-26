@@ -41,6 +41,24 @@ test('calibrates a swatch, estimates a row and measures it with a smart ruler', 
   await expect(ruler.locator('.ruler-label')).toContainText('12 п.')
   await expect(ruler.locator('.ruler-label')).toContainText('≈ 6 см')
   await expect(gauge).toContainText('Автоматически по ряду: 12 петель')
+  await gauge.getByRole('button', { name: 'Удалить линейку' }).click()
+  await expect(page.locator('.measurement-ruler')).toHaveCount(0)
+
+  await page.locator('.guide-list button').filter({ hasText: 'Радиальная' }).click()
+  await page.locator('.guide-row-generator').getByLabel('Смещение от направляющей').fill('40')
+  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
+  await expect(page.locator('.stitch-element')).toHaveCount(24)
+
+  await gauge.getByRole('button', { name: 'Поставить линейку' }).click()
+  await page.locator('.stitch-element').nth(0).click()
+  await page.locator('.stitch-element').nth(12).click()
+  await gauge.getByLabel('Тип измерения').selectOption('rows')
+
+  await expect(page.locator('.measurement-ruler')).toHaveCount(1)
+  const rowRuler = page.locator('.measurement-ruler').first()
+  await expect(rowRuler.locator('.ruler-label')).toContainText('2 р.')
+  await expect(rowRuler.locator('.ruler-label')).toContainText('≈ 0,8 см')
+  await expect(gauge).toContainText('Автоматически между рядами: 2 р.')
 
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Сохранить JSON' }).click()
@@ -58,6 +76,7 @@ test('calibrates a swatch, estimates a row and measures it with a smart ruler', 
     heightCm: 10,
   })
   expect(project.rulers).toHaveLength(1)
+  expect(project.rulers[0]).toMatchObject({ mode: 'rows' })
   expect(project.rulers[0].startElementId).toBeTruthy()
   expect(project.rulers[0].endElementId).toBeTruthy()
 
@@ -66,5 +85,5 @@ test('calibrates a swatch, estimates a row and measures it with a smart ruler', 
   await page.reload()
   await expect(page.locator('.gauge-panel')).toContainText('СБН 10×10')
   await expect(page.locator('.measurement-ruler')).toHaveCount(1)
-  await expect(page.locator('.measurement-ruler .ruler-label')).toContainText('≈ 6 см')
+  await expect(page.locator('.measurement-ruler .ruler-label')).toContainText('2 р.')
 })

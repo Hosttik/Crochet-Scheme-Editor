@@ -71,11 +71,50 @@ function automaticRulerStitchCount(ruler: MeasurementRuler, elements: StitchElem
   return { count: Math.abs(endIndex - startIndex) + 1, rowId }
 }
 
+function semanticRows(elements: StitchElement[]) {
+  const rows = new Map<string, { id: string; patternOrder?: number; firstIndex: number }>()
+  elements.forEach((element, index) => {
+    const row = element.parametricRow
+    if (!row || rows.has(row.id)) return
+    rows.set(row.id, { id: row.id, patternOrder: row.patternOrder, firstIndex: index })
+  })
+  return [...rows.values()].sort((left, right) => {
+    if (left.patternOrder != null && right.patternOrder != null && left.patternOrder !== right.patternOrder) {
+      return left.patternOrder - right.patternOrder
+    }
+    if (left.patternOrder != null && right.patternOrder == null) return -1
+    if (left.patternOrder == null && right.patternOrder != null) return 1
+    return left.firstIndex - right.firstIndex
+  })
+}
+
+function automaticRulerRowCount(ruler: MeasurementRuler, elements: StitchElement[]) {
+  if (!ruler.startElementId || !ruler.endElementId) return null
+  const start = elements.find((element) => element.id === ruler.startElementId)
+  const end = elements.find((element) => element.id === ruler.endElementId)
+  const startRowId = start?.parametricRow?.id
+  const endRowId = end?.parametricRow?.id
+  if (!start || !end || !startRowId || !endRowId) return null
+  const rows = semanticRows(elements)
+  const startIndex = rows.findIndex((row) => row.id === startRowId)
+  const endIndex = rows.findIndex((row) => row.id === endRowId)
+  if (startIndex < 0 || endIndex < 0) return null
+  return {
+    count: Math.abs(endIndex - startIndex) + 1,
+    startRowId,
+    endRowId,
+  }
+}
+
 export type RulerEstimate = {
   profile?: GaugeProfile
   stitchCount?: number
+  rowCount?: number
   lengthCm?: number
   rowId?: string
+  startRowId?: string
+  endRowId?: string
+  mode: 'stitches' | 'rows'
   source: 'automatic' | 'manual' | 'none'
 }
 
@@ -85,25 +124,37 @@ export function rulerEstimate(
   gauge: GaugeSettings,
 ): RulerEstimate {
   const profile = gaugeProfileById(gauge, ruler.profileId)
+  const mode = ruler.mode ?? 'stitches'
+
+  if (mode === 'rows') {
+    const automatic = automaticRulerRowCount(ruler, elements)
+    const manual = ruler.manualRowCount && ruler.manualRowCount > 0
+      ? ruler.manualRowCount
+      : null
+    const rowCount = manual ?? automatic?.count ?? undefined
+    return {
+      profile,
+      mode,
+      rowCount,
+      startRowId: automatic?.startRowId,
+      endRowId: automatic?.endRowId,
+      source: manual ? 'manual' : automatic ? 'automatic' : 'none',
+      lengthCm: profile && rowCount ? rowCount * rowHeightCm(profile) : undefined,
+    }
+  }
+
   const automatic = automaticRulerStitchCount(ruler, elements)
   const manual = ruler.manualStitchCount && ruler.manualStitchCount > 0
     ? ruler.manualStitchCount
     : null
   const stitchCount = manual ?? automatic?.count ?? undefined
-  if (!profile || !stitchCount) {
-    return {
-      profile,
-      stitchCount,
-      rowId: automatic?.rowId,
-      source: manual ? 'manual' : automatic ? 'automatic' : 'none',
-    }
-  }
   return {
     profile,
+    mode,
     stitchCount,
     rowId: automatic?.rowId,
-    source: manual ? 'manual' : 'automatic',
-    lengthCm: stitchCount * stitchWidthCm(profile),
+    source: manual ? 'manual' : automatic ? 'automatic' : 'none',
+    lengthCm: profile && stitchCount ? stitchCount * stitchWidthCm(profile) : undefined,
   }
 }
 
@@ -121,6 +172,16 @@ export function rulerDisplayLabel(
 ) {
   const estimate = rulerEstimate(ruler, elements, gauge)
   if (!estimate.profile) return locale === 'ru' ? 'Нет образца' : 'No gauge'
+
+  if (estimate.mode === 'rows') {
+    if (!estimate.rowCount || estimate.lengthCm == null) {
+      return locale === 'ru' ? 'Задайте число рядов' : 'Set row count'
+    }
+    return locale === 'ru'
+      ? `${estimate.rowCount} р. · ≈ ${formattedNumber(estimate.lengthCm, locale)} см`
+      : `${estimate.rowCount} rows · ≈ ${formattedNumber(estimate.lengthCm, locale)} cm`
+  }
+
   if (!estimate.stitchCount || estimate.lengthCm == null) {
     return locale === 'ru' ? 'Задайте число петель' : 'Set stitch count'
   }
