@@ -1,0 +1,77 @@
+name: Apply v1.13 mechanical patches
+
+on:
+  push:
+    branches:
+      - feature/row-boundaries-v113
+    paths:
+      - .github/workflows/apply-v113-mechanical.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feature/row-boundaries-v113
+          fetch-depth: 0
+      - name: Patch current schema and release metadata
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def once(path, old, new):
+              p = Path(path)
+              s = p.read_text()
+              if s.count(old) != 1:
+                  raise RuntimeError(f'{path}: {old!r} count={s.count(old)}')
+              p.write_text(s.replace(old, new, 1))
+
+          once('src/App.tsx', '    schemaVersion: 15,', '    schemaVersion: 16,')
+          once(
+              'src/App.tsx',
+              '![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].includes(raw.schemaVersion)',
+              '![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].includes(raw.schemaVersion)',
+          )
+          once('package.json', '"version": "1.12.0"', '"version": "1.13.0"')
+
+          p = Path('src/i18n.ts')
+          s = p.read_text()
+          if s.count('v1.12.0') != 2:
+              raise RuntimeError(f'i18n v1.12.0 count={s.count("v1.12.0")}')
+          p.write_text(s.replace('v1.12.0', 'v1.13.0'))
+
+          p = Path('src/editor/document.test.ts')
+          p.write_text(p.read_text().replace('schema v15', 'schema v16').replace('toBe(15)', 'toBe(16)'))
+
+          p = Path('src/editor/projectSchema.test.ts')
+          s = p.read_text()
+          s = s.replace('migrates legacy projects to schema v15', 'migrates legacy projects to schema v16')
+          s = s.replace('migrating to v15', 'migrating to v16')
+          s = s.replace('toBe(15)', 'toBe(16)')
+          p.write_text(s)
+
+          p = Path('src/editor/rowConstructionInstructions.test.ts')
+          p.write_text(p.read_text().replace(
+              'замкнутый круг ↻; замкнуть СС',
+              'замкнутый круг ↻; замкнуть СС в первую провязанную петлю',
+          ))
+
+          p = Path('e2e/editor.e2e.ts')
+          p.write_text(p.read_text().replace(
+              'замкнутый круг ↻; замкнуть СС/',
+              'замкнутый круг ↻; замкнуть СС в первую провязанную петлю/',
+          ))
+          PY
+      - name: Commit patch and remove staging workflows
+        run: |
+          rm -f .github/workflows/apply-v113-mechanical.yml
+          rm -f .github/workflows/integrate-row-boundaries-v113.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Wire v1.13 schema and release metadata"
+          git push origin HEAD:feature/row-boundaries-v113
