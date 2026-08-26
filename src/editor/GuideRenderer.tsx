@@ -8,7 +8,13 @@ import {
   guideResizeHandle,
   type GuideManipulationMode,
 } from './guideManipulation'
-import { arcRenderPoints, gridLocalBounds, guideSnapPoints } from './guides'
+import {
+  arcRenderPoints,
+  curveRenderPoints,
+  gridLocalBounds,
+  guideSnapPoints,
+  lineRenderPoints,
+} from './guides'
 
 function pointsAttribute(points: { x: number; y: number }[]) {
   return points.map((point) => `${point.x},${point.y}`).join(' ')
@@ -132,6 +138,23 @@ export function GuideRenderer({
     window.addEventListener('keydown', handleKeyDown)
   }
 
+  const pointHandle = (
+    key: string,
+    point: Point,
+    mode: GuideManipulationMode,
+    className = '',
+  ) => (
+    <circle
+      key={key}
+      cx={point.x}
+      cy={point.y}
+      r={7 / zoom}
+      className={`guide-handle ${className}`}
+      vectorEffect="non-scaling-stroke"
+      onPointerDown={(event) => startInteraction(event, mode)}
+    />
+  )
+
   return (
     <g
       className={`guide-layer guide-${guide.type} ${selected ? 'selected' : ''}`}
@@ -144,6 +167,46 @@ export function GuideRenderer({
           fill="none"
           vectorEffect="non-scaling-stroke"
         />
+      )}
+
+      {guide.type === 'line' && (
+        <polyline
+          points={pointsAttribute(lineRenderPoints(guide))}
+          className="guide-stroke guide-hit-target"
+          fill="none"
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
+
+      {guide.type === 'curve' && (
+        <>
+          <polyline
+            points={pointsAttribute(curveRenderPoints(guide))}
+            className="guide-stroke guide-hit-target"
+            fill="none"
+            vectorEffect="non-scaling-stroke"
+          />
+          {selected && (
+            <g className="guide-curve-controls" pointerEvents="none">
+              <line
+                x1={guide.start.x}
+                y1={guide.start.y}
+                x2={guide.control1.x}
+                y2={guide.control1.y}
+                className="guide-handle-link guide-control-link"
+                vectorEffect="non-scaling-stroke"
+              />
+              <line
+                x1={guide.end.x}
+                y1={guide.end.y}
+                x2={guide.control2.x}
+                y2={guide.control2.y}
+                className="guide-handle-link guide-control-link"
+                vectorEffect="non-scaling-stroke"
+              />
+            </g>
+          )}
+        </>
       )}
 
       {guide.type === 'grid' && (() => {
@@ -227,6 +290,22 @@ export function GuideRenderer({
 
       {selected && (
         <g className="guide-manipulation-ui">
+          {guide.type === 'line' && (
+            <>
+              {pointHandle('line-start', guide.start, 'start', 'guide-path-endpoint')}
+              {pointHandle('line-end', guide.end, 'end', 'guide-path-endpoint')}
+            </>
+          )}
+
+          {guide.type === 'curve' && (
+            <>
+              {pointHandle('curve-start', guide.start, 'start', 'guide-path-endpoint')}
+              {pointHandle('curve-control1', guide.control1, 'control1', 'guide-control-handle')}
+              {pointHandle('curve-control2', guide.control2, 'control2', 'guide-control-handle')}
+              {pointHandle('curve-end', guide.end, 'end', 'guide-path-endpoint')}
+            </>
+          )}
+
           {resizeHandle && (
             <>
               <line

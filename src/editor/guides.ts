@@ -1,5 +1,14 @@
-import type { ArcGuide, GridGuide, Guide, Point, RadialGridGuide } from '../types'
+import type {
+  ArcGuide,
+  CurveGuide,
+  GridGuide,
+  Guide,
+  LineGuide,
+  Point,
+  RadialGridGuide,
+} from '../types'
 import { rotatePoint } from './geometry'
+import { pathPoseAt, pathRenderPoints } from './pathGuides'
 
 export type GuideSnapPoint = {
   key: string
@@ -7,6 +16,7 @@ export type GuideSnapPoint = {
   targetRotation: number
   guideId: string
   guideType: Guide['type']
+  pathT?: number
 }
 
 function polarPoint(center: Point, radius: number, angleDegrees: number): Point {
@@ -22,15 +32,41 @@ export function arcGuideSnapPoints(guide: ArcGuide): GuideSnapPoint[] {
   const sweep = guide.endAngle - guide.startAngle
 
   return Array.from({ length: divisions + 1 }, (_, index) => {
-    const angle = guide.startAngle + (sweep * index) / divisions
+    const t = index / divisions
+    const angle = guide.startAngle + sweep * t
     return {
       key: `${guide.id}:arc:${index}`,
       point: polarPoint(guide.center, guide.radius, angle),
-      targetRotation: angle + 90,
+      targetRotation: angle + (sweep < 0 ? -90 : 90),
       guideId: guide.id,
       guideType: guide.type,
+      pathT: t,
     }
   })
+}
+
+function continuousPathSnapPoints(guide: LineGuide | CurveGuide): GuideSnapPoint[] {
+  const divisions = Math.max(1, Math.round(guide.divisions))
+  return Array.from({ length: divisions + 1 }, (_, index) => {
+    const t = index / divisions
+    const pose = pathPoseAt(guide, t)
+    return {
+      key: `${guide.id}:${guide.type}:${index}`,
+      point: pose.point,
+      targetRotation: pose.tangent,
+      guideId: guide.id,
+      guideType: guide.type,
+      pathT: t,
+    }
+  })
+}
+
+export function lineGuideSnapPoints(guide: LineGuide) {
+  return continuousPathSnapPoints(guide)
+}
+
+export function curveGuideSnapPoints(guide: CurveGuide) {
+  return continuousPathSnapPoints(guide)
 }
 
 export function gridGuideSnapPoints(guide: GridGuide): GuideSnapPoint[] {
@@ -98,6 +134,10 @@ export function guideSnapPoints(guide: Guide): GuideSnapPoint[] {
   switch (guide.type) {
     case 'arc':
       return arcGuideSnapPoints(guide)
+    case 'line':
+      return lineGuideSnapPoints(guide)
+    case 'curve':
+      return curveGuideSnapPoints(guide)
     case 'grid':
       return gridGuideSnapPoints(guide)
     case 'radial-grid':
@@ -116,6 +156,14 @@ export function arcRenderPoints(guide: ArcGuide, segments = 64): Point[] {
     const angle = guide.startAngle + (sweep * index) / count
     return polarPoint(guide.center, guide.radius, angle)
   })
+}
+
+export function lineRenderPoints(guide: LineGuide): Point[] {
+  return [guide.start, guide.end]
+}
+
+export function curveRenderPoints(guide: CurveGuide, segments = 64): Point[] {
+  return pathRenderPoints(guide, segments)
 }
 
 export function gridLocalBounds(guide: GridGuide) {

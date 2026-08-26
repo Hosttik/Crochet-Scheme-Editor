@@ -20,6 +20,8 @@ export type SnapCandidate = {
   targetType: 'stitch' | 'guide'
   targetAnchor?: AnchorName
   targetRotation: number
+  guideType?: Guide['type']
+  pathT?: number
 }
 
 export type SnapResult = {
@@ -78,6 +80,8 @@ export function buildSnapCandidates(
     targetId: candidate.guideId,
     targetType: 'guide' as const,
     targetRotation: candidate.targetRotation,
+    guideType: candidate.guideType,
+    pathT: candidate.pathT,
   }))
 
   return [...elementCandidates, ...guideCandidates]

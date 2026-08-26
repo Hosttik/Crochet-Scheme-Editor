@@ -1,6 +1,7 @@
 import type {
   CrochetProject,
   Guide,
+  GuideAttachment,
   ParametricRowBinding,
   RowProgram,
   SnappingSettings,
@@ -160,6 +161,19 @@ function parseParametricRow(value: unknown): ParametricRowBinding | undefined {
   return value as unknown as ParametricRowBinding
 }
 
+function parseGuideAttachment(value: unknown): GuideAttachment | undefined {
+  if (value === undefined) return undefined
+  if (
+    !isRecord(value) ||
+    !nonEmptyString(value.guideId) ||
+    !finite(value.t) || value.t < 0 || value.t > 1 ||
+    !['keep', 'tangent', 'normal'].includes(String(value.orientation)) ||
+    !finite(value.rotationOffset) ||
+    !finite(value.normalOffset)
+  ) throw new ProjectValidationError('Invalid guide attachment')
+  return value as unknown as GuideAttachment
+}
+
 function parseElement(value: unknown): StitchElement {
   if (!isRecord(value)) throw new ProjectValidationError('Invalid stitch element')
   if (
@@ -170,6 +184,11 @@ function parseElement(value: unknown): StitchElement {
     !(value.groupId === undefined || nonEmptyString(value.groupId)) ||
     !optionalStringArray(value.parentStitchIds)
   ) throw new ProjectValidationError('Invalid stitch element fields')
+  const parametricRow = parseParametricRow(value.parametricRow)
+  const guideAttachment = parseGuideAttachment(value.guideAttachment)
+  if (parametricRow && guideAttachment) {
+    throw new ProjectValidationError('Parametric rows cannot also use manual guide attachments')
+  }
   return {
     id: value.id,
     symbolId: value.symbolId,
@@ -180,8 +199,9 @@ function parseElement(value: unknown): StitchElement {
     visible: value.visible !== false,
     locked: value.locked === true,
     groupId: value.groupId as string | undefined,
-    parametricRow: parseParametricRow(value.parametricRow),
+    parametricRow,
     parentStitchIds: value.parentStitchIds as string[] | undefined,
+    guideAttachment,
   }
 }
 
@@ -189,6 +209,14 @@ function parseGuide(value: unknown): Guide {
   if (!isRecord(value) || !nonEmptyString(value.id) || typeof value.visible !== 'boolean') throw new ProjectValidationError('Invalid guide')
   if (value.type === 'arc') {
     if (!point(value.center) || !finite(value.radius) || !finite(value.startAngle) || !finite(value.endAngle) || !finite(value.divisions)) throw new ProjectValidationError('Invalid arc guide')
+    return value as unknown as Guide
+  }
+  if (value.type === 'line') {
+    if (!point(value.start) || !point(value.end) || !finite(value.divisions)) throw new ProjectValidationError('Invalid line guide')
+    return value as unknown as Guide
+  }
+  if (value.type === 'curve') {
+    if (!point(value.start) || !point(value.control1) || !point(value.control2) || !point(value.end) || !finite(value.divisions)) throw new ProjectValidationError('Invalid curve guide')
     return value as unknown as Guide
   }
   if (value.type === 'grid') {
@@ -215,7 +243,7 @@ function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSett
 
 export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): CrochetProject {
   if (!isRecord(raw)) throw new ProjectValidationError('Project must be an object')
-  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 13) throw new ProjectValidationError('Unsupported project schema')
+  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 14) throw new ProjectValidationError('Unsupported project schema')
   if (!Array.isArray(raw.elements)) throw new ProjectValidationError('Project elements are missing')
   if (raw.guides !== undefined && !Array.isArray(raw.guides)) throw new ProjectValidationError('Project guides are invalid')
 
@@ -225,7 +253,7 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
   const guides = (raw.guides ?? []).map(parseGuide)
 
   return {
-    schemaVersion: 13,
+    schemaVersion: 14,
     metadata: {
       title: typeof metadata.title === 'string' && metadata.title.trim() ? metadata.title : 'Crochet scheme',
       updatedAt: typeof metadata.updatedAt === 'string' ? metadata.updatedAt : new Date().toISOString(),

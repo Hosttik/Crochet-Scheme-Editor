@@ -78,6 +78,16 @@ export type ParametricRowBinding = {
   construction?: RowConstruction
 }
 
+export type GuideAttachmentOrientation = 'keep' | 'tangent' | 'normal'
+
+export type GuideAttachment = {
+  guideId: string
+  t: number
+  orientation: GuideAttachmentOrientation
+  rotationOffset: number
+  normalOffset: number
+}
+
 export type StitchElement = {
   id: string
   symbolId: string
@@ -90,6 +100,7 @@ export type StitchElement = {
   groupId?: string
   parametricRow?: ParametricRowBinding
   parentStitchIds?: string[]
+  guideAttachment?: GuideAttachment
 }
 
 export type ArcGuide = {
@@ -99,6 +110,26 @@ export type ArcGuide = {
   radius: number
   startAngle: number
   endAngle: number
+  divisions: number
+  visible: boolean
+}
+
+export type LineGuide = {
+  id: string
+  type: 'line'
+  start: Point
+  end: Point
+  divisions: number
+  visible: boolean
+}
+
+export type CurveGuide = {
+  id: string
+  type: 'curve'
+  start: Point
+  control1: Point
+  control2: Point
+  end: Point
   divisions: number
   visible: boolean
 }
@@ -126,7 +157,7 @@ export type RadialGridGuide = {
   visible: boolean
 }
 
-export type Guide = ArcGuide | GridGuide | RadialGridGuide
+export type Guide = ArcGuide | LineGuide | CurveGuide | GridGuide | RadialGridGuide
 
 export type Viewport = {
   zoom: number
@@ -143,7 +174,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14
   metadata: {
     title: string
     updatedAt: string

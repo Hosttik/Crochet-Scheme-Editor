@@ -52,7 +52,7 @@ function isClosedArc(guide: ArcGuide) {
 }
 
 export function resolveGuideRowCount(guide: Guide, options: GuideRowOptions) {
-  if (guide.type === 'grid') return 0
+  if (guide.type === 'grid' || guide.type === 'line' || guide.type === 'curve') return 0
   if (options.distributionMode === 'count') return clampCount(options.count)
 
   const spacing = safeSpacing(options.spacing)

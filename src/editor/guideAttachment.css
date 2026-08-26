@@ -1,0 +1,110 @@
+.guide-attachment-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid #d9ded9;
+  border-radius: 9px;
+  background: #f8fbf8;
+}
+
+.guide-attachment-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.guide-attachment-heading strong {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #526158;
+}
+
+.guide-attachment-heading span {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #dfeee6;
+  color: #35634f;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.guide-attachment-panel p {
+  margin: 0;
+  color: #777d78;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.guide-attachment-panel label {
+  display: grid;
+  gap: 4px;
+}
+
+.guide-attachment-panel label > span {
+  color: #747a75;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.guide-attachment-panel input,
+.guide-attachment-panel select {
+  width: 100%;
+}
+
+.guide-attachment-numbers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.guide-attachment-attach,
+.guide-attachment-detach {
+  padding: 7px 9px;
+  border: 1px solid #cdd8d1;
+  background: white;
+  font-size: 10px;
+}
+
+.guide-attachment-attach:hover:not(:disabled) {
+  border-color: #7f9f8f;
+  background: #eef5f1;
+}
+
+.guide-attachment-detach {
+  color: #8c554d;
+  border-color: #e3d1cd;
+  background: #fff9f7;
+}
+
+.guide-attachment-empty {
+  color: #929690;
+  font-size: 9px;
+}
+
+.stitch-element.attached .selection-box {
+  stroke-dasharray: 2 2;
+}
+
+.stitch-guide-attachment-badge {
+  fill: #fff;
+  stroke: #397760;
+  stroke-width: 1.4;
+}
+
+.guide-control-link {
+  stroke-dasharray: 3 3;
+  opacity: .75;
+}
+
+.guide-control-handle {
+  fill: #f8f2ff;
+  stroke: #76539a;
+}
+
+.guide-path-endpoint {
+  fill: #fff;
+  stroke: #3f8367;
+}
