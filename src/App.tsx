@@ -75,6 +75,7 @@ import {
 import { viewportForElements } from './editor/viewportFit'
 import { semanticLockIds, semanticSelectionIds } from './editor/selectionModel'
 import { projectIntegrityIssue } from './editor/projectIntegrity'
+import { rowConstructionTopologyParents } from './editor/rowConstruction'
 import { CURRENT_PROJECT_SCHEMA_VERSION } from './editor/projectVersion'
 import {
   createNextPatternRow,
@@ -608,7 +609,11 @@ function App() {
   const selectedParametricParentCount = useMemo(() => {
     const parentRowId = selectedParametricRow?.parentRowId
     if (!parentRowId) return undefined
-    const count = rowElements(elements, parentRowId).length
+    const parents = rowElements(elements, parentRowId)
+    const count = rowConstructionTopologyParents(
+      parents,
+      selectedParametricRow.construction,
+    ).length
     return count || undefined
   }, [elements, selectedParametricRow])
   const visibleElements = useMemo(() => elements.filter(isElementVisible), [elements])
