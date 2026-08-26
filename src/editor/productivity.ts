@@ -1,4 +1,10 @@
 import type { Guide, Point, StitchElement } from '../types'
+import {
+  nearestPathParameter,
+  parameterAtPathDistance,
+  pathPoseAt,
+  type PathGuide,
+} from './pathGuides'
 
 export type MirrorAxis = 'left-right' | 'top-bottom'
 export type RepeatMode = 'linear' | 'circular' | 'guide'
@@ -135,12 +141,14 @@ export function mirrorElements(
         ...element,
         x: pivot.x * 2 - element.x,
         rotation: normalizeDegrees(180 - element.rotation),
+        guideAttachment: undefined,
       }
     }
     return {
       ...element,
       y: pivot.y * 2 - element.y,
       rotation: normalizeDegrees(-element.rotation),
+      guideAttachment: undefined,
     }
   })
 }
@@ -169,6 +177,7 @@ function detachedClone(
     locked: false,
     parametricRow: undefined,
     parentStitchIds: undefined,
+    guideAttachment: undefined,
   }
 }
 
@@ -259,6 +268,29 @@ function arcGuideWalk(guide: Extract<Guide, { type: 'arc' }>, pivot: Point): Gui
   }
 }
 
+function continuousPathGuideWalk(
+  guide: Extract<PathGuide, { type: 'line' | 'curve' }>,
+  pivot: Point,
+): GuideWalk {
+  const sourceT = nearestPathParameter(guide, pivot)
+  const sourcePose = pathPoseAt(guide, sourceT)
+  const pose = (t: number): GuidePose => {
+    const resolved = pathPoseAt(guide, t)
+    return {
+      point: resolved.point,
+      tangent: normalizeDegrees(resolved.tangent),
+      radial: normalizeDegrees(resolved.tangent + 90),
+    }
+  }
+  return {
+    source: pose(sourceT),
+    atOffset: (offset) => {
+      const t = parameterAtPathDistance(guide, sourceT, offset)
+      return t == null ? null : pose(t)
+    },
+  }
+}
+
 function radialGuideWalk(
   guide: Extract<Guide, { type: 'radial-grid' }>,
   pivot: Point,
@@ -293,12 +325,13 @@ function gridGuideWalk(guide: Extract<Guide, { type: 'grid' }>, pivot: Point): G
   const rows = Math.max(1, Math.round(guide.rows))
   const spacingY = Math.max(EPSILON, Math.abs(guide.spacingY))
   const row = clamp(Math.round(inverse.y / spacingY), 0, rows - 1)
-  const localY = row * spacingY
-  const sourceDistance = clamp(inverse.x, 0, width)
+  const localY = (row - (rows - 1) / 2) * spacingY
+  const halfWidth = width / 2
+  const sourceDistance = clamp(inverse.x + halfWidth, 0, width)
 
   const poseAtDistance = (distance: number): GuidePose | null => {
     if (distance < -EPSILON || distance > width + EPSILON) return null
-    const local = { x: clamp(distance, 0, width), y: localY }
+    const local = { x: clamp(distance, 0, width) - halfWidth, y: localY }
     const world = rotateVector(local, guide.rotation)
     return {
       point: { x: guide.origin.x + world.x, y: guide.origin.y + world.y },
@@ -314,6 +347,7 @@ function gridGuideWalk(guide: Extract<Guide, { type: 'grid' }>, pivot: Point): G
 
 function guideWalk(guide: Guide, pivot: Point) {
   if (guide.type === 'arc') return arcGuideWalk(guide, pivot)
+  if (guide.type === 'line' || guide.type === 'curve') return continuousPathGuideWalk(guide, pivot)
   if (guide.type === 'radial-grid') return radialGuideWalk(guide, pivot)
   return gridGuideWalk(guide, pivot)
 }
