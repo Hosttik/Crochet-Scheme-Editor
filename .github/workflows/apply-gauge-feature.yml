@@ -33,6 +33,7 @@ jobs:
         run: |
           python3 scripts/apply_gauge_feature.py
           sed -i "s/import { STITCH_SYMBOLS, SYMBOL_BY_ID } from '..\/symbols'/import { STITCH_SYMBOLS } from '..\/symbols'/" src/editor/GaugeRulerPanel.tsx
+          python3 scripts/fix_gauge_feature.py
 
       - name: Verify TypeScript and production build
         run: npm run build
