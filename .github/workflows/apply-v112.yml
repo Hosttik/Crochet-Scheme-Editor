@@ -6,6 +6,7 @@ on:
       - feature/pattern-authoring-v1120
     paths:
       - tools/patch_v112.py
+      - tools/run_patch_v112.py
       - .github/workflows/apply-v112.yml
 
 permissions:
@@ -23,7 +24,7 @@ jobs:
         with:
           node-version: 24
       - name: Apply patch
-        run: python tools/patch_v112.py
+        run: python tools/run_patch_v112.py
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Verify patched source
@@ -32,7 +33,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          rm tools/patch_v112.py .github/workflows/apply-v112.yml
+          rm tools/patch_v112.py tools/run_patch_v112.py .github/workflows/apply-v112.yml
           git add -A
           git commit -m "Integrate v1.12 pattern authoring pass"
           git push origin HEAD:feature/pattern-authoring-v1120
