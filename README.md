@@ -2,9 +2,9 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
-## v1.12.0
+## v1.13.0
 
-The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.11 adds continuous path guides and persistent manual stitch-to-guide attachment; v1.11.1 completes mirror authoring with a draggable custom axis; v1.12 adds guide locking, independent row-number annotations and an automatic exportable legend.
+The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.11 added continuous path guides and persistent manual stitch-to-guide attachment; v1.11.1 completed mirror authoring with a draggable custom axis; v1.12 added guide locking, row-number annotations and an automatic exportable legend; v1.13 makes crochet row starts and closures explicit.
 
 ### Editing and productivity
 
@@ -80,28 +80,31 @@ The editor combines an SVG canvas with a document model that understands guides,
 - generated child-row offsets remain structural; a manually changed offset reopens Advanced after reload
 - parametric-row regeneration preserves existing per-stitch colors; when a uniformly colored row grows, newly generated stitches inherit that row color
 
-### Row construction semantics
+### Crochet row boundaries
 
 - each parametric row may be marked as `spiral`, `joined round` or `turning row`
 - construction direction is stored independently as along-guide or reverse-guide
-- turning rows automatically alternate direction when the next row is generated
-- joined/spiral rows preserve their direction across generated child rows
-- joined and turning rows can store an auxiliary starting-chain count
-- joined rounds may explicitly end with a slip-stitch join
-- starting chains are deliberately auxiliary: they do not silently change row stitch totals or parent-child topology
-- the selected row shows S/E markers, direction, turning/closure hints and starting-chain metadata on the SVG canvas
-- written RU/EN instructions include starting chains, spiral/joined/turning semantics, direction and slip-stitch closure
+- turning rows automatically alternate direction when the next row is generated; joined/spiral rows preserve direction
+- joined and turning rows store an explicit starting-chain count
+- a starting chain may optionally count as the first logical stitch of the row
+- a counted starting chain contributes exactly `+1` to the written row total regardless of chain height; it does **not** become a fake canvas stitch or parent/child topology node
+- rows can explicitly record how many base stitches are skipped before the first worked stitch
+- joined rounds can close with a slip stitch either into the first worked stitch or into the top of the starting chain
+- the selected row overlay shows S/E markers, work direction, counted `CH×N*`, skipped `SK×N`, and exact `SL→1` / `SL→CH` closure target
+- written RU/EN instructions distinguish worked stitch count from logical row total when a starting chain is counted
 - Markdown abbreviation legends include CH/ВП and SL ST/СС when construction semantics use them
+- legacy v1-v15 projects retain their previous behavior: omitted boundary fields normalize to uncounted chains, zero skipped stitches and first-worked-stitch closure
 
 ### Persistence and export
 
 - independent red-dot row-number annotations support automatic first-gap numbering, drag, manual numbering, visibility and lock
 - row-number annotations persist through autosave/JSON and are included in SVG export
 - automatic legend is derived from actually used visible stitch symbols, shows abbreviation plus localized RU/EN name, can be toggled, and is included in SVG export
-- project JSON schema is v15; v1-v14 remain loadable through runtime validation/migration
+- project JSON schema is v16; v1-v15 remain loadable through runtime validation/migration
 - schema v13 introduced optional six-digit hex visual color per stitch; default black is omitted from storage
 - schema v14 adds Line/Curve guide persistence and optional manual `guideAttachment` metadata
 - schema v15 adds guide lock state, independent row-number annotations and legend visibility settings
+- schema v16 adds counted starting-chain semantics, skipped base stitches and exact joined-round closure targets
 - manual group ids, topology parent ids, manual topology overrides, mixed/rich row programs, row construction semantics and generated-offset baselines are persisted and validated
 - local multi-project storage in IndexedDB
 - automatic migration of the legacy single autosave into the first local project
@@ -114,7 +117,7 @@ The editor combines an SVG canvas with a document model that understands guides,
 
 ## Engineering baseline
 
-Core geometry, snapping, continuous path evaluation, guide attachment, guide manipulation, selection, productivity transforms, row generation, shaping, row construction, row-sequence expansion, rich rapport compilation, stitch topology, project validation, history and written-pattern generation live in pure modules outside the React rendering layer.
+Core geometry, snapping, continuous path evaluation, guide attachment, guide manipulation, selection, productivity transforms, row generation, shaping, row boundaries/construction, row-sequence expansion, rich rapport compilation, stitch topology, project validation, history and written-pattern generation live in pure modules outside the React rendering layer.
 
 Every pull request runs:
 
@@ -164,10 +167,10 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - parametric crochet rows and classic shaping semantics
 - cyclic mixed-row rapport semantics
 - rich rapport AST compilation into composition + topology
-- row construction and work-direction semantics
-- explicit and editable stitch topology
-- generated written instructions
+- row-boundary/construction and work-direction semantics
+- explicit and editable worked-stitch topology
+- generated written instructions and logical row totals
 - local persistence
 - rendering and React UI
 
-Next larger product milestones are crochet-native row-boundary semantics (counted turning/start chains, skipped first stitches and exact joined-round closure) and document output features such as configurable autosave, image underlays, tiled printing and free-form lasso selection. A future color-domain milestone could turn visual colors into explicit yarn/color-change semantics, but only after defining row-boundary behavior clearly.
+Next larger product milestones are document/output workflows: configurable autosave, background image underlays with opacity/lock, tiled multi-page printing with overlap/crop marks, and free-form lasso selection. A future color-domain milestone can turn visual colors into explicit yarn/color-change semantics without conflating presentation color with stitch topology.
