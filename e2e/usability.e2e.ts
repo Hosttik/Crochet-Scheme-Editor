@@ -13,7 +13,7 @@ async function canvasBox(page: Page) {
 }
 
 async function placeAt(page: Page, title: string, rx: number, ry: number) {
-  await page.locator(`.symbols-section .symbol-button[title="${title}"]`).click()
+  await page.locator(`.symbols-section .symbol-button[title^="${title}"]`).click()
   const box = await canvasBox(page)
   await page.mouse.click(box.x + box.width * rx, box.y + box.height * ry)
 }
@@ -50,9 +50,13 @@ test('shows contextual quick actions and semantic group layers', async ({ page }
   await expect(toolbar).toBeVisible()
   await toolbar.getByRole('button', { name: 'Группировать' }).click()
   await expect(toolbar.getByRole('button', { name: 'Разгруппировать' })).toBeVisible()
+
+  const layers = page.locator('.layers-section')
+  await expect(layers).not.toHaveAttribute('open', '')
+  await layers.locator('summary.layers-summary').click()
   await expect(page.locator('.layer-cluster summary').filter({ hasText: 'Группа / мотив' })).toBeVisible()
 
-  await toolbar.getByRole('button', { name: 'Отразить по горизонтали' }).click()
+  await toolbar.getByRole('button', { name: /Отразить слева/ }).click()
   await toolbar.getByRole('button', { name: 'Дублировать' }).click()
   await expect(page.locator('.stitch-element')).toHaveCount(4)
 })
