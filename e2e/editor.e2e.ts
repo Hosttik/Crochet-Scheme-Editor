@@ -10,7 +10,7 @@ test('places a stitch, restores autosave and manages local projects', async ({ p
   await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Вместить всю схему' })).toBeDisabled()
 
-  await page.getByTitle('Столбик без накида').click()
+  await page.getByRole('button', { name: 'Столбик без накида · sc', exact: true }).click()
   const canvas = page.locator('svg.editor-canvas')
   const box = await canvas.boundingBox()
   expect(box).not.toBeNull()
