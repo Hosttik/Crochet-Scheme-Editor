@@ -35,13 +35,13 @@ jobs:
           sed -i "s/import { STITCH_SYMBOLS, SYMBOL_BY_ID } from '..\/symbols'/import { STITCH_SYMBOLS } from '..\/symbols'/" src/editor/GaugeRulerPanel.tsx
           python3 scripts/fix_gauge_feature.py
 
-      - name: Verify TypeScript and production build
+      - name: Verify TypeScript, unit tests and production build
         run: npm run build
 
       - name: Commit feature implementation
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src
+          git add src e2e
           git commit -m "Add gauge calibration and smart rulers"
           git push origin HEAD:feature/v1.17-gauge-smart-ruler
