@@ -72,6 +72,19 @@ describe('guide direct manipulation', () => {
     if (next.type === 'grid') expect(next.rotation).toBeCloseTo(105)
   })
 
+  it('snaps grid rotation to 15 degree increments when requested', () => {
+    const start = { x: 20, y: -70 }
+    const current = { x: 111, y: 12 }
+    const free = applyGuideManipulation(grid, 'rotate', start, current)
+    const snapped = applyGuideManipulation(grid, 'rotate', start, current, true)
+    expect(free.type).toBe('grid')
+    expect(snapped.type).toBe('grid')
+    if (free.type === 'grid' && snapped.type === 'grid') {
+      expect(snapped.rotation % 15).toBeCloseTo(0)
+      expect(snapped.rotation).not.toBeCloseTo(free.rotation)
+    }
+  })
+
   it('provides visible resize and rotation handles', () => {
     expect(guideResizeHandle(arc)).not.toBeNull()
     expect(guideResizeHandle(radial)).not.toBeNull()
