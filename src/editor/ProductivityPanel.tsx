@@ -12,6 +12,7 @@ import {
   type GuideRepeatOrientation,
 } from './productivity'
 import { repeatPreviewSelectionKind, shouldShowRepeatPreview } from './repeatPreview'
+import type { MirrorAxisState } from './MirrorAxisOverlay'
 import './productivity.css'
 
 const COPY = {
@@ -23,7 +24,16 @@ const COPY = {
     group: 'Группировать',
     ungroup: 'Разгруппировать',
     mirror: 'Отражение',
-    mirrorHint: 'Flip использует ось через центр выделения. Зеркальная копия создаётся рядом с оригиналом.',
+    mirrorHint: 'Быстрый Flip использует центр выделения. Для произвольного центра включите редактируемую ось.',
+    verticalAxis: 'Вертикальная ось',
+    horizontalAxis: 'Горизонтальная ось',
+    axisX: 'Позиция оси X',
+    axisY: 'Позиция оси Y',
+    axisCenter: 'По центру',
+    flipCustom: 'Отразить по оси',
+    mirrorCopyCustom: 'Копия через ось',
+    hideAxis: 'Скрыть ось',
+    axisHint: 'Красную пунктирную ось можно перетаскивать прямо на холсте.',
     flipLeftRight: '↔ Слева / справа',
     flipTopBottom: '↕ Сверху / снизу',
     mirrorCopyLeftRight: '⧉↔ Копия справа',
@@ -58,7 +68,16 @@ const COPY = {
     group: 'Group',
     ungroup: 'Ungroup',
     mirror: 'Reflection',
-    mirrorHint: 'Flip uses an axis through the selection center. Mirrored copy creates a separate adjacent object.',
+    mirrorHint: 'Quick Flip uses the selection center. Enable an editable axis for a custom mirror center.',
+    verticalAxis: 'Vertical axis',
+    horizontalAxis: 'Horizontal axis',
+    axisX: 'Axis X position',
+    axisY: 'Axis Y position',
+    axisCenter: 'Center on selection',
+    flipCustom: 'Flip across axis',
+    mirrorCopyCustom: 'Copy across axis',
+    hideAxis: 'Hide axis',
+    axisHint: 'Drag the red dashed axis directly on the canvas.',
     flipLeftRight: '↔ Left / right',
     flipTopBottom: '↕ Top / bottom',
     mirrorCopyLeftRight: '⧉↔ Copy right',
@@ -113,6 +132,13 @@ export function ProductivityPanel({
   onUngroup,
   onMirror,
   onMirrorCopy,
+  mirrorAxis,
+  onConfigureMirrorAxis,
+  onMirrorAxisCoordinateChange,
+  onCenterMirrorAxis,
+  onHideMirrorAxis,
+  onMirrorAtCustomAxis,
+  onMirrorCopyAtCustomAxis,
   onRepeat,
 }: {
   locale: Locale
@@ -127,6 +153,13 @@ export function ProductivityPanel({
   onUngroup: () => void
   onMirror: (axis: 'left-right' | 'top-bottom') => void
   onMirrorCopy: (axis: 'left-right' | 'top-bottom') => void
+  mirrorAxis: MirrorAxisState | null
+  onConfigureMirrorAxis: (axis: MirrorAxisState['axis']) => void
+  onMirrorAxisCoordinateChange: (coordinate: number) => void
+  onCenterMirrorAxis: () => void
+  onHideMirrorAxis: () => void
+  onMirrorAtCustomAxis: () => void
+  onMirrorCopyAtCustomAxis: () => void
   onRepeat: (options: RepeatOptions) => void
 }) {
   const copy = COPY[locale]
@@ -233,6 +266,29 @@ export function ProductivityPanel({
           <div className="productivity-actions">
             <button disabled={!canTransform} onClick={() => onMirrorCopy('left-right')}>{copy.mirrorCopyLeftRight}</button>
             <button disabled={!canTransform} onClick={() => onMirrorCopy('top-bottom')}>{copy.mirrorCopyTopBottom}</button>
+          </div>
+          <div className="mirror-axis-config">
+            <div className="productivity-mode-tabs mirror-axis-tabs">
+              <button className={mirrorAxis?.axis === 'left-right' ? 'active' : ''} disabled={!canTransform} onClick={() => onConfigureMirrorAxis('left-right')}>{copy.verticalAxis}</button>
+              <button className={mirrorAxis?.axis === 'top-bottom' ? 'active' : ''} disabled={!canTransform} onClick={() => onConfigureMirrorAxis('top-bottom')}>{copy.horizontalAxis}</button>
+            </div>
+            {mirrorAxis && (
+              <>
+                <small className="muted-text mirror-axis-hint">{copy.axisHint}</small>
+                <label className="productivity-field">
+                  <span>{mirrorAxis.axis === 'left-right' ? copy.axisX : copy.axisY}</span>
+                  <DraftNumberInput ariaLabel={mirrorAxis.axis === 'left-right' ? copy.axisX : copy.axisY} value={mirrorAxis.coordinate} step={1} onChange={onMirrorAxisCoordinateChange} />
+                </label>
+                <div className="productivity-actions">
+                  <button onClick={onCenterMirrorAxis}>{copy.axisCenter}</button>
+                  <button onClick={onHideMirrorAxis}>{copy.hideAxis}</button>
+                </div>
+                <div className="productivity-actions mirror-axis-actions">
+                  <button disabled={!canTransform} onClick={onMirrorAtCustomAxis}>{copy.flipCustom}</button>
+                  <button disabled={!canTransform} onClick={onMirrorCopyAtCustomAxis}>{copy.mirrorCopyCustom}</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

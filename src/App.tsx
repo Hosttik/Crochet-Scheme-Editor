@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { GuideRenderer } from './editor/GuideRenderer'
 import { GuideAttachmentPanel } from './editor/GuideAttachmentPanel'
+import { MirrorAxisOverlay, type MirrorAxisState } from './editor/MirrorAxisOverlay'
 import { GuideRowGeneratorPanel } from './editor/GuideRowGeneratorPanel'
 import { ParametricRowEditorPanel } from './editor/ParametricRowEditorPanel'
 import { PatternRowsPanel } from './editor/PatternRowsPanel'
@@ -33,14 +34,16 @@ import {
   moveAttachedElement,
   reconcileGuideAttachments,
 } from './editor/pathGuides'
-import { createMirroredCopy } from './editor/mirrorCopy'
+import { createMirroredCopy, createMirroredCopyAroundAxis } from './editor/mirrorCopy'
 import {
   cloneSelectionWithOffset,
   cloneWithRepeatedDelta,
   expandIdsToGroups,
   groupElements,
   mirrorElements,
+  mirrorElementsAroundAxis,
   repeatSelection,
+  selectionPivot,
   ungroupElements,
   type MirrorAxis,
   type RepeatOptions,
@@ -333,6 +336,7 @@ function App() {
   const [marquee, setMarquee] = useState<MarqueeState | null>(null)
   const [rotate, setRotate] = useState<RotateState | null>(null)
   const [pan, setPan] = useState<PanState | null>(null)
+  const [mirrorAxis, setMirrorAxis] = useState<MirrorAxisState | null>(null)
   const [status, setStatus] = useState<string>(UI[DEFAULT_LOCALE].ready)
   const [hydrated, setHydrated] = useState(false)
   const [autosaveState, setAutosaveState] = useState<AutosaveState>('loading')
@@ -416,6 +420,10 @@ function App() {
     () => guides.find((guide) => guide.id === selectedGuideId) ?? null,
     [guides, selectedGuideId],
   )
+  useEffect(() => {
+    if (!selectedIds.length) setMirrorAxis(null)
+  }, [selectedIds.length])
+
   const selectedParametricRow = useMemo(
     () => parametricRowFromSelection(elements, selectedIds),
     [elements, selectedIds],
@@ -673,6 +681,54 @@ function App() {
     setStatus(locale === 'ru' ? `Создана зеркальная копия: ${created.length}` : `Mirrored copy created: ${created.length}`)
   }, [commitElements, elements, locale, productivitySelectionIds])
 
+  const configureMirrorAxis = useCallback((axis: MirrorAxis) => {
+    const ids = productivitySelectionIds()
+    const pivot = selectionPivot(elements, ids)
+    if (!pivot) return
+    const coordinate = axis === 'left-right' ? pivot.x : pivot.y
+    setMirrorAxis((current) => current?.axis === axis ? current : { axis, coordinate })
+    setStatus(locale === 'ru'
+      ? axis === 'left-right' ? 'Вертикальная ось зеркалирования активна' : 'Горизонтальная ось зеркалирования активна'
+      : axis === 'left-right' ? 'Vertical mirror axis active' : 'Horizontal mirror axis active')
+  }, [elements, locale, productivitySelectionIds])
+
+  const moveMirrorAxis = useCallback((coordinate: number) => {
+    if (!Number.isFinite(coordinate)) return
+    setMirrorAxis((current) => current ? { ...current, coordinate } : current)
+  }, [])
+
+  const centerMirrorAxis = useCallback(() => {
+    if (!mirrorAxis) return
+    const ids = productivitySelectionIds()
+    const pivot = selectionPivot(elements, ids)
+    if (!pivot) return
+    setMirrorAxis({ ...mirrorAxis, coordinate: mirrorAxis.axis === 'left-right' ? pivot.x : pivot.y })
+  }, [elements, mirrorAxis, productivitySelectionIds])
+
+  const mirrorSelectionAroundCustomAxis = useCallback(() => {
+    if (!mirrorAxis) return
+    const ids = productivitySelectionIds()
+    if (!ids.length) return
+    duplicateSeriesRef.current = null
+    commitElements(mirrorElementsAroundAxis(elements, ids, mirrorAxis.axis, mirrorAxis.coordinate))
+    setSelectedIds(ids)
+    setStatus(locale === 'ru' ? `Отражено по пользовательской оси: ${ids.length}` : `Flipped across custom axis: ${ids.length}`)
+  }, [commitElements, elements, locale, mirrorAxis, productivitySelectionIds])
+
+  const mirrorCopySelectionAroundCustomAxis = useCallback(() => {
+    if (!mirrorAxis) return
+    const ids = productivitySelectionIds()
+    if (!ids.length) return
+    const created = createMirroredCopyAroundAxis(elements, ids, mirrorAxis.axis, mirrorAxis.coordinate, createId)
+    if (!created.length) return
+    duplicateSeriesRef.current = null
+    commitElements([...elements, ...created])
+    setSelectedIds(created.map((element) => element.id))
+    setSelectedGuideId(null)
+    setTool({ type: 'select' })
+    setStatus(locale === 'ru' ? `Создана копия через пользовательскую ось: ${created.length}` : `Custom-axis mirrored copy created: ${created.length}`)
+  }, [commitElements, elements, locale, mirrorAxis, productivitySelectionIds])
+
   const repeatProductivitySelection = useCallback((options: RepeatOptions) => {
     const ids = productivitySelectionIds()
     if (!ids.length) return
@@ -922,6 +978,7 @@ function App() {
         setDrag(null)
         setRotate(null)
         setMarquee(null)
+        setMirrorAxis(null)
         snapLockRef.current = null
         interactionMovedRef.current = false
       }
@@ -1916,6 +1973,17 @@ function App() {
               />
             ))}
 
+            {mirrorAxis && productivitySelectionIds().length > 0 && (
+              <MirrorAxisOverlay
+                state={mirrorAxis}
+                elements={elements}
+                selectedIds={productivitySelectionIds()}
+                zoom={viewport.zoom}
+                clientToDocument={clientToDocument}
+                onChange={moveMirrorAxis}
+              />
+            )}
+
             <StitchLayer
               elements={elements}
               selectedIds={selectedIds}
@@ -2021,6 +2089,13 @@ function App() {
             onUngroup={ungroupSelection}
             onMirror={mirrorSelection}
             onMirrorCopy={mirrorCopySelection}
+            mirrorAxis={mirrorAxis}
+            onConfigureMirrorAxis={configureMirrorAxis}
+            onMirrorAxisCoordinateChange={moveMirrorAxis}
+            onCenterMirrorAxis={centerMirrorAxis}
+            onHideMirrorAxis={() => setMirrorAxis(null)}
+            onMirrorAtCustomAxis={mirrorSelectionAroundCustomAxis}
+            onMirrorCopyAtCustomAxis={mirrorCopySelectionAroundCustomAxis}
             onRepeat={repeatProductivitySelection}
           />
         )}

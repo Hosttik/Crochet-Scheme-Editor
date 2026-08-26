@@ -125,32 +125,43 @@ export function ungroupElements(elements: StitchElement[], ids: string[]) {
   )
 }
 
-export function mirrorElements(
+export function mirrorElementsAroundAxis(
   elements: StitchElement[],
   ids: string[],
   axis: MirrorAxis,
+  coordinate: number,
 ) {
+  if (!Number.isFinite(coordinate)) return elements
   const selected = new Set(ids)
-  const pivot = selectionPivot(elements, ids)
-  if (!pivot) return elements
 
   return elements.map((element) => {
     if (!selected.has(element.id) || element.parametricRow) return element
     if (axis === 'left-right') {
       return {
         ...element,
-        x: pivot.x * 2 - element.x,
+        x: coordinate * 2 - element.x,
         rotation: normalizeDegrees(180 - element.rotation),
         guideAttachment: undefined,
       }
     }
     return {
       ...element,
-      y: pivot.y * 2 - element.y,
+      y: coordinate * 2 - element.y,
       rotation: normalizeDegrees(-element.rotation),
       guideAttachment: undefined,
     }
   })
+}
+
+export function mirrorElements(
+  elements: StitchElement[],
+  ids: string[],
+  axis: MirrorAxis,
+) {
+  const pivot = selectionPivot(elements, ids)
+  if (!pivot) return elements
+  const coordinate = axis === 'left-right' ? pivot.x : pivot.y
+  return mirrorElementsAroundAxis(elements, ids, axis, coordinate)
 }
 
 function cloneGroupIdMap(source: StitchElement[], createId: IdFactory, makeMotifGroup: boolean) {
