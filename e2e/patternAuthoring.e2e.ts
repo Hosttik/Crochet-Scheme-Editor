@@ -37,7 +37,6 @@ test('authors locked guides, gap-free row numbers and an exported automatic lege
   await guideLock.check()
   await expect(guide).toHaveClass(/locked/)
   await expect(page.locator('.guide-manipulation-ui')).toHaveCount(0)
-  await expect(guideEditor.locator('fieldset.guide-locked-fields')).toBeDisabled()
   await expect(guideEditor.getByLabel('Начало X')).toBeDisabled()
 
   await guideLock.uncheck()

@@ -2,9 +2,9 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
-## v1.11.1
+## v1.12.0
 
-The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.11 adds continuous path guides and persistent manual stitch-to-guide attachment; v1.11.1 completes mirror authoring with an explicit draggable vertical/horizontal axis while keeping quick center-based Flip and Rotate 180° as separate operations.
+The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.11 adds continuous path guides and persistent manual stitch-to-guide attachment; v1.11.1 completes mirror authoring with a draggable custom axis; v1.12 adds guide locking, independent row-number annotations and an automatic exportable legend.
 
 ### Editing and productivity
 
@@ -45,6 +45,7 @@ The editor combines an SVG canvas with a document model that understands guides,
 ### Guides, snapping and persistent attachment
 
 - Arc, Line, cubic Bezier Curve, Rectangular Grid and Radial Grid guides
+- any guide can be locked against accidental move/resize/rotate/numeric edits while remaining selectable and unlockable
 - Line exposes independent start/end handles
 - Curve exposes start/end plus two Bezier control-point handles
 - continuous path guides can be moved directly on the canvas; Arc keeps radius editing and grids keep their specialized controls
@@ -94,9 +95,13 @@ The editor combines an SVG canvas with a document model that understands guides,
 
 ### Persistence and export
 
-- project JSON schema is v14; v1-v13 remain loadable through runtime validation/migration
+- independent red-dot row-number annotations support automatic first-gap numbering, drag, manual numbering, visibility and lock
+- row-number annotations persist through autosave/JSON and are included in SVG export
+- automatic legend is derived from actually used visible stitch symbols, shows abbreviation plus localized RU/EN name, can be toggled, and is included in SVG export
+- project JSON schema is v15; v1-v14 remain loadable through runtime validation/migration
 - schema v13 introduced optional six-digit hex visual color per stitch; default black is omitted from storage
 - schema v14 adds Line/Curve guide persistence and optional manual `guideAttachment` metadata
+- schema v15 adds guide lock state, independent row-number annotations and legend visibility settings
 - manual group ids, topology parent ids, manual topology overrides, mixed/rich row programs, row construction semantics and generated-offset baselines are persisted and validated
 - local multi-project storage in IndexedDB
 - automatic migration of the legacy single autosave into the first local project
@@ -165,4 +170,4 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - local persistence
 - rendering and React UI
 
-Next larger product milestones are crochet-native row-boundary semantics (counted turning/start chains, skipped first stitches and exact joined-round closure), row-number annotations/legend generation, and document output features such as image underlays, tiled printing and free-form lasso selection. A future color-domain milestone could turn visual colors into explicit yarn/color-change semantics, but only after defining row-boundary behavior clearly.
+Next larger product milestones are crochet-native row-boundary semantics (counted turning/start chains, skipped first stitches and exact joined-round closure) and document output features such as configurable autosave, image underlays, tiled printing and free-form lasso selection. A future color-domain milestone could turn visual colors into explicit yarn/color-change semantics, but only after defining row-boundary behavior clearly.
