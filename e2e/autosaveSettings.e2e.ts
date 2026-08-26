@@ -8,12 +8,18 @@ async function placeSingleCrochet(page: Page) {
   await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5)
 }
 
-test('persists autosave off and resumes the legacy fast delay', async ({ page }) => {
+test('persists autosave intervals immediately, supports off and resumes the fast delay', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
   const control = page.getByLabel('Автосохранение')
   await expect(control).toHaveValue('650')
 
-  await control.selectOption('0')
+  // The setting itself must survive a reload without waiting for the selected 60 s interval.
+  await control.selectOption('60000')
+  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
+  await page.reload()
+  await expect(page.getByLabel('Автосохранение')).toHaveValue('60000')
+
+  await page.getByLabel('Автосохранение').selectOption('0')
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранение выключено')
   await page.waitForTimeout(250)
 
