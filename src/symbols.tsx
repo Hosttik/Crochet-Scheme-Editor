@@ -52,8 +52,8 @@ export const SYMBOLS: SymbolDefinition[] = [
   symbol('double', 'Double crochet', 'dc', 'Tall stitches', 30, 58),
   symbol('double-blo', 'Double crochet in back loop only', 'dc BLO', 'Tall stitches', 30, 62),
   symbol('treble', 'Treble crochet', 'tr', 'Tall stitches', 32, 68),
-  symbol('double-treble', 'Double treble crochet', 'dtr', 'Tall stitches', 34, 78),
-  symbol('triple-treble', 'Triple treble crochet', 'trtr / ddtr', 'Tall stitches', 36, 88),
+  symbol('double-treble', 'Double treble crochet', 'dtr', 'Tall stitches', 34, 72),
+  symbol('triple-treble', 'Triple treble crochet', 'trtr / ddtr', 'Tall stitches', 36, 76),
 
   symbol('single-2-together', 'Single crochet 2 together', 'sc2tog', 'Decreases', 36, 46),
   symbol('single-3-together', 'Single crochet 3 together', 'sc3tog', 'Decreases', 44, 46),
@@ -113,7 +113,7 @@ function tallGlyph(height: number, yarnOvers: number, blo = false): GlyphPart[] 
 function multiStemGlyph(count: number, mode: 'decrease' | 'increase', family: 'single' | 'half-double' | 'double'): GlyphPart[] {
   const topY = -22
   const bottomY = 22
-  const spread = Math.max(18, (count - 1) * 10)
+  const spread = Math.max(18, (count - 1) * 9)
   const startX = -spread / 2
   const step = count === 1 ? 0 : spread / (count - 1)
   const parts: GlyphPart[] = []
@@ -204,8 +204,8 @@ const GLYPHS: Record<string, GlyphPart[]> = {
   double: tallGlyph(58, 1),
   'double-blo': tallGlyph(62, 1, true),
   treble: tallGlyph(68, 2),
-  'double-treble': tallGlyph(78, 3),
-  'triple-treble': tallGlyph(88, 4),
+  'double-treble': tallGlyph(72, 3),
+  'triple-treble': tallGlyph(76, 4),
 
   'single-2-together': multiStemGlyph(2, 'decrease', 'single'),
   'single-3-together': multiStemGlyph(3, 'decrease', 'single'),
