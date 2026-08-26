@@ -311,10 +311,10 @@ export function GaugeRulerPanel({
               const estimate = rulerEstimate(selectedRuler, elements, gauge)
               if (estimate.mode === 'rows') {
                 if (estimate.source === 'automatic' && estimate.rowCount) {
-                  return <small>{ru ? `Автоматически между рядами: ${estimate.rowCount} рядов` : `Automatic between rows: ${estimate.rowCount} rows`}</small>
+                  return <small>{ru ? `Автоматически между рядами: ${estimate.rowCount} р.` : `Automatic between rows: ${estimate.rowCount} rows`}</small>
                 }
                 if (estimate.source === 'manual' && estimate.rowCount) {
-                  return <small>{ru ? `Ручной расчёт: ${estimate.rowCount} рядов` : `Manual count: ${estimate.rowCount} rows`}</small>
+                  return <small>{ru ? `Ручной расчёт: ${estimate.rowCount} р.` : `Manual count: ${estimate.rowCount} rows`}</small>
                 }
                 return <small>{ru ? 'Привяжите точки к параметрическим рядам или укажите число рядов вручную.' : 'Snap endpoints to parametric rows or enter the row count manually.'}</small>
               }
