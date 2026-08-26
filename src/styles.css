@@ -46,6 +46,9 @@ button { color: inherit; }
 .brand strong { display: block; font-size: 14px; letter-spacing: .01em; }
 .brand span { display: block; margin-top: 2px; font-size: 11px; color: #7b7c77; }
 .topbar-actions { display: flex; align-items: center; gap: 7px; }
+.autosave-control { display: flex; align-items: center; gap: 5px; color: #74766f; font-size: 10px; white-space: nowrap; }
+.autosave-control select { width: auto; min-width: 88px; padding: 6px 7px; font-size: 10px; }
+.autosave-indicator.off { color: #8b6d45; }
 .toolbar-separator { width: 1px; height: 25px; background: #dedbd4; margin: 0 3px; }
 
 button {

@@ -1,4 +1,5 @@
 import type {
+  AutosaveDelayMs,
   CrochetProject,
   Guide,
   GuideAttachment,
@@ -104,14 +105,39 @@ function validateRowConstruction(value: unknown) {
     !['spiral', 'joined', 'turning'].includes(String(value.mode)) ||
     !['along', 'reverse'].includes(String(value.direction)) ||
     !nonNegativeInteger(value.startChainCount, 10) ||
-    typeof value.joinWithSlipStitch !== 'boolean'
+    typeof value.joinWithSlipStitch !== 'boolean' ||
+    !optionalBoolean(value.startChainCountsAsStitch) ||
+    !(value.skipFirstStitches === undefined || nonNegativeInteger(value.skipFirstStitches, 10)) ||
+    !(value.joinTarget === undefined || ['first-stitch', 'start-chain-top'].includes(String(value.joinTarget)))
   ) throw new ProjectValidationError('Invalid row construction')
 
-  if (value.mode === 'spiral' && (value.startChainCount !== 0 || value.joinWithSlipStitch !== false)) {
-    throw new ProjectValidationError('Invalid spiral construction')
+  if (value.startChainCountsAsStitch === true && value.startChainCount === 0) {
+    throw new ProjectValidationError('Counted starting chain requires starting chains')
   }
-  if (value.mode === 'turning' && value.joinWithSlipStitch !== false) {
-    throw new ProjectValidationError('Invalid turning construction')
+
+  if (value.mode === 'spiral') {
+    if (
+      value.startChainCount !== 0 ||
+      value.joinWithSlipStitch !== false ||
+      value.startChainCountsAsStitch === true ||
+      (value.skipFirstStitches !== undefined && value.skipFirstStitches !== 0) ||
+      (value.joinTarget !== undefined && value.joinTarget !== 'first-stitch')
+    ) throw new ProjectValidationError('Invalid spiral construction')
+  }
+
+  if (value.mode === 'turning') {
+    if (
+      value.joinWithSlipStitch !== false ||
+      (value.joinTarget !== undefined && value.joinTarget !== 'first-stitch')
+    ) throw new ProjectValidationError('Invalid turning construction')
+  }
+
+  if (
+    value.mode === 'joined' &&
+    value.joinTarget === 'start-chain-top' &&
+    (value.joinWithSlipStitch !== true || value.startChainCount === 0)
+  ) {
+    throw new ProjectValidationError('Starting-chain join target requires a joined row with starting chains')
   }
 }
 
@@ -255,6 +281,16 @@ function parseLegend(value: unknown) {
   return { visible: value.visible }
 }
 
+const AUTOSAVE_DELAYS = [0, 650, 5000, 15000, 30000, 60000]
+
+function parseAutosave(value: unknown) {
+  if (value === undefined) return { delayMs: 650 as AutosaveDelayMs }
+  if (!isRecord(value) || !finite(value.delayMs) || !AUTOSAVE_DELAYS.includes(value.delayMs)) {
+    throw new ProjectValidationError('Invalid autosave settings')
+  }
+  return { delayMs: value.delayMs as AutosaveDelayMs }
+}
+
 function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSettings {
   if (!isRecord(value)) return fallback
   if (
@@ -268,7 +304,7 @@ function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSett
 
 export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): CrochetProject {
   if (!isRecord(raw)) throw new ProjectValidationError('Project must be an object')
-  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 15) throw new ProjectValidationError('Unsupported project schema')
+  if (!finite(raw.schemaVersion) || raw.schemaVersion < 1 || raw.schemaVersion > 16) throw new ProjectValidationError('Unsupported project schema')
   if (!Array.isArray(raw.elements)) throw new ProjectValidationError('Project elements are missing')
   if (raw.guides !== undefined && !Array.isArray(raw.guides)) throw new ProjectValidationError('Project guides are invalid')
   if (raw.rowMarkers !== undefined && !Array.isArray(raw.rowMarkers)) throw new ProjectValidationError('Project row markers are invalid')
@@ -280,7 +316,7 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
   const rowMarkers = (raw.rowMarkers ?? []).map(parseRowMarker)
 
   return {
-    schemaVersion: 15,
+    schemaVersion: 16,
     metadata: {
       title: typeof metadata.title === 'string' && metadata.title.trim() ? metadata.title : 'Crochet scheme',
       updatedAt: typeof metadata.updatedAt === 'string' ? metadata.updatedAt : new Date().toISOString(),
@@ -291,6 +327,7 @@ export function parseProject(raw: unknown, fallbackSnapping: SnappingSettings): 
     settings: {
       snapping: parseSnapping(settings.snapping, fallbackSnapping),
       legend: parseLegend(settings.legend),
+      autosave: parseAutosave(settings.autosave),
     },
   }
 }
