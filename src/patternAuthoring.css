@@ -1,0 +1,120 @@
+.guide-layer.locked .guide-stroke {
+  stroke-dasharray: 5 4;
+  opacity: 0.72;
+}
+
+.guide-lock-indicator {
+  font-family: system-ui, sans-serif;
+  user-select: none;
+  pointer-events: none;
+}
+
+.row-marker {
+  cursor: grab;
+}
+
+.row-marker.locked {
+  cursor: default;
+}
+
+.row-marker-hit {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.row-marker-dot,
+.row-marker-list-dot,
+.row-marker-tool-dot {
+  fill: #c2413b;
+  color: #c2413b;
+}
+
+.row-marker-number {
+  fill: #b23833;
+  font-family: system-ui, sans-serif;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: #fbfaf7;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  user-select: none;
+  pointer-events: none;
+}
+
+.row-marker-selection {
+  fill: none;
+  stroke: #2563eb;
+  stroke-width: 1.5px;
+  stroke-dasharray: 3 2;
+  pointer-events: none;
+}
+
+.row-marker-lock {
+  user-select: none;
+  pointer-events: none;
+}
+
+.row-marker-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.row-marker-list button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+}
+
+.row-marker-list button.active {
+  outline: 1px solid currentColor;
+}
+
+.row-marker-list-dot.hidden {
+  opacity: 0.3;
+}
+
+.row-marker-editor {
+  display: grid;
+  gap: 9px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line, #dedbd4);
+}
+
+.legend-overlay {
+  color: #202622;
+}
+
+.legend-background {
+  fill: rgba(255, 255, 255, 0.94);
+  stroke: #cbc7be;
+  stroke-width: 1px;
+}
+
+.legend-title,
+.legend-label {
+  fill: currentColor;
+  font-family: system-ui, sans-serif;
+}
+
+.legend-title {
+  font-weight: 700;
+}
+
+.legend-glyph {
+  color: #202622;
+}
+
+.guide-editor fieldset.guide-locked-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.guide-editor fieldset.guide-locked-fields:disabled {
+  opacity: 0.55;
+}
