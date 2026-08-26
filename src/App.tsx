@@ -39,7 +39,7 @@ import { deleteRowMarkerAndRenumber, isRowMarkerLocked, nextRowMarkerNumber, nor
 import type { GuideManipulationMode } from './editor/guideManipulation'
 import { clamp, screenToDocument } from './editor/geometry'
 import { emptyHistory, pushHistory, redoHistory, undoHistory } from './editor/history'
-import { emptyGaugeSettings, snapRulerPoint } from './editor/gauge'
+import { emptyGaugeSettings, reconcileRulerElementReferences, snapRulerPoint } from './editor/gauge'
 import {
   attachElementToGuide,
   elementFromAttachment,
@@ -74,6 +74,7 @@ import {
 } from './editor/persistence'
 import { viewportForElements } from './editor/viewportFit'
 import { semanticLockIds, semanticSelectionIds } from './editor/selectionModel'
+import { projectIntegrityIssue } from './editor/projectIntegrity'
 import { CURRENT_PROJECT_SCHEMA_VERSION } from './editor/projectVersion'
 import {
   createNextPatternRow,
@@ -723,7 +724,11 @@ function App() {
       if (autosaveRevisionRef.current === revision) setAutosaveState('error')
       throw new Error(locale === 'ru' ? 'Не удалось сохранить текущий проект' : 'Could not save current project')
     }
-  }, [activeProjectId, autosaveDelayMs, backgroundImage, cancelPendingAutosave, elements, enqueueProjectSave, guides, hydrated, legendVisible, locale, projectTitle, rowMarkers, snapping])
+  }, [activeProjectId, autosaveDelayMs, backgroundImage, cancelPendingAutosave, elements, enqueueProjectSave, gauge, guides, hydrated, legendVisible, locale, projectTitle, rowMarkers, rulers, snapping])
+
+  useEffect(() => {
+    setRulers((current) => reconcileRulerElementReferences(current, elements))
+  }, [elements])
 
   const clearElementSelection = useCallback(() => setSelectedIds([]), [])
 
@@ -2316,6 +2321,11 @@ const openTiledPrint = (settings: PrintSettings) => {
 
 const saveProject = () => {
     const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage, gauge, rulers)
+    const integrityIssue = projectIntegrityIssue(project)
+    if (integrityIssue) {
+      setStatus(locale === 'ru' ? `Нельзя сохранить: ${integrityIssue}` : `Cannot save: ${integrityIssue}`)
+      return
+    }
     downloadText('crochet-scheme.json', JSON.stringify(project, null, 2), 'application/json')
     setStatus(t.projectSaved)
   }

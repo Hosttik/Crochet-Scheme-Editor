@@ -1,4 +1,6 @@
 import { SYMBOL_BY_ID } from '../symbols'
+import { rowConstructionTopologyParents } from './rowConstruction'
+import { rowProgramHasTopologyOperations, rowProgramMetrics } from './rowProgram'
 import type { CrochetProject, Guide, ParametricRowBinding, StitchElement } from '../types'
 
 export const MAX_PROJECT_ELEMENTS = 20_000
@@ -178,6 +180,31 @@ export function projectIntegrityIssue(project: CrochetProject, strictReferences 
     }
   }
 
+  if (strictReferences) {
+    const elementsByRow = new Map<string, StitchElement[]>()
+    for (const element of elements) {
+      const rowId = element.parametricRow?.id
+      if (!rowId) continue
+      elementsByRow.set(rowId, [...(elementsByRow.get(rowId) ?? []), element])
+    }
+    for (const children of elementsByRow.values()) {
+      const binding = children[0]?.parametricRow
+      if (!binding?.program) continue
+      if (!binding.parentRowId) {
+        if (rowProgramHasTopologyOperations(binding.program)) {
+          return 'Rich row topology operations require a parent row'
+        }
+        continue
+      }
+      const parents = elementsByRow.get(binding.parentRowId)
+      if (!parents) continue
+      const topologyParents = rowConstructionTopologyParents(parents, binding.construction)
+      if (rowProgramMetrics(binding.program).consumedParents !== topologyParents.length) {
+        return 'Rich row program does not consume exactly the available parent stitches'
+      }
+    }
+  }
+
   for (const marker of markers) {
     if (!bounded(marker.x) || !bounded(marker.y)) return 'Row marker geometry is out of bounds'
   }
@@ -190,4 +217,9 @@ export function projectIntegrityIssue(project: CrochetProject, strictReferences 
   if (!Number.isFinite(project.settings.snapping.tolerancePx) || project.settings.snapping.tolerancePx < 1 || project.settings.snapping.tolerancePx > 100) return 'Snapping tolerance is out of bounds'
 
   return rowCycleIssue(elements)
+}
+
+export function assertProjectIntegrity(project: CrochetProject, strictReferences = true) {
+  const issue = projectIntegrityIssue(project, strictReferences)
+  if (issue) throw new Error(issue)
 }

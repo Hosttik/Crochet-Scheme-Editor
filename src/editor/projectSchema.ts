@@ -266,7 +266,7 @@ function parseGuide(value: unknown): Guide {
 function parseRowMarker(value: unknown): RowMarker {
   if (
     !isRecord(value) || !nonEmptyString(value.id) ||
-    !positiveInteger(value.number, 999) || !finite(value.x) || !finite(value.y) ||
+    !positiveInteger(value.number, MAX_PROJECT_ROW_MARKERS) || !finite(value.x) || !finite(value.y) ||
     !optionalBoolean(value.visible) || !optionalBoolean(value.locked)
   ) throw new ProjectValidationError('Invalid row marker')
   return {

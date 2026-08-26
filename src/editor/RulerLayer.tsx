@@ -50,11 +50,7 @@ export function RulerLayer({
               y2={ruler.end.y}
               className="ruler-hit-line"
               strokeWidth={16 / zoom}
-              onPointerDown={(event) => {
-                if (event.button !== 0) return
-                event.stopPropagation()
-                onSelect(ruler.id)
-              }}
+              pointerEvents="none"
             />
             <line
               x1={ruler.start.x}
@@ -90,7 +86,12 @@ export function RulerLayer({
               fontSize={12 / zoom}
               strokeWidth={4 / zoom}
               textAnchor="middle"
-              pointerEvents="none"
+              pointerEvents="auto"
+              onPointerDown={(event) => {
+                if (event.button !== 0) return
+                event.stopPropagation()
+                onSelect(ruler.id)
+              }}
             >{label}</text>
             {selected && (
               <>

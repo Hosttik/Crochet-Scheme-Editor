@@ -1,4 +1,5 @@
 import type { CrochetProject } from '../types'
+import { assertProjectIntegrity } from './projectIntegrity'
 
 const DB_NAME = 'crochet-scheme-editor'
 const DB_VERSION = 3
@@ -97,6 +98,7 @@ async function readProject(id: string): Promise<CrochetProject | null> {
 }
 
 async function writeProject(id: string, project: CrochetProject): Promise<void> {
+  assertProjectIntegrity(project)
   const database = await openDatabase()
   if (!database) return
   try {

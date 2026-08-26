@@ -257,4 +257,53 @@ describe('parametric rows', () => {
     ])
     expect(result.rows.map((item) => item.binding.patternOrder)).toEqual([2, 3, 4, 5])
   })
+  it('detaches a legacy row from a line guide instead of deleting its stitches', () => {
+    const lineGuide = {
+      id: guide.id,
+      type: 'line' as const,
+      start: { x: -100, y: 0 },
+      end: { x: 100, y: 0 },
+      divisions: 4,
+      visible: true,
+    }
+    const result = reconcileParametricRows(row(), [lineGuide], () => 'unused')
+    expect(result).toHaveLength(3)
+    expect(result.every((element) => element.parametricRow === undefined)).toBe(true)
+  })
+
+  it('applies reverse direction and skipped base stitches to parent topology', () => {
+    const parent: ParametricRowBinding = {
+      ...binding,
+      id: 'parent-row',
+      patternOrder: 1,
+      options: { ...binding.options, count: 3 },
+    }
+    const child: ParametricRowBinding = {
+      ...binding,
+      id: 'child-row',
+      patternOrder: 2,
+      parentRowId: parent.id,
+      construction: {
+        mode: 'turning',
+        direction: 'reverse',
+        startChainCount: 1,
+        startChainCountsAsStitch: false,
+        skipFirstStitches: 1,
+        joinWithSlipStitch: false,
+        joinTarget: 'first-stitch',
+      },
+      options: { ...binding.options, count: 2, radialOffset: 40 },
+    }
+    const result = reconcileParametricRows(
+      [...row(3, parent), ...row(2, child)],
+      [guide],
+      () => 'unused',
+    )
+    const children = result.filter((element) => element.parametricRow?.id === child.id)
+    expect(children.map((element) => element.parentStitchIds)).toEqual([
+      ['parent-row-1'],
+      ['parent-row-0'],
+    ])
+  })
+
 })

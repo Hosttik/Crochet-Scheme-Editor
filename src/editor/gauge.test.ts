@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { GaugeProfile, GaugeSettings, MeasurementRuler, StitchElement } from '../types'
 import {
   patternHeightEstimateCm,
+  reconcileRulerElementReferences,
   rowHeightCm,
   rowLengthEstimateCm,
   rulerEstimate,
@@ -133,4 +134,56 @@ describe('gauge calculations', () => {
     expect(snapped.point).toEqual({ x: 40, y: 40 })
     expect(snapRulerPoint({ x: 90, y: 90 }, elements, 2).elementId).toBeUndefined()
   })
+  it('uses the written row total when a starting chain counts as a stitch', () => {
+    const counted = elements.map((element) => element.parametricRow?.id === 'row-1'
+      ? {
+          ...element,
+          parametricRow: {
+            ...element.parametricRow,
+            construction: {
+              mode: 'turning' as const,
+              direction: 'along' as const,
+              startChainCount: 1,
+              startChainCountsAsStitch: true,
+              skipFirstStitches: 0,
+              joinWithSlipStitch: false,
+              joinTarget: 'first-stitch' as const,
+            },
+          },
+        }
+      : element)
+    expect(rowLengthEstimateCm(counted, 'row-1', profile)).toBe(2.5)
+  })
+
+  it('uses the same mixed legacy/explicit row ordering as patternRows', () => {
+    const first = rowElement('legacy-1', 'legacy-row-1', 0, 1)
+    const second = rowElement('legacy-2', 'legacy-row-2', 0, 2)
+    first.parametricRow = { ...first.parametricRow!, patternOrder: undefined }
+    second.parametricRow = { ...second.parametricRow!, patternOrder: undefined }
+    const third = rowElement('explicit-3', 'explicit-row-3', 0, 3)
+    const mixed = [first, second, third]
+    expect(rulerEstimate({
+      id: 'mixed-order',
+      start: { x: 0, y: 0 },
+      end: { x: 0, y: 0 },
+      startElementId: first.id,
+      endElementId: third.id,
+      mode: 'rows',
+    }, mixed, gauge).rowCount).toBe(3)
+  })
+
+  it('clears ruler stitch references when their target stitches disappear', () => {
+    const rulers: MeasurementRuler[] = [{
+      id: 'dead-anchor',
+      start: { x: 0, y: 0 },
+      end: { x: 20, y: 0 },
+      startElementId: 'a',
+      endElementId: 'missing',
+    }]
+    const reconciled = reconcileRulerElementReferences(rulers, elements)
+    expect(reconciled[0].startElementId).toBe('a')
+    expect(reconciled[0].endElementId).toBeUndefined()
+    expect(reconcileRulerElementReferences(reconciled, elements)).toBe(reconciled)
+  })
+
 })
