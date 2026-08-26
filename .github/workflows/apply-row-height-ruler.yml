@@ -51,4 +51,4 @@ jobs:
           git commit -m "Add row-height smart ruler mode"
           git push origin HEAD:feature/v1.17.1-row-height-ruler
 
-# One-shot verification workflow; remove after the follow-up commit is green.
+# One-shot verification workflow; run 4 uses a separate radial offset for row-height E2E.
