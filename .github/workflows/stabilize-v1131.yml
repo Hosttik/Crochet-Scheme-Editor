@@ -1,0 +1,122 @@
+name: Apply v1.13.1 stabilization
+
+on:
+  push:
+    branches:
+      - fix/v1131-stabilization
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: fix/v1131-stabilization
+      - name: Apply stabilization fixes and regression coverage
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f'Expected text not found in {path}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, 1))
+
+          Path('src/editor/rowMarkers.ts').write_text("""import type { RowMarker } from '../types'\n\nexport function nextRowMarkerNumber(markers: RowMarker[]) {\n  const used = new Set(\n    markers\n      .map((marker) => Math.round(marker.number))\n      .filter((number) => Number.isFinite(number) && number > 0),\n  )\n  let candidate = 1\n  while (used.has(candidate)) candidate += 1\n  return candidate\n}\n\nexport function deleteRowMarkerAndRenumber(markers: RowMarker[], id: string) {\n  const removed = markers.find((marker) => marker.id === id)\n  if (!removed) return markers\n  return markers\n    .filter((marker) => marker.id !== id)\n    .map((marker) =>\n      marker.number > removed.number ? { ...marker, number: marker.number - 1 } : marker,\n    )\n}\n\nexport function normalizedRowMarkerNumber(value: number) {\n  if (!Number.isFinite(value)) return 1\n  return Math.max(1, Math.round(value))\n}\n\nexport function isRowMarkerVisible(marker: RowMarker) {\n  return marker.visible !== false\n}\n\nexport function isRowMarkerLocked(marker: RowMarker) {\n  return marker.locked === true\n}\n""")
+
+          Path('src/editor/rowMarkers.test.ts').write_text("""import { describe, expect, it } from 'vitest'\nimport type { RowMarker } from '../types'\nimport { deleteRowMarkerAndRenumber, nextRowMarkerNumber, normalizedRowMarkerNumber } from './rowMarkers'\n\nfunction marker(number: number): RowMarker {\n  return { id: `row-${number}`, number, x: 0, y: 0, visible: true, locked: false }\n}\n\ndescribe('row marker numbering', () => {\n  it('uses the first missing positive number', () => {\n    expect(nextRowMarkerNumber([marker(1), marker(2), marker(4)])).toBe(3)\n    expect(nextRowMarkerNumber([marker(2), marker(3)])).toBe(1)\n    expect(nextRowMarkerNumber([marker(1), marker(2), marker(3)])).toBe(4)\n  })\n\n  it('renumbers following rows after deletion', () => {\n    const rows = [marker(1), marker(2), marker(3), marker(4)]\n    const next = deleteRowMarkerAndRenumber(rows, 'row-2')\n    expect(next.map((item) => item.number)).toEqual([1, 2, 3])\n    expect(next.map((item) => item.id)).toEqual(['row-1', 'row-3', 'row-4'])\n  })\n\n  it('normalizes manual row numbers to positive integers', () => {\n    expect(normalizedRowMarkerNumber(2.6)).toBe(3)\n    expect(normalizedRowMarkerNumber(-4)).toBe(1)\n  })\n})\n""")
+
+          Path('src/editor/mirrorCopy.ts').write_text("""import { SYMBOL_BY_ID } from '../symbols'\nimport type { StitchElement } from '../types'\nimport { elementAabb, type Rect } from './selection'\nimport {\n  cloneSelectionWithOffset,\n  groupElements,\n  mirrorElements,\n  mirrorElementsAroundAxis,\n  type MirrorAxis,\n} from './productivity'\n\nfunction boundsOf(elements: StitchElement[]): Rect | null {\n  const bounds = elements.map((element) => {\n    const symbol = SYMBOL_BY_ID.get(element.symbolId)\n    return elementAabb(element, { width: symbol?.width ?? 30, height: symbol?.height ?? 30 })\n  })\n  if (!bounds.length) return null\n  return {\n    left: Math.min(...bounds.map((item) => item.left)),\n    top: Math.min(...bounds.map((item) => item.top)),\n    right: Math.max(...bounds.map((item) => item.right)),\n    bottom: Math.max(...bounds.map((item) => item.bottom)),\n  }\n}\n\nexport function createMirroredCopy(\n  elements: StitchElement[],\n  ids: string[],\n  axis: MirrorAxis,\n  gap: number,\n  createId: () => string,\n) {\n  const selected = new Set(ids)\n  const source = elements.filter((element) => selected.has(element.id) && !element.parametricRow)\n  const sourceBounds = boundsOf(source)\n  if (!source.length || !sourceBounds) return []\n\n  const copied = cloneSelectionWithOffset(elements, ids, 0, 0, createId)\n  const copiedIds = copied.map((element) => element.id)\n  const mirrored = mirrorElements(copied, copiedIds, axis)\n  const mirroredBounds = boundsOf(mirrored)\n  if (!mirroredBounds) return []\n\n  const safeGap = Math.max(1, Math.abs(gap))\n  const deltaX = axis === 'left-right' ? sourceBounds.right + safeGap - mirroredBounds.left : 0\n  const deltaY = axis === 'top-bottom' ? sourceBounds.bottom + safeGap - mirroredBounds.top : 0\n  const positioned = mirrored.map((element) => ({\n    ...element,\n    x: element.x + deltaX,\n    y: element.y + deltaY,\n  }))\n  return positioned.length > 1 ? groupElements(positioned, copiedIds, createId()) : positioned\n}\n\nexport function createMirroredCopyAroundAxis(\n  elements: StitchElement[],\n  ids: string[],\n  axis: MirrorAxis,\n  coordinate: number,\n  createId: () => string,\n) {\n  const selected = new Set(ids)\n  const source = elements.filter((element) => selected.has(element.id) && !element.parametricRow)\n  if (!source.length || !Number.isFinite(coordinate)) return []\n\n  const copied = cloneSelectionWithOffset(elements, ids, 0, 0, createId)\n  const copiedIds = copied.map((element) => element.id)\n  const mirrored = mirrorElementsAroundAxis(copied, copiedIds, axis, coordinate)\n  return mirrored.length > 1 ? groupElements(mirrored, copiedIds, createId()) : mirrored\n}\n""")
+
+          Path('src/editor/mirrorCopy.test.ts').write_text("""import { describe, expect, it } from 'vitest'\nimport type { StitchElement } from '../types'\nimport { createMirroredCopy } from './mirrorCopy'\n\nfunction ids() {\n  let index = 0\n  return () => `new-${++index}`\n}\n\nconst motif: StitchElement[] = [\n  { id: 'a', symbolId: 'single', x: 10, y: 20, rotation: 0 },\n  { id: 'b', symbolId: 'double', x: 30, y: 40, rotation: 30 },\n]\n\ndescribe('mirrored copy', () => {\n  it('creates an adjacent left/right mirrored motif and groups it', () => {\n    const copy = createMirroredCopy(motif, ['a', 'b'], 'left-right', 24, ids())\n    expect(copy).toHaveLength(2)\n    expect(copy[0].x).toBeGreaterThan(30)\n    expect(copy[1].x).toBeGreaterThan(30)\n    expect(copy[0].rotation).toBe(-180)\n    expect(copy[1].rotation).toBe(150)\n    expect(copy[0].groupId).toBeTruthy()\n    expect(copy[0].groupId).toBe(copy[1].groupId)\n  })\n\n  it('creates an adjacent top/bottom mirrored stitch', () => {\n    const copy = createMirroredCopy([motif[0]], ['a'], 'top-bottom', 24, ids())\n    expect(copy).toHaveLength(1)\n    expect(copy[0].y).toBeGreaterThan(44)\n    expect(copy[0].rotation).toBe(0)\n  })\n\n  it('keeps the requested visual gap for a wide magic-ring symbol', () => {\n    const ring: StitchElement = { id: 'ring', symbolId: 'magic-ring', x: 10, y: 20, rotation: 0 }\n    const copy = createMirroredCopy([ring], ['ring'], 'left-right', 24, ids())\n    expect(copy).toHaveLength(1)\n    // Magic ring is 38 px wide: original right edge is 29, so copy center must be 29 + 24 + 19 = 72.\n    expect(copy[0].x).toBeCloseTo(72, 6)\n  })\n})\n""")
+
+          Path('src/editor/rowConstructionInheritance.test.ts').write_text("""import { describe, expect, it } from 'vitest'\nimport type { ParametricRowBinding, RadialGridGuide, StitchElement } from '../types'\nimport { createNextPatternRow } from './parametricRows'\n\nconst guide: RadialGridGuide = {\n  id: 'g',\n  type: 'radial-grid',\n  center: { x: 0, y: 0 },\n  ringCount: 6,\n  ringSpacing: 40,\n  sectorCount: 12,\n  startAngle: 0,\n  visible: true,\n}\n\nfunction binding(mode: 'joined' | 'turning'): ParametricRowBinding {\n  return {\n    id: 'row-1',\n    guideId: guide.id,\n    symbolId: 'single',\n    construction: {\n      mode,\n      direction: 'along',\n      startChainCount: 1,\n      joinWithSlipStitch: mode === 'joined',\n    },\n    options: {\n      distributionMode: 'count', count: 12, spacing: 40,\n      orientation: 'radial', rotationOffset: 0, radialOffset: 0, ringIndex: 1,\n    },\n  }\n}\n\nfunction elements(rowBinding: ParametricRowBinding): StitchElement[] {\n  return Array.from({ length: 12 }, (_, index) => ({\n    id: `p-${index}`,\n    symbolId: 'single',\n    x: index,\n    y: 0,\n    rotation: 0,\n    parametricRow: rowBinding,\n  }))\n}\n\ndescribe('row construction inheritance', () => {\n  it('keeps joined-round direction and normalizes boundary defaults in the next row', () => {\n    const parent = binding('joined')\n    let serial = 0\n    const created = createNextPatternRow(elements(parent), [guide], parent, 0, () => `id-${++serial}`)\n    expect(created?.binding.construction).toEqual({\n      mode: 'joined',\n      direction: 'along',\n      startChainCount: 1,\n      startChainCountsAsStitch: false,\n      skipFirstStitches: 0,\n      joinWithSlipStitch: true,\n      joinTarget: 'first-stitch',\n    })\n  })\n\n  it('alternates turning-row direction and normalizes boundary defaults', () => {\n    const parent = binding('turning')\n    let serial = 0\n    const created = createNextPatternRow(elements(parent), [guide], parent, 0, () => `id-${++serial}`)\n    expect(created?.binding.construction).toEqual({\n      mode: 'turning',\n      direction: 'reverse',\n      startChainCount: 1,\n      startChainCountsAsStitch: false,\n      skipFirstStitches: 0,\n      joinWithSlipStitch: false,\n      joinTarget: 'first-stitch',\n    })\n  })\n})\n""")
+
+          replace_once(
+              'src/App.tsx',
+              "import { isRowMarkerLocked, nextRowMarkerNumber, normalizedRowMarkerNumber } from './editor/rowMarkers'",
+              "import { deleteRowMarkerAndRenumber, isRowMarkerLocked, nextRowMarkerNumber, normalizedRowMarkerNumber } from './editor/rowMarkers'",
+          )
+
+          replace_once(
+              'src/App.tsx',
+              "  const autosaveRevisionRef = useRef(0)\n",
+              "  const autosaveRevisionRef = useRef(0)\n  const autosaveSettingsWriteRef = useRef<AutosaveDelayMs | null>(null)\n",
+          )
+
+          replace_once(
+              'src/App.tsx',
+              "  useEffect(() => {\n    if (!hydrated) return\n    if (autosaveDelayMs === 0) {\n",
+              "  useEffect(() => {\n    if (!hydrated) return\n    if (autosaveSettingsWriteRef.current === autosaveDelayMs) {\n      autosaveSettingsWriteRef.current = null\n      return\n    }\n    if (autosaveDelayMs === 0) {\n",
+          )
+
+          replace_once(
+              'src/App.tsx',
+              "      commitRowMarkers(rowMarkers.filter((item) => item.id !== selectedRowMarkerId))\n",
+              "      commitRowMarkers(deleteRowMarkerAndRenumber(rowMarkers, selectedRowMarkerId))\n",
+          )
+
+          replace_once(
+              'src/App.tsx',
+              "    if (selectedGuideId) {\n      commitGuides(guides.filter((guide) => guide.id !== selectedGuideId))\n      setSelectedGuideId(null)\n      setStatus(t.guideDeleted)\n    }\n",
+              "    if (selectedGuideId) {\n      const guide = guides.find((item) => item.id === selectedGuideId)\n      if (!guide || guide.locked === true) return\n      commitGuides(guides.filter((item) => item.id !== selectedGuideId))\n      setSelectedGuideId(null)\n      setStatus(t.guideDeleted)\n    }\n",
+          )
+
+          replace_once(
+              'src/App.tsx',
+              "    commitRowMarkers(rowMarkers.filter((item) => item.id !== id))\n",
+              "    commitRowMarkers(deleteRowMarkerAndRenumber(rowMarkers, id))\n",
+          )
+
+          old_autosave = """  const handleAutosaveDelayChange = (delayMs: AutosaveDelayMs) => {\n    setAutosaveDelayMs(delayMs)\n    if (delayMs !== 0) return\n\n    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, delayMs)\n    const task = autosaveQueueRef.current\n      .catch(() => undefined)\n      .then(() => saveLocalProject(activeProjectId, project))\n    autosaveQueueRef.current = task\n    void task.catch(() => setAutosaveState('error'))\n  }\n"""
+          new_autosave = """  const handleAutosaveDelayChange = (delayMs: AutosaveDelayMs) => {\n    autosaveSettingsWriteRef.current = delayMs\n    const revision = ++autosaveRevisionRef.current\n    setAutosaveDelayMs(delayMs)\n    setAutosaveState(delayMs === 0 ? 'off' : 'saving')\n\n    // Persist the selected interval immediately. Otherwise choosing 60 s and\n    // reloading before the first timer fires silently restores the old setting.\n    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, delayMs)\n    const task = autosaveQueueRef.current\n      .catch(() => undefined)\n      .then(() => saveLocalProject(activeProjectId, project))\n    autosaveQueueRef.current = task\n    void task\n      .then(() => {\n        if (autosaveRevisionRef.current === revision) {\n          setAutosaveState(delayMs === 0 ? 'off' : 'saved')\n        }\n      })\n      .catch(() => {\n        if (autosaveRevisionRef.current === revision) setAutosaveState('error')\n      })\n  }\n"""
+          replace_once('src/App.tsx', old_autosave, new_autosave)
+
+          old_generator = """              {(selectedGuide.type === 'arc' || selectedGuide.type === 'radial-grid') && (\n                <GuideRowGeneratorPanel\n                  guide={selectedGuide}\n                  locale={locale}\n                  onGenerate={handleGenerateGuideRow}\n                />\n              )}\n\n              </fieldset>\n\n              <p className=\"guide-note\">{t.guideNote}</p>\n              <button className=\"danger-button\" onClick={deleteSelected}>{t.deleteGuide}</button>\n"""
+          new_generator = """              </fieldset>\n\n              {(selectedGuide.type === 'arc' || selectedGuide.type === 'radial-grid') && (\n                <GuideRowGeneratorPanel\n                  guide={selectedGuide}\n                  locale={locale}\n                  onGenerate={handleGenerateGuideRow}\n                />\n              )}\n\n              <p className=\"guide-note\">{t.guideNote}</p>\n              <button className=\"danger-button\" disabled={selectedGuide.locked === true} onClick={deleteSelected}>{t.deleteGuide}</button>\n"""
+          replace_once('src/App.tsx', old_generator, new_generator)
+
+          replace_once(
+              'src/editor/RowMarkersPanel.tsx',
+              "        {ru ? 'Красная точка + номер. После удаления следующий маркер заполняет первый пропуск.' : 'Red dot + number. After deletion, the next marker fills the first gap.'}",
+              "        {ru ? 'Красная точка + номер. После удаления последующие номера сдвигаются автоматически.' : 'Red dot + number. After deletion, following row numbers shift automatically.'}",
+          )
+
+          # Update E2E row numbering and locked-guide regression coverage.
+          replace_once(
+              'e2e/patternAuthoring.e2e.ts',
+              "  await guideLock.check()\n  await expect(guide).toHaveClass(/locked/)\n  await expect(page.locator('.guide-manipulation-ui')).toHaveCount(0)\n  await expect(guideEditor.getByLabel('Начало X')).toBeDisabled()\n\n  await guideLock.uncheck()\n",
+              "  await guideLock.check()\n  await expect(guide).toHaveClass(/locked/)\n  await expect(page.locator('.guide-manipulation-ui')).toHaveCount(0)\n  await expect(guideEditor.getByLabel('Начало X')).toBeDisabled()\n  await expect(guideEditor.getByRole('button', { name: 'Удалить направляющую', exact: true })).toBeDisabled()\n  await page.keyboard.press('Delete')\n  await expect(guide).toHaveCount(1)\n\n  await guideLock.uncheck()\n",
+          )
+
+          replace_once(
+              'e2e/patternAuthoring.e2e.ts',
+              "  // #12: place 1,2,3; delete 2; the next proposed/placed marker is 2 again.\n",
+              "  // #12: place 1,2,3; delete 2; existing row 3 is renumbered to 2 and next is 3.\n",
+          )
+          replace_once(
+              'e2e/patternAuthoring.e2e.ts',
+              "  await expect(page.locator('.row-marker')).toHaveCount(2)\n  await expect(rowPanel.getByRole('button', { name: /Поставить ряд №2/ })).toBeVisible()\n\n  await rowPanel.getByRole('button', { name: /Поставить ряд №2/ }).click()\n  await clickCanvas(page, 0.22, 0.39)\n  await page.keyboard.press('Escape')\n  await expect(page.locator('.row-marker')).toHaveCount(3)\n  await expect(rowPanel.getByRole('button', { name: /Ряд 2/ })).toBeVisible()\n",
+              "  await expect(page.locator('.row-marker')).toHaveCount(2)\n  await expect(rowPanel.getByRole('button', { name: /Ряд 2/ })).toBeVisible()\n  await expect(rowPanel.getByRole('button', { name: /Поставить ряд №3/ })).toBeVisible()\n\n  await rowPanel.getByRole('button', { name: /Поставить ряд №3/ }).click()\n  await clickCanvas(page, 0.22, 0.39)\n  await page.keyboard.press('Escape')\n  await expect(page.locator('.row-marker')).toHaveCount(3)\n  await expect(rowPanel.getByRole('button', { name: /Ряд 3/ })).toBeVisible()\n",
+          )
+
+          Path('e2e/autosaveSettings.e2e.ts').write_text("""import { expect, test, type Page } from '@playwright/test'\n\nasync function placeSingleCrochet(page: Page) {\n  const canvas = page.locator('svg.editor-canvas')\n  const box = await canvas.boundingBox()\n  if (!box) throw new Error('Canvas is not visible')\n  await page.getByRole('button', { name: 'Столбик без накида' }).click()\n  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5)\n}\n\ntest('persists autosave intervals immediately, supports off and resumes the fast delay', async ({ page }) => {\n  await page.goto('/Crochet-Scheme-Editor/')\n  const control = page.getByLabel('Автосохранение')\n  await expect(control).toHaveValue('650')\n\n  // The setting itself must survive a reload without waiting for the selected 60 s interval.\n  await control.selectOption('60000')\n  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')\n  await page.reload()\n  await expect(page.getByLabel('Автосохранение')).toHaveValue('60000')\n\n  await page.getByLabel('Автосохранение').selectOption('0')\n  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранение выключено')\n  await page.waitForTimeout(250)\n\n  await placeSingleCrochet(page)\n  await expect(page.locator('.stitch-element')).toHaveCount(1)\n  await page.waitForTimeout(900)\n  await page.reload()\n  await expect(page.getByLabel('Автосохранение')).toHaveValue('0')\n  await expect(page.locator('.stitch-element')).toHaveCount(0)\n\n  await page.getByLabel('Автосохранение').selectOption('650')\n  await placeSingleCrochet(page)\n  await page.waitForTimeout(900)\n  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')\n  await page.reload()\n  await expect(page.getByLabel('Автосохранение')).toHaveValue('650')\n  await expect(page.locator('.stitch-element')).toHaveCount(1)\n})\n""")
+          PY
+
+          rm .github/workflows/stabilize-v1131.yml
+
+      - name: Commit stabilization patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix v1.13 stabilization findings"
+          git push origin HEAD:fix/v1131-stabilization
