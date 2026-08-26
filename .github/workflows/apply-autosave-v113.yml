@@ -1,0 +1,297 @@
+name: Apply configurable autosave controls
+
+on:
+  push:
+    branches:
+      - feature/row-boundaries-v113-final
+    paths:
+      - .github/workflows/apply-autosave-v113.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feature/row-boundaries-v113-final
+      - name: Apply autosave settings pass
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f'pattern not found in {path}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, 1))
+
+          # types.ts
+          replace_once(
+              'src/types.ts',
+              "export type RowJoinTarget = 'first-stitch' | 'start-chain-top'\n",
+              "export type RowJoinTarget = 'first-stitch' | 'start-chain-top'\nexport type AutosaveDelayMs = 0 | 650 | 5000 | 15000 | 30000 | 60000\n",
+          )
+          replace_once(
+              'src/types.ts',
+              "export type LegendSettings = {\n  visible: boolean\n}\n",
+              "export type LegendSettings = {\n  visible: boolean\n}\n\nexport type AutosaveSettings = {\n  /** Delay after the latest document change; 0 disables automatic document saves. */\n  delayMs: AutosaveDelayMs\n}\n",
+          )
+          replace_once(
+              'src/types.ts',
+              "    legend?: LegendSettings\n",
+              "    legend?: LegendSettings\n    autosave?: AutosaveSettings\n",
+          )
+
+          # projectSchema.ts
+          replace_once(
+              'src/editor/projectSchema.ts',
+              "  CrochetProject,\n",
+              "  AutosaveDelayMs,\n  CrochetProject,\n",
+          )
+          replace_once(
+              'src/editor/projectSchema.ts',
+              "function parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSettings {\n",
+              "const AUTOSAVE_DELAYS = [0, 650, 5000, 15000, 30000, 60000]\n\nfunction parseAutosave(value: unknown) {\n  if (value === undefined) return { delayMs: 650 as AutosaveDelayMs }\n  if (!isRecord(value) || !finite(value.delayMs) || !AUTOSAVE_DELAYS.includes(value.delayMs)) {\n    throw new ProjectValidationError('Invalid autosave settings')\n  }\n  return { delayMs: value.delayMs as AutosaveDelayMs }\n}\n\nfunction parseSnapping(value: unknown, fallback: SnappingSettings): SnappingSettings {\n",
+          )
+          replace_once(
+              'src/editor/projectSchema.ts',
+              "      legend: parseLegend(settings.legend),\n",
+              "      legend: parseLegend(settings.legend),\n      autosave: parseAutosave(settings.autosave),\n",
+          )
+
+          # App.tsx imports / model
+          replace_once(
+              'src/App.tsx',
+              "  AnchorName,\n",
+              "  AutosaveDelayMs,\n  AnchorName,\n",
+          )
+          replace_once(
+              'src/App.tsx',
+              "const AUTOSAVE_DELAY_MS = 650\n",
+              "const DEFAULT_AUTOSAVE_DELAY_MS: AutosaveDelayMs = 650\n",
+          )
+          replace_once(
+              'src/App.tsx',
+              "type AutosaveState = 'loading' | 'saving' | 'saved' | 'error'\n",
+              "type AutosaveState = 'loading' | 'saving' | 'saved' | 'error' | 'off'\n",
+          )
+          replace_once(
+              'src/App.tsx',
+              "  legendVisible = true,\n): CrochetProject {\n",
+              "  legendVisible = true,\n  autosaveDelayMs: AutosaveDelayMs = DEFAULT_AUTOSAVE_DELAY_MS,\n): CrochetProject {\n",
+          )
+          replace_once(
+              'src/App.tsx',
+              "    settings: { snapping, legend: { visible: legendVisible } },\n",
+              "    settings: {\n      snapping,\n      legend: { visible: legendVisible },\n      autosave: { delayMs: autosaveDelayMs },\n    },\n",
+          )
+          replace_once(
+              'src/App.tsx',
+              "  const [legendVisible, setLegendVisible] = useState(true)\n",
+              "  const [legendVisible, setLegendVisible] = useState(true)\n  const [autosaveDelayMs, setAutosaveDelayMs] = useState<AutosaveDelayMs>(DEFAULT_AUTOSAVE_DELAY_MS)\n",
+          )
+
+          # Restore/load the per-project setting in all three document-loading paths.
+          text = Path('src/App.tsx').read_text()
+          text = text.replace(
+              "          setLegendVisible(project.settings.legend?.visible ?? true)\n          setSnapping(project.settings.snapping)",
+              "          setLegendVisible(project.settings.legend?.visible ?? true)\n          setAutosaveDelayMs(project.settings.autosave?.delayMs ?? DEFAULT_AUTOSAVE_DELAY_MS)\n          setSnapping(project.settings.snapping)",
+              1,
+          )
+          text = text.replace(
+              "    setLegendVisible(normalized.settings.legend?.visible ?? true)\n    setSnapping(normalized.settings.snapping)",
+              "    setLegendVisible(normalized.settings.legend?.visible ?? true)\n    setAutosaveDelayMs(normalized.settings.autosave?.delayMs ?? DEFAULT_AUTOSAVE_DELAY_MS)\n    setSnapping(normalized.settings.snapping)",
+              1,
+          )
+          text = text.replace(
+              "      setLegendVisible(project.settings.legend?.visible ?? true)\n      setSnapping(project.settings.snapping)",
+              "      setLegendVisible(project.settings.legend?.visible ?? true)\n      setAutosaveDelayMs(project.settings.autosave?.delayMs ?? DEFAULT_AUTOSAVE_DELAY_MS)\n      setSnapping(project.settings.snapping)",
+              1,
+          )
+          Path('src/App.tsx').write_text(text)
+
+          # Preserve the selected autosave setting in every current-document build.
+          p = Path('src/App.tsx')
+          text = p.read_text().replace(
+              "buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible)",
+              "buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs)",
+          )
+          p.write_text(text)
+
+          # Replace the autosave effect with configurable debounce/off behavior.
+          p = Path('src/App.tsx')
+          text = p.read_text()
+          pattern = re.compile(
+              r"  useEffect\(\(\) => \{\n    if \(!hydrated\) return\n\n    const revision = \+\+autosaveRevisionRef\.current\n    setAutosaveState\('saving'\)\n    const timeout = window\.setTimeout\(\(\) => \{\n      const project = buildProject\(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs\)\n      const task = autosaveQueueRef\.current\n        \.catch\(\(\) => undefined\)\n        \.then\(\(\) => saveLocalProject\(activeProjectId, project\)\)\n      autosaveQueueRef\.current = task\n      void task\n        \.then\(\(\) => \{\n          if \(autosaveRevisionRef\.current === revision\) setAutosaveState\('saved'\)\n        \}\)\n        \.catch\(\(\) => \{\n          if \(autosaveRevisionRef\.current === revision\) setAutosaveState\('error'\)\n        \}\)\n    \}, AUTOSAVE_DELAY_MS\)\n\n    return \(\) => window\.clearTimeout\(timeout\)\n  \}, \[activeProjectId, elements, guides, hydrated, legendVisible, projectTitle, rowMarkers, snapping\]\)",
+              re.S,
+          )
+          replacement = """  useEffect(() => {
+    if (!hydrated) return
+    if (autosaveDelayMs === 0) {
+      autosaveRevisionRef.current += 1
+      setAutosaveState('off')
+      return
+    }
+
+    const revision = ++autosaveRevisionRef.current
+    setAutosaveState('saving')
+    const timeout = window.setTimeout(() => {
+      const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs)
+      const task = autosaveQueueRef.current
+        .catch(() => undefined)
+        .then(() => saveLocalProject(activeProjectId, project))
+      autosaveQueueRef.current = task
+      void task
+        .then(() => {
+          if (autosaveRevisionRef.current === revision) setAutosaveState('saved')
+        })
+        .catch(() => {
+          if (autosaveRevisionRef.current === revision) setAutosaveState('error')
+        })
+    }, autosaveDelayMs)
+
+    return () => window.clearTimeout(timeout)
+  }, [activeProjectId, autosaveDelayMs, elements, guides, hydrated, legendVisible, projectTitle, rowMarkers, snapping])"""
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'autosave effect replacement count={count}')
+          p.write_text(text)
+
+          # Explicitly persist switching autosave OFF; otherwise the disabled setting could never save itself.
+          replace_once(
+              'src/App.tsx',
+              "  const saveProject = () => {\n",
+              "  const handleAutosaveDelayChange = (delayMs: AutosaveDelayMs) => {\n    setAutosaveDelayMs(delayMs)\n    if (delayMs !== 0) return\n\n    const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, delayMs)\n    const task = autosaveQueueRef.current\n      .catch(() => undefined)\n      .then(() => saveLocalProject(activeProjectId, project))\n    autosaveQueueRef.current = task\n    void task.catch(() => setAutosaveState('error'))\n  }\n\n  const saveProject = () => {\n",
+          )
+
+          # Autosave indicator copy.
+          replace_once(
+              'src/App.tsx',
+              "  const autosaveLabel =\n    autosaveState === 'loading' ? t.autosaveLoading\n      : autosaveState === 'saving' ? t.autosaveSaving\n        : autosaveState === 'error' ? t.autosaveError\n          : t.autosaveSaved\n",
+              "  const autosaveLabel =\n    autosaveState === 'loading' ? t.autosaveLoading\n      : autosaveState === 'saving' ? t.autosaveSaving\n        : autosaveState === 'error' ? t.autosaveError\n          : autosaveState === 'off' ? (locale === 'ru' ? 'Автосохранение выключено' : 'Autosave off')\n            : t.autosaveSaved\n",
+          )
+
+          # Compact top-bar control.
+          replace_once(
+              'src/App.tsx',
+              "          <span className={`autosave-indicator ${autosaveState}`}>{autosaveLabel}</span>\n          <div className=\"language-switch\" aria-label={t.language}>\n",
+              "          <span className={`autosave-indicator ${autosaveState}`}>{autosaveLabel}</span>\n          <label className=\"autosave-control\">\n            <span>{locale === 'ru' ? 'Автосохранение' : 'Autosave'}</span>\n            <select\n              aria-label={locale === 'ru' ? 'Автосохранение' : 'Autosave'}\n              value={autosaveDelayMs}\n              onChange={(event) => handleAutosaveDelayChange(Number(event.target.value) as AutosaveDelayMs)}\n            >\n              <option value={0}>{locale === 'ru' ? 'Выкл' : 'Off'}</option>\n              <option value={650}>{locale === 'ru' ? 'Быстро · 0,65 с' : 'Fast · 0.65 s'}</option>\n              <option value={5000}>5 s</option>\n              <option value={15000}>15 s</option>\n              <option value={30000}>30 s</option>\n              <option value={60000}>60 s</option>\n            </select>\n          </label>\n          <div className=\"language-switch\" aria-label={t.language}>\n",
+          )
+
+          # Styling.
+          replace_once(
+              'src/styles.css',
+              ".topbar-actions { display: flex; align-items: center; gap: 7px; }\n",
+              ".topbar-actions { display: flex; align-items: center; gap: 7px; }\n.autosave-control { display: flex; align-items: center; gap: 5px; color: #74766f; font-size: 10px; white-space: nowrap; }\n.autosave-control select { width: auto; min-width: 88px; padding: 6px 7px; font-size: 10px; }\n.autosave-indicator.off { color: #8b6d45; }\n",
+          )
+
+          # Focused schema/unit coverage.
+          Path('src/editor/autosaveSettings.test.ts').write_text("""import { describe, expect, it } from 'vitest'
+import type { SnappingSettings } from '../types'
+import { parseProject } from './projectSchema'
+
+const snapping: SnappingSettings = {
+  enabled: true,
+  sourceAnchor: 'bottom',
+  orientationMode: 'none',
+  snapToVertices: true,
+  tolerancePx: 12,
+}
+
+function project(autosave?: unknown, schemaVersion = 16) {
+  return {
+    schemaVersion,
+    metadata: { title: 'Autosave', updatedAt: '2026-08-26T00:00:00.000Z' },
+    elements: [],
+    guides: [],
+    settings: { snapping, ...(autosave === undefined ? {} : { autosave }) },
+  }
+}
+
+describe('autosave settings', () => {
+  it('keeps the legacy fast delay for older projects', () => {
+    expect(parseProject(project(undefined, 15), snapping).settings.autosave).toEqual({ delayMs: 650 })
+  })
+
+  it('persists off and supported delays', () => {
+    for (const delayMs of [0, 650, 5000, 15000, 30000, 60000]) {
+      expect(parseProject(project({ delayMs }), snapping).settings.autosave).toEqual({ delayMs })
+    }
+  })
+
+  it('rejects arbitrary delays', () => {
+    expect(() => parseProject(project({ delayMs: 1234 }), snapping)).toThrow('Invalid autosave settings')
+  })
+})
+""")
+
+          Path('e2e/autosaveSettings.e2e.ts').write_text("""import { expect, test, type Page } from '@playwright/test'
+
+async function placeSingleCrochet(page: Page) {
+  const canvas = page.locator('svg.editor-canvas')
+  const box = await canvas.boundingBox()
+  if (!box) throw new Error('Canvas is not visible')
+  await page.getByRole('button', { name: 'Столбик без накида' }).click()
+  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5)
+}
+
+test('persists autosave off and resumes the legacy fast delay', async ({ page }) => {
+  await page.goto('/Crochet-Scheme-Editor/')
+  const control = page.getByLabel('Автосохранение')
+  await expect(control).toHaveValue('650')
+
+  await control.selectOption('0')
+  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранение выключено')
+  await page.waitForTimeout(250)
+
+  await placeSingleCrochet(page)
+  await expect(page.locator('.stitch-element')).toHaveCount(1)
+  await page.waitForTimeout(900)
+  await page.reload()
+  await expect(page.getByLabel('Автосохранение')).toHaveValue('0')
+  await expect(page.locator('.stitch-element')).toHaveCount(0)
+
+  await page.getByLabel('Автосохранение').selectOption('650')
+  await placeSingleCrochet(page)
+  await page.waitForTimeout(900)
+  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
+  await page.reload()
+  await expect(page.getByLabel('Автосохранение')).toHaveValue('650')
+  await expect(page.locator('.stitch-element')).toHaveCount(1)
+})
+""")
+
+          # README: mark #18 done and remove it from next milestones.
+          p = Path('README.md')
+          text = p.read_text()
+          anchor = "- automatic legend is derived from actually used visible stitch symbols, shows abbreviation plus localized RU/EN name, can be toggled, and is included in SVG export\n"
+          if anchor not in text:
+              raise SystemExit('README persistence anchor missing')
+          text = text.replace(
+              anchor,
+              anchor + "- autosave delay is configurable per project: Off, legacy Fast (0.65 s), 5 s, 15 s, 30 s or 60 s; switching Off is persisted immediately\n",
+              1,
+          )
+          text = text.replace(
+              "Next larger product milestones are document/output workflows: configurable autosave, background image underlays with opacity/lock, tiled multi-page printing with overlap/crop marks, and free-form lasso selection.",
+              "Next larger product milestones are document/output workflows: background image underlays with opacity/lock, tiled multi-page printing with overlap/crop marks, and free-form lasso selection.",
+              1,
+          )
+          p.write_text(text)
+          PY
+
+      - name: Commit product changes and remove staging workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-autosave-v113.yml
+          git add src/App.tsx src/types.ts src/styles.css src/editor/projectSchema.ts src/editor/autosaveSettings.test.ts e2e/autosaveSettings.e2e.ts README.md
+          git commit -m "Add configurable autosave settings"
+          git push origin HEAD:feature/row-boundaries-v113-final
