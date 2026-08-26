@@ -102,7 +102,7 @@ test('authors locked guides, gap-free row numbers and an exported automatic lege
   await legendToggle.check()
   await expect(page.locator('.legend-overlay')).toHaveCount(1)
 
-  // Persist a locked guide as well, then validate schema v16 and SVG authoring output.
+  // Persist a locked guide as well, then validate schema v17 and SVG authoring output.
   await page.locator('.guide-list button').filter({ hasText: 'Линия' }).click()
   await guideEditor.getByLabel('Заблокировать направляющую').check()
 
@@ -111,7 +111,7 @@ test('authors locked guides, gap-free row numbers and an exported automatic lege
   const jsonPath = await (await jsonDownloadPromise).path()
   expect(jsonPath).not.toBeNull()
   const project = JSON.parse(await readFile(jsonPath!, 'utf8'))
-  expect(project.schemaVersion).toBe(16)
+  expect(project.schemaVersion).toBe(17)
   expect(project.guides[0].locked).toBe(true)
   expect(project.rowMarkers).toHaveLength(3)
   expect(project.rowMarkers.map((marker: { number: number }) => marker.number).sort()).toEqual([1, 2, 3])
