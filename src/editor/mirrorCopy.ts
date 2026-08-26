@@ -3,6 +3,7 @@ import {
   cloneSelectionWithOffset,
   groupElements,
   mirrorElements,
+  mirrorElementsAroundAxis,
   type MirrorAxis,
 } from './productivity'
 
@@ -27,5 +28,22 @@ export function createMirroredCopy(
   const copied = cloneSelectionWithOffset(elements, ids, deltaX, deltaY, createId)
   const copiedIds = copied.map((element) => element.id)
   const mirrored = mirrorElements(copied, copiedIds, axis)
+  return mirrored.length > 1 ? groupElements(mirrored, copiedIds, createId()) : mirrored
+}
+
+export function createMirroredCopyAroundAxis(
+  elements: StitchElement[],
+  ids: string[],
+  axis: MirrorAxis,
+  coordinate: number,
+  createId: () => string,
+) {
+  const selected = new Set(ids)
+  const source = elements.filter((element) => selected.has(element.id) && !element.parametricRow)
+  if (!source.length || !Number.isFinite(coordinate)) return []
+
+  const copied = cloneSelectionWithOffset(elements, ids, 0, 0, createId)
+  const copiedIds = copied.map((element) => element.id)
+  const mirrored = mirrorElementsAroundAxis(copied, copiedIds, axis, coordinate)
   return mirrored.length > 1 ? groupElements(mirrored, copiedIds, createId()) : mirrored
 }

@@ -2,9 +2,9 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
-## v1.11
+## v1.11.1
 
-The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.11 adds continuous path guides and persistent manual stitch-to-guide attachment while keeping one-shot snapping and long-lived document relationships as separate concepts.
+The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.11 adds continuous path guides and persistent manual stitch-to-guide attachment; v1.11.1 completes mirror authoring with an explicit draggable vertical/horizontal axis while keeping quick center-based Flip and Rotate 180° as separate operations.
 
 ### Editing and productivity
 
@@ -21,7 +21,9 @@ The editor combines an SVG canvas with a document model that understands guides,
 - permanent manual groups: group / ungroup, click one member to select the motif, Alt+click to select a single stitch inside it
 - per-element visual colors with quick presets, native custom color picker and reset-to-default
 - color applies to a single stitch, multi-selection, a manual group or an entire selected parametric row; Alt+click inside a group still allows coloring one member independently
-- Flip mirrors the current manual selection around an axis through its own center; Mirrored Copy creates a separate adjacent reflected object; Rotate 180° remains a separate transform
+- quick Flip mirrors the current manual selection around a vertical or horizontal axis through its own center
+- custom mirror mode exposes a visible dashed vertical/horizontal axis that can be dragged on the canvas, positioned numerically, or reset to the selection center
+- custom-axis actions can either Flip the selection in place or create a Mirrored Copy across that exact axis; Rotate 180° remains a separate transform
 - Repeat tool with three modes and live preview before creation:
   - Linear: create N motif copies with ΔX / ΔY
   - Circular: rotate copies around the selection center by default, or optionally around a guide center
@@ -32,6 +34,7 @@ The editor combines an SVG canvas with a document model that understands guides,
 - repeated motif copies are grouped independently so every generated copy can immediately be moved as one object
 - Duplicate, paste, Repeat and Mirrored Copy preserve element colors
 - Duplicate, Repeat, Flip and Mirrored Copy intentionally detach generated/manual transformed copies from persistent path attachments so copies do not jump back to an original guide later
+- the custom mirror axis is transient editor state: it is deliberately excluded from project JSON and SVG export
 - semantic Layers tree is moved after the stitch library and collapsed by default; it still collapses parametric rows and manual groups
 - palette captions are visually hidden to save space; full names and abbreviations remain available through hover/focus labels
 - rotation handles, copy/paste/duplicate and layer ordering
@@ -152,6 +155,7 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - snapping
 - selection and viewport geometry
 - permanent manual grouping and productivity transforms
+- transient editor tools such as the custom mirror axis
 - parametric crochet rows and classic shaping semantics
 - cyclic mixed-row rapport semantics
 - rich rapport AST compilation into composition + topology
