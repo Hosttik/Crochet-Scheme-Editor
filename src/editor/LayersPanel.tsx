@@ -104,41 +104,43 @@ export function LayersPanel({
   }
 
   return (
-    <section className="panel-section layers-section">
-      <div className="section-title-row">
-        <h2>{t.layers}</h2>
+    <details className="panel-section layers-section">
+      <summary className="layers-summary">
+        <span>{t.layers}</span>
         <span className="muted-text">{elements.length}</span>
-      </div>
+      </summary>
 
-      <div className="layer-order-controls" aria-label={t.layerOrder}>
-        <button title={t.toFront} aria-label={t.toFront} disabled={!canReorder} onClick={onBringToFront}>⇈</button>
-        <button title={t.forward} aria-label={t.forward} disabled={!canReorder} onClick={onBringForward}>↑</button>
-        <button title={t.backward} aria-label={t.backward} disabled={!canReorder} onClick={onSendBackward}>↓</button>
-        <button title={t.toBack} aria-label={t.toBack} disabled={!canReorder} onClick={onSendToBack}>⇊</button>
-      </div>
-
-      {!elements.length ? (
-        <p className="empty-state">{t.noLayers}</p>
-      ) : (
-        <div className="layers-list semantic-layers-list">
-          {clusters.map((cluster) => {
-            if (cluster.kind === 'single') return renderElement(cluster.elements[0])
-            const hasSelection = cluster.elements.some((element) => selected.has(element.id))
-            return (
-              <details key={cluster.key} className={`layer-cluster ${hasSelection ? 'selected' : ''}`} open={hasSelection || undefined}>
-                <summary>
-                  <span className="layer-cluster-icon">{cluster.kind === 'row' ? '◎' : '◇'}</span>
-                  <strong>{cluster.label}</strong>
-                  <small>{cluster.elements.length}</small>
-                </summary>
-                <div className="layer-cluster-items">
-                  {cluster.elements.map((element) => renderElement(element, true))}
-                </div>
-              </details>
-            )
-          })}
+      <div className="layers-content">
+        <div className="layer-order-controls" aria-label={t.layerOrder}>
+          <button title={t.toFront} aria-label={t.toFront} disabled={!canReorder} onClick={onBringToFront}>⇈</button>
+          <button title={t.forward} aria-label={t.forward} disabled={!canReorder} onClick={onBringForward}>↑</button>
+          <button title={t.backward} aria-label={t.backward} disabled={!canReorder} onClick={onSendBackward}>↓</button>
+          <button title={t.toBack} aria-label={t.toBack} disabled={!canReorder} onClick={onSendToBack}>⇊</button>
         </div>
-      )}
-    </section>
+
+        {!elements.length ? (
+          <p className="empty-state">{t.noLayers}</p>
+        ) : (
+          <div className="layers-list semantic-layers-list">
+            {clusters.map((cluster) => {
+              if (cluster.kind === 'single') return renderElement(cluster.elements[0])
+              const hasSelection = cluster.elements.some((element) => selected.has(element.id))
+              return (
+                <details key={cluster.key} className={`layer-cluster ${hasSelection ? 'selected' : ''}`} open={hasSelection || undefined}>
+                  <summary>
+                    <span className="layer-cluster-icon">{cluster.kind === 'row' ? '◎' : '◇'}</span>
+                    <strong>{cluster.label}</strong>
+                    <small>{cluster.elements.length}</small>
+                  </summary>
+                  <div className="layer-cluster-items">
+                    {cluster.elements.map((element) => renderElement(element, true))}
+                  </div>
+                </details>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </details>
   )
 }
