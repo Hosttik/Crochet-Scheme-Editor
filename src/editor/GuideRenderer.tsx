@@ -101,7 +101,13 @@ export function GuideRenderer({
         nativeEvent.clientY,
       )
       onManipulationPreview(
-        applyGuideManipulation(guide, mode, startPointer, currentPointer),
+        applyGuideManipulation(
+          guide,
+          mode,
+          startPointer,
+          currentPointer,
+          mode === 'rotate' && nativeEvent.shiftKey,
+        ),
       )
     }
 
