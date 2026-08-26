@@ -7,6 +7,7 @@ import './selection.css'
 import './layers.css'
 import './foundation.css'
 import './patternAuthoring.css'
+import './documentOutput.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
