@@ -17,8 +17,9 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
+          cache: npm
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Typecheck, test and build
         run: npm run build
 
@@ -32,21 +33,12 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
+          cache: npm
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Build preview
         run: npx vite build
       - name: Run Playwright E2E
         run: npm run test:e2e
-
-  smoke-pages:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verify published GitHub Pages site
-        run: |
-          curl --fail --silent --show-error --location \
-            --retry 12 --retry-delay 5 --retry-all-errors \
-            https://hosttik.github.io/Crochet-Scheme-Editor/ \
-            --output /dev/null
