@@ -2,34 +2,39 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
-## v1.10
+## v1.10.1
 
-The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.10 adds visual styling without changing crochet instruction semantics: stitches can carry independent colors, while Repeat preview follows semantic selection boundaries instead of raw selection count.
+The editor combines an SVG canvas with a document model that understands guides, parametric rows, crochet row shaping, editable stitch-to-stitch topology, mixed/rich rapports and how each row is physically constructed. v1.10.1 is an interaction pass driven by hands-on crochet-author feedback: core chart glyphs are corrected, thin symbols are easier to select, canvas navigation gets keyboard-first controls, snapping becomes visible, and reflection semantics are explicit.
 
 ### Editing and productivity
 
-- 8 vector crochet symbols
+- 8 vector crochet symbols shared by palette, canvas, Repeat preview and SVG export
+- core notation uses `ch`, `sl st`, `sc`, `hdc`, `dc`, `tr` and `p` abbreviations; SC is an upright `+`, HDC/DC/TR use perpendicular top bars, and Magic Ring is a simple circle
 - free placement, multi-select, marquee selection and group move
+- larger invisible SVG hit targets make thin stitches easier to select without changing their printed appearance
 - Smart Place/Select: clicking or dragging an existing stitch while a placement tool is active selects/grabs that stitch instead of placing an accidental duplicate
-- mode-aware canvas cursors distinguish placement, selection and panning
-- contextual floating selection toolbar provides duplicate, group/ungroup, mirror, rotate and delete next to the selected motif
+- `Esc` returns to Select; clicking the currently active palette stitch again also cancels placement
+- `Space + drag` temporarily activates the hand/pan interaction; middle-mouse panning remains available
+- arrow keys nudge the current manual selection by 1 document unit; `Shift+Arrow` nudges by 10
+- keyboard zoom/navigation: `+`, `-`, `0` for 100%, `F` for Fit All and `Shift+F` for Fit Selection
+- contextual floating selection toolbar provides duplicate, group/ungroup, Flip, Mirrored Copy, rotate and delete next to the selected motif
 - permanent manual groups: group / ungroup, click one member to select the motif, Alt+click to select a single stitch inside it
 - per-element visual colors with quick presets, native custom color picker and reset-to-default
 - color applies to a single stitch, multi-selection, a manual group or an entire selected parametric row; Alt+click inside a group still allows coloring one member independently
-- mirror a manual selection left/right or top/bottom while preserving the group's geometry and correcting stitch rotations
+- Flip mirrors the current manual selection around an axis through its own center; Mirrored Copy creates a separate adjacent reflected object; Rotate 180° remains a separate transform
 - Repeat tool with three modes and live preview before creation:
   - Linear: create N motif copies with ΔX / ΔY
   - Circular: rotate copies around the selection center by default, or optionally around an Arc, Grid or Radial Grid center
   - Along guide: walk copies along Arc, Grid or Radial Grid geometry using path spacing and Keep / Tangent / Radial orientation
-- Repeat ghost preview is shown for one stitch or one complete manual group; a group is treated as one composite object and previews the whole motif, while temporary multi-selection or several groups do not render ghosts
+- Repeat ghost preview is shown for one stitch or one complete manual group; temporary multi-selection is explained as a temporary motif and does not render ghosts
+- Repeat numeric fields allow an empty intermediate edit state, so values can be fully erased before typing a replacement
 - repeated Ctrl/Cmd+D acts as repeat-last-transform: duplicate once, move/rotate the duplicate, then press Ctrl/Cmd+D again to repeat the same per-stitch translation and rotation delta
 - repeated motif copies are grouped independently so every generated copy can immediately be moved as one object
-- Duplicate, paste and Repeat preserve element colors
-- Productivity controls are contextual and only appear for compatible manual selections
-- semantic Layers tree collapses parametric rows and manual groups instead of presenting every stitch as a permanently flat list
+- Duplicate, paste, Repeat and Mirrored Copy preserve element colors
+- semantic Layers tree is moved after the stitch library and collapsed by default; it still collapses parametric rows and manual groups
+- palette captions are visually hidden to save space; full names and abbreviations remain available through hover/focus labels
 - rotation handles, copy/paste/duplicate and layer ordering
 - hide/lock elements
-- zoom around pointer, pan, Fit All and Fit Selection
 - collapsible left and right sidebars
 - Undo / Redo for document geometry and guide changes
 
@@ -37,7 +42,9 @@ The editor combines an SVG canvas with a document model that understands guides,
 
 - Arc, Rectangular Grid and Radial Grid guides
 - direct manipulation of guide center/radius/rotation
+- hold `Shift` while rotating a rectangular grid to snap the angle to 15° increments
 - shared screen-space snapping engine with hysteresis
+- snapping is visible in the canvas toolbar; `S` switches between Snap and Free placement
 - Top / Center / Bottom anchors
 - along/tangent and perpendicular/radial orientation modes
 
@@ -76,18 +83,16 @@ The editor combines an SVG canvas with a document model that understands guides,
 
 ### Persistence and export
 
-- project JSON schema is v13; v1-v12 remain loadable through runtime validation/migration
-- schema v13 adds optional six-digit hex color per stitch; default black is omitted from storage
+- project JSON schema remains v13; v1-v12 remain loadable through runtime validation/migration
+- schema v13 stores optional six-digit hex color per stitch; default black is omitted from storage
 - manual group ids, topology parent ids, manual topology overrides, mixed/rich row programs, row construction semantics and generated-offset baselines are persisted and validated
-- rich programs are mutually exclusive with legacy shaping/sequence topology to avoid conflicting sources of truth
 - local multi-project storage in IndexedDB
 - automatic migration of the legacy single autosave into the first local project
 - autosave per active project
 - project renames update the local project selector immediately and persist through autosave
 - JSON and SVG export
-- SVG export serializes each visible stitch using its actual element color; guides and editor-only topology/construction overlays are not exported
-- TXT and Markdown written-pattern export
-- visual colors are deliberately presentation metadata in v1.10; they do not yet generate yarn/color-change instructions in written patterns
+- SVG export serializes each visible stitch using its actual element color and the same corrected vector glyph used in the editor
+- visual colors are presentation metadata; they do not yet generate yarn/color-change instructions in written patterns
 - GitHub Pages deployment from `main`
 
 ## Engineering baseline
@@ -146,4 +151,4 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - local persistence
 - rendering and React UI
 
-The next usability candidates are keyboard nudge, align/distribute, reusable linked motifs and local offsets inside parametric rows. A future color-domain milestone could turn visual colors into explicit yarn/color-change semantics, but only after defining row-boundary behavior clearly. The next core domain milestone remains counted row-boundary semantics: turning/start chains that may count as the first stitch, skipped first stitches, explicit row start/end attachment and more exact joined-round closure behavior.
+Next larger product milestones are crochet-native guide authoring (line/curve guides, locking and persistent stitch-to-guide attachment), row-number annotations/legend generation, and document output features such as image underlays, tiled printing and free-form lasso selection. A future color-domain milestone could turn visual colors into explicit yarn/color-change semantics, but only after defining row-boundary behavior clearly.

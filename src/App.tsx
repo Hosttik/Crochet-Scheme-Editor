@@ -25,6 +25,7 @@ import { DEFAULT_STITCH_COLOR } from './editor/elementColor'
 import type { GuideManipulationMode } from './editor/guideManipulation'
 import { clamp, screenToDocument } from './editor/geometry'
 import { emptyHistory, pushHistory, redoHistory, undoHistory } from './editor/history'
+import { createMirroredCopy } from './editor/mirrorCopy'
 import {
   cloneSelectionWithOffset,
   cloneWithRepeatedDelta,
@@ -640,7 +641,20 @@ function App() {
     duplicateSeriesRef.current = null
     commitElements(mirrorElements(elements, ids, axis))
     setSelectedIds(ids)
-    setStatus(locale === 'ru' ? `Отражено: ${ids.length}` : `Mirrored: ${ids.length}`)
+    setStatus(locale === 'ru' ? `Отражено относительно центра: ${ids.length}` : `Flipped around selection center: ${ids.length}`)
+  }, [commitElements, elements, locale, productivitySelectionIds])
+
+  const mirrorCopySelection = useCallback((axis: MirrorAxis) => {
+    const ids = productivitySelectionIds()
+    if (!ids.length) return
+    const created = createMirroredCopy(elements, ids, axis, DUPLICATE_OFFSET, createId)
+    if (!created.length) return
+    duplicateSeriesRef.current = null
+    commitElements([...elements, ...created])
+    setSelectedIds(created.map((element) => element.id))
+    setSelectedGuideId(null)
+    setTool({ type: 'select' })
+    setStatus(locale === 'ru' ? `Создана зеркальная копия: ${created.length}` : `Mirrored copy created: ${created.length}`)
   }, [commitElements, elements, locale, productivitySelectionIds])
 
   const repeatProductivitySelection = useCallback((options: RepeatOptions) => {
@@ -736,17 +750,123 @@ function App() {
     [reorderSelection],
   )
 
+  const nudgeSelection = useCallback((dx: number, dy: number) => {
+    const selected = new Set(unlockedSelectedIds())
+    if (!selected.size) return
+    const movable = elements.some(
+      (element) => selected.has(element.id) && !element.parametricRow && !isElementLocked(element),
+    )
+    if (!movable) return
+    duplicateSeriesRef.current = null
+    commitElements(elements.map((element) =>
+      selected.has(element.id) && !element.parametricRow && !isElementLocked(element)
+        ? { ...element, x: element.x + dx, y: element.y + dy }
+        : element,
+    ))
+    setStatus(locale === 'ru' ? `Сдвиг: ${dx}, ${dy}` : `Nudged: ${dx}, ${dy}`)
+  }, [commitElements, elements, locale, unlockedSelectedIds])
+
+  const zoomCanvas = useCallback((factor: number) => {
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const screen = { x: rect.width / 2, y: rect.height / 2 }
+    setViewport((current) => {
+      const docBefore = screenToDocument(screen, current)
+      const zoom = clamp(current.zoom * factor, 0.1, 5)
+      return {
+        zoom,
+        panX: screen.x - docBefore.x * zoom,
+        panY: screen.y - docBefore.y * zoom,
+      }
+    })
+  }, [])
+
+  const setCanvasZoom = useCallback((targetZoom: number) => {
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const screen = { x: rect.width / 2, y: rect.height / 2 }
+    setViewport((current) => {
+      const docBefore = screenToDocument(screen, current)
+      const zoom = clamp(targetZoom, 0.1, 5)
+      return {
+        zoom,
+        panX: screen.x - docBefore.x * zoom,
+        panY: screen.y - docBefore.y * zoom,
+      }
+    })
+  }, [])
+
+  const fitAll = useCallback(() => {
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const next = viewportForElements(visibleElements, SYMBOL_SIZES, rect.width, rect.height)
+    if (next) setViewport(next)
+  }, [visibleElements])
+
+  const fitSelection = useCallback(() => {
+    if (!selectedIds.length) return
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const next = viewportForElements(visibleElements, SYMBOL_SIZES, rect.width, rect.height, selectedIds)
+    if (next) setViewport(next)
+  }, [selectedIds, visibleElements])
+
+  const toggleSnapping = useCallback(() => {
+    const enabled = !snapping.enabled
+    setSnapping((current) => ({ ...current, enabled }))
+    setSnapTarget(null)
+    snapLockRef.current = null
+    setStatus(locale === 'ru'
+      ? enabled ? 'Привязка включена' : 'Свободное размещение: привязка выключена'
+      : enabled ? 'Snapping enabled' : 'Free placement: snapping disabled')
+  }, [locale, snapping.enabled])
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'Space') {
+      const editing = isEditingTarget(event.target)
+
+      if (!editing && event.code === 'Space') {
         spacePressedRef.current = true
-        if (event.target === document.body) event.preventDefault()
+        svgRef.current?.classList.add('space-pan')
+        event.preventDefault()
       }
 
-      const editing = isEditingTarget(event.target)
       if (!editing && (event.key === 'Delete' || event.key === 'Backspace')) {
         event.preventDefault()
         deleteSelected()
+      }
+
+      if (!editing && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        const nudge = event.shiftKey ? 10 : 1
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault()
+          nudgeSelection(-nudge, 0)
+        } else if (event.key === 'ArrowRight') {
+          event.preventDefault()
+          nudgeSelection(nudge, 0)
+        } else if (event.key === 'ArrowUp') {
+          event.preventDefault()
+          nudgeSelection(0, -nudge)
+        } else if (event.key === 'ArrowDown') {
+          event.preventDefault()
+          nudgeSelection(0, nudge)
+        } else if (event.key === '+' || event.key === '=') {
+          event.preventDefault()
+          zoomCanvas(1.2)
+        } else if (event.key === '-') {
+          event.preventDefault()
+          zoomCanvas(1 / 1.2)
+        } else if (event.key === '0') {
+          event.preventDefault()
+          setCanvasZoom(1)
+        } else if (event.key.toLowerCase() === 'f') {
+          event.preventDefault()
+          if (event.shiftKey) fitSelection()
+          else fitAll()
+        } else if (event.key.toLowerCase() === 's') {
+          event.preventDefault()
+          toggleSnapping()
+        }
       }
 
       if (!editing && (event.metaKey || event.ctrlKey)) {
@@ -788,7 +908,10 @@ function App() {
     }
 
     const onKeyUp = (event: KeyboardEvent) => {
-      if (event.code === 'Space') spacePressedRef.current = false
+      if (event.code === 'Space') {
+        spacePressedRef.current = false
+        svgRef.current?.classList.remove('space-pan')
+      }
       if (event.key.toLowerCase() === 'd' || event.key === 'Control' || event.key === 'Meta') {
         duplicateKeyDownRef.current = false
       }
@@ -805,11 +928,17 @@ function App() {
     deleteSelected,
     drag,
     duplicateSelection,
+    fitAll,
+    fitSelection,
+    nudgeSelection,
     pasteSelection,
     redo,
     rotate,
     selectAll,
+    setCanvasZoom,
+    toggleSnapping,
     undo,
+    zoomCanvas,
   ])
 
   const handleWheel = (event: ReactWheelEvent<SVGSVGElement>) => {
@@ -1431,20 +1560,6 @@ function App() {
     setStatus(t.svgExported)
   }
 
-  const resetView = () => setViewport(DEFAULT_VIEWPORT)
-  const fitAll = () => {
-    const rect = svgRef.current?.getBoundingClientRect()
-    if (!rect) return
-    const next = viewportForElements(visibleElements, SYMBOL_SIZES, rect.width, rect.height)
-    if (next) setViewport(next)
-  }
-  const fitSelection = () => {
-    if (!selectedIds.length) return
-    const rect = svgRef.current?.getBoundingClientRect()
-    if (!rect) return
-    const next = viewportForElements(visibleElements, SYMBOL_SIZES, rect.width, rect.height, selectedIds)
-    if (next) setViewport(next)
-  }
   const anchorLabels: Record<AnchorName, string> = {
     top: t.top,
     center: t.center,
@@ -1521,6 +1636,7 @@ function App() {
           >
             <span>↖</span>{t.selectMove}<kbd>Esc</kbd>
           </button>
+          <small className="muted-text">{locale === 'ru' ? 'Space + перетаскивание — временная «ладонь»' : 'Space + drag — temporary hand/pan'}</small>
         </section>
 
         <ProjectManagerPanel
@@ -1561,19 +1677,6 @@ function App() {
           )}
         </section>
 
-        <LayersPanel
-          elements={elements}
-          selectedIds={selectedIds}
-          locale={locale}
-          onSelect={handleLayerSelect}
-          onToggleVisible={toggleElementVisible}
-          onToggleLocked={toggleElementLocked}
-          onBringForward={bringSelectionForward}
-          onSendBackward={sendSelectionBackward}
-          onBringToFront={bringSelectionToFront}
-          onSendToBack={sendSelectionToBack}
-        />
-
         <section className="panel-section symbols-section">
           <div className="section-title-row"><h2>{t.stitches}</h2><span className="muted-text">{SYMBOLS.length}</span></div>
           {groupedSymbols.map(([category, symbols]) => (
@@ -1583,12 +1686,20 @@ function App() {
                 {symbols.map((symbol) => {
                   const active = tool.type === 'place' && tool.symbolId === symbol.id
                   const label = symbolName(symbol.id, symbol.name, locale)
+                  const title = symbol.abbreviation ? `${label} · ${symbol.abbreviation}` : label
                   return (
                     <button
                       className={`symbol-button ${active ? 'active' : ''}`}
                       key={symbol.id}
-                      title={label}
+                      title={title}
+                      aria-label={title}
                       onClick={() => {
+                        if (active) {
+                          setTool({ type: 'select' })
+                          setPreview(null)
+                          setSnapTarget(null)
+                          return
+                        }
                         setTool({ type: 'place', symbolId: symbol.id })
                         clearElementSelection()
                         setSelectedGuideId(null)
@@ -1603,6 +1714,19 @@ function App() {
             </div>
           ))}
         </section>
+
+        <LayersPanel
+          elements={elements}
+          selectedIds={selectedIds}
+          locale={locale}
+          onSelect={handleLayerSelect}
+          onToggleVisible={toggleElementVisible}
+          onToggleLocked={toggleElementLocked}
+          onBringForward={bringSelectionForward}
+          onSendBackward={sendSelectionBackward}
+          onBringToFront={bringSelectionToFront}
+          onSendToBack={sendSelectionToBack}
+        />
       </aside>
 
       <main className="workspace">
@@ -1618,21 +1742,29 @@ function App() {
         >{rightCollapsed ? '‹' : '›'}</button>
 
         <div className="canvas-toolbar">
-          <button onClick={() => setViewport((value) => ({ ...value, zoom: clamp(value.zoom / 1.2, 0.1, 5) }))}>−</button>
-          <button className="zoom-readout" onClick={resetView}>{Math.round(viewport.zoom * 100)}%</button>
-          <button onClick={() => setViewport((value) => ({ ...value, zoom: clamp(value.zoom * 1.2, 0.1, 5) }))}>+</button>
+          <button aria-label={locale === 'ru' ? 'Уменьшить масштаб' : 'Zoom out'} title="−" onClick={() => zoomCanvas(1 / 1.2)}>−</button>
+          <button className="zoom-readout" title={locale === 'ru' ? '100% (0)' : '100% (0)'} onClick={() => setCanvasZoom(1)}>{Math.round(viewport.zoom * 100)}%</button>
+          <button aria-label={locale === 'ru' ? 'Увеличить масштаб' : 'Zoom in'} title="+" onClick={() => zoomCanvas(1.2)}>+</button>
           <button
             className="fit-button"
             aria-label={locale === 'ru' ? 'Вместить всю схему' : 'Fit all'}
+            title="F"
             onClick={fitAll}
             disabled={!visibleElements.length}
           >{locale === 'ru' ? 'Всё' : 'All'}</button>
           <button
             className="fit-button"
             aria-label={locale === 'ru' ? 'Вместить выделение' : 'Fit selection'}
+            title="Shift+F"
             onClick={fitSelection}
             disabled={!selectedIds.length}
           >{locale === 'ru' ? 'Выбор' : 'Sel'}</button>
+          <button
+            className={`snap-toggle ${snapping.enabled ? 'active' : ''}`}
+            aria-pressed={snapping.enabled}
+            title={locale === 'ru' ? 'S — включить/выключить привязку' : 'S — toggle snapping'}
+            onClick={toggleSnapping}
+          >{snapping.enabled ? (locale === 'ru' ? '🔗 Привязка' : '🔗 Snap') : (locale === 'ru' ? 'Свободно' : 'Free')}</button>
           <span className="canvas-hint">{t.zoomHint}</span>
         </div>
 
@@ -1647,6 +1779,7 @@ function App() {
           onGroup={groupSelection}
           onUngroup={ungroupSelection}
           onMirror={mirrorSelection}
+          onMirrorCopy={mirrorCopySelection}
           onRotate={rotateSelected}
           onDelete={deleteSelected}
         />
@@ -1730,7 +1863,15 @@ function App() {
           <div className="section-title-row"><h2>{t.snapping}</h2></div>
           <label className="toggle-row">
             <span><strong>{t.allowSnapping}</strong><small>{t.snappingHint}</small></span>
-            <input type="checkbox" checked={snapping.enabled} onChange={(event) => setSnapping((value) => ({ ...value, enabled: event.target.checked }))} />
+            <input
+              type="checkbox"
+              checked={snapping.enabled}
+              onChange={(event) => {
+                setSnapping((value) => ({ ...value, enabled: event.target.checked }))
+                setSnapTarget(null)
+                snapLockRef.current = null
+              }}
+            />
           </label>
 
           <fieldset disabled={!snapping.enabled}>
@@ -1787,6 +1928,7 @@ function App() {
             onGroup={groupSelection}
             onUngroup={ungroupSelection}
             onMirror={mirrorSelection}
+            onMirrorCopy={mirrorCopySelection}
             onRepeat={repeatProductivitySelection}
           />
         )}

@@ -13,20 +13,26 @@ const COPY = {
     duplicate: 'Дублировать',
     group: 'Группировать',
     ungroup: 'Разгруппировать',
-    mirrorHorizontal: 'Отразить по горизонтали',
-    mirrorVertical: 'Отразить по вертикали',
+    flipLeftRight: 'Отразить слева ↔ справа — вертикальная ось через центр выделения',
+    flipTopBottom: 'Отразить сверху ↕ вниз — горизонтальная ось через центр выделения',
+    mirrorCopyLeftRight: 'Создать зеркальную копию справа',
+    mirrorCopyTopBottom: 'Создать зеркальную копию снизу',
     rotateLeft: 'Повернуть −15°',
     rotateRight: 'Повернуть +15°',
+    rotate180: 'Повернуть на 180°',
     delete: 'Удалить',
   },
   en: {
     duplicate: 'Duplicate',
     group: 'Group',
     ungroup: 'Ungroup',
-    mirrorHorizontal: 'Mirror horizontally',
-    mirrorVertical: 'Mirror vertically',
+    flipLeftRight: 'Flip left ↔ right — vertical axis through selection center',
+    flipTopBottom: 'Flip top ↕ bottom — horizontal axis through selection center',
+    mirrorCopyLeftRight: 'Create mirrored copy to the right',
+    mirrorCopyTopBottom: 'Create mirrored copy below',
     rotateLeft: 'Rotate −15°',
     rotateRight: 'Rotate +15°',
+    rotate180: 'Rotate 180°',
     delete: 'Delete',
   },
 } as const
@@ -42,6 +48,7 @@ export function SelectionQuickToolbar({
   onGroup,
   onUngroup,
   onMirror,
+  onMirrorCopy,
   onRotate,
   onDelete,
 }: {
@@ -55,6 +62,7 @@ export function SelectionQuickToolbar({
   onGroup: () => void
   onUngroup: () => void
   onMirror: (axis: 'left-right' | 'top-bottom') => void
+  onMirrorCopy: (axis: 'left-right' | 'top-bottom') => void
   onRotate: (delta: number) => void
   onDelete: () => void
 }) {
@@ -80,9 +88,12 @@ export function SelectionQuickToolbar({
         <button title={copy.group} aria-label={copy.group} disabled={!canGroup} onClick={onGroup}>G</button>
       )}
       <span className="selection-quick-separator" />
-      <button title={copy.mirrorHorizontal} aria-label={copy.mirrorHorizontal} onClick={() => onMirror('left-right')}>↔</button>
-      <button title={copy.mirrorVertical} aria-label={copy.mirrorVertical} onClick={() => onMirror('top-bottom')}>↕</button>
+      <button title={copy.flipLeftRight} aria-label={copy.flipLeftRight} onClick={() => onMirror('left-right')}>↔</button>
+      <button title={copy.flipTopBottom} aria-label={copy.flipTopBottom} onClick={() => onMirror('top-bottom')}>↕</button>
+      <button title={copy.mirrorCopyLeftRight} aria-label={copy.mirrorCopyLeftRight} onClick={() => onMirrorCopy('left-right')}>⧉↔</button>
+      <button title={copy.mirrorCopyTopBottom} aria-label={copy.mirrorCopyTopBottom} onClick={() => onMirrorCopy('top-bottom')}>⧉↕</button>
       <button title={copy.rotateLeft} aria-label={copy.rotateLeft} onClick={() => onRotate(-15)}>↺</button>
+      <button title={copy.rotate180} aria-label={copy.rotate180} onClick={() => onRotate(180)}>180°</button>
       <button title={copy.rotateRight} aria-label={copy.rotateRight} onClick={() => onRotate(15)}>↻</button>
       <span className="selection-quick-separator" />
       <button className="selection-quick-danger" title={copy.delete} aria-label={copy.delete} onClick={onDelete}>×</button>

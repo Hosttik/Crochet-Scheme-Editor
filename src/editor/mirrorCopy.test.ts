@@ -1,0 +1,33 @@
+import { describe, expect, it } from 'vitest'
+import type { StitchElement } from '../types'
+import { createMirroredCopy } from './mirrorCopy'
+
+function ids() {
+  let index = 0
+  return () => `new-${++index}`
+}
+
+const motif: StitchElement[] = [
+  { id: 'a', symbolId: 'single', x: 10, y: 20, rotation: 0 },
+  { id: 'b', symbolId: 'double', x: 30, y: 40, rotation: 30 },
+]
+
+describe('mirrored copy', () => {
+  it('creates an adjacent left/right mirrored motif and groups it', () => {
+    const copy = createMirroredCopy(motif, ['a', 'b'], 'left-right', 24, ids())
+    expect(copy).toHaveLength(2)
+    expect(copy[0].x).toBeGreaterThan(30)
+    expect(copy[1].x).toBeGreaterThan(30)
+    expect(copy[0].rotation).toBe(-180)
+    expect(copy[1].rotation).toBe(150)
+    expect(copy[0].groupId).toBeTruthy()
+    expect(copy[0].groupId).toBe(copy[1].groupId)
+  })
+
+  it('creates an adjacent top/bottom mirrored stitch', () => {
+    const copy = createMirroredCopy([motif[0]], ['a'], 'top-bottom', 24, ids())
+    expect(copy).toHaveLength(1)
+    expect(copy[0].y).toBe(44)
+    expect(copy[0].rotation).toBe(0)
+  })
+})

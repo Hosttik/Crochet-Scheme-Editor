@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { SymbolGlyph } from '../symbols'
 import type { Guide, StitchElement } from '../types'
 import type { Locale } from '../i18n'
+import { DraftNumberInput } from './DraftNumberInput'
 import {
   repeatSelection,
   type RepeatMode,
@@ -17,12 +18,15 @@ const COPY = {
     title: 'Ускорители',
     hint: 'Результат повтора показывается на холсте до создания.',
     groupedPreview: 'Группа считается одним объектом: показывается ghost-preview всего мотива.',
-    multiplePreviewHidden: 'Предпросмотр скрыт для временного множественного выделения. Сгруппируйте элементы, чтобы повтор воспринимался как один объект.',
+    multiplePreviewHidden: 'Выбрано несколько элементов: Repeat повторит их вместе как временный мотив. Предпросмотр скрыт; «Группировать» сохранит мотив как один объект.',
     group: 'Группировать',
     ungroup: 'Разгруппировать',
-    mirror: 'Отразить',
-    mirrorHorizontal: '↔ По горизонтали',
-    mirrorVertical: '↕ По вертикали',
+    mirror: 'Отражение',
+    mirrorHint: 'Flip использует ось через центр выделения. Зеркальная копия создаётся рядом с оригиналом.',
+    flipLeftRight: '↔ Слева / справа',
+    flipTopBottom: '↕ Сверху / снизу',
+    mirrorCopyLeftRight: '⧉↔ Копия справа',
+    mirrorCopyTopBottom: '⧉↕ Копия снизу',
     repeat: 'Повтор',
     linear: 'Линейно',
     circular: 'По кругу',
@@ -43,18 +47,21 @@ const COPY = {
     apply: 'Создать копии',
     needSelection: 'Выберите один или несколько обычных элементов.',
     needGuide: 'Для движения по пути выберите направляющую.',
-    groupedHint: 'Alt+клик выбирает один элемент внутри группы.',
+    groupedHint: 'Группа — постоянный мотив. Alt+клик выбирает один элемент внутри группы.',
   },
   en: {
     title: 'Productivity',
     hint: 'Repeat results are previewed on the canvas before creation.',
     groupedPreview: 'A group is treated as one object, so the whole motif is shown as a ghost preview.',
-    multiplePreviewHidden: 'Preview is hidden for a temporary multi-selection. Group the stitches to repeat them as one object.',
+    multiplePreviewHidden: 'Multiple stitches are selected: Repeat will treat them as a temporary motif. Preview is hidden; Group saves the motif as one persistent object.',
     group: 'Group',
     ungroup: 'Ungroup',
-    mirror: 'Mirror',
-    mirrorHorizontal: '↔ Left / right',
-    mirrorVertical: '↕ Top / bottom',
+    mirror: 'Reflection',
+    mirrorHint: 'Flip uses an axis through the selection center. Mirrored copy creates a separate adjacent object.',
+    flipLeftRight: '↔ Left / right',
+    flipTopBottom: '↕ Top / bottom',
+    mirrorCopyLeftRight: '⧉↔ Copy right',
+    mirrorCopyTopBottom: '⧉↕ Copy below',
     repeat: 'Repeat',
     linear: 'Linear',
     circular: 'Circular',
@@ -75,7 +82,7 @@ const COPY = {
     apply: 'Create copies',
     needSelection: 'Select one or more regular stitches.',
     needGuide: 'Choose a guide for along-guide repeat.',
-    groupedHint: 'Alt+click selects one stitch inside a group.',
+    groupedHint: 'A group is a persistent motif. Alt+click selects one stitch inside it.',
   },
 } as const
 
@@ -100,6 +107,7 @@ export function ProductivityPanel({
   onGroup,
   onUngroup,
   onMirror,
+  onMirrorCopy,
   onRepeat,
 }: {
   locale: Locale
@@ -113,6 +121,7 @@ export function ProductivityPanel({
   onGroup: () => void
   onUngroup: () => void
   onMirror: (axis: 'left-right' | 'top-bottom') => void
+  onMirrorCopy: (axis: 'left-right' | 'top-bottom') => void
   onRepeat: (options: RepeatOptions) => void
 }) {
   const copy = COPY[locale]
@@ -213,9 +222,14 @@ export function ProductivityPanel({
 
         <div className="productivity-block">
           <strong>{copy.mirror}</strong>
+          <small className="muted-text">{copy.mirrorHint}</small>
           <div className="productivity-actions">
-            <button disabled={!canTransform} onClick={() => onMirror('left-right')}>{copy.mirrorHorizontal}</button>
-            <button disabled={!canTransform} onClick={() => onMirror('top-bottom')}>{copy.mirrorVertical}</button>
+            <button disabled={!canTransform} onClick={() => onMirror('left-right')}>{copy.flipLeftRight}</button>
+            <button disabled={!canTransform} onClick={() => onMirror('top-bottom')}>{copy.flipTopBottom}</button>
+          </div>
+          <div className="productivity-actions">
+            <button disabled={!canTransform} onClick={() => onMirrorCopy('left-right')}>{copy.mirrorCopyLeftRight}</button>
+            <button disabled={!canTransform} onClick={() => onMirrorCopy('top-bottom')}>{copy.mirrorCopyTopBottom}</button>
           </div>
         </div>
 
@@ -229,13 +243,13 @@ export function ProductivityPanel({
 
           <label className="productivity-field">
             <span>{copy.copies}</span>
-            <input type="number" min="1" max="100" value={copies} onChange={(event) => setCopies(Math.max(1, Math.min(100, Number(event.target.value) || 1)))} />
+            <DraftNumberInput ariaLabel={copy.copies} min={1} max={100} value={copies} onChange={setCopies} />
           </label>
 
           {mode === 'linear' && (
             <div className="productivity-field-grid">
-              <label className="productivity-field"><span>{copy.deltaX}</span><input type="number" value={deltaX} onChange={(event) => setDeltaX(Number(event.target.value) || 0)} /></label>
-              <label className="productivity-field"><span>{copy.deltaY}</span><input type="number" value={deltaY} onChange={(event) => setDeltaY(Number(event.target.value) || 0)} /></label>
+              <label className="productivity-field"><span>{copy.deltaX}</span><DraftNumberInput ariaLabel={copy.deltaX} value={deltaX} onChange={setDeltaX} /></label>
+              <label className="productivity-field"><span>{copy.deltaY}</span><DraftNumberInput ariaLabel={copy.deltaY} value={deltaY} onChange={setDeltaY} /></label>
             </div>
           )}
 
@@ -248,7 +262,7 @@ export function ProductivityPanel({
                   {guides.map((guide, index) => <option key={guide.id} value={guide.id}>{guideName(guide, locale, index)}</option>)}
                 </select>
               </label>
-              <label className="productivity-field"><span>{copy.angle}</span><input type="number" step="1" value={angleStep} onChange={(event) => setAngleStep(Number(event.target.value) || 0)} /></label>
+              <label className="productivity-field"><span>{copy.angle}</span><DraftNumberInput ariaLabel={copy.angle} step={1} value={angleStep} onChange={setAngleStep} /></label>
             </>
           )}
 
@@ -261,7 +275,7 @@ export function ProductivityPanel({
                   {guides.map((guide, index) => <option key={guide.id} value={guide.id}>{guideName(guide, locale, index)}</option>)}
                 </select>
               </label>
-              <label className="productivity-field"><span>{copy.spacing}</span><input type="number" min="1" step="1" value={spacing} onChange={(event) => setSpacing(Math.max(1, Number(event.target.value) || 1))} /></label>
+              <label className="productivity-field"><span>{copy.spacing}</span><DraftNumberInput ariaLabel={copy.spacing} min={1} step={1} value={spacing} onChange={setSpacing} /></label>
               <label className="productivity-field">
                 <span>{copy.orientation}</span>
                 <select value={orientation} onChange={(event) => setOrientation(event.target.value as GuideRepeatOrientation)}>

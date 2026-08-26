@@ -88,26 +88,28 @@ button:disabled { opacity: .42; cursor: not-allowed; }
 .tool-button.active { border-color: #618a78; background: #e7f0eb; color: #244e3e; }
 kbd { padding: 2px 5px; background: #f0eee9; border: 1px solid #d8d4cd; border-radius: 4px; font-size: 9px; color: #777; }
 
-.symbol-group { margin-top: 15px; }
+.symbol-group { margin-top: 13px; }
 .symbol-group h3 { margin: 0 0 7px; font-size: 11px; font-weight: 600; color: #777973; }
-.symbol-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.symbol-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
 .symbol-button {
-  min-width: 0; height: 88px; padding: 7px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 0; height: 62px; padding: 5px; display: flex; flex-direction: column; align-items: center; justify-content: center;
   border: 1px solid #dfdcd4; background: #fff; color: #2b302d;
 }
 .symbol-button:hover { border-color: #aebeb5; background: #fbfdfb; }
 .symbol-button.active { border-color: #4e7a67; background: #e8f1ec; box-shadow: inset 0 0 0 1px #4e7a67; }
-.symbol-button svg { width: 43px; height: 52px; overflow: visible; }
-.symbol-button span { display: block; width: 100%; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; color: #73756f; }
+.symbol-button svg { width: 40px; height: 48px; overflow: visible; }
+.symbol-button span { display: none; }
 .symbol-glyph { color: #202622; }
 
 .workspace { grid-area: workspace; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #ddd9d1; }
 .editor-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: default; user-select: none; }
 .editor-canvas.placing { cursor: crosshair; }
 .editor-canvas.selecting { cursor: default; }
+.editor-canvas.space-pan { cursor: grab; }
 .editor-canvas.panning { cursor: grabbing; }
 .origin-line { stroke: #beb9af; stroke-width: 1; vector-effect: non-scaling-stroke; opacity: .75; }
 .stitch-element { cursor: grab; color: #202622; }
+.stitch-hit-target { fill: transparent; stroke: none; pointer-events: all; }
 .editor-canvas.placing .stitch-element { cursor: pointer; }
 .stitch-element:active { cursor: grabbing; }
 .stitch-element:hover .symbol-glyph { color: #386a56; }
@@ -129,6 +131,8 @@ kbd { padding: 2px 5px; background: #f0eee9; border: 1px solid #d8d4cd; border-r
 .canvas-toolbar button { min-width: 30px; height: 28px; padding: 0 8px; background: #fff; border: 1px solid #e0ddd6; font-size: 13px; }
 .canvas-toolbar button:hover { background: #f4f2ed; }
 .canvas-toolbar .zoom-readout { min-width: 58px; font-size: 11px; }
+.canvas-toolbar .snap-toggle { min-width: 72px; font-size: 10px; }
+.canvas-toolbar .snap-toggle.active { color: #245f47; border-color: #7fa994; background: #e9f3ed; font-weight: 700; }
 .canvas-hint { margin: 0 7px; color: #85867f; font-size: 10px; white-space: nowrap; }
 .statusbar {
   position: absolute; left: 10px; right: 10px; bottom: 9px; z-index: 7;

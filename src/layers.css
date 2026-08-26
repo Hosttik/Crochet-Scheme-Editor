@@ -34,6 +34,24 @@
 .autosave-indicator.error { color: #9b4038; background: #fff2ef; }
 
 .layers-section { padding-top: 13px; }
+.layers-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: #5f625d;
+}
+.layers-summary::-webkit-details-marker { display: none; }
+.layers-summary::before { content: '›'; margin-right: 5px; color: #8b8e88; transform-origin: center; }
+.layers-section[open] > .layers-summary::before { transform: rotate(90deg); }
+.layers-content { margin-top: 12px; }
 .layer-order-controls {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
