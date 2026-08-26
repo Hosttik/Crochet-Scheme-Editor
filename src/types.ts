@@ -7,6 +7,7 @@ export type RowOrientation = 'tangent' | 'radial' | 'fixed'
 export type RowShapingKind = 'increase' | 'decrease'
 export type RowConstructionMode = 'spiral' | 'joined' | 'turning'
 export type RowWorkDirection = 'along' | 'reverse'
+export type RowJoinTarget = 'first-stitch' | 'start-chain-top'
 
 export type GuideRowOptions = {
   distributionMode: RowDistributionMode
@@ -61,6 +62,16 @@ export type RowConstruction = {
   direction: RowWorkDirection
   startChainCount: number
   joinWithSlipStitch: boolean
+  /**
+   * A starting chain may contribute one logical stitch to the written row total.
+   * It remains boundary metadata rather than an ordinary topology node.
+   * Optional for schema v1-v15 compatibility; normalization supplies false.
+   */
+  startChainCountsAsStitch?: boolean
+  /** Number of base stitches intentionally skipped before the first worked stitch. */
+  skipFirstStitches?: number
+  /** Exact target used by a joined-round slip-stitch closure. */
+  joinTarget?: RowJoinTarget
 }
 
 export type ParametricRowBinding = {
@@ -192,7 +203,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16
   metadata: {
     title: string
     updatedAt: string
