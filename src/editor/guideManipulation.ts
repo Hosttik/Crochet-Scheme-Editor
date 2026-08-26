@@ -4,6 +4,8 @@ import { gridLocalBounds } from './guides'
 
 export type GuideManipulationMode = 'move' | 'resize' | 'rotate'
 
+const ROTATION_SNAP_DEGREES = 15
+
 function angleDegrees(origin: Point, point: Point) {
   return (Math.atan2(point.y - origin.y, point.x - origin.x) * 180) / Math.PI
 }
@@ -65,6 +67,7 @@ export function applyGuideManipulation(
   mode: GuideManipulationMode,
   startPointer: Point,
   currentPointer: Point,
+  snapRotation = false,
 ): Guide {
   if (mode === 'move') {
     const dx = currentPointer.x - startPointer.x
@@ -106,8 +109,11 @@ export function applyGuideManipulation(
 
   const startAngle = angleDegrees(guide.origin, startPointer)
   const currentAngle = angleDegrees(guide.origin, currentPointer)
+  const rawRotation = guide.rotation + normalizeDelta(currentAngle - startAngle)
   return {
     ...guide,
-    rotation: guide.rotation + normalizeDelta(currentAngle - startAngle),
+    rotation: snapRotation
+      ? Math.round(rawRotation / ROTATION_SNAP_DEGREES) * ROTATION_SNAP_DEGREES
+      : rawRotation,
   }
 }
