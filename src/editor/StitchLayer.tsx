@@ -113,12 +113,17 @@ export function StitchLayer({
         const hitWidth = Math.max(38, width + 18)
         const hitHeight = Math.max(38, height + 18)
         const handleY = -height / 2 - 30
+        const attached = Boolean(element.guideAttachment)
+        const canDirectRotate = !element.parametricRow && (
+          !element.guideAttachment || element.guideAttachment.orientation === 'keep'
+        )
 
         return (
           <g
             key={element.id}
             transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
-            className={`stitch-element ${selected ? 'selected' : ''} ${locked ? 'locked' : ''} ${element.parametricRow ? 'parametric' : ''}`}
+            className={`stitch-element ${selected ? 'selected' : ''} ${locked ? 'locked' : ''} ${element.parametricRow ? 'parametric' : ''} ${attached ? 'attached' : ''}`}
+            data-guide-attached={attached ? 'true' : undefined}
             pointerEvents={locked ? 'none' : undefined}
             onPointerDown={locked ? undefined : (event) => onElementPointerDown(event, element)}
           >
@@ -147,6 +152,17 @@ export function StitchLayer({
               <SymbolGlyph symbolId={element.symbolId} />
             </g>
 
+            {attached && (
+              <circle
+                cx={width / 2 + 7}
+                cy={-height / 2 - 7}
+                r={4.5 / zoom}
+                className="stitch-guide-attachment-badge"
+                vectorEffect="non-scaling-stroke"
+                pointerEvents="none"
+              />
+            )}
+
             {primary && selectedIds.length === 1 && definition && !locked && !element.parametricRow && (
               <>
                 {(['top', 'center', 'bottom'] as AnchorName[]).map((anchor) => (
@@ -161,23 +177,27 @@ export function StitchLayer({
                   />
                 ))}
 
-                <line
-                  x1="0"
-                  y1={-height / 2 - 8}
-                  x2="0"
-                  y2={handleY}
-                  className="stitch-rotation-link"
-                  vectorEffect="non-scaling-stroke"
-                  pointerEvents="none"
-                />
-                <circle
-                  cx="0"
-                  cy={handleY}
-                  r={7 / zoom}
-                  className="stitch-rotation-handle"
-                  vectorEffect="non-scaling-stroke"
-                  onPointerDown={(event) => onRotatePointerDown(event, element)}
-                />
+                {canDirectRotate && (
+                  <>
+                    <line
+                      x1="0"
+                      y1={-height / 2 - 8}
+                      x2="0"
+                      y2={handleY}
+                      className="stitch-rotation-link"
+                      vectorEffect="non-scaling-stroke"
+                      pointerEvents="none"
+                    />
+                    <circle
+                      cx="0"
+                      cy={handleY}
+                      r={7 / zoom}
+                      className="stitch-rotation-handle"
+                      vectorEffect="non-scaling-stroke"
+                      onPointerDown={(event) => onRotatePointerDown(event, element)}
+                    />
+                  </>
+                )}
               </>
             )}
           </g>
