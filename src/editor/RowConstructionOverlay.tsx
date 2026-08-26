@@ -63,7 +63,7 @@ export function RowConstructionOverlay({
               textAnchor="middle"
               className="row-construction-join-label"
             >
-              SL
+              {construction.joinTarget === 'start-chain-top' ? 'SL→CH' : 'SL→1'}
             </text>
           )}
         </>
@@ -85,7 +85,12 @@ export function RowConstructionOverlay({
         </text>
         {construction.startChainCount > 0 && (
           <text x={start.x} y={start.y + 20 / zoom} fontSize={fontSize} textAnchor="middle">
-            CH×{construction.startChainCount}
+            CH×{construction.startChainCount}{construction.startChainCountsAsStitch ? '*' : ''}
+          </text>
+        )}
+        {construction.skipFirstStitches > 0 && (
+          <text x={start.x} y={start.y + 32 / zoom} fontSize={fontSize} textAnchor="middle">
+            SK×{construction.skipFirstStitches}
           </text>
         )}
         {construction.mode === 'turning' && (
