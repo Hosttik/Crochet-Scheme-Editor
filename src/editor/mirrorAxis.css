@@ -28,3 +28,23 @@
   stroke: #c2413b;
   stroke-width: 1.5;
 }
+
+.mirror-axis-config {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 4px;
+}
+
+.mirror-axis-tabs {
+  margin-top: 0;
+}
+
+.mirror-axis-hint {
+  display: block;
+  line-height: 1.35;
+}
+
+.mirror-axis-actions button:first-child {
+  font-weight: 700;
+}
