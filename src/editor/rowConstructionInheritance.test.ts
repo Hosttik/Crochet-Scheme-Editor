@@ -43,19 +43,33 @@ function elements(rowBinding: ParametricRowBinding): StitchElement[] {
 }
 
 describe('row construction inheritance', () => {
-  it('keeps joined-round direction in the next row', () => {
+  it('keeps joined-round direction and normalizes boundary defaults in the next row', () => {
     const parent = binding('joined')
     let serial = 0
     const created = createNextPatternRow(elements(parent), [guide], parent, 0, () => `id-${++serial}`)
-    expect(created?.binding.construction).toEqual(parent.construction)
+    expect(created?.binding.construction).toEqual({
+      mode: 'joined',
+      direction: 'along',
+      startChainCount: 1,
+      startChainCountsAsStitch: false,
+      skipFirstStitches: 0,
+      joinWithSlipStitch: true,
+      joinTarget: 'first-stitch',
+    })
   })
 
-  it('alternates turning-row direction in the next row', () => {
+  it('alternates turning-row direction and normalizes boundary defaults', () => {
     const parent = binding('turning')
     let serial = 0
     const created = createNextPatternRow(elements(parent), [guide], parent, 0, () => `id-${++serial}`)
     expect(created?.binding.construction).toEqual({
-      mode: 'turning', direction: 'reverse', startChainCount: 1, joinWithSlipStitch: false,
+      mode: 'turning',
+      direction: 'reverse',
+      startChainCount: 1,
+      startChainCountsAsStitch: false,
+      skipFirstStitches: 0,
+      joinWithSlipStitch: false,
+      joinTarget: 'first-stitch',
     })
   })
 })
