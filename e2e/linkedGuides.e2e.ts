@@ -60,9 +60,12 @@ test('keeps a stitch attached to a line through guide edits, autosave and detach
   await guideEditor.getByLabel('Конец Y').fill(String(endY + 60))
   await guideEditor.getByLabel('Конец Y').press('Enter')
 
+  await expect.poll(async () => {
+    const pose = transformParts(await stitch.getAttribute('transform'))
+    return pose.y - attachedBefore.y
+  }).toBeCloseTo(60, 2)
   const attachedAfter = transformParts(await stitch.getAttribute('transform'))
   expect(attachedAfter.x).toBeCloseTo(attachedBefore.x, 2)
-  expect(attachedAfter.y - attachedBefore.y).toBeCloseTo(60, 2)
 
   await stitch.click()
   await expect(attachment).toContainText('Закреплено')
