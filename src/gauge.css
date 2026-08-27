@@ -16,10 +16,15 @@
 .gauge-ruler-heading { margin-top: 2px; }
 .gauge-ruler-heading h3 { margin: 0; font-size: 13px; }
 .gauge-ruler-tool { width: 100%; }
+.gauge-ruler-instruction { line-height: 1.45; }
 .ruler-list { display: grid; gap: 4px; }
 .ruler-list button { display: grid; grid-template-columns: auto 1fr; gap: 6px; text-align: left; font-size: 11px; }
 .ruler-list button.active { border-color: #c2413b; background: #fff6f4; }
 .ruler-editor { margin-top: 2px; }
+.ruler-result { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: baseline; padding: 9px; border-radius: 7px; background: #fff; border: 1px solid #e2ded6; }
+.ruler-result > strong { font-size: 14px; color: #7f2825; }
+.ruler-result > b { font-size: 14px; color: #314b40; }
+.ruler-result > small { grid-column: 1 / -1; }
 .measurement-ruler .ruler-line, .measurement-ruler .ruler-tick { stroke: #b23833; stroke-width: 1.6; }
 .measurement-ruler.selected .ruler-line, .measurement-ruler.selected .ruler-tick { stroke: #8f2724; stroke-width: 2.2; }
 .ruler-hit-line { stroke: transparent; cursor: pointer; }
@@ -28,4 +33,7 @@
 .ruler-handle:active { cursor: grabbing; }
 .measurement-ruler.draft .ruler-line { stroke-dasharray: 5 4; opacity: 0.8; }
 .ruler-draft-point { fill: #c2413b; stroke: #fff; stroke-width: 1.2; }
+.ruler-corridor { fill: rgba(194, 65, 59, .08); stroke: rgba(178, 56, 51, .34); stroke-width: 1; stroke-dasharray: 4 3; }
+.ruler-counted-anchor circle { fill: rgba(255,255,255,.9); stroke: #b23833; stroke-width: 1.4; }
+.ruler-counted-anchor line { stroke: #b23833; stroke-width: 1; }
 .editor-canvas.measuring { cursor: crosshair; }
