@@ -1,4 +1,5 @@
 import type { Point, StitchElement } from '../types'
+import { resolvedStitchGeometry } from './stitchGeometry'
 
 export type Rect = {
   left: number
@@ -35,8 +36,9 @@ export function elementAabb(
   size: ElementSize,
   padding = 0,
 ): Rect {
-  const halfWidth = size.width / 2 + padding
-  const halfHeight = size.height / 2 + padding
+  const geometry = resolvedStitchGeometry(element)
+  const halfWidth = size.width * geometry.scaleX * geometry.spread / 2 + padding
+  const halfHeight = size.height * geometry.scaleY / 2 + padding
   const radians = (element.rotation * Math.PI) / 180
   const cos = Math.cos(radians)
   const sin = Math.sin(radians)
