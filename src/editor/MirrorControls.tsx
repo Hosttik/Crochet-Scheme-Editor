@@ -6,15 +6,16 @@ import type { MirrorAxisState } from './MirrorAxisOverlay'
 const LABELS = {
   ru: {
     title: 'Отражение',
-    hint: 'Без своей оси быстрые действия отражают относительно границ выделения. При включённой красной оси используются действия внутри блока «Своя ось».',
-    replace: 'Отразить',
-    copy: 'Копия через ось',
+    hint: 'Сначала выберите направление — результат появится полупрозрачным на холсте. Затем примените отражение или создайте зеркальную копию.',
+    preview: 'Предпросмотр',
+    apply: 'Отразить',
+    copy: 'Создать зеркальную копию',
     left: 'влево',
     right: 'вправо',
     up: 'вверх',
     down: 'вниз',
     custom: 'Своя ось',
-    customHint: 'Ось остаётся на холсте при смене выделения. Перетаскивайте линию, а круглую ручку — для поворота. Кнопки ниже отражают строго относительно этой оси.',
+    customHint: 'Красная ось остаётся на холсте и сразу показывает ghost-preview. Перетаскивайте линию или ручку, затем примените результат.',
     horizontal: 'Горизонтальная',
     vertical: 'Вертикальная',
     angle: 'Угол оси °',
@@ -27,15 +28,16 @@ const LABELS = {
   },
   en: {
     title: 'Reflection',
-    hint: 'Without a custom axis, quick actions reflect relative to the selection bounds. With the red axis enabled, use the actions inside Custom axis.',
-    replace: 'Reflect',
-    copy: 'Copy across axis',
+    hint: 'Choose a direction first to preview the result on canvas. Then apply the reflection or create a mirrored copy.',
+    preview: 'Preview',
+    apply: 'Reflect',
+    copy: 'Create mirrored copy',
     left: 'left',
     right: 'right',
     up: 'up',
     down: 'down',
     custom: 'Custom axis',
-    customHint: 'The axis stays on canvas when selection changes. Drag the line to move it and the round handle to rotate it. The actions below reflect strictly across this axis.',
+    customHint: 'The red axis stays on canvas and shows a live ghost preview. Drag the line or handle, then apply the result.',
     horizontal: 'Horizontal',
     vertical: 'Vertical',
     angle: 'Axis angle °',
@@ -73,6 +75,8 @@ export function MirrorControls({
   locale,
   canTransform,
   state,
+  previewDirection,
+  onPreviewChange,
   onDirectional,
   onPreset,
   onStateChange,
@@ -84,6 +88,8 @@ export function MirrorControls({
   locale: Locale
   canTransform: boolean
   state: MirrorAxisState | null
+  previewDirection: MirrorDirection | null
+  onPreviewChange: (direction: MirrorDirection | null) => void
   onDirectional: (direction: MirrorDirection, copy: boolean) => void
   onPreset: (angle: number) => void
   onStateChange: (state: MirrorAxisState) => void
@@ -94,6 +100,11 @@ export function MirrorControls({
 }) {
   const copy = LABELS[locale]
   const directionLabel = (direction: MirrorDirection) => copy[direction]
+  const applyDirectional = (makeCopy: boolean) => {
+    if (!previewDirection) return
+    onDirectional(previewDirection, makeCopy)
+    onPreviewChange(null)
+  }
 
   return (
     <div className="productivity-block mirror-controls">
@@ -102,28 +113,28 @@ export function MirrorControls({
 
       {!state && (
         <>
-          <span className="mirror-action-label">{copy.replace}</span>
+          <span className="mirror-action-label">{copy.preview}</span>
           <div className="mirror-direction-grid">
             {DIRECTIONS.map((direction) => {
-              const label = `${copy.replace} ${directionLabel(direction)}`
+              const label = `${copy.preview} ${directionLabel(direction)}`
               return (
-                <button key={`reflect-${direction}`} disabled={!canTransform} aria-label={label} title={label} onClick={() => onDirectional(direction, false)}>
+                <button
+                  key={`preview-${direction}`}
+                  className={previewDirection === direction ? 'active' : ''}
+                  disabled={!canTransform}
+                  aria-pressed={previewDirection === direction}
+                  aria-label={label}
+                  title={label}
+                  onClick={() => onPreviewChange(previewDirection === direction ? null : direction)}
+                >
                   <MirrorDirectionIcon direction={direction} />
                 </button>
               )
             })}
           </div>
-
-          <span className="mirror-action-label">{copy.copy}</span>
-          <div className="mirror-direction-grid">
-            {DIRECTIONS.map((direction) => {
-              const label = `${copy.copy} ${directionLabel(direction)}`
-              return (
-                <button key={`copy-${direction}`} disabled={!canTransform} aria-label={label} title={label} onClick={() => onDirectional(direction, true)}>
-                  <MirrorDirectionIcon direction={direction} />
-                </button>
-              )
-            })}
+          <div className="productivity-actions mirror-preview-actions">
+            <button disabled={!canTransform || !previewDirection} onClick={() => applyDirectional(false)}>{copy.apply}</button>
+            <button disabled={!canTransform || !previewDirection} onClick={() => applyDirectional(true)}>{copy.copy}</button>
           </div>
         </>
       )}
