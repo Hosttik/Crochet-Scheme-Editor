@@ -162,6 +162,27 @@ export function GuideRenderer({
     />
   )
 
+  const pathPolylines = (points: Point[]) => {
+    const serialized = pointsAttribute(points)
+    return (
+      <>
+        <polyline
+          points={serialized}
+          className="guide-hit-area"
+          fill="none"
+          vectorEffect="non-scaling-stroke"
+        />
+        <polyline
+          points={serialized}
+          className="guide-stroke"
+          fill="none"
+          vectorEffect="non-scaling-stroke"
+          pointerEvents="none"
+        />
+      </>
+    )
+  }
+
   return (
     <g
       className={`guide-layer guide-${guide.type} ${selected ? 'selected' : ''} ${locked ? 'locked' : ''}`}
@@ -173,32 +194,13 @@ export function GuideRenderer({
         onReverse(guide)
       }}
     >
-      {guide.type === 'arc' && (
-        <polyline
-          points={pointsAttribute(arcRenderPoints(guide))}
-          className="guide-stroke guide-hit-target"
-          fill="none"
-          vectorEffect="non-scaling-stroke"
-        />
-      )}
+      {guide.type === 'arc' && pathPolylines(arcRenderPoints(guide))}
 
-      {guide.type === 'line' && (
-        <polyline
-          points={pointsAttribute(lineRenderPoints(guide))}
-          className="guide-stroke guide-hit-target"
-          fill="none"
-          vectorEffect="non-scaling-stroke"
-        />
-      )}
+      {guide.type === 'line' && pathPolylines(lineRenderPoints(guide))}
 
       {guide.type === 'curve' && (
         <>
-          <polyline
-            points={pointsAttribute(curveRenderPoints(guide))}
-            className="guide-stroke guide-hit-target"
-            fill="none"
-            vectorEffect="non-scaling-stroke"
-          />
+          {pathPolylines(curveRenderPoints(guide))}
           {selected && !locked && (
             <g className="guide-curve-controls" pointerEvents="none">
               <line
@@ -224,12 +226,7 @@ export function GuideRenderer({
 
       {guide.type === 'parabola' && (
         <>
-          <polyline
-            points={pointsAttribute(parabolaRenderPoints(guide))}
-            className="guide-stroke guide-hit-target"
-            fill="none"
-            vectorEffect="non-scaling-stroke"
-          />
+          {pathPolylines(parabolaRenderPoints(guide))}
           {selected && !locked && (
             <g className="guide-curve-controls" pointerEvents="none">
               <line x1={guide.start.x} y1={guide.start.y} x2={guide.control.x} y2={guide.control.y} className="guide-handle-link guide-control-link" vectorEffect="non-scaling-stroke" />

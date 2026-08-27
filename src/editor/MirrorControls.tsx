@@ -6,7 +6,7 @@ import type { MirrorAxisState } from './MirrorAxisOverlay'
 const LABELS = {
   ru: {
     title: 'Отражение',
-    hint: 'Цветная схема показывает оригинал, красную ось и результат. Наведите на кнопку для названия действия.',
+    hint: 'Без своей оси быстрые действия отражают относительно границ выделения. При включённой красной оси используются действия внутри блока «Своя ось».',
     replace: 'Отразить',
     copy: 'Копия через ось',
     left: 'влево',
@@ -14,7 +14,7 @@ const LABELS = {
     up: 'вверх',
     down: 'вниз',
     custom: 'Своя ось',
-    customHint: 'Ось остаётся на холсте при смене выделения. Перетаскивайте линию, а круглую ручку — для поворота.',
+    customHint: 'Ось остаётся на холсте при смене выделения. Перетаскивайте линию, а круглую ручку — для поворота. Кнопки ниже отражают строго относительно этой оси.',
     horizontal: 'Горизонтальная',
     vertical: 'Вертикальная',
     angle: 'Угол оси °',
@@ -27,7 +27,7 @@ const LABELS = {
   },
   en: {
     title: 'Reflection',
-    hint: 'The diagram shows the source, red mirror axis, and result. Hover a button for the action name.',
+    hint: 'Without a custom axis, quick actions reflect relative to the selection bounds. With the red axis enabled, use the actions inside Custom axis.',
     replace: 'Reflect',
     copy: 'Copy across axis',
     left: 'left',
@@ -35,7 +35,7 @@ const LABELS = {
     up: 'up',
     down: 'down',
     custom: 'Custom axis',
-    customHint: 'The axis stays on canvas when selection changes. Drag the line to move it and the round handle to rotate it.',
+    customHint: 'The axis stays on canvas when selection changes. Drag the line to move it and the round handle to rotate it. The actions below reflect strictly across this axis.',
     horizontal: 'Horizontal',
     vertical: 'Vertical',
     angle: 'Axis angle °',
@@ -100,29 +100,33 @@ export function MirrorControls({
       <strong>{copy.title}</strong>
       <small className="muted-text">{copy.hint}</small>
 
-      <span className="mirror-action-label">{copy.replace}</span>
-      <div className="mirror-direction-grid">
-        {DIRECTIONS.map((direction) => {
-          const label = `${copy.replace} ${directionLabel(direction)}`
-          return (
-            <button key={`reflect-${direction}`} disabled={!canTransform} aria-label={label} title={label} onClick={() => onDirectional(direction, false)}>
-              <MirrorDirectionIcon direction={direction} />
-            </button>
-          )
-        })}
-      </div>
+      {!state && (
+        <>
+          <span className="mirror-action-label">{copy.replace}</span>
+          <div className="mirror-direction-grid">
+            {DIRECTIONS.map((direction) => {
+              const label = `${copy.replace} ${directionLabel(direction)}`
+              return (
+                <button key={`reflect-${direction}`} disabled={!canTransform} aria-label={label} title={label} onClick={() => onDirectional(direction, false)}>
+                  <MirrorDirectionIcon direction={direction} />
+                </button>
+              )
+            })}
+          </div>
 
-      <span className="mirror-action-label">{copy.copy}</span>
-      <div className="mirror-direction-grid">
-        {DIRECTIONS.map((direction) => {
-          const label = `${copy.copy} ${directionLabel(direction)}`
-          return (
-            <button key={`copy-${direction}`} disabled={!canTransform} aria-label={label} title={label} onClick={() => onDirectional(direction, true)}>
-              <MirrorDirectionIcon direction={direction} />
-            </button>
-          )
-        })}
-      </div>
+          <span className="mirror-action-label">{copy.copy}</span>
+          <div className="mirror-direction-grid">
+            {DIRECTIONS.map((direction) => {
+              const label = `${copy.copy} ${directionLabel(direction)}`
+              return (
+                <button key={`copy-${direction}`} disabled={!canTransform} aria-label={label} title={label} onClick={() => onDirectional(direction, true)}>
+                  <MirrorDirectionIcon direction={direction} />
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
 
       <div className="mirror-custom-block">
         <strong>{copy.custom}</strong>

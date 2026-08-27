@@ -100,8 +100,8 @@ test('keeps a custom mirror axis across selection changes and reflects on a diag
   await expect(axis).toBeVisible()
   await expect(page.locator('.stitch-element')).toHaveCount(2)
 
-  const panel = page.locator('.productivity-panel')
-  await panel.getByRole('button', { name: 'Копия через ось вправо' }).click()
+  await expect(productivity.locator('.mirror-direction-grid')).toHaveCount(0)
+  await productivity.getByRole('button', { name: 'Создать копию по своей оси', exact: true }).click()
   await expect(page.locator('.stitch-element')).toHaveCount(3)
   await expect(page.locator('.stitch-element').last().locator('.symbol-glyph')).toHaveAttribute('transform', 'scale(-1 1)')
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ArcGuide, SnappingSettings, StitchElement, Viewport } from '../types'
+import type { ArcGuide, LineGuide, SnappingSettings, StitchElement, Viewport } from '../types'
 import {
   anchorWorldPosition,
   buildSnapCandidates,
@@ -32,6 +32,15 @@ const arc: ArcGuide = {
   startAngle: 0,
   endAngle: 180,
   divisions: 4,
+  visible: true,
+}
+
+const line: LineGuide = {
+  id: 'line-1',
+  type: 'line',
+  start: { x: 0, y: 100 },
+  end: { x: 200, y: 100 },
+  divisions: 2,
   visible: true,
 }
 
@@ -153,8 +162,8 @@ describe('solveSnap', () => {
     expect(result.rotation).toBe(120)
   })
 
-  it('snaps to a guide point and uses its tangent for along orientation', () => {
-    const moving = proposed({ x: 150, y: 83 })
+  it('snaps to the guide under the placement crosshair and uses its tangent for orientation', () => {
+    const moving = proposed({ x: 150, y: 100 })
     const result = solveSnap(
       moving,
       [],
@@ -170,6 +179,28 @@ describe('solveSnap', () => {
     const snappedElement = { ...moving, ...result }
     expect(anchorWorldPosition(snappedElement, 'bottom').x).toBeCloseTo(150)
     expect(anchorWorldPosition(snappedElement, 'bottom').y).toBeCloseTo(100)
+  })
+
+  it('snaps to any point on a continuous path instead of only its configured divisions', () => {
+    const moving = proposed({ x: 73, y: 100 })
+    const result = solveSnap(moving, [], [line], settings, viewport, null)
+
+    expect(result.candidate?.targetId).toBe('line-1')
+    expect(result.candidate?.pathT).toBeCloseTo(0.365, 2)
+    expect(result.x).toBeCloseTo(73, 2)
+    const snappedElement = { ...moving, ...result }
+    expect(anchorWorldPosition(snappedElement, 'bottom').y).toBeCloseTo(100, 2)
+  })
+
+  it.each(['chain', 'slip', 'magic-ring'])('centers %s on a guide instead of shifting it by the bottom anchor', (symbolId) => {
+    const moving = proposed({ symbolId, x: 73, y: 100 })
+    const result = solveSnap(moving, [], [line], settings, viewport, null)
+
+    expect(result.candidate?.targetId).toBe('line-1')
+    expect(result.x).toBeCloseTo(73, 2)
+    expect(result.y).toBeCloseTo(100, 2)
+    const snappedElement = { ...moving, ...result }
+    expect(anchorWorldPosition(snappedElement, 'center').y).toBeCloseTo(100, 2)
   })
 
   it('keeps a locked candidate inside the wider release threshold', () => {

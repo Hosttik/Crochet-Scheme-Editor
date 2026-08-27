@@ -137,7 +137,7 @@ export function StitchLayer({
               aria-hidden="true"
             />
 
-            {selected && (
+            {selected && !groupBounds && (
               <rect
                 x={-width / 2 - 8}
                 y={-height / 2 - 8}

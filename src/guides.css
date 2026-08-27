@@ -52,6 +52,12 @@
   stroke-width: 1.5;
   opacity: 1;
 }
+.guide-hit-area {
+  stroke: transparent;
+  stroke-width: 12;
+  fill: none;
+  pointer-events: stroke;
+}
 .guide-hit-target { pointer-events: stroke; }
 .guide-snap-point {
   fill: #fff;

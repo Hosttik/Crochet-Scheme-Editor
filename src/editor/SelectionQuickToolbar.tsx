@@ -75,6 +75,7 @@ export function SelectionQuickToolbar({
   const selectionTop = viewport.panY + bounds.top * viewport.zoom
   const selectionBottom = viewport.panY + bounds.bottom * viewport.zoom
   let highestInteractiveY = selectionTop
+  let preferBelowForCompactRotationHandle = false
 
   if (selectedIds.length === 1) {
     const element = elements.find((item) => item.id === selectedIds[0])
@@ -82,17 +83,18 @@ export function SelectionQuickToolbar({
     const directRotation = element && definition && element.locked !== true && !element.parametricRow && (
       !element.guideAttachment || element.guideAttachment.orientation === 'keep'
     )
-    if (directRotation && element) {
+    if (directRotation && element && definition) {
       const handleLocalY = -definition.height / 2 - 30
       const radians = (element.rotation * Math.PI) / 180
       const handleDocumentY = element.y + handleLocalY * Math.cos(radians)
       const handleScreenY = viewport.panY + handleDocumentY * viewport.zoom
       highestInteractiveY = Math.min(highestInteractiveY, handleScreenY - 8)
+      preferBelowForCompactRotationHandle = definition.height <= 24
     }
   }
 
   const aboveAnchor = highestInteractiveY - 10
-  const below = aboveAnchor < 52
+  const below = preferBelowForCompactRotationHandle || aboveAnchor < 52
   const top = below ? selectionBottom + 14 : aboveAnchor
 
   return (
@@ -109,10 +111,10 @@ export function SelectionQuickToolbar({
         <button title={copy.group} aria-label={copy.group} disabled={!canGroup} onClick={onGroup}>G</button>
       )}
       <span className="selection-quick-separator" />
-      <button title={copy.flipLeftRight} aria-label={copy.flipLeftRight} onClick={() => onMirror('left-right')}>↔</button>
-      <button title={copy.flipTopBottom} aria-label={copy.flipTopBottom} onClick={() => onMirror('top-bottom')}>↕</button>
-      <button title={copy.mirrorCopyLeftRight} aria-label={copy.mirrorCopyLeftRight} onClick={() => onMirrorCopy('left-right')}>⧉↔</button>
-      <button title={copy.mirrorCopyTopBottom} aria-label={copy.mirrorCopyTopBottom} onClick={() => onMirrorCopy('top-bottom')}>⧉↕</button>
+      <button className="selection-quick-mirror" title={copy.flipLeftRight} aria-label={copy.flipLeftRight} onClick={() => onMirror('left-right')}>↔</button>
+      <button className="selection-quick-mirror" title={copy.flipTopBottom} aria-label={copy.flipTopBottom} onClick={() => onMirror('top-bottom')}>↕</button>
+      <button className="selection-quick-mirror" title={copy.mirrorCopyLeftRight} aria-label={copy.mirrorCopyLeftRight} onClick={() => onMirrorCopy('left-right')}>⧉↔</button>
+      <button className="selection-quick-mirror" title={copy.mirrorCopyTopBottom} aria-label={copy.mirrorCopyTopBottom} onClick={() => onMirrorCopy('top-bottom')}>⧉↕</button>
       <button title={copy.rotateLeft} aria-label={copy.rotateLeft} onClick={() => onRotate(-15)}>↺</button>
       <button title={copy.rotate180} aria-label={copy.rotate180} onClick={() => onRotate(180)}>180°</button>
       <button title={copy.rotateRight} aria-label={copy.rotateRight} onClick={() => onRotate(15)}>↻</button>
