@@ -50,11 +50,10 @@ describe('stitch geometry', () => {
 
   it('spread handle changes branch spacing without changing outer scale', () => {
     const item = element('double-3-in-1', { scaleX: 1.2, scaleY: 1.3, spread: 1.1 })
-    expect(geometryFromHandleDrag(item, 'spread', { x: 30, y: 0 }, { x: 45, y: 0 })).toMatchObject({
-      scaleX: 1.2,
-      scaleY: 1.3,
-      spread: 1.65,
-    })
+    const changed = geometryFromHandleDrag(item, 'spread', { x: 30, y: 0 }, { x: 45, y: 0 })
+    expect(changed.scaleX).toBe(1.2)
+    expect(changed.scaleY).toBe(1.3)
+    expect(changed.spread).toBeCloseTo(1.65, 8)
   })
 
   it('converts document pointers into the rotated element frame', () => {
