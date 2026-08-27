@@ -69,6 +69,9 @@ export function GaugeRulerPanel({
     ? elements.filter((element) => element.parametricRow?.id === selectedRowId).length
     : 0
   const patternHeight = activeProfile ? patternHeightEstimateCm(elements, activeProfile) : null
+  const measurementToolLabel = placingRuler
+    ? (ru ? 'Отменить измерение' : 'Cancel measurement')
+    : (ru ? 'Новая область измерения' : 'New measurement region')
 
   useEffect(() => {
     if (!selectedRulerId || placingRuler) return
@@ -240,8 +243,9 @@ export function GaugeRulerPanel({
           className={`tool-button gauge-ruler-tool ${placingRuler ? 'active' : ''}`}
           onClick={onToggleRulerTool}
           aria-pressed={placingRuler}
+          aria-label={measurementToolLabel}
         >
-          <span>↔</span>{placingRuler ? (ru ? 'Отменить измерение' : 'Cancel measurement') : (ru ? 'Новая область измерения' : 'New measurement region')}<kbd>R</kbd>
+          <span>↔</span>{measurementToolLabel}<kbd>R</kbd>
         </button>
         <small className="muted-text gauge-ruler-instruction">
           {ru
