@@ -1,0 +1,42 @@
+name: Apply v1.20 background and print
+
+on:
+  push:
+    branches:
+      - feature/v1.20-background-print
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/v1.20-background-print
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply v1.20 changes
+        run: |
+          python scripts/apply_v1_20_background_print.py
+          npm version 1.20.0 --no-git-tag-version --allow-same-version
+      - name: Install dependencies
+        run: npm ci
+      - name: Build and unit verification
+        run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Full Chromium gate
+        run: npm run test:e2e
+      - name: Commit verified product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-v1.20-background-print.yml scripts/apply_v1_20_background_print.py
+          git add -A
+          git commit -m "Add background manipulation and print frames for v1.20.0"
+          git push origin HEAD:feature/v1.20-background-print
