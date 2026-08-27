@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { SymbolGlyph } from '../symbols'
 import type { Guide, StitchElement } from '../types'
@@ -174,6 +174,7 @@ export function ProductivityPanel({
   const [repeatPreviewActive, setRepeatPreviewActive] = useState(false)
   const [previewDirection, setPreviewDirection] = useState<MirrorDirection | null>(null)
   const [previewTarget, setPreviewTarget] = useState<SVGGElement | null>(null)
+  const suppressNextSelectionPreview = useRef(false)
   const selectionKey = useMemo(() => [...selectedIds].sort().join('|'), [selectedIds])
 
   useEffect(() => {
@@ -190,9 +191,12 @@ export function ProductivityPanel({
     setDeltaX(defaults.deltaX)
     setDeltaY(defaults.deltaY)
     setSpacing(defaults.guideSpacing)
+    const suppressAutoPreview = suppressNextSelectionPreview.current
+    suppressNextSelectionPreview.current = false
     // #10 only asks for a clean first single-stitch placement. Multi-selection
-    // retains the live motif preview introduced in #12.
-    setRepeatPreviewActive(selectedIds.length > 1)
+    // retains the live motif preview introduced in #12, except when that selection
+    // was just created by committing Repeat/Mirror.
+    setRepeatPreviewActive(!suppressAutoPreview && !mirrorAxis && selectedIds.length > 1)
     setPreviewDirection(null)
   // Selection identity is the transaction boundary; element edits inside the same
   // selection must not overwrite spacing the user has already typed.
@@ -215,7 +219,7 @@ export function ProductivityPanel({
     () => repeatPreviewSelectionKind(elements, selectedIds),
     [elements, selectedIds],
   )
-  const repeatPreviewEnabled = repeatPreviewActive && shouldShowRepeatPreview(previewSelectionKind)
+  const repeatPreviewEnabled = repeatPreviewActive && !mirrorAxis && !previewDirection && shouldShowRepeatPreview(previewSelectionKind)
 
   const activateRepeatPreview = () => {
     setRepeatPreviewActive(true)
@@ -258,6 +262,7 @@ export function ProductivityPanel({
 
   const applyRepeat = () => {
     if (disabled || !options) return
+    suppressNextSelectionPreview.current = true
     onRepeat(options)
     setRepeatPreviewActive(false)
   }
@@ -312,7 +317,10 @@ export function ProductivityPanel({
             setPreviewDirection(direction)
             if (direction) setRepeatPreviewActive(false)
           }}
-          onDirectional={onDirectionalMirror}
+          onDirectional={(direction, makeCopy) => {
+            if (makeCopy) suppressNextSelectionPreview.current = true
+            onDirectionalMirror(direction, makeCopy)
+          }}
           onPreset={(angle) => {
             setPreviewDirection(null)
             setRepeatPreviewActive(false)
@@ -322,7 +330,10 @@ export function ProductivityPanel({
           onCenter={onCenterMirrorAxis}
           onHide={onHideMirrorAxis}
           onReflectCustom={onMirrorAtCustomAxis}
-          onCopyCustom={onMirrorCopyAtCustomAxis}
+          onCopyCustom={() => {
+            suppressNextSelectionPreview.current = true
+            onMirrorCopyAtCustomAxis()
+          }}
         />
 
         <div className="productivity-block repeat-controls">
