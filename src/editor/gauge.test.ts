@@ -6,6 +6,7 @@ import {
   rowHeightCm,
   rowLengthEstimateCm,
   rulerCorridorHits,
+  rulerDisplayLabel,
   rulerEstimate,
   snapRulerPoint,
   stitchWidthCm,
@@ -64,69 +65,83 @@ describe('gauge calculations', () => {
     expect(patternHeightEstimateCm(elements, profile)).toBeCloseTo(20 / 24, 6)
   })
 
-  it('counts inclusive stitches automatically between two points on one parametric row', () => {
+  it('counts only stitch anchors inside the finite measurement region', () => {
+    const free: StitchElement[] = [0, 22, 44, 66, 88].map((x, index) => ({
+      id: `chain-${index}`,
+      symbolId: 'chain',
+      x,
+      y: index === 4 ? 9 : 0,
+      rotation: 0,
+    }))
+    const ruler: MeasurementRuler = { id: 'region', start: { x: -1, y: 0 }, end: { x: 70, y: 0 } }
+    const estimate = rulerEstimate(ruler, free, gauge)
+    expect(estimate).toMatchObject({
+      stitchCount: 4,
+      lengthCm: 2,
+      source: 'automatic',
+      strategy: 'anchor-region',
+    })
+    expect(estimate.elementIds).toEqual(['chain-0', 'chain-1', 'chain-2', 'chain-3'])
+  })
+
+  it('does not count a glyph whose visual body touches the strip while its anchor stays outside', () => {
+    const sample: StitchElement[] = [
+      { id: 'body-only', symbolId: 'treble', x: 40, y: 18, rotation: 90 },
+      { id: 'anchor-hit', symbolId: 'single', x: 60, y: 6, rotation: 0 },
+    ]
+    const hits = rulerCorridorHits({ id: 'anchor-only', start: { x: 0, y: 0 }, end: { x: 100, y: 0 } }, sample)
+    expect(hits.elementIds).toEqual(['anchor-hit'])
+  })
+
+  it('endpoint attachments never expand the count outside the actual region', () => {
     const ruler: MeasurementRuler = {
-      id: 'r1',
+      id: 'endpoint-no-magic',
+      start: { x: 0, y: 40 },
+      end: { x: 20, y: 40 },
+      startElementId: 'a',
+      endElementId: 'd',
+    }
+    const estimate = rulerEstimate(ruler, elements, gauge)
+    expect(estimate.stitchCount).toBe(2)
+    expect(estimate.elementIds).toEqual(['a', 'b'])
+  })
+
+  it('counts rows from anchors in the region, deduplicating semantic row ids', () => {
+    const sample: StitchElement[] = [
+      rowElement('r1-a', 'row-a', 0, 1),
+      rowElement('r1-b', 'row-a', 6, 1),
+      rowElement('r2', 'row-b', 0, 2),
+      { id: 'free-row', symbolId: 'chain', x: 0, y: 120, rotation: 0 },
+    ]
+    const ruler: MeasurementRuler = {
+      id: 'rows', start: { x: 0, y: 30 }, end: { x: 0, y: 125 }, mode: 'rows',
+    }
+    const estimate = rulerEstimate(ruler, sample, gauge)
+    expect(estimate).toMatchObject({
+      rowCount: 3,
+      source: 'automatic',
+      strategy: 'anchor-region',
+      rowIds: ['row-a', 'row-b'],
+    })
+    expect(estimate.elementIds).toEqual(['r1-a', 'r1-b', 'r2', 'free-row'])
+    expect(estimate.lengthCm).toBeCloseTo(30 / 24, 6)
+  })
+
+  it('ignores legacy manual overrides and always reports the live anchors', () => {
+    const ruler: MeasurementRuler = {
+      id: 'legacy-manual',
       start: { x: 0, y: 40 },
       end: { x: 40, y: 40 },
-      startElementId: 'a',
-      endElementId: 'c',
+      manualStitchCount: 99,
+      manualRowCount: 99,
     }
-    expect(rulerEstimate(ruler, elements, gauge)).toMatchObject({
-      stitchCount: 3,
-      lengthCm: 1.5,
-      source: 'automatic',
-      rowId: 'row-1',
-    })
+    expect(rulerEstimate(ruler, elements, gauge).stitchCount).toBe(3)
+    expect(rulerEstimate({ ...ruler, mode: 'rows' }, elements, gauge).rowCount).toBe(1)
   })
 
-  it('counts inclusive semantic rows automatically between two parametric rows', () => {
-    const ruler: MeasurementRuler = {
-      id: 'rows-1',
-      start: { x: 0, y: 40 },
-      end: { x: 0, y: 80 },
-      startElementId: 'a',
-      endElementId: 'e',
-      mode: 'rows',
-    }
-    expect(rulerEstimate(ruler, elements, gauge)).toMatchObject({
-      mode: 'rows',
-      rowCount: 2,
-      lengthCm: 20 / 24,
-      source: 'automatic',
-      startRowId: 'row-1',
-      endRowId: 'row-2',
-    })
-  })
-
-  it('uses an explicit manual row count for a free vertical ruler', () => {
-    const ruler: MeasurementRuler = {
-      id: 'rows-2',
-      start: { x: 0, y: 0 },
-      end: { x: 0, y: 100 },
-      mode: 'rows',
-      manualRowCount: 6,
-    }
-    expect(rulerEstimate(ruler, elements, gauge)).toMatchObject({
-      mode: 'rows',
-      rowCount: 6,
-      lengthCm: 2.5,
-      source: 'manual',
-    })
-  })
-
-  it('uses an explicit manual stitch count for a free ruler', () => {
-    const ruler: MeasurementRuler = {
-      id: 'r2',
-      start: { x: 0, y: 0 },
-      end: { x: 100, y: 100 },
-      manualStitchCount: 50,
-    }
-    expect(rulerEstimate(ruler, elements, gauge)).toMatchObject({
-      stitchCount: 50,
-      lengthCm: 25,
-      source: 'manual',
-    })
+  it('keeps the automatic count visible even before a gauge swatch exists', () => {
+    const ruler: MeasurementRuler = { id: 'no-gauge', start: { x: 0, y: 40 }, end: { x: 40, y: 40 } }
+    expect(rulerDisplayLabel(ruler, elements, { profiles: [] }, 'ru')).toBe('3 п./ст. · нет плотности')
   })
 
   it('snaps a ruler endpoint to the nearest visible stitch in screen-space tolerance', () => {
@@ -135,6 +150,7 @@ describe('gauge calculations', () => {
     expect(snapped.point).toEqual({ x: 40, y: 40 })
     expect(snapRulerPoint({ x: 90, y: 90 }, elements, 2).elementId).toBeUndefined()
   })
+
   it('uses the written row total when a starting chain counts as a stitch', () => {
     const counted = elements.map((element) => element.parametricRow?.id === 'row-1'
       ? {
@@ -156,23 +172,6 @@ describe('gauge calculations', () => {
     expect(rowLengthEstimateCm(counted, 'row-1', profile)).toBe(2.5)
   })
 
-  it('uses the same mixed legacy/explicit row ordering as patternRows', () => {
-    const first = rowElement('legacy-1', 'legacy-row-1', 0, 1)
-    const second = rowElement('legacy-2', 'legacy-row-2', 0, 2)
-    first.parametricRow = { ...first.parametricRow!, patternOrder: undefined }
-    second.parametricRow = { ...second.parametricRow!, patternOrder: undefined }
-    const third = rowElement('explicit-3', 'explicit-row-3', 0, 3)
-    const mixed = [first, second, third]
-    expect(rulerEstimate({
-      id: 'mixed-order',
-      start: { x: 0, y: 0 },
-      end: { x: 0, y: 0 },
-      startElementId: first.id,
-      endElementId: third.id,
-      mode: 'rows',
-    }, mixed, gauge).rowCount).toBe(3)
-  })
-
   it('clears ruler stitch references when their target stitches disappear', () => {
     const rulers: MeasurementRuler[] = [{
       id: 'dead-anchor',
@@ -187,32 +186,7 @@ describe('gauge calculations', () => {
     expect(reconcileRulerElementReferences(reconciled, elements)).toBe(reconciled)
   })
 
-
-  it('counts free stitches geometrically through the finite ruler corridor', () => {
-    const free: StitchElement[] = [0, 22, 44, 66].map((x, index) => ({
-      id: `chain-${index}`,
-      symbolId: 'chain',
-      x,
-      y: 0,
-      rotation: 0,
-    }))
-    const ruler: MeasurementRuler = { id: 'corridor-free', start: { x: -10, y: 0 }, end: { x: 76, y: 0 } }
-    const estimate = rulerEstimate(ruler, free, gauge)
-    expect(estimate).toMatchObject({ stitchCount: 4, source: 'automatic', strategy: 'corridor' })
-    expect(estimate.elementIds).toEqual(free.map((element) => element.id))
-  })
-
-  it('counts unique semantic rows crossed by a free corridor without endpoint attachments', () => {
-    const ruler: MeasurementRuler = { id: 'corridor-rows', start: { x: 0, y: 28 }, end: { x: 0, y: 92 }, mode: 'rows' }
-    expect(rulerEstimate(ruler, elements, gauge)).toMatchObject({
-      rowCount: 2,
-      source: 'automatic',
-      strategy: 'corridor',
-      rowIds: ['row-1', 'row-2'],
-    })
-  })
-
-  it('ignores hidden stitches and marker symbols in corridor hit testing', () => {
+  it('ignores hidden stitches and marker symbols in anchor hit testing', () => {
     const sample: StitchElement[] = [
       { id: 'visible', symbolId: 'chain', x: 0, y: 0, rotation: 0 },
       { id: 'hidden', symbolId: 'chain', x: 22, y: 0, rotation: 0, visible: false },
@@ -221,7 +195,6 @@ describe('gauge calculations', () => {
     const hits = rulerCorridorHits({ id: 'filter', start: { x: -20, y: 0 }, end: { x: 60, y: 0 } }, sample)
     expect(hits.elementIds).toEqual(['visible'])
   })
-
 
   it('does not snap ruler endpoints to Start/End marker-role symbols', () => {
     const sample: StitchElement[] = [
@@ -232,28 +205,4 @@ describe('gauge calculations', () => {
     expect(snapped.elementId).toBe('stitch')
     expect(snapped.point).toEqual({ x: 5, y: 0 })
   })
-
-  it('uses full oriented-rectangle SAT so a rotated stitch near a corridor corner is not a false positive', () => {
-    const sample: StitchElement[] = [
-      { id: 'corner-miss', symbolId: 'single', x: -12, y: -24, rotation: 5 },
-      { id: 'real-hit', symbolId: 'single', x: 20, y: 0, rotation: 5 },
-    ]
-    const hits = rulerCorridorHits({ id: 'sat', start: { x: 0, y: 0 }, end: { x: 100, y: 0 } }, sample)
-    expect(hits.elementIds).toEqual(['real-hit'])
-  })
-
-  it('highlights only semantic stitch hits when row corridor count ignores free stitches', () => {
-    const semantic = [
-      rowElement('row-a', 'semantic-a', 0, 1),
-      rowElement('row-b', 'semantic-b', 0, 2),
-    ]
-    const free: StitchElement = { id: 'free-between', symbolId: 'chain', x: 0, y: 60, rotation: 0 }
-    const estimate = rulerEstimate({
-      id: 'row-highlight', start: { x: 0, y: 28 }, end: { x: 0, y: 92 }, mode: 'rows',
-    }, [...semantic, free], gauge)
-    expect(estimate).toMatchObject({ rowCount: 2, source: 'automatic', strategy: 'corridor' })
-    expect(estimate.elementIds).toEqual(['row-a', 'row-b'])
-    expect(estimate.elementIds).not.toContain('free-between')
-  })
-
 })
