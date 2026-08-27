@@ -10,6 +10,7 @@ const LABELS = {
     preview: 'Предпросмотр',
     apply: 'Отразить',
     copy: 'Создать зеркальную копию',
+    cancel: 'Отмена',
     left: 'влево',
     right: 'вправо',
     up: 'вверх',
@@ -22,7 +23,7 @@ const LABELS = {
     x: 'Ось X',
     y: 'Ось Y',
     center: 'По центру выделения',
-    hide: 'Скрыть ось',
+    hide: 'Скрыть ось / отменить',
     reflect: 'Отразить по своей оси',
     mirrorCopy: 'Создать копию по своей оси',
   },
@@ -32,6 +33,7 @@ const LABELS = {
     preview: 'Preview',
     apply: 'Reflect',
     copy: 'Create mirrored copy',
+    cancel: 'Cancel',
     left: 'left',
     right: 'right',
     up: 'up',
@@ -44,7 +46,7 @@ const LABELS = {
     x: 'Axis X',
     y: 'Axis Y',
     center: 'Center on selection',
-    hide: 'Hide axis',
+    hide: 'Hide axis / cancel',
     reflect: 'Reflect across custom axis',
     mirrorCopy: 'Copy across custom axis',
   },
@@ -132,9 +134,10 @@ export function MirrorControls({
               )
             })}
           </div>
-          <div className="productivity-actions mirror-preview-actions">
+          <div className="mirror-preview-actions">
             <button disabled={!canTransform || !previewDirection} onClick={() => applyDirectional(false)}>{copy.apply}</button>
             <button disabled={!canTransform || !previewDirection} onClick={() => applyDirectional(true)}>{copy.copy}</button>
+            <button disabled={!previewDirection} onClick={() => onPreviewChange(null)}>{copy.cancel}</button>
           </div>
         </>
       )}
