@@ -11,6 +11,7 @@ export type GuideManipulationMode =
   | 'end'
   | 'control1'
   | 'control2'
+  | 'control'
 
 const ROTATION_SNAP_DEGREES = 15
 
@@ -32,7 +33,7 @@ export function guideCenter(guide: Guide): Point {
 }
 
 export function guideResizeHandle(guide: Guide): Point | null {
-  if (guide.type === 'grid' || guide.type === 'line' || guide.type === 'curve') return null
+  if (guide.type === 'grid' || guide.type === 'line' || guide.type === 'curve' || guide.type === 'parabola') return null
 
   const angle = guide.type === 'arc'
     ? (guide.startAngle + guide.endAngle) / 2
@@ -119,6 +120,15 @@ export function applyGuideManipulation(
       }
     }
 
+    if (guide.type === 'parabola') {
+      return {
+        ...guide,
+        start: translatePoint(guide.start, dx, dy),
+        control: translatePoint(guide.control, dx, dy),
+        end: translatePoint(guide.end, dx, dy),
+      }
+    }
+
     return {
       ...guide,
       start: translatePoint(guide.start, dx, dy),
@@ -128,13 +138,13 @@ export function applyGuideManipulation(
     }
   }
 
-  if (mode === 'start' && (guide.type === 'line' || guide.type === 'curve')) {
+  if (mode === 'start' && (guide.type === 'line' || guide.type === 'curve' || guide.type === 'parabola')) {
     const start = guide.type === 'line' && snapRotation
       ? snapLineEndpoint(guide.end, currentPointer)
       : currentPointer
     return { ...guide, start }
   }
-  if (mode === 'end' && (guide.type === 'line' || guide.type === 'curve')) {
+  if (mode === 'end' && (guide.type === 'line' || guide.type === 'curve' || guide.type === 'parabola')) {
     const end = guide.type === 'line' && snapRotation
       ? snapLineEndpoint(guide.start, currentPointer)
       : currentPointer
@@ -145,6 +155,9 @@ export function applyGuideManipulation(
   }
   if (mode === 'control2' && guide.type === 'curve') {
     return { ...guide, control2: currentPointer }
+  }
+  if (mode === 'control' && guide.type === 'parabola') {
+    return { ...guide, control: currentPointer }
   }
 
   if (mode === 'resize') {

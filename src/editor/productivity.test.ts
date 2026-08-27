@@ -90,15 +90,16 @@ describe('productivity transforms', () => {
 
   it('mirrors left/right and updates orientation', () => {
     const mirrored = mirrorElements(base, ['a', 'b'], 'left-right')
-    expect(mirrored[0]).toMatchObject({ x: 30, y: 20, rotation: -180 })
+    expect(mirrored[0]).toMatchObject({ x: 30, y: 20, rotation: 0, mirrored: true })
     expect(mirrored[1].x).toBe(10)
-    expect(mirrored[1].rotation).toBe(150)
+    expect(mirrored[1].rotation).toBe(-30)
+    expect(mirrored[1].mirrored).toBe(true)
   })
 
   it('mirrors top/bottom and updates orientation', () => {
     const mirrored = mirrorElements(base, ['a', 'b'], 'top-bottom')
-    expect(mirrored[0]).toMatchObject({ x: 10, y: 40, rotation: 0 })
-    expect(mirrored[1]).toMatchObject({ x: 30, y: 20, rotation: -30 })
+    expect(mirrored[0]).toMatchObject({ x: 10, y: 40, rotation: -180, mirrored: true })
+    expect(mirrored[1]).toMatchObject({ x: 30, y: 20, rotation: 150, mirrored: true })
   })
 
   it('duplicates with an offset while detaching semantic row topology', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ArcGuide, CurveGuide, GridGuide, LineGuide, RadialGridGuide } from '../types'
+import type { ArcGuide, CurveGuide, GridGuide, LineGuide, ParabolaGuide, RadialGridGuide } from '../types'
 import { applyGuideManipulation, gridRotationHandle, guideCenter, guideResizeHandle } from './guideManipulation'
 
 const arc: ArcGuide = {
@@ -31,6 +31,10 @@ const curve: CurveGuide = {
   end: { x: 120, y: 0 },
   divisions: 8,
   visible: true,
+}
+
+const parabola: ParabolaGuide = {
+  id: 'parabola', type: 'parabola', start: { x: -100, y: 0 }, control: { x: 0, y: -80 }, end: { x: 100, y: 0 }, divisions: 12, visible: true,
 }
 
 const grid: GridGuide = {
@@ -98,6 +102,19 @@ describe('guide direct manipulation', () => {
       expect(edited.control1).toEqual({ x: 50, y: -90 })
       expect(edited.control2).toEqual(curve.control2)
     }
+  })
+
+  it('moves and edits a quadratic parabola with one control point', () => {
+    const moved = applyGuideManipulation(parabola, 'move', { x: 0, y: 0 }, { x: 10, y: 20 })
+    expect(moved.type).toBe('parabola')
+    if (moved.type === 'parabola') {
+      expect(moved.start).toEqual({ x: -90, y: 20 })
+      expect(moved.control).toEqual({ x: 10, y: -60 })
+      expect(moved.end).toEqual({ x: 110, y: 20 })
+    }
+    const edited = applyGuideManipulation(parabola, 'control', parabola.control, { x: 5, y: -120 })
+    expect(edited.type).toBe('parabola')
+    if (edited.type === 'parabola') expect(edited.control).toEqual({ x: 5, y: -120 })
   })
 
   it('resizes an arc from its center', () => {

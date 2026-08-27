@@ -38,25 +38,25 @@ test('moves and applies an explicit vertical or horizontal mirror axis', async (
   const original = transformParts(await stitch.getAttribute('transform'))
   const productivity = page.locator('.productivity-panel')
 
-  await productivity.getByRole('button', { name: 'Вертикальная ось', exact: true }).click()
-  const verticalAxis = page.locator('.mirror-axis-overlay[data-mirror-axis="vertical"]')
+  await productivity.getByRole('button', { name: 'Вертикальная', exact: true }).click()
+  const verticalAxis = page.locator('.mirror-axis-overlay[data-mirror-angle="90"]')
   await expect(verticalAxis).toHaveCount(1)
 
-  const axisX = productivity.getByLabel('Позиция оси X')
+  const axisX = productivity.getByLabel('Ось X')
   expect(Number(await axisX.inputValue())).toBeCloseTo(original.x, 3)
   const explicitX = original.x + 80
   await axisX.fill(String(explicitX))
-  await productivity.getByRole('button', { name: 'Отразить по оси', exact: true }).click()
+  await productivity.getByRole('button', { name: 'Отразить по своей оси', exact: true }).click()
 
   const reflected = transformParts(await stitch.getAttribute('transform'))
   expect(reflected.x).toBeCloseTo(explicitX * 2 - original.x, 3)
   expect(reflected.y).toBeCloseTo(original.y, 3)
 
-  await productivity.getByRole('button', { name: 'Горизонтальная ось', exact: true }).click()
-  const horizontalAxis = page.locator('.mirror-axis-overlay[data-mirror-axis="horizontal"]')
+  await productivity.getByRole('button', { name: 'Горизонтальная', exact: true }).click()
+  const horizontalAxis = page.locator('.mirror-axis-overlay[data-mirror-angle="0"]')
   await expect(horizontalAxis).toHaveCount(1)
 
-  const axisY = productivity.getByLabel('Позиция оси Y')
+  const axisY = productivity.getByLabel('Ось Y')
   const beforeDrag = Number(await axisY.inputValue())
   // The editor overlay must be above StitchLayer so the center handle wins hit testing.
   const handle = page.locator('.mirror-axis-handle')
@@ -70,7 +70,7 @@ test('moves and applies an explicit vertical or horizontal mirror axis', async (
   const afterDrag = Number(await axisY.inputValue())
   expect(afterDrag - beforeDrag).toBeGreaterThan(35)
 
-  await productivity.getByRole('button', { name: 'Копия через ось', exact: true }).click()
+  await productivity.getByRole('button', { name: 'Создать копию по своей оси', exact: true }).click()
   await expect(page.locator('.stitch-element')).toHaveCount(2)
   await expect(page.locator('.stitch-element.selected')).toHaveCount(1)
 

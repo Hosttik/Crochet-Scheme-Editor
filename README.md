@@ -2,6 +2,10 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
+## v1.19.0
+
+Guide & Mirror Geometry release: straight guides now expose semantic length/angle editing, project-span fitting, visible work direction and reversible path direction. A quadratic Parabola guide adds a simple one-control-point curve while keeping legacy cubic Curve geometry intact. Mirror authoring now uses true reflected glyph parity, directional reflect/copy controls, and an arbitrary movable/rotatable custom axis that stays on the canvas while selection changes. Project schema is v20.
+
 ## v1.18.0
 
 Core usability release: explicit Hand/Pan mode, visible snap-orientation control with guide auto-rotation, 15° Shift snapping for straight-guide endpoints, safer Repeat inputs, motif-aware guide spacing, non-overlapping selection actions and a persistent used-symbol legend window. The symbol library currently contains 44 definitions and project schema remains v19.
@@ -25,8 +29,8 @@ The editor combines an SVG canvas with a document model that understands guides,
 ### Editing and productivity
 
 - free-form lasso selection uses a drawn polygon; Shift adds to the current semantic selection and Alt subtracts from it, while groups and parametric rows expand as whole authoring objects
-- 8 vector crochet symbols shared by palette, canvas, Repeat preview and SVG export
-- core notation uses `ch`, `sl st`, `sc`, `hdc`, `dc`, `tr` and `p` abbreviations; SC is an upright `+`, HDC/DC/TR use perpendicular top bars, and Magic Ring is a simple circle
+- 44 vector crochet symbols shared by palette, canvas, Repeat preview and SVG export
+- core notation uses standard abbreviations from the symbol library; SC is an upright `+`, HDC/DC/TR use perpendicular top bars, and Magic Ring is a simple circle
 - free placement, multi-select, marquee selection and group move
 - larger invisible SVG hit targets make thin stitches easier to select without changing their printed appearance
 - Smart Place/Select: clicking or dragging an existing stitch while a placement tool is active selects/grabs that stitch instead of placing an accidental duplicate
@@ -34,24 +38,25 @@ The editor combines an SVG canvas with a document model that understands guides,
 - `Space + drag` temporarily activates the hand/pan interaction; middle-mouse panning remains available
 - arrow keys nudge the current manual selection by 1 document unit; `Shift+Arrow` nudges by 10
 - keyboard zoom/navigation: `+`, `-`, `0` for 100%, `F` for Fit All and `Shift+F` for Fit Selection
-- contextual floating selection toolbar provides duplicate, group/ungroup, Flip, Mirrored Copy, rotate and delete next to the selected motif
+- contextual floating selection toolbar provides duplicate, group/ungroup, mirror/copy, rotate and delete next to the selected motif
 - permanent manual groups: group / ungroup, click one member to select the motif, Alt+click to select a single stitch inside it
 - per-element visual colors with quick presets, native custom color picker and reset-to-default
 - color applies to a single stitch, multi-selection, a manual group or an entire selected parametric row; Alt+click inside a group still allows coloring one member independently
-- quick Flip mirrors the current manual selection around a vertical or horizontal axis through its own center
-- custom mirror mode exposes a visible dashed vertical/horizontal axis that can be dragged on the canvas, positioned numerically, or reset to the selection center
-- custom-axis actions can either Flip the selection in place or create a Mirrored Copy across that exact axis; Rotate 180° remains a separate transform
+- directional Reflection controls can reflect or create a mirrored copy to the left, right, up or down with a visual source/axis/result diagram
+- custom mirror mode supports horizontal, vertical, ±45° presets plus any numeric angle; the axis can be moved by dragging its line and rotated with its round handle
+- the custom axis remains visible when selection changes, can be recentered on the active selection, and supports either in-place reflection or copy-across-axis
+- true mirror parity is stored on stitch elements, so diagonal/arbitrary-axis reflection is not approximated by rotation alone
 - Repeat tool with three modes and live preview before creation:
   - Linear: create N motif copies with ΔX / ΔY
   - Circular: rotate copies around the selection center by default, or optionally around a guide center
-  - Along guide: walk copies along Arc, Line, Curve, Grid or Radial Grid geometry using path spacing and orientation controls
+  - Along guide: walk copies along Arc, Line, Curve, Parabola, Grid or Radial Grid geometry using path spacing and orientation controls
 - Repeat ghost preview is shown for one stitch or one complete manual group; temporary multi-selection is explained as a temporary motif and does not render ghosts
 - Repeat numeric fields allow an empty intermediate edit state, so values can be fully erased before typing a replacement
 - repeated Ctrl/Cmd+D acts as repeat-last-transform: duplicate once, move/rotate the duplicate, then press Ctrl/Cmd+D again to repeat the same per-stitch translation and rotation delta
 - repeated motif copies are grouped independently so every generated copy can immediately be moved as one object
 - Duplicate, paste, Repeat and Mirrored Copy preserve element colors
-- Duplicate, Repeat, Flip and Mirrored Copy intentionally detach generated/manual transformed copies from persistent path attachments so copies do not jump back to an original guide later
-- the custom mirror axis is transient editor state: it is deliberately excluded from project JSON and SVG export
+- Duplicate, Repeat and mirrored-copy operations intentionally detach generated/manual transformed copies from persistent path attachments so copies do not jump back to an original guide later
+- the custom mirror axis is editor-only state: it persists across selection changes during editing but is deliberately excluded from project JSON and SVG export
 - semantic Layers tree is moved after the stitch library and collapsed by default; it still collapses parametric rows and manual groups
 - palette captions are visually hidden to save space; full names and abbreviations remain available through hover/focus labels
 - rotation handles, copy/paste/duplicate and layer ordering
@@ -61,17 +66,20 @@ The editor combines an SVG canvas with a document model that understands guides,
 
 ### Guides, snapping and persistent attachment
 
-- Arc, Line, cubic Bezier Curve, Rectangular Grid and Radial Grid guides
+- Arc, Line, cubic Bezier Curve, quadratic Parabola, Rectangular Grid and Radial Grid guides
 - any guide can be locked against accidental move/resize/rotate/numeric edits while remaining selectable and unlockable
-- Line exposes independent start/end handles
+- Line exposes independent start/end handles plus semantic Length and Angle fields
+- Line can be fitted to the current project span without manually guessing coordinates
+- continuous path guides show direction on-canvas; direction can be reversed without rebuilding the guide
 - Curve exposes start/end plus two Bezier control-point handles
+- Parabola exposes start/end plus one editable control point for simpler symmetric curve authoring
 - continuous path guides can be moved directly on the canvas; Arc keeps radius editing and grids keep their specialized controls
 - hold `Shift` while rotating a rectangular grid to snap the angle to 15° increments
 - shared screen-space snapping engine with hysteresis
 - snapping is visible in the canvas toolbar; `S` switches between Snap and Free placement
 - Top / Center / Bottom snap anchors
 - along/tangent and perpendicular/radial snap orientation modes
-- manual stitches can be persistently attached to Arc, Line or Curve independently of one-shot snapping
+- manual stitches can be persistently attached to Arc, Line, Curve or Parabola independently of one-shot snapping
 - an attachment stores normalized path position `t`, Keep/Tangent/Perpendicular orientation, normal path offset and rotation offset
 - attached stitches follow guide edits and can slide along their path when dragged or nudged
 - attachment survives autosave/JSON reload and can be explicitly detached
@@ -110,7 +118,7 @@ The editor combines an SVG canvas with a document model that understands guides,
 - the selected row overlay shows S/E markers, work direction, counted `CH×N*`, skipped `SK×N`, and exact `SL→1` / `SL→CH` closure target
 - written RU/EN instructions distinguish worked stitch count from logical row total when a starting chain is counted
 - Markdown abbreviation legends include CH/ВП and SL ST/СС when construction semantics use them
-- legacy v1-v15 projects retain their previous behavior: omitted boundary fields normalize to uncounted chains, zero skipped stitches and first-worked-stitch closure
+- legacy projects retain migration-compatible defaults for omitted row-boundary fields
 
 ### Persistence and export
 
@@ -120,19 +128,22 @@ The editor combines an SVG canvas with a document model that understands guides,
 - row-number annotations persist through autosave/JSON and are included in SVG export
 - automatic legend is derived from actually used visible stitch symbols, shows abbreviation plus localized RU/EN name, can be toggled, and is included in SVG export
 - autosave delay is configurable per project: Off, legacy Fast (0.65 s), 5 s, 15 s, 30 s or 60 s; switching Off is persisted immediately
-- project JSON schema is v17; v1-v16 remain loadable through runtime validation/migration
-- schema v13 introduced optional six-digit hex visual color per stitch; default black is omitted from storage
+- current project JSON schema is v20; v1-v19 remain loadable through runtime validation/migration
+- schema v13 introduced optional six-digit hex visual color per stitch
 - schema v14 adds Line/Curve guide persistence and optional manual `guideAttachment` metadata
 - schema v15 adds guide lock state, independent row-number annotations and legend visibility settings
 - schema v16 adds counted starting-chain semantics, skipped base stitches and exact joined-round closure targets
 - schema v17 adds persisted background-image underlays and explicit output inclusion
+- schema v18 introduces strict integrity/resource validation for current documents while preserving legacy migration paths
+- schema v19 adds gauge profiles and smart measurement rulers
+- schema v20 adds quadratic Parabola guides and persisted stitch mirror parity
 - manual group ids, topology parent ids, manual topology overrides, mixed/rich row programs, row construction semantics and generated-offset baselines are persisted and validated
 - local multi-project storage in IndexedDB
 - automatic migration of the legacy single autosave into the first local project
 - autosave per active project
 - project renames update the local project selector immediately and persist through autosave
 - JSON and SVG export
-- SVG export serializes each visible stitch using its actual element color and the same corrected vector glyph used in the editor
+- SVG export serializes each visible stitch using its actual element color, mirror parity and the same corrected vector glyph used in the editor
 - visual colors are presentation metadata; they do not yet generate yarn/color-change instructions in written patterns
 - GitHub Pages deployment from `main`
 
@@ -184,7 +195,7 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - snapping
 - selection and viewport geometry
 - permanent manual grouping and productivity transforms
-- transient editor tools such as the custom mirror axis
+- editor-only custom mirror-axis state with selection-independent visibility
 - parametric crochet rows and classic shaping semantics
 - cyclic mixed-row rapport semantics
 - rich rapport AST compilation into composition + topology
@@ -194,4 +205,4 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - local persistence
 - rendering and React UI
 
-The original 25-item usability backlog is now functionally covered. A future color-domain milestone can turn visual colors into explicit yarn/color-change semantics without conflating presentation color with stitch topology.
+The original usability backlog is functionally covered. A future color-domain milestone can turn visual colors into explicit yarn/color-change semantics without conflating presentation color with stitch topology.

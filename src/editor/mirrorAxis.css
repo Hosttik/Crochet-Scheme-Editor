@@ -48,3 +48,18 @@
 .mirror-axis-actions button:first-child {
   font-weight: 700;
 }
+
+.mirror-axis-overlay { opacity: .72; }
+.mirror-axis-rotate-stem {
+  stroke: #c2413b;
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+  opacity: .55;
+}
+.mirror-axis-rotate-handle {
+  fill: #fff;
+  stroke: #c2413b;
+  stroke-width: 2;
+  cursor: grab;
+}
+.mirror-axis-rotate-handle:active { cursor: grabbing; }

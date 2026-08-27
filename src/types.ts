@@ -138,6 +138,8 @@ export type StitchElement = {
   y: number
   rotation: number
   color?: string
+  /** True when the glyph has odd reflection parity. */
+  mirrored?: boolean
   visible?: boolean
   locked?: boolean
   groupId?: string
@@ -180,6 +182,17 @@ export type CurveGuide = {
   locked?: boolean
 }
 
+export type ParabolaGuide = {
+  id: string
+  type: 'parabola'
+  start: Point
+  control: Point
+  end: Point
+  divisions: number
+  visible: boolean
+  locked?: boolean
+}
+
 export type GridGuide = {
   id: string
   type: 'grid'
@@ -205,7 +218,7 @@ export type RadialGridGuide = {
   locked?: boolean
 }
 
-export type Guide = ArcGuide | LineGuide | CurveGuide | GridGuide | RadialGridGuide
+export type Guide = ArcGuide | LineGuide | CurveGuide | ParabolaGuide | GridGuide | RadialGridGuide
 
 export type RowMarker = {
   id: string
@@ -254,7 +267,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20
   metadata: {
     title: string
     updatedAt: string

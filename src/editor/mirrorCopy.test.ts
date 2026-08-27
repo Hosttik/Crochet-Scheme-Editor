@@ -18,8 +18,8 @@ describe('mirrored copy', () => {
     expect(copy).toHaveLength(2)
     expect(copy[0].x).toBeGreaterThan(30)
     expect(copy[1].x).toBeGreaterThan(30)
-    expect(copy[0].rotation).toBe(-180)
-    expect(copy[1].rotation).toBe(150)
+    expect(copy[0]).toMatchObject({ rotation: 0, mirrored: true })
+    expect(copy[1]).toMatchObject({ rotation: -30, mirrored: true })
     expect(copy[0].groupId).toBeTruthy()
     expect(copy[0].groupId).toBe(copy[1].groupId)
   })
@@ -28,7 +28,7 @@ describe('mirrored copy', () => {
     const copy = createMirroredCopy([motif[0]], ['a'], 'top-bottom', 24, ids())
     expect(copy).toHaveLength(1)
     expect(copy[0].y).toBeGreaterThan(44)
-    expect(copy[0].rotation).toBe(0)
+    expect(copy[0]).toMatchObject({ rotation: -180, mirrored: true })
   })
 
   it('keeps the requested visual gap for a wide magic-ring symbol', () => {

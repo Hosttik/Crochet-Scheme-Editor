@@ -38,6 +38,7 @@ import { buildTiledPrintHtml, parseSvgViewBox, type PrintSettings } from './edit
 import { usedLegendItems } from './editor/legend'
 import { deleteRowMarkerAndRenumber, isRowMarkerLocked, nextRowMarkerNumber, normalizedRowMarkerNumber } from './editor/rowMarkers'
 import type { GuideManipulationMode } from './editor/guideManipulation'
+import { fitLineGuideToRect, lineGuideAngle, lineGuideLength, reverseGuide, setLineGuideAngle, setLineGuideLength } from './editor/guideGeometry'
 import { clamp, screenToDocument } from './editor/geometry'
 import { emptyHistory, pushHistory, redoHistory, undoHistory } from './editor/history'
 import { emptyGaugeSettings, reconcileRulerElementReferences, snapRulerPoint } from './editor/gauge'
@@ -48,17 +49,19 @@ import {
   moveAttachedElement,
   reconcileGuideAttachments,
 } from './editor/pathGuides'
-import { createMirroredCopy, createMirroredCopyAroundAxis } from './editor/mirrorCopy'
+import { createDirectionalMirroredCopy, createMirroredCopy, createMirroredCopyAcrossLine } from './editor/mirrorCopy'
 import {
   cloneSelectionWithOffset,
   cloneWithRepeatedDelta,
   groupElements,
   mirrorElements,
-  mirrorElementsAroundAxis,
+  mirrorElementsAcrossLine,
+  mirrorElementsToward,
   repeatSelection,
   selectionPivot,
   ungroupElements,
   type MirrorAxis,
+  type MirrorDirection,
   type RepeatOptions,
 } from './editor/productivity'
 import {
@@ -92,6 +95,7 @@ import {
   idsInLasso,
   idsInMarquee,
   normalizeRect,
+  selectionAabb,
   pointerAngle,
   rotationFromPointer,
   type Rect,
@@ -226,6 +230,7 @@ function guideLabel(guide: Guide, locale: Locale) {
   if (guide.type === 'arc') return t.arc
   if (guide.type === 'line') return locale === 'ru' ? 'Линия' : 'Line'
   if (guide.type === 'curve') return locale === 'ru' ? 'Кривая' : 'Curve'
+  if (guide.type === 'parabola') return locale === 'ru' ? 'Парабола' : 'Parabola'
   if (guide.type === 'grid') return t.rectangularGrid
   return t.radialGrid
 }
@@ -329,7 +334,7 @@ function serializeSvg(
     ? `<image href="${escapeXml(exportBackground.dataUrl)}" x="${exportBackground.x}" y="${exportBackground.y}" width="${exportBackground.width}" height="${exportBackground.height}" opacity="${exportBackground.opacity}" preserveAspectRatio="none"/>`
     : ''
   const content = elements
-    .map((element) => `<g transform="translate(${element.x} ${element.y}) rotate(${element.rotation})" style="color:${element.color ?? DEFAULT_STITCH_COLOR}">${symbolSvgMarkup(element.symbolId)}</g>`)
+    .map((element) => `<g transform="translate(${element.x} ${element.y}) rotate(${element.rotation})${element.mirrored ? ' scale(-1 1)' : ''}" style="color:${element.color ?? DEFAULT_STITCH_COLOR}">${symbolSvgMarkup(element.symbolId)}</g>`)
     .join('')
   const markerContent = visibleMarkers
     .map((marker) => `<g transform="translate(${marker.x} ${marker.y})"><circle r="5" fill="#c2413b"/><text x="10" y="4" font-family="sans-serif" font-size="13" font-weight="700" fill="#b23833">${marker.number}</text></g>`)
@@ -589,10 +594,6 @@ function App() {
     if (selectedRulerId && !selectedRuler) setSelectedRulerId(null)
   }, [selectedRuler, selectedRulerId])
   const nextRowNumber = useMemo(() => nextRowMarkerNumber(rowMarkers), [rowMarkers])
-  useEffect(() => {
-    if (!selectedIds.length) setMirrorAxis(null)
-  }, [selectedIds.length])
-
   const selectedParametricRow = useMemo(
     () => parametricRowFromSelection(elements, selectedIds),
     [elements, selectedIds],
@@ -949,20 +950,37 @@ function App() {
     setStatus(locale === 'ru' ? `Создана зеркальная копия: ${created.length}` : `Mirrored copy created: ${created.length}`)
   }, [commitElements, elements, locale, productivitySelectionIds])
 
-  const configureMirrorAxis = useCallback((axis: MirrorAxis) => {
+  const directionalMirrorSelection = useCallback((direction: MirrorDirection, copy: boolean) => {
+    const ids = productivitySelectionIds()
+    if (!ids.length) return
+    duplicateSeriesRef.current = null
+    if (copy) {
+      const created = createDirectionalMirroredCopy(elements, ids, direction, DUPLICATE_OFFSET, createId)
+      if (!created.length) return
+      commitElements([...elements, ...created])
+      setSelectedIds(created.map((element) => element.id))
+      setSelectedGuideId(null)
+      setTool({ type: 'select' })
+      setStatus(locale === 'ru' ? `Создана зеркальная копия: ${created.length}` : `Mirrored copy created: ${created.length}`)
+      return
+    }
+    commitElements(mirrorElementsToward(elements, ids, direction))
+    setSelectedIds(ids)
+    setStatus(locale === 'ru' ? `Отражено ${ids.length} элементов` : `Reflected ${ids.length} elements`)
+  }, [commitElements, elements, locale, productivitySelectionIds])
+
+  const configureMirrorAxis = useCallback((angle: number) => {
+    if (!Number.isFinite(angle)) return
     const ids = productivitySelectionIds()
     const pivot = selectionPivot(elements, ids)
     if (!pivot) return
-    const coordinate = axis === 'left-right' ? pivot.x : pivot.y
-    setMirrorAxis((current) => current?.axis === axis ? current : { axis, coordinate })
-    setStatus(locale === 'ru'
-      ? axis === 'left-right' ? 'Вертикальная ось зеркалирования активна' : 'Горизонтальная ось зеркалирования активна'
-      : axis === 'left-right' ? 'Vertical mirror axis active' : 'Horizontal mirror axis active')
+    setMirrorAxis((current) => current ? { ...current, angle } : { point: pivot, angle })
+    setStatus(locale === 'ru' ? 'Пользовательская ось зеркалирования активна' : 'Custom mirror axis active')
   }, [elements, locale, productivitySelectionIds])
 
-  const moveMirrorAxis = useCallback((coordinate: number) => {
-    if (!Number.isFinite(coordinate)) return
-    setMirrorAxis((current) => current ? { ...current, coordinate } : current)
+  const moveMirrorAxis = useCallback((next: MirrorAxisState) => {
+    if (![next.point.x, next.point.y, next.angle].every(Number.isFinite)) return
+    setMirrorAxis(next)
   }, [])
 
   const centerMirrorAxis = useCallback(() => {
@@ -970,7 +988,7 @@ function App() {
     const ids = productivitySelectionIds()
     const pivot = selectionPivot(elements, ids)
     if (!pivot) return
-    setMirrorAxis({ ...mirrorAxis, coordinate: mirrorAxis.axis === 'left-right' ? pivot.x : pivot.y })
+    setMirrorAxis({ ...mirrorAxis, point: pivot })
   }, [elements, mirrorAxis, productivitySelectionIds])
 
   const mirrorSelectionAroundCustomAxis = useCallback(() => {
@@ -978,7 +996,7 @@ function App() {
     const ids = productivitySelectionIds()
     if (!ids.length) return
     duplicateSeriesRef.current = null
-    commitElements(mirrorElementsAroundAxis(elements, ids, mirrorAxis.axis, mirrorAxis.coordinate))
+    commitElements(mirrorElementsAcrossLine(elements, ids, mirrorAxis))
     setSelectedIds(ids)
     setStatus(locale === 'ru' ? `Отражено по пользовательской оси: ${ids.length}` : `Flipped across custom axis: ${ids.length}`)
   }, [commitElements, elements, locale, mirrorAxis, productivitySelectionIds])
@@ -987,7 +1005,7 @@ function App() {
     if (!mirrorAxis) return
     const ids = productivitySelectionIds()
     if (!ids.length) return
-    const created = createMirroredCopyAroundAxis(elements, ids, mirrorAxis.axis, mirrorAxis.coordinate, createId)
+    const created = createMirroredCopyAcrossLine(elements, ids, mirrorAxis, createId)
     if (!created.length) return
     duplicateSeriesRef.current = null
     commitElements([...elements, ...created])
@@ -1366,7 +1384,6 @@ function App() {
         setLasso(null)
         setRulerDraft(null)
         setRulerDrag(null)
-        setMirrorAxis(null)
         snapLockRef.current = null
         interactionMovedRef.current = false
       }
@@ -1950,7 +1967,7 @@ function App() {
       if (cancelled || !moved || !before) return
       recordSnapshot(before)
       if (mode === 'move') setStatus(t.guideMoved)
-      else if (mode === 'resize' || mode === 'start' || mode === 'end' || mode === 'control1' || mode === 'control2') setStatus(t.guideResized)
+      else if (mode === 'resize' || mode === 'start' || mode === 'end' || mode === 'control1' || mode === 'control2' || mode === 'control') setStatus(t.guideResized)
       else setStatus(t.guideRotated)
     },
     [recordSnapshot, t.guideMoved, t.guideResized, t.guideRotated],
@@ -2052,6 +2069,16 @@ function App() {
         divisions: 16,
         visible: true,
       }
+    } else if (type === 'parabola') {
+      guide = {
+        id,
+        type,
+        start: { x: center.x - 150, y: center.y + 40 },
+        control: { x: center.x, y: center.y - 100 },
+        end: { x: center.x + 150, y: center.y + 40 },
+        divisions: 16,
+        visible: true,
+      }
     } else if (type === 'grid') {
       guide = {
         id,
@@ -2091,6 +2118,38 @@ function App() {
       guides.map((guide) => (guide.id === selectedGuide.id ? updater(guide) : guide)),
     )
   }
+
+  const reverseGuideDirection = useCallback((target: Guide) => {
+    if (target.locked === true || !isPathGuide(target)) return
+    commitGuides(guides.map((guide) => guide.id === target.id ? reverseGuide(guide) : guide))
+    setStatus(locale === 'ru' ? 'Направление направляющей изменено' : 'Guide direction reversed')
+  }, [commitGuides, guides, locale])
+
+  const fitSelectedLineToProject = useCallback(() => {
+    if (!selectedGuide || selectedGuide.type !== 'line' || selectedGuide.locked === true) return
+    const ids = visibleElements.map((element) => element.id)
+    let bounds = selectionAabb(visibleElements, ids, SYMBOL_SIZES)
+    if (backgroundImage && backgroundImage.visible !== false) {
+      const imageBounds = {
+        left: backgroundImage.x, top: backgroundImage.y,
+        right: backgroundImage.x + backgroundImage.width, bottom: backgroundImage.y + backgroundImage.height,
+      }
+      bounds = bounds ? {
+        left: Math.min(bounds.left, imageBounds.left), top: Math.min(bounds.top, imageBounds.top),
+        right: Math.max(bounds.right, imageBounds.right), bottom: Math.max(bounds.bottom, imageBounds.bottom),
+      } : imageBounds
+    }
+    if (!bounds) {
+      const rect = svgRef.current?.getBoundingClientRect()
+      const topLeft = screenToDocument({ x: 0, y: 0 }, viewport)
+      const bottomRight = screenToDocument({ x: rect?.width ?? 800, y: rect?.height ?? 600 }, viewport)
+      bounds = { left: topLeft.x, top: topLeft.y, right: bottomRight.x, bottom: bottomRight.y }
+    }
+    updateSelectedGuide((guide) => guide.type === 'line'
+      ? fitLineGuideToRect(guide, bounds!, 32 / Math.max(0.1, viewport.zoom))
+      : guide)
+    setStatus(locale === 'ru' ? 'Направляющая растянута по размеру проекта' : 'Guide fitted to project bounds')
+  }, [backgroundImage, locale, selectedGuide, viewport, visibleElements])
 
   const handleGenerateGuideRow = (generated: StitchElement[]) => {
     if (!generated.length) return
@@ -2541,6 +2600,7 @@ const saveProject = () => {
             <button onClick={() => addGuide('arc')}><strong>⌒</strong><span>{t.arc}</span></button>
             <button onClick={() => addGuide('line')}><strong>／</strong><span>{locale === 'ru' ? 'Линия' : 'Line'}</span></button>
             <button onClick={() => addGuide('curve')}><strong>∿</strong><span>{locale === 'ru' ? 'Кривая' : 'Curve'}</span></button>
+            <button onClick={() => addGuide('parabola')}><strong>∩</strong><span>{locale === 'ru' ? 'Парабола' : 'Parabola'}</span></button>
             <button onClick={() => addGuide('grid')}><strong>▦</strong><span>{t.grid}</span></button>
             <button onClick={() => addGuide('radial-grid')}><strong>◎</strong><span>{t.radial}</span></button>
           </div>
@@ -2770,6 +2830,7 @@ const saveProject = () => {
                 onManipulationStart={handleGuideManipulationStart}
                 onManipulationPreview={handleGuideManipulationPreview}
                 onManipulationEnd={handleGuideManipulationEnd}
+                onReverse={reverseGuideDirection}
               />
             ))}
 
@@ -2811,11 +2872,9 @@ const saveProject = () => {
 
             {legendVisible && <LegendOverlay elements={elements} locale={locale} viewport={viewport} />}
 
-            {mirrorAxis && productivitySelectionIds().length > 0 && (
+            {mirrorAxis && (
               <MirrorAxisOverlay
                 state={mirrorAxis}
-                elements={elements}
-                selectedIds={productivitySelectionIds()}
                 zoom={viewport.zoom}
                 clientToDocument={clientToDocument}
                 onChange={moveMirrorAxis}
@@ -2979,11 +3038,10 @@ const saveProject = () => {
             canUngroup={productivitySelectionIds().some((id) => Boolean(elements.find((element) => element.id === id)?.groupId))}
             onGroup={groupSelection}
             onUngroup={ungroupSelection}
-            onMirror={mirrorSelection}
-            onMirrorCopy={mirrorCopySelection}
+            onDirectionalMirror={directionalMirrorSelection}
             mirrorAxis={mirrorAxis}
             onConfigureMirrorAxis={configureMirrorAxis}
-            onMirrorAxisCoordinateChange={moveMirrorAxis}
+            onMirrorAxisChange={moveMirrorAxis}
             onCenterMirrorAxis={centerMirrorAxis}
             onHideMirrorAxis={() => setMirrorAxis(null)}
             onMirrorAtCustomAxis={mirrorSelectionAroundCustomAxis}
@@ -3092,7 +3150,10 @@ const saveProject = () => {
                   <NumberField label={locale === 'ru' ? 'Начало Y' : 'Start Y'} value={selectedGuide.start.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? { ...guide, start: { ...guide.start, y: value } } : guide)} />
                   <NumberField label={locale === 'ru' ? 'Конец X' : 'End X'} value={selectedGuide.end.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? { ...guide, end: { ...guide.end, x: value } } : guide)} />
                   <NumberField label={locale === 'ru' ? 'Конец Y' : 'End Y'} value={selectedGuide.end.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? { ...guide, end: { ...guide.end, y: value } } : guide)} />
+                  <NumberField label={locale === 'ru' ? 'Длина' : 'Length'} value={Math.round(lineGuideLength(selectedGuide) * 100) / 100} min={1} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? setLineGuideLength(guide, value) : guide)} />
+                  <NumberField label={locale === 'ru' ? 'Угол °' : 'Angle °'} value={Math.round(lineGuideAngle(selectedGuide) * 100) / 100} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? setLineGuideAngle(guide, value) : guide)} />
                   <NumberField label={t.divisions} value={selectedGuide.divisions} min={1} max={100} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? { ...guide, divisions: Math.round(clamp(value, 1, 100)) } : guide)} />
+                  <button type="button" onClick={fitSelectedLineToProject}>{locale === 'ru' ? 'По размеру проекта' : 'Fit to project'}</button>
                 </div>
               )}
 
@@ -3107,6 +3168,18 @@ const saveProject = () => {
                   <NumberField label={locale === 'ru' ? 'Конец X' : 'End X'} value={selectedGuide.end.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, end: { ...guide.end, x: value } } : guide)} />
                   <NumberField label={locale === 'ru' ? 'Конец Y' : 'End Y'} value={selectedGuide.end.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, end: { ...guide.end, y: value } } : guide)} />
                   <NumberField label={t.divisions} value={selectedGuide.divisions} min={1} max={100} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, divisions: Math.round(clamp(value, 1, 100)) } : guide)} />
+                </div>
+              )}
+
+              {selectedGuide.type === 'parabola' && (
+                <div className="number-field-grid">
+                  <NumberField label={locale === 'ru' ? 'Начало X' : 'Start X'} value={selectedGuide.start.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'parabola' ? { ...guide, start: { ...guide.start, x: value } } : guide)} />
+                  <NumberField label={locale === 'ru' ? 'Начало Y' : 'Start Y'} value={selectedGuide.start.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'parabola' ? { ...guide, start: { ...guide.start, y: value } } : guide)} />
+                  <NumberField label={locale === 'ru' ? 'Вершина X' : 'Control X'} value={selectedGuide.control.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'parabola' ? { ...guide, control: { ...guide.control, x: value } } : guide)} />
+                  <NumberField label={locale === 'ru' ? 'Вершина Y' : 'Control Y'} value={selectedGuide.control.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'parabola' ? { ...guide, control: { ...guide.control, y: value } } : guide)} />
+                  <NumberField label={locale === 'ru' ? 'Конец X' : 'End X'} value={selectedGuide.end.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'parabola' ? { ...guide, end: { ...guide.end, x: value } } : guide)} />
+                  <NumberField label={locale === 'ru' ? 'Конец Y' : 'End Y'} value={selectedGuide.end.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'parabola' ? { ...guide, end: { ...guide.end, y: value } } : guide)} />
+                  <NumberField label={t.divisions} value={selectedGuide.divisions} min={1} max={100} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'parabola' ? { ...guide, divisions: Math.round(clamp(value, 1, 100)) } : guide)} />
                 </div>
               )}
 
@@ -3134,6 +3207,13 @@ const saveProject = () => {
               )}
 
               </fieldset>
+
+              {isPathGuide(selectedGuide) && (
+                <div className="guide-direction-actions">
+                  <button disabled={selectedGuide.locked === true} onClick={() => reverseGuideDirection(selectedGuide)}>{locale === 'ru' ? '↔ Сменить направление' : '↔ Reverse direction'}</button>
+                  <small>{locale === 'ru' ? 'Также: двойной клик по направляющей' : 'Also: double-click the guide'}</small>
+                </div>
+              )}
 
               {(selectedGuide.type === 'arc' || selectedGuide.type === 'radial-grid') && (
                 <GuideRowGeneratorPanel

@@ -4,6 +4,7 @@ import type {
   GridGuide,
   Guide,
   LineGuide,
+  ParabolaGuide,
   Point,
   RadialGridGuide,
 } from '../types'
@@ -45,7 +46,7 @@ export function arcGuideSnapPoints(guide: ArcGuide): GuideSnapPoint[] {
   })
 }
 
-function continuousPathSnapPoints(guide: LineGuide | CurveGuide): GuideSnapPoint[] {
+function continuousPathSnapPoints(guide: LineGuide | CurveGuide | ParabolaGuide): GuideSnapPoint[] {
   const divisions = Math.max(1, Math.round(guide.divisions))
   return Array.from({ length: divisions + 1 }, (_, index) => {
     const t = index / divisions
@@ -66,6 +67,10 @@ export function lineGuideSnapPoints(guide: LineGuide) {
 }
 
 export function curveGuideSnapPoints(guide: CurveGuide) {
+  return continuousPathSnapPoints(guide)
+}
+
+export function parabolaGuideSnapPoints(guide: ParabolaGuide) {
   return continuousPathSnapPoints(guide)
 }
 
@@ -138,6 +143,8 @@ export function guideSnapPoints(guide: Guide): GuideSnapPoint[] {
       return lineGuideSnapPoints(guide)
     case 'curve':
       return curveGuideSnapPoints(guide)
+    case 'parabola':
+      return parabolaGuideSnapPoints(guide)
     case 'grid':
       return gridGuideSnapPoints(guide)
     case 'radial-grid':
@@ -163,6 +170,10 @@ export function lineRenderPoints(guide: LineGuide): Point[] {
 }
 
 export function curveRenderPoints(guide: CurveGuide, segments = 64): Point[] {
+  return pathRenderPoints(guide, segments)
+}
+
+export function parabolaRenderPoints(guide: ParabolaGuide, segments = 64): Point[] {
   return pathRenderPoints(guide, segments)
 }
 

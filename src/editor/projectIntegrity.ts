@@ -40,6 +40,10 @@ function guideGeometryIssue(guide: Guide): string | null {
     const points = [guide.start, guide.control1, guide.control2, guide.end]
     if (!points.every((point) => bounded(point.x) && bounded(point.y))) return 'Curve guide geometry is out of bounds'
     if (!positiveInteger(guide.divisions, 100)) return 'Curve guide divisions are out of bounds'
+  } else if (guide.type === 'parabola') {
+    const points = [guide.start, guide.control, guide.end]
+    if (!points.every((point) => bounded(point.x) && bounded(point.y))) return 'Parabola guide geometry is out of bounds'
+    if (!positiveInteger(guide.divisions, 100)) return 'Parabola guide divisions are out of bounds'
   } else if (guide.type === 'grid') {
     if (!bounded(guide.origin.x) || !bounded(guide.origin.y)) return 'Grid guide origin is out of bounds'
     if (!positiveInteger(guide.rows, 50) || !positiveInteger(guide.columns, 50)) return 'Grid guide dimensions are out of bounds'
@@ -162,7 +166,7 @@ export function projectIntegrityIssue(project: CrochetProject, strictReferences 
 
     if (element.guideAttachment) {
       const guide = guideById.get(element.guideAttachment.guideId)
-      if (guide && guide.type !== 'arc' && guide.type !== 'line' && guide.type !== 'curve') return 'Guide attachment references an incompatible guide'
+      if (guide && guide.type !== 'arc' && guide.type !== 'line' && guide.type !== 'curve' && guide.type !== 'parabola') return 'Guide attachment references an incompatible guide'
       if (!guide && strictReferences) return 'Guide attachment references an incompatible guide'
       if (!bounded(element.guideAttachment.normalOffset) || !bounded(element.guideAttachment.rotationOffset)) return 'Guide attachment is out of bounds'
     }

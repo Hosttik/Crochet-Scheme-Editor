@@ -213,6 +213,7 @@ function parseElement(value: unknown): StitchElement {
     !nonEmptyString(value.id) || !nonEmptyString(value.symbolId) ||
     !finite(value.x) || !finite(value.y) || !finite(value.rotation) ||
     !(value.color === undefined || isStitchColor(value.color)) ||
+    !optionalBoolean(value.mirrored) ||
     !optionalBoolean(value.visible) || !optionalBoolean(value.locked) ||
     !(value.groupId === undefined || nonEmptyString(value.groupId)) ||
     !optionalStringArray(value.parentStitchIds)
@@ -229,6 +230,7 @@ function parseElement(value: unknown): StitchElement {
     y: value.y,
     rotation: value.rotation,
     color: typeof value.color === 'string' ? value.color.toLowerCase() : undefined,
+    mirrored: value.mirrored === true,
     visible: value.visible !== false,
     locked: value.locked === true,
     groupId: value.groupId as string | undefined,
@@ -250,6 +252,10 @@ function parseGuide(value: unknown): Guide {
   }
   if (value.type === 'curve') {
     if (!point(value.start) || !point(value.control1) || !point(value.control2) || !point(value.end) || !finite(value.divisions)) throw new ProjectValidationError('Invalid curve guide')
+    return value as unknown as Guide
+  }
+  if (value.type === 'parabola') {
+    if (!point(value.start) || !point(value.control) || !point(value.end) || !finite(value.divisions)) throw new ProjectValidationError('Invalid parabola guide')
     return value as unknown as Guide
   }
   if (value.type === 'grid') {

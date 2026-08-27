@@ -8,6 +8,8 @@ import {
 } from './pathGuides'
 
 export type MirrorAxis = 'left-right' | 'top-bottom'
+export type MirrorDirection = 'left' | 'right' | 'up' | 'down'
+export type MirrorLine = { point: Point; angle: number }
 export type RepeatMode = 'linear' | 'circular' | 'guide'
 export type GuideRepeatOrientation = 'keep' | 'tangent' | 'radial'
 
@@ -95,6 +97,41 @@ export function selectionPivot(elements: StitchElement[], ids: string[]): Point 
   return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }
 }
 
+function selectionWorldBounds(elements: StitchElement[], ids: string[]) {
+  const selected = new Set(ids)
+  const source = elements.filter((element) => selected.has(element.id) && !element.parametricRow)
+  if (!source.length) return null
+  const bounds = source.map((element) => {
+    const definition = SYMBOL_BY_ID.get(element.symbolId)
+    const width = definition?.width ?? 30
+    const height = definition?.height ?? 30
+    const angle = radians(element.rotation)
+    const halfX = Math.abs(Math.cos(angle)) * width / 2 + Math.abs(Math.sin(angle)) * height / 2
+    const halfY = Math.abs(Math.sin(angle)) * width / 2 + Math.abs(Math.cos(angle)) * height / 2
+    return { left: element.x - halfX, right: element.x + halfX, top: element.y - halfY, bottom: element.y + halfY }
+  })
+  return {
+    left: Math.min(...bounds.map((item) => item.left)),
+    right: Math.max(...bounds.map((item) => item.right)),
+    top: Math.min(...bounds.map((item) => item.top)),
+    bottom: Math.max(...bounds.map((item) => item.bottom)),
+  }
+}
+
+export function mirrorLineForDirection(
+  elements: StitchElement[],
+  ids: string[],
+  direction: MirrorDirection,
+  outwardOffset = 0,
+): MirrorLine | null {
+  const bounds = selectionWorldBounds(elements, ids)
+  if (!bounds) return null
+  if (direction === 'right') return { point: { x: bounds.right + outwardOffset, y: 0 }, angle: 90 }
+  if (direction === 'left') return { point: { x: bounds.left - outwardOffset, y: 0 }, angle: 90 }
+  if (direction === 'down') return { point: { x: 0, y: bounds.bottom + outwardOffset }, angle: 0 }
+  return { point: { x: 0, y: bounds.top - outwardOffset }, angle: 0 }
+}
+
 export function expandIdsToGroups(elements: StitchElement[], ids: string[]) {
   const result = new Set(ids)
   const groupIds = new Set(
@@ -127,32 +164,49 @@ export function ungroupElements(elements: StitchElement[], ids: string[]) {
   )
 }
 
+function reflectedPoint(point: Point, line: MirrorLine): Point {
+  const angle = radians(line.angle)
+  const axis = { x: Math.cos(angle), y: Math.sin(angle) }
+  const relative = { x: point.x - line.point.x, y: point.y - line.point.y }
+  const projection = relative.x * axis.x + relative.y * axis.y
+  const x = line.point.x + 2 * projection * axis.x - relative.x
+  const y = line.point.y + 2 * projection * axis.y - relative.y
+  return {
+    x: Math.round(x * 1e12) / 1e12,
+    y: Math.round(y * 1e12) / 1e12,
+  }
+}
+
+export function mirrorElementsAcrossLine(
+  elements: StitchElement[],
+  ids: string[],
+  line: MirrorLine,
+) {
+  if (!Number.isFinite(line.point.x) || !Number.isFinite(line.point.y) || !Number.isFinite(line.angle)) return elements
+  const selected = new Set(ids)
+  return elements.map((element) => {
+    if (!selected.has(element.id) || element.parametricRow) return element
+    const point = reflectedPoint(element, line)
+    return {
+      ...element,
+      ...point,
+      rotation: normalizeDegrees(2 * line.angle - element.rotation + 180),
+      mirrored: !element.mirrored,
+      guideAttachment: undefined,
+    }
+  })
+}
+
 export function mirrorElementsAroundAxis(
   elements: StitchElement[],
   ids: string[],
   axis: MirrorAxis,
   coordinate: number,
 ) {
-  if (!Number.isFinite(coordinate)) return elements
-  const selected = new Set(ids)
-
-  return elements.map((element) => {
-    if (!selected.has(element.id) || element.parametricRow) return element
-    if (axis === 'left-right') {
-      return {
-        ...element,
-        x: coordinate * 2 - element.x,
-        rotation: normalizeDegrees(180 - element.rotation),
-        guideAttachment: undefined,
-      }
-    }
-    return {
-      ...element,
-      y: coordinate * 2 - element.y,
-      rotation: normalizeDegrees(-element.rotation),
-      guideAttachment: undefined,
-    }
-  })
+  const line: MirrorLine = axis === 'left-right'
+    ? { point: { x: coordinate, y: 0 }, angle: 90 }
+    : { point: { x: 0, y: coordinate }, angle: 0 }
+  return mirrorElementsAcrossLine(elements, ids, line)
 }
 
 export function mirrorElements(
@@ -164,6 +218,15 @@ export function mirrorElements(
   if (!pivot) return elements
   const coordinate = axis === 'left-right' ? pivot.x : pivot.y
   return mirrorElementsAroundAxis(elements, ids, axis, coordinate)
+}
+
+export function mirrorElementsToward(
+  elements: StitchElement[],
+  ids: string[],
+  direction: MirrorDirection,
+) {
+  const line = mirrorLineForDirection(elements, ids, direction)
+  return line ? mirrorElementsAcrossLine(elements, ids, line) : elements
 }
 
 function cloneGroupIdMap(source: StitchElement[], createId: IdFactory, makeMotifGroup: boolean) {
@@ -282,7 +345,7 @@ function arcGuideWalk(guide: Extract<Guide, { type: 'arc' }>, pivot: Point): Gui
 }
 
 function continuousPathGuideWalk(
-  guide: Extract<PathGuide, { type: 'line' | 'curve' }>,
+  guide: Extract<PathGuide, { type: 'line' | 'curve' | 'parabola' }>,
   pivot: Point,
 ): GuideWalk {
   const sourceT = nearestPathParameter(guide, pivot)
@@ -360,7 +423,7 @@ function gridGuideWalk(guide: Extract<Guide, { type: 'grid' }>, pivot: Point): G
 
 function guideWalk(guide: Guide, pivot: Point) {
   if (guide.type === 'arc') return arcGuideWalk(guide, pivot)
-  if (guide.type === 'line' || guide.type === 'curve') return continuousPathGuideWalk(guide, pivot)
+  if (guide.type === 'line' || guide.type === 'curve' || guide.type === 'parabola') return continuousPathGuideWalk(guide, pivot)
   if (guide.type === 'radial-grid') return radialGuideWalk(guide, pivot)
   return gridGuideWalk(guide, pivot)
 }

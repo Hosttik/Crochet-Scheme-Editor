@@ -70,3 +70,17 @@
 .productivity-repeat-preview-stitch .symbol-glyph { color: #236b4e; }
 
 .productivity-field-error { display: block; margin-top: -5px; color: #a44036; font-size: 10px; }
+
+.mirror-direction-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.mirror-direction-grid button { padding: 4px; min-height: 42px; }
+.mirror-direction-icon { width: 100%; height: 28px; display: block; }
+.mirror-icon-source { fill: #3c7ed8; }
+.mirror-icon-result { fill: #aeb5b2; }
+.mirror-icon-axis { stroke: #d34a43; stroke-width: 2; }
+.mirror-action-label { color: var(--muted, #66706b); font-size: 11px; }
+.mirror-custom-block { display: grid; gap: 7px; padding-top: 4px; }
+.mirror-axis-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -13,6 +13,8 @@ import {
 } from './productivity'
 import { repeatPreviewSelectionKind, shouldShowRepeatPreview } from './repeatPreview'
 import type { MirrorAxisState } from './MirrorAxisOverlay'
+import { MirrorControls } from './MirrorControls'
+import type { MirrorDirection } from './productivity'
 import './productivity.css'
 
 const COPY = {
@@ -115,7 +117,9 @@ function guideName(guide: Guide, locale: Locale, index: number) {
       ? locale === 'ru' ? 'Линия' : 'Line'
       : guide.type === 'curve'
         ? locale === 'ru' ? 'Кривая' : 'Curve'
-        : guide.type === 'grid'
+        : guide.type === 'parabola'
+          ? locale === 'ru' ? 'Парабола' : 'Parabola'
+          : guide.type === 'grid'
           ? locale === 'ru' ? 'Сетка' : 'Grid'
           : locale === 'ru' ? 'Радиальная сетка' : 'Radial grid'
   return `${index + 1}. ${name}`
@@ -132,11 +136,10 @@ export function ProductivityPanel({
   canUngroup,
   onGroup,
   onUngroup,
-  onMirror,
-  onMirrorCopy,
+  onDirectionalMirror,
   mirrorAxis,
   onConfigureMirrorAxis,
-  onMirrorAxisCoordinateChange,
+  onMirrorAxisChange,
   onCenterMirrorAxis,
   onHideMirrorAxis,
   onMirrorAtCustomAxis,
@@ -153,11 +156,10 @@ export function ProductivityPanel({
   canUngroup: boolean
   onGroup: () => void
   onUngroup: () => void
-  onMirror: (axis: 'left-right' | 'top-bottom') => void
-  onMirrorCopy: (axis: 'left-right' | 'top-bottom') => void
+  onDirectionalMirror: (direction: MirrorDirection, copy: boolean) => void
   mirrorAxis: MirrorAxisState | null
-  onConfigureMirrorAxis: (axis: MirrorAxisState['axis']) => void
-  onMirrorAxisCoordinateChange: (coordinate: number) => void
+  onConfigureMirrorAxis: (angle: number) => void
+  onMirrorAxisChange: (state: MirrorAxisState) => void
   onCenterMirrorAxis: () => void
   onHideMirrorAxis: () => void
   onMirrorAtCustomAxis: () => void
@@ -228,7 +230,7 @@ export function ProductivityPanel({
               transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
               className="productivity-repeat-preview-stitch"
             >
-              <g className="symbol-glyph" style={element.color ? { color: element.color } : undefined}>
+              <g className="symbol-glyph" transform={element.mirrored ? 'scale(-1 1)' : undefined} style={element.color ? { color: element.color } : undefined}>
                 <SymbolGlyph symbolId={element.symbolId} />
               </g>
             </g>
@@ -260,41 +262,18 @@ export function ProductivityPanel({
         </div>
         <small className="muted-text">{copy.groupedHint}</small>
 
-        <div className="productivity-block">
-          <strong>{copy.mirror}</strong>
-          <small className="muted-text">{copy.mirrorHint}</small>
-          <div className="productivity-actions">
-            <button disabled={!canTransform} onClick={() => onMirror('left-right')}>{copy.flipLeftRight}</button>
-            <button disabled={!canTransform} onClick={() => onMirror('top-bottom')}>{copy.flipTopBottom}</button>
-          </div>
-          <div className="productivity-actions">
-            <button disabled={!canTransform} onClick={() => onMirrorCopy('left-right')}>{copy.mirrorCopyLeftRight}</button>
-            <button disabled={!canTransform} onClick={() => onMirrorCopy('top-bottom')}>{copy.mirrorCopyTopBottom}</button>
-          </div>
-          <div className="mirror-axis-config">
-            <div className="productivity-mode-tabs mirror-axis-tabs">
-              <button className={mirrorAxis?.axis === 'left-right' ? 'active' : ''} disabled={!canTransform} onClick={() => onConfigureMirrorAxis('left-right')}>{copy.verticalAxis}</button>
-              <button className={mirrorAxis?.axis === 'top-bottom' ? 'active' : ''} disabled={!canTransform} onClick={() => onConfigureMirrorAxis('top-bottom')}>{copy.horizontalAxis}</button>
-            </div>
-            {mirrorAxis && (
-              <>
-                <small className="muted-text mirror-axis-hint">{copy.axisHint}</small>
-                <label className="productivity-field">
-                  <span>{mirrorAxis.axis === 'left-right' ? copy.axisX : copy.axisY}</span>
-                  <DraftNumberInput ariaLabel={mirrorAxis.axis === 'left-right' ? copy.axisX : copy.axisY} value={mirrorAxis.coordinate} step={1} onChange={onMirrorAxisCoordinateChange} />
-                </label>
-                <div className="productivity-actions">
-                  <button onClick={onCenterMirrorAxis}>{copy.axisCenter}</button>
-                  <button onClick={onHideMirrorAxis}>{copy.hideAxis}</button>
-                </div>
-                <div className="productivity-actions mirror-axis-actions">
-                  <button disabled={!canTransform} onClick={onMirrorAtCustomAxis}>{copy.flipCustom}</button>
-                  <button disabled={!canTransform} onClick={onMirrorCopyAtCustomAxis}>{copy.mirrorCopyCustom}</button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        <MirrorControls
+          locale={locale}
+          canTransform={canTransform}
+          state={mirrorAxis}
+          onDirectional={onDirectionalMirror}
+          onPreset={onConfigureMirrorAxis}
+          onStateChange={onMirrorAxisChange}
+          onCenter={onCenterMirrorAxis}
+          onHide={onHideMirrorAxis}
+          onReflectCustom={onMirrorAtCustomAxis}
+          onCopyCustom={onMirrorCopyAtCustomAxis}
+        />
 
         <div className="productivity-block">
           <strong>{copy.repeat}</strong>

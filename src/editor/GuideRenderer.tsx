@@ -14,7 +14,9 @@ import {
   gridLocalBounds,
   guideSnapPoints,
   lineRenderPoints,
+  parabolaRenderPoints,
 } from './guides'
+import { isPathGuide, pathPoseAt } from './pathGuides'
 
 function pointsAttribute(points: { x: number; y: number }[]) {
   return points.map((point) => `${point.x},${point.y}`).join(' ')
@@ -33,6 +35,7 @@ type Props = {
     moved: boolean,
     cancelled: boolean,
   ) => void
+  onReverse: (guide: Guide) => void
 }
 
 export function GuideRenderer({
@@ -44,6 +47,7 @@ export function GuideRenderer({
   onManipulationStart,
   onManipulationPreview,
   onManipulationEnd,
+  onReverse,
 }: Props) {
   if (!guide.visible) return null
 
@@ -53,6 +57,7 @@ export function GuideRenderer({
   const resizeHandle = selected ? guideResizeHandle(guide) : null
   const rotationHandle = selected ? gridRotationHandle(guide) : null
   const rotationStem = selected ? gridRotationStemPoint(guide) : null
+  const directionPose = isPathGuide(guide) ? pathPoseAt(guide, 1) : null
 
   const startInteraction = (
     event: ReactPointerEvent<SVGElement>,
@@ -161,6 +166,12 @@ export function GuideRenderer({
     <g
       className={`guide-layer guide-${guide.type} ${selected ? 'selected' : ''} ${locked ? 'locked' : ''}`}
       onPointerDown={(event) => startInteraction(event, 'move')}
+      onDoubleClick={(event) => {
+        if (locked || !isPathGuide(guide)) return
+        event.preventDefault()
+        event.stopPropagation()
+        onReverse(guide)
+      }}
     >
       {guide.type === 'arc' && (
         <polyline
@@ -206,6 +217,23 @@ export function GuideRenderer({
                 className="guide-handle-link guide-control-link"
                 vectorEffect="non-scaling-stroke"
               />
+            </g>
+          )}
+        </>
+      )}
+
+      {guide.type === 'parabola' && (
+        <>
+          <polyline
+            points={pointsAttribute(parabolaRenderPoints(guide))}
+            className="guide-stroke guide-hit-target"
+            fill="none"
+            vectorEffect="non-scaling-stroke"
+          />
+          {selected && !locked && (
+            <g className="guide-curve-controls" pointerEvents="none">
+              <line x1={guide.start.x} y1={guide.start.y} x2={guide.control.x} y2={guide.control.y} className="guide-handle-link guide-control-link" vectorEffect="non-scaling-stroke" />
+              <line x1={guide.end.x} y1={guide.end.y} x2={guide.control.x} y2={guide.control.y} className="guide-handle-link guide-control-link" vectorEffect="non-scaling-stroke" />
             </g>
           )}
         </>
@@ -279,6 +307,16 @@ export function GuideRenderer({
         </g>
       )}
 
+      {directionPose && (
+        <polygon
+          points={`${-12 / zoom},${-5 / zoom} 0,0 ${-12 / zoom},${5 / zoom}`}
+          transform={`translate(${directionPose.point.x} ${directionPose.point.y}) rotate(${directionPose.tangent})`}
+          className="guide-direction-arrow"
+          vectorEffect="non-scaling-stroke"
+          pointerEvents="none"
+        />
+      )}
+
       {selected && locked && (
         <text x={center.x + 10 / zoom} y={center.y - 10 / zoom} fontSize={12 / zoom} className="guide-lock-indicator">🔒</text>
       )}
@@ -309,6 +347,14 @@ export function GuideRenderer({
               {pointHandle('curve-control1', guide.control1, 'control1', 'guide-control-handle')}
               {pointHandle('curve-control2', guide.control2, 'control2', 'guide-control-handle')}
               {pointHandle('curve-end', guide.end, 'end', 'guide-path-endpoint')}
+            </>
+          )}
+
+          {guide.type === 'parabola' && (
+            <>
+              {pointHandle('parabola-start', guide.start, 'start', 'guide-path-endpoint')}
+              {pointHandle('parabola-control', guide.control, 'control', 'guide-control-handle')}
+              {pointHandle('parabola-end', guide.end, 'end', 'guide-path-endpoint')}
             </>
           )}
 
