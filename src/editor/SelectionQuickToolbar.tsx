@@ -75,6 +75,7 @@ export function SelectionQuickToolbar({
   const selectionTop = viewport.panY + bounds.top * viewport.zoom
   const selectionBottom = viewport.panY + bounds.bottom * viewport.zoom
   let highestInteractiveY = selectionTop
+  let preferBelowForCompactRotationHandle = false
 
   if (selectedIds.length === 1) {
     const element = elements.find((item) => item.id === selectedIds[0])
@@ -82,17 +83,18 @@ export function SelectionQuickToolbar({
     const directRotation = element && definition && element.locked !== true && !element.parametricRow && (
       !element.guideAttachment || element.guideAttachment.orientation === 'keep'
     )
-    if (directRotation && element) {
+    if (directRotation && element && definition) {
       const handleLocalY = -definition.height / 2 - 30
       const radians = (element.rotation * Math.PI) / 180
       const handleDocumentY = element.y + handleLocalY * Math.cos(radians)
       const handleScreenY = viewport.panY + handleDocumentY * viewport.zoom
       highestInteractiveY = Math.min(highestInteractiveY, handleScreenY - 8)
+      preferBelowForCompactRotationHandle = definition.height <= 24
     }
   }
 
   const aboveAnchor = highestInteractiveY - 10
-  const below = aboveAnchor < 52
+  const below = preferBelowForCompactRotationHandle || aboveAnchor < 52
   const top = below ? selectionBottom + 14 : aboveAnchor
 
   return (
