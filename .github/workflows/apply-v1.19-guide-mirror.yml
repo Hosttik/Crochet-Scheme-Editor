@@ -1,0 +1,43 @@
+name: Apply v1.19 guide mirror geometry
+
+on:
+  push:
+    branches:
+      - feature/v1.19-guide-mirror-geometry
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Apply v1.19 geometry changes
+        run: |
+          python scripts/apply_v1_19_guide_mirror.py
+          npm version 1.19.0 --no-git-tag-version
+      - name: Build and unit verification
+        run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Full Chromium geometry gate
+        run: npx playwright test --project=chromium
+      - name: Commit verified product changes
+        run: |
+          rm -f .github/workflows/apply-v1.19-guide-mirror.yml
+          rm -f scripts/apply_v1_19_guide_mirror.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git status --short
+          git commit -m 'Upgrade guide and mirror geometry for v1.19.0'
+          git push origin HEAD:feature/v1.19-guide-mirror-geometry
