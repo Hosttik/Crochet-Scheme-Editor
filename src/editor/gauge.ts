@@ -1,6 +1,14 @@
+import { SYMBOL_BY_ID } from '../symbols'
 import type { GaugeProfile, GaugeSettings, MeasurementRuler, Point, StitchElement } from '../types'
 import { patternRows } from './parametricRows'
 import { rowConstructionRowTotal } from './rowConstruction'
+
+export const RULER_CORRIDOR_HALF_WIDTH = 8
+
+export type RulerCorridorHit = {
+  elementIds: string[]
+  rowIds: string[]
+}
 
 export function emptyGaugeSettings(): GaugeSettings {
   return { profiles: [] }
@@ -82,6 +90,58 @@ export function reconcileRulerElementReferences(
   return changed ? next : rulers
 }
 
+function projectedHalfExtent(element: StitchElement, axis: Point) {
+  const definition = SYMBOL_BY_ID.get(element.symbolId)
+  const width = definition?.width ?? 30
+  const height = definition?.height ?? 30
+  const angle = element.rotation * Math.PI / 180
+  const localX = { x: Math.cos(angle), y: Math.sin(angle) }
+  const localY = { x: -Math.sin(angle), y: Math.cos(angle) }
+  return Math.abs(axis.x * localX.x + axis.y * localX.y) * width / 2
+    + Math.abs(axis.x * localY.x + axis.y * localY.y) * height / 2
+}
+
+export function rulerCorridorHits(
+  ruler: MeasurementRuler,
+  elements: StitchElement[],
+  halfWidth = RULER_CORRIDOR_HALF_WIDTH,
+): RulerCorridorHit {
+  const dx = ruler.end.x - ruler.start.x
+  const dy = ruler.end.y - ruler.start.y
+  const length = Math.hypot(dx, dy)
+  if (length < 1e-6) return { elementIds: [], rowIds: [] }
+  const along = { x: dx / length, y: dy / length }
+  const normal = { x: -along.y, y: along.x }
+  const hits = elements.filter((element) => {
+    if (element.visible === false) return false
+    if (SYMBOL_BY_ID.get(element.symbolId)?.role === 'marker') return false
+    const relative = { x: element.x - ruler.start.x, y: element.y - ruler.start.y }
+    const t = relative.x * along.x + relative.y * along.y
+    const cross = Math.abs(relative.x * normal.x + relative.y * normal.y)
+    const alongRadius = projectedHalfExtent(element, along)
+    const crossRadius = projectedHalfExtent(element, normal)
+    return t >= -alongRadius && t <= length + alongRadius && cross <= halfWidth + crossRadius
+  })
+  const rowSet = new Set(hits.flatMap((element) => element.parametricRow?.id ? [element.parametricRow.id] : []))
+  const orderedRows = patternRows(elements).map((row) => row.id).filter((id) => rowSet.has(id))
+  return { elementIds: hits.map((element) => element.id), rowIds: orderedRows }
+}
+
+export function rulerCorridorPolygon(ruler: MeasurementRuler, halfWidth = RULER_CORRIDOR_HALF_WIDTH): Point[] {
+  const dx = ruler.end.x - ruler.start.x
+  const dy = ruler.end.y - ruler.start.y
+  const length = Math.hypot(dx, dy)
+  if (length < 1e-6) return []
+  const nx = -dy / length * halfWidth
+  const ny = dx / length * halfWidth
+  return [
+    { x: ruler.start.x + nx, y: ruler.start.y + ny },
+    { x: ruler.end.x + nx, y: ruler.end.y + ny },
+    { x: ruler.end.x - nx, y: ruler.end.y - ny },
+    { x: ruler.start.x - nx, y: ruler.start.y - ny },
+  ]
+}
+
 function automaticRulerStitchCount(ruler: MeasurementRuler, elements: StitchElement[]) {
   if (!ruler.startElementId || !ruler.endElementId) return null
   const start = elements.find((element) => element.id === ruler.startElementId)
@@ -92,7 +152,9 @@ function automaticRulerStitchCount(ruler: MeasurementRuler, elements: StitchElem
   const startIndex = row.findIndex((element) => element.id === start.id)
   const endIndex = row.findIndex((element) => element.id === end.id)
   if (startIndex < 0 || endIndex < 0) return null
-  return { count: Math.abs(endIndex - startIndex) + 1, rowId }
+  const low = Math.min(startIndex, endIndex)
+  const high = Math.max(startIndex, endIndex)
+  return { count: high - low + 1, rowId, elementIds: row.slice(low, high + 1).map((element) => element.id) }
 }
 
 function automaticRulerRowCount(ruler: MeasurementRuler, elements: StitchElement[]) {
@@ -106,10 +168,16 @@ function automaticRulerRowCount(ruler: MeasurementRuler, elements: StitchElement
   const startIndex = rows.findIndex((row) => row.id === startRowId)
   const endIndex = rows.findIndex((row) => row.id === endRowId)
   if (startIndex < 0 || endIndex < 0) return null
+  const low = Math.min(startIndex, endIndex)
+  const high = Math.max(startIndex, endIndex)
+  const rowIds = rows.slice(low, high + 1).map((row) => row.id)
+  const rowSet = new Set(rowIds)
   return {
-    count: Math.abs(endIndex - startIndex) + 1,
-    startRowId,
-    endRowId,
+    count: high - low + 1,
+    startRowId: rows[low]?.id,
+    endRowId: rows[high]?.id,
+    rowIds,
+    elementIds: elements.filter((element) => element.parametricRow?.id && rowSet.has(element.parametricRow.id)).map((element) => element.id),
   }
 }
 
@@ -121,8 +189,11 @@ export type RulerEstimate = {
   rowId?: string
   startRowId?: string
   endRowId?: string
+  elementIds?: string[]
+  rowIds?: string[]
   mode: 'stitches' | 'rows'
   source: 'automatic' | 'manual' | 'none'
+  strategy?: 'semantic-endpoints' | 'corridor'
 }
 
 export function rulerEstimate(
@@ -132,43 +203,62 @@ export function rulerEstimate(
 ): RulerEstimate {
   const profile = gaugeProfileById(gauge, ruler.profileId)
   const mode = ruler.mode ?? 'stitches'
+  const corridor = rulerCorridorHits(ruler, elements)
 
   if (mode === 'rows') {
-    const automatic = automaticRulerRowCount(ruler, elements)
-    const manual = ruler.manualRowCount && ruler.manualRowCount > 0
-      ? ruler.manualRowCount
-      : null
+    const endpointAutomatic = automaticRulerRowCount(ruler, elements)
+    const corridorAutomatic = corridor.rowIds.length ? {
+      count: corridor.rowIds.length,
+      startRowId: corridor.rowIds[0],
+      endRowId: corridor.rowIds[corridor.rowIds.length - 1],
+      rowIds: corridor.rowIds,
+      elementIds: corridor.elementIds,
+    } : null
+    const automatic = endpointAutomatic ?? corridorAutomatic
+    const manual = ruler.manualRowCount && ruler.manualRowCount > 0 ? ruler.manualRowCount : null
     const rowCount = manual ?? automatic?.count ?? undefined
+    const strategy = endpointAutomatic ? 'semantic-endpoints' : corridorAutomatic ? 'corridor' : undefined
     return {
       profile,
       mode,
       rowCount,
       startRowId: automatic?.startRowId,
       endRowId: automatic?.endRowId,
+      rowIds: manual ? undefined : automatic?.rowIds,
+      elementIds: manual ? undefined : automatic?.elementIds,
+      strategy: manual ? undefined : strategy,
       source: manual ? 'manual' : automatic ? 'automatic' : 'none',
       lengthCm: profile && rowCount ? rowCount * rowHeightCm(profile) : undefined,
     }
   }
 
-  const automatic = automaticRulerStitchCount(ruler, elements)
-  const manual = ruler.manualStitchCount && ruler.manualStitchCount > 0
-    ? ruler.manualStitchCount
-    : null
+  const endpointAutomatic = automaticRulerStitchCount(ruler, elements)
+  const corridorAutomatic = corridor.elementIds.length ? {
+    count: corridor.elementIds.length,
+    elementIds: corridor.elementIds,
+    rowId: (() => {
+      const ids = new Set(corridor.elementIds.map((id) => elements.find((element) => element.id === id)?.parametricRow?.id).filter(Boolean))
+      return ids.size === 1 ? [...ids][0] as string : undefined
+    })(),
+  } : null
+  const automatic = endpointAutomatic ?? corridorAutomatic
+  const manual = ruler.manualStitchCount && ruler.manualStitchCount > 0 ? ruler.manualStitchCount : null
   const stitchCount = manual ?? automatic?.count ?? undefined
+  const strategy = endpointAutomatic ? 'semantic-endpoints' : corridorAutomatic ? 'corridor' : undefined
   return {
     profile,
     mode,
     stitchCount,
     rowId: automatic?.rowId,
+    elementIds: manual ? undefined : automatic?.elementIds,
+    strategy: manual ? undefined : strategy,
     source: manual ? 'manual' : automatic ? 'automatic' : 'none',
     lengthCm: profile && stitchCount ? stitchCount * stitchWidthCm(profile) : undefined,
   }
 }
 
 function formattedNumber(value: number, locale: 'ru' | 'en') {
-  return new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : 'en-US', {
-    maximumFractionDigits: 1,
-  }).format(value)
+  return new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : 'en-US', { maximumFractionDigits: 1 }).format(value)
 }
 
 export function rulerDisplayLabel(
@@ -179,19 +269,13 @@ export function rulerDisplayLabel(
 ) {
   const estimate = rulerEstimate(ruler, elements, gauge)
   if (!estimate.profile) return locale === 'ru' ? 'Нет образца' : 'No gauge'
-
   if (estimate.mode === 'rows') {
-    if (!estimate.rowCount || estimate.lengthCm == null) {
-      return locale === 'ru' ? 'Задайте число рядов' : 'Set row count'
-    }
+    if (!estimate.rowCount || estimate.lengthCm == null) return locale === 'ru' ? 'Задайте число рядов' : 'Set row count'
     return locale === 'ru'
       ? `${estimate.rowCount} р. · ≈ ${formattedNumber(estimate.lengthCm, locale)} см`
       : `${estimate.rowCount} rows · ≈ ${formattedNumber(estimate.lengthCm, locale)} cm`
   }
-
-  if (!estimate.stitchCount || estimate.lengthCm == null) {
-    return locale === 'ru' ? 'Задайте число петель' : 'Set stitch count'
-  }
+  if (!estimate.stitchCount || estimate.lengthCm == null) return locale === 'ru' ? 'Задайте число петель' : 'Set stitch count'
   return locale === 'ru'
     ? `${estimate.stitchCount} п. · ≈ ${formattedNumber(estimate.lengthCm, locale)} см`
     : `${estimate.stitchCount} sts · ≈ ${formattedNumber(estimate.lengthCm, locale)} cm`

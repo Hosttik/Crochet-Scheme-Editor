@@ -186,3 +186,18 @@ select { width: 100%; padding: 8px 9px; border: 1px solid #d9d5cd; border-radius
   .brand span { display: none; }
   .canvas-hint { display: none; }
 }
+
+
+/* v1.22 Smart Ruler corridor */
+.ruler-corridor {
+  fill: rgba(48, 116, 86, .10);
+  stroke: rgba(48, 116, 86, .38);
+  stroke-width: 1;
+  stroke-dasharray: 5 4;
+}
+.ruler-counted-element {
+  fill: rgba(52, 132, 94, .08);
+  stroke: #2f8a64;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+}
