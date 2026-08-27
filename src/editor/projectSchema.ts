@@ -12,6 +12,7 @@ import type {
   RowMarker,
   SnappingSettings,
   StitchElement,
+  StitchGeometry,
 } from '../types'
 import { isStitchColor } from './elementColor'
 import { rowProgramMetrics } from './rowProgram'
@@ -207,6 +208,22 @@ function parseGuideAttachment(value: unknown): GuideAttachment | undefined {
   return value as unknown as GuideAttachment
 }
 
+function parseStitchGeometry(value: unknown): StitchGeometry | undefined {
+  if (value === undefined) return undefined
+  if (!isRecord(value)) throw new ProjectValidationError('Invalid stitch geometry')
+  const validScale = (candidate: unknown) => candidate === undefined || (finite(candidate) && candidate >= 0.35 && candidate <= 3)
+  const validSpread = (candidate: unknown) => candidate === undefined || (finite(candidate) && candidate >= 0.45 && candidate <= 2.5)
+  if (!validScale(value.scaleX) || !validScale(value.scaleY) || !validSpread(value.spread)) {
+    throw new ProjectValidationError('Invalid stitch geometry')
+  }
+  if (value.scaleX === undefined && value.scaleY === undefined && value.spread === undefined) return undefined
+  return {
+    scaleX: value.scaleX as number | undefined,
+    scaleY: value.scaleY as number | undefined,
+    spread: value.spread as number | undefined,
+  }
+}
+
 function parseElement(value: unknown): StitchElement {
   if (!isRecord(value)) throw new ProjectValidationError('Invalid stitch element')
   if (
@@ -220,6 +237,7 @@ function parseElement(value: unknown): StitchElement {
   ) throw new ProjectValidationError('Invalid stitch element fields')
   const parametricRow = parseParametricRow(value.parametricRow)
   const guideAttachment = parseGuideAttachment(value.guideAttachment)
+  const geometry = parseStitchGeometry(value.geometry)
   if (parametricRow && guideAttachment) {
     throw new ProjectValidationError('Parametric rows cannot also use manual guide attachments')
   }
@@ -231,6 +249,7 @@ function parseElement(value: unknown): StitchElement {
     rotation: value.rotation,
     color: typeof value.color === 'string' ? value.color.toLowerCase() : undefined,
     mirrored: value.mirrored === true,
+    geometry,
     visible: value.visible !== false,
     locked: value.locked === true,
     groupId: value.groupId as string | undefined,
