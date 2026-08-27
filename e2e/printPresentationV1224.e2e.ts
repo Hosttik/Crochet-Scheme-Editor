@@ -21,7 +21,7 @@ async function placeAt(page: Page, title: string, rx: number, ry: number) {
 test('shows the package version in app chrome', async ({ page }) => {
   await openEditor(page)
   const version = await page.locator('.brand').evaluate((element) => getComputedStyle(element, '::after').content.replaceAll('"', ''))
-  expect(version).toBe('v1.22.4')
+  expect(version).toBe('v1.23.0')
 })
 
 test('persists white canvas and grid visibility preferences', async ({ page }) => {
