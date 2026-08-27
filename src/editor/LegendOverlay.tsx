@@ -14,9 +14,15 @@ export function LegendOverlay({ elements, locale, viewport }: Props) {
   const items = usedLegendItems(visible)
   if (!visible.length || !items.length) return null
 
-  const width = 230
-  const rowHeight = 30
-  const height = 34 + items.length * rowHeight
+  const rows = items.map((symbol) => {
+    const label = symbolName(symbol.id, symbol.name, locale)
+    const abbreviation = symbol.abbreviation ? `${symbol.abbreviation} · ` : ''
+    return { symbol, text: `${abbreviation}${label}` }
+  })
+  const longestLabel = rows.reduce((longest, row) => Math.max(longest, row.text.length), 0)
+  const width = Math.max(260, 72 + longestLabel * 6.7)
+  const rowHeight = 36
+  const height = 44 + rows.length * rowHeight
   const x = (14 - viewport.panX) / viewport.zoom
   const y = (54 - viewport.panY) / viewport.zoom
 
@@ -27,17 +33,15 @@ export function LegendOverlay({ elements, locale, viewport }: Props) {
       pointerEvents="none"
     >
       <rect className="legend-background" width={width} height={height} rx={8} vectorEffect="non-scaling-stroke" />
-      <text className="legend-title" x={12} y={22} fontSize={13}>
+      <text className="legend-title" x={12} y={23} fontSize={13}>
         {locale === 'ru' ? 'Условные обозначения' : 'Legend'}
       </text>
-      {items.map((symbol, index) => {
-        const rowY = 38 + index * rowHeight
-        const label = symbolName(symbol.id, symbol.name, locale)
-        const abbreviation = symbol.abbreviation ? `${symbol.abbreviation} · ` : ''
+      {rows.map(({ symbol, text }, index) => {
+        const rowY = 42 + index * rowHeight
         return (
-          <g key={symbol.id} transform={`translate(20 ${rowY + 9})`}>
+          <g key={symbol.id} transform={`translate(20 ${rowY + 10})`}>
             <g className="symbol-glyph legend-glyph" transform="scale(0.55)"><SymbolGlyph symbolId={symbol.id} /></g>
-            <text className="legend-label" x={24} y={4} fontSize={12}>{abbreviation}{label}</text>
+            <text className="legend-label" x={28} y={4} fontSize={12}>{text}</text>
           </g>
         )
       })}
