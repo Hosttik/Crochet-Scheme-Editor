@@ -23,7 +23,9 @@ jobs:
       - run: npm ci
       - name: Apply v1.19 geometry changes
         run: |
+          sed -i "/replace_once('src\/i18n.ts', 'v1.18.0', 'v1.19.0')/d" scripts/apply_v1_19_guide_mirror.py
           python scripts/apply_v1_19_guide_mirror.py
+          sed -i 's/v1\.18\.0/v1.19.0/g' src/i18n.ts
           npm version 1.19.0 --no-git-tag-version
       - name: Build and unit verification
         run: npm run build
