@@ -34,7 +34,8 @@
   font-size: 11px;
 }
 
-.productivity-mode-tabs button.active {
+.productivity-mode-tabs button.active,
+.mirror-direction-grid button.active {
   box-shadow: inset 0 0 0 1px currentColor;
   font-weight: 700;
 }
@@ -65,9 +66,10 @@
   font-weight: 700;
 }
 
-.productivity-repeat-preview { color: #236b4e; }
 .productivity-repeat-preview-stitch { opacity: .38; }
 .productivity-repeat-preview-stitch .symbol-glyph { color: #236b4e; }
+.productivity-mirror-preview-stitch { opacity: .42; }
+.productivity-mirror-preview-stitch .symbol-glyph { color: #9d4a2b; }
 
 .productivity-field-error { display: block; margin-top: -5px; color: #a44036; font-size: 10px; }
 
@@ -84,3 +86,10 @@
 .mirror-action-label { color: var(--muted, #66706b); font-size: 11px; }
 .mirror-custom-block { display: grid; gap: 7px; padding-top: 4px; }
 .mirror-axis-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mirror-preview-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.mirror-preview-actions button { min-width: 0; padding-inline: 5px; font-size: 10px; }
+.repeat-transaction-actions { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
