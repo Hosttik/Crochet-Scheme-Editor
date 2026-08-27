@@ -85,3 +85,33 @@ test('calibrates a swatch, estimates a row and measures it with a smart ruler', 
   await expect(page.locator('.measurement-ruler')).toHaveCount(2)
   await expect(page.locator('.measurement-ruler').nth(1).locator('.ruler-label')).toContainText('2 р.')
 })
+
+
+test('corridor auto-counts a free 4-chain motif and highlights all counted stitches', async ({ page }) => {
+  await page.goto('/Crochet-Scheme-Editor/')
+  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
+
+  const gauge = page.locator('.gauge-panel')
+  await gauge.getByRole('button', { name: 'Добавить образец плотности' }).click()
+  await gauge.getByLabel('Петель в образце').fill('20')
+  await gauge.getByLabel('Петель в образце').press('Enter')
+  await gauge.getByLabel('Ширина образца в сантиметрах').fill('10')
+  await gauge.getByLabel('Ширина образца в сантиметрах').press('Enter')
+
+  await page.getByRole('button', { name: /4 воздушные петли/ }).click()
+  const canvas = page.locator('svg.editor-canvas')
+  const box = await canvas.boundingBox()
+  expect(box).not.toBeNull()
+  await canvas.click({ position: { x: box!.width * 0.55, y: box!.height * 0.52 } })
+  await expect(page.locator('.stitch-element')).toHaveCount(4)
+
+  await gauge.getByRole('button', { name: 'Поставить линейку' }).click()
+  await page.locator('.stitch-element').first().click()
+  await page.locator('.stitch-element').last().click()
+
+  const ruler = page.locator('.measurement-ruler').first()
+  await expect(ruler.locator('.ruler-label')).toContainText('4 п.')
+  await expect(gauge.getByTestId('ruler-auto-summary')).toContainText('Авто по коридору: 4 петель')
+  await expect(ruler.getByTestId('ruler-corridor')).toBeVisible()
+  await expect(ruler.locator('.ruler-counted-element')).toHaveCount(4)
+})

@@ -5,6 +5,7 @@ import {
   reconcileRulerElementReferences,
   rowHeightCm,
   rowLengthEstimateCm,
+  rulerCorridorHits,
   rulerEstimate,
   snapRulerPoint,
   stitchWidthCm,
@@ -184,6 +185,41 @@ describe('gauge calculations', () => {
     expect(reconciled[0].startElementId).toBe('a')
     expect(reconciled[0].endElementId).toBeUndefined()
     expect(reconcileRulerElementReferences(reconciled, elements)).toBe(reconciled)
+  })
+
+
+  it('counts free stitches geometrically through the finite ruler corridor', () => {
+    const free: StitchElement[] = [0, 22, 44, 66].map((x, index) => ({
+      id: `chain-${index}`,
+      symbolId: 'chain',
+      x,
+      y: 0,
+      rotation: 0,
+    }))
+    const ruler: MeasurementRuler = { id: 'corridor-free', start: { x: -10, y: 0 }, end: { x: 76, y: 0 } }
+    const estimate = rulerEstimate(ruler, free, gauge)
+    expect(estimate).toMatchObject({ stitchCount: 4, source: 'automatic', strategy: 'corridor' })
+    expect(estimate.elementIds).toEqual(free.map((element) => element.id))
+  })
+
+  it('counts unique semantic rows crossed by a free corridor without endpoint attachments', () => {
+    const ruler: MeasurementRuler = { id: 'corridor-rows', start: { x: 0, y: 28 }, end: { x: 0, y: 92 }, mode: 'rows' }
+    expect(rulerEstimate(ruler, elements, gauge)).toMatchObject({
+      rowCount: 2,
+      source: 'automatic',
+      strategy: 'corridor',
+      rowIds: ['row-1', 'row-2'],
+    })
+  })
+
+  it('ignores hidden stitches and marker symbols in corridor hit testing', () => {
+    const sample: StitchElement[] = [
+      { id: 'visible', symbolId: 'chain', x: 0, y: 0, rotation: 0 },
+      { id: 'hidden', symbolId: 'chain', x: 22, y: 0, rotation: 0, visible: false },
+      { id: 'marker', symbolId: 'start-marker', x: 44, y: 0, rotation: 0 },
+    ]
+    const hits = rulerCorridorHits({ id: 'filter', start: { x: -20, y: 0 }, end: { x: 60, y: 0 } }, sample)
+    expect(hits.elementIds).toEqual(['visible'])
   })
 
 })

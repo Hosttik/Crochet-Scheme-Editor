@@ -228,8 +228,8 @@ export function GaugeRulerPanel({
         </button>
         <small className="muted-text">
           {ru
-            ? 'Две точки. В режиме петель считаются петли одного ряда; в режиме рядов — семантические ряды между точками.'
-            : 'Pick two points. Stitch mode counts one row; row mode counts semantic rows between endpoints.'}
+            ? 'Проведите линейку через схему: полупрозрачный коридор автоматически считает пересечённые элементы. Для привязанных точек одного ряда сохраняется точный семантический диапазон.'
+            : 'Draw through the chart: the translucent corridor automatically counts intersected elements. Endpoints snapped to one semantic row keep the exact row range.'}
         </small>
 
         {rulers.length > 0 && (
@@ -278,7 +278,7 @@ export function GaugeRulerPanel({
             </label>
             {(selectedRuler.mode ?? 'stitches') === 'rows' ? (
               <label className="gauge-field">
-                <span>{ru ? 'Рядов вручную (0 = авто)' : 'Manual rows (0 = auto)'}</span>
+                <span>{ru ? 'Рядов вручную (переопределить авто)' : 'Manual rows (override auto)'}</span>
                 <DraftNumberInput
                   value={selectedRuler.manualRowCount ?? 0}
                   min={0}
@@ -293,7 +293,7 @@ export function GaugeRulerPanel({
               </label>
             ) : (
               <label className="gauge-field">
-                <span>{ru ? 'Петель вручную (0 = авто)' : 'Manual stitches (0 = auto)'}</span>
+                <span>{ru ? 'Петель вручную (переопределить авто)' : 'Manual stitches (override auto)'}</span>
                 <DraftNumberInput
                   value={selectedRuler.manualStitchCount ?? 0}
                   min={0}
@@ -311,15 +311,19 @@ export function GaugeRulerPanel({
               const estimate = rulerEstimate(selectedRuler, elements, gauge)
               if (estimate.mode === 'rows') {
                 if (estimate.source === 'automatic' && estimate.rowCount) {
-                  return <small>{ru ? `Автоматически между рядами: ${estimate.rowCount} р.` : `Automatic between rows: ${estimate.rowCount} rows`}</small>
+                  return <small data-testid="ruler-auto-summary">{estimate.strategy === 'corridor'
+                    ? (ru ? `Авто по коридору: ${estimate.rowCount} р. · подсвечено ${estimate.elementIds?.length ?? 0} элементов` : `Corridor auto-count: ${estimate.rowCount} rows · ${estimate.elementIds?.length ?? 0} highlighted elements`)
+                    : (ru ? `Автоматически между рядами: ${estimate.rowCount} р.` : `Automatic between rows: ${estimate.rowCount} rows`)}</small>
                 }
                 if (estimate.source === 'manual' && estimate.rowCount) {
                   return <small>{ru ? `Ручной расчёт: ${estimate.rowCount} р.` : `Manual count: ${estimate.rowCount} rows`}</small>
                 }
-                return <small>{ru ? 'Привяжите точки к параметрическим рядам или укажите число рядов вручную.' : 'Snap endpoints to parametric rows or enter the row count manually.'}</small>
+                return <small>{ru ? 'Проведите коридор через параметрические ряды или укажите число рядов вручную.' : 'Draw the corridor through semantic rows or enter the row count manually.'}</small>
               }
               if (estimate.source === 'automatic' && estimate.stitchCount) {
-                return <small>{ru ? `Автоматически по ряду: ${estimate.stitchCount} петель` : `Automatic from row: ${estimate.stitchCount} stitches`}</small>
+                return <small data-testid="ruler-auto-summary">{estimate.strategy === 'corridor'
+                  ? (ru ? `Авто по коридору: ${estimate.stitchCount} петель` : `Corridor auto-count: ${estimate.stitchCount} stitches`)
+                  : (ru ? `Автоматически по ряду: ${estimate.stitchCount} петель` : `Automatic from row: ${estimate.stitchCount} stitches`)}</small>
               }
               if (estimate.source === 'manual' && estimate.stitchCount) {
                 return <small>{ru ? `Ручной расчёт: ${estimate.stitchCount} петель` : `Manual count: ${estimate.stitchCount} stitches`}</small>

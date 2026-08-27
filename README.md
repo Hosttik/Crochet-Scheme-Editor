@@ -2,6 +2,10 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
+## v1.22.0
+
+Smart Ruler corridor release: free measurement rulers now auto-count visible stitch geometry intersected by a finite translucent corridor, including manual/non-parametric motifs such as the 2/3/4-chain presets. Row mode counts unique semantic rows crossed by the corridor, selected rulers highlight the elements contributing to automatic counts, and explicit manual counts remain available as an override/fallback. Existing same-row endpoint snapping retains its exact semantic range behavior. Project schema remains v21.
+
 ## v1.19.0
 
 Guide & Mirror Geometry release: straight guides now expose semantic length/angle editing, project-span fitting, visible work direction and reversible path direction. A quadratic Parabola guide adds a simple one-control-point curve while keeping legacy cubic Curve geometry intact. Mirror authoring now uses true reflected glyph parity, directional reflect/copy controls, and an arbitrary movable/rotatable custom axis that stays on the canvas while selection changes. Project schema is v20.
