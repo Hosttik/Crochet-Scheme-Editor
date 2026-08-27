@@ -152,6 +152,16 @@
   pointer-events: none;
 }
 
+.guide-value-label {
+  fill: #285743;
+  stroke: rgba(255,255,255,.96);
+  stroke-width: 4px;
+  paint-order: stroke fill;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+  pointer-events: none;
+}
+
 .guide-direction-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
