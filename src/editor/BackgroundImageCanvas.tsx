@@ -12,6 +12,7 @@ import {
 type Props = {
   background: BackgroundImage
   selected: boolean
+  interactive: boolean
   zoom: number
   clientToDocument: (clientX: number, clientY: number) => Point
   onSelect: () => void
@@ -25,6 +26,7 @@ type Mode = { type: 'move' } | { type: 'rotate' } | { type: 'resize'; handle: Ba
 export function BackgroundImageCanvas({
   background,
   selected,
+  interactive,
   zoom,
   clientToDocument,
   onSelect,
@@ -40,7 +42,7 @@ export function BackgroundImageCanvas({
   const rotationOffset = 32 / zoom
 
   const startInteraction = (event: ReactPointerEvent<SVGElement>, mode: Mode) => {
-    if (event.button !== 0) return
+    if (!interactive || event.button !== 0) return
     event.preventDefault()
     event.stopPropagation()
     onSelect()
@@ -111,7 +113,7 @@ export function BackgroundImageCanvas({
   )
 
   return (
-    <g className={`background-canvas-layer ${selected ? 'selected' : ''} ${locked ? 'locked' : ''}`}>
+    <g className={`background-canvas-layer ${selected ? 'selected' : ''} ${interactive ? 'interactive' : ''} ${locked ? 'locked' : ''}`}>
       <g transform={`rotate(${rotation} ${center.x} ${center.y})`}>
         <image
           data-testid="background-image"
@@ -123,9 +125,10 @@ export function BackgroundImageCanvas({
           height={background.height}
           opacity={background.opacity}
           preserveAspectRatio="none"
+          style={{ pointerEvents: interactive ? 'visiblePainted' : 'none' }}
           onPointerDown={(event) => startInteraction(event, { type: 'move' })}
         />
-        {selected && (
+        {selected && interactive && (
           <rect
             data-testid="background-selection-box"
             className="background-selection-box"
@@ -137,7 +140,7 @@ export function BackgroundImageCanvas({
             pointerEvents="none"
           />
         )}
-        {selected && !locked && (
+        {selected && interactive && !locked && (
           <g className="background-manipulation-ui">
             {cornerHandle('nw', background.x, background.y)}
             {cornerHandle('ne', background.x + background.width, background.y)}
@@ -163,7 +166,7 @@ export function BackgroundImageCanvas({
             />
           </g>
         )}
-        {selected && locked && (
+        {selected && interactive && locked && (
           <text x={background.x + 8 / zoom} y={background.y + 18 / zoom} fontSize={13 / zoom} className="background-lock-indicator">🔒</text>
         )}
       </g>
