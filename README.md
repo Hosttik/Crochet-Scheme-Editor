@@ -6,6 +6,10 @@ Browser-based semantic editor for crochet charts and written patterns.
 
 Guide & Mirror Geometry release: straight guides now expose semantic length/angle editing, project-span fitting, visible work direction and reversible path direction. A quadratic Parabola guide adds a simple one-control-point curve while keeping legacy cubic Curve geometry intact. Mirror authoring now uses true reflected glyph parity, directional reflect/copy controls, and an arbitrary movable/rotatable custom axis that stays on the canvas while selection changes. Project schema is v20.
 
+## v1.20.0
+
+Canvas/output usability release: background underlays can be selected directly on the canvas, moved, resized from four corners, Shift-resized with preserved aspect ratio, and rotated with a dedicated handle (Shift snaps to 15°). Rotation persists in schema v21 and is honored by SVG/print bounds. Tiled print now uses complete printable-area page frames instead of corner crop marks and includes a live page/overlap preview.
+
 ## v1.18.0
 
 Core usability release: explicit Hand/Pan mode, visible snap-orientation control with guide auto-rotation, 15° Shift snapping for straight-guide endpoints, safer Repeat inputs, motif-aware guide spacing, non-overlapping selection actions and a persistent used-symbol legend window. The symbol library currently contains 44 definitions and project schema remains v19.
@@ -128,7 +132,7 @@ The editor combines an SVG canvas with a document model that understands guides,
 - row-number annotations persist through autosave/JSON and are included in SVG export
 - automatic legend is derived from actually used visible stitch symbols, shows abbreviation plus localized RU/EN name, can be toggled, and is included in SVG export
 - autosave delay is configurable per project: Off, legacy Fast (0.65 s), 5 s, 15 s, 30 s or 60 s; switching Off is persisted immediately
-- current project JSON schema is v20; v1-v19 remain loadable through runtime validation/migration
+- current project JSON schema is v21; v1-v19 remain loadable through runtime validation/migration
 - schema v13 introduced optional six-digit hex visual color per stitch
 - schema v14 adds Line/Curve guide persistence and optional manual `guideAttachment` metadata
 - schema v15 adds guide lock state, independent row-number annotations and legend visibility settings

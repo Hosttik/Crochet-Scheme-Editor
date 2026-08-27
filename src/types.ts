@@ -236,6 +236,8 @@ export type BackgroundImage = {
   y: number
   width: number
   height: number
+  /** Rotation in degrees around the image center; omitted by legacy projects. */
+  rotation?: number
   opacity: number
   visible?: boolean
   locked?: boolean
@@ -267,7 +269,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21
   metadata: {
     title: string
     updatedAt: string

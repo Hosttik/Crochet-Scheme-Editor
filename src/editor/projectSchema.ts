@@ -294,6 +294,7 @@ function parseBackgroundImage(value: unknown): BackgroundImage | undefined {
     !finite(value.x) || !finite(value.y) ||
     !finite(value.width) || value.width <= 0 ||
     !finite(value.height) || value.height <= 0 ||
+    !(value.rotation === undefined || finite(value.rotation)) ||
     !finite(value.opacity) || value.opacity < 0 || value.opacity > 1 ||
     !optionalBoolean(value.visible) || !optionalBoolean(value.locked) || !optionalBoolean(value.includeInExport)
   ) throw new ProjectValidationError('Invalid background image')
@@ -304,6 +305,7 @@ function parseBackgroundImage(value: unknown): BackgroundImage | undefined {
     y: value.y,
     width: value.width,
     height: value.height,
+    rotation: finite(value.rotation) ? value.rotation : 0,
     opacity: value.opacity,
     visible: value.visible !== false,
     locked: value.locked === true,

@@ -27,6 +27,7 @@ export function fittedBackgroundImage(
     y: center.y - height / 2,
     width,
     height,
+    rotation: 0,
     opacity: DEFAULT_BACKGROUND_OPACITY,
     visible: true,
     locked: false,

@@ -41,12 +41,21 @@ describe('tiled print layout', () => {
     })
   })
 
-  it('builds printable HTML with page labels and crop marks', () => {
+  it('builds printable HTML with complete page frames instead of crop corners', () => {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 1500"><circle cx="10" cy="10" r="5"/></svg>'
     const html = buildTiledPrintHtml(svg, parseSvgViewBox(svg), DEFAULT_PRINT_SETTINGS, 'Chart', 'en')
     expect(html).toContain('class="print-page"')
-    expect(html).toContain('class="crop tl h"')
+    expect(html).toContain('class="page-frame"')
+    expect(html).not.toContain('class="crop ')
     expect(html).toContain('Chart · 1/')
     expect(html).toContain('@page')
+  })
+
+  it('can omit printed page frames without changing the page grid', () => {
+    const svg = '<svg viewBox="0 0 2000 1500"></svg>'
+    const settings = { ...DEFAULT_PRINT_SETTINGS, pageFrames: false }
+    const html = buildTiledPrintHtml(svg, parseSvgViewBox(svg), settings, 'Chart', 'en')
+    expect(html).not.toContain('class="page-frame"')
+    expect(layoutPrintTiles(parseSvgViewBox(svg), settings).tiles.length).toBeGreaterThan(1)
   })
 })
