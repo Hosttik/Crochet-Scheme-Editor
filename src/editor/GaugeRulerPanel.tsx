@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type { GaugeProfile, GaugeSettings, MeasurementRuler, StitchElement } from '../types'
 import { symbolName } from '../i18n'
 import { STITCH_SYMBOLS } from '../symbols'
@@ -16,6 +17,11 @@ function format(value: number, locale: 'ru' | 'en') {
   return new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : 'en-US', {
     maximumFractionDigits: 2,
   }).format(value)
+}
+
+function isEditingTarget(target: EventTarget | null) {
+  const element = target instanceof HTMLElement ? target : null
+  return Boolean(element && (element.matches('input, textarea, select') || element.isContentEditable))
 }
 
 export function GaugeRulerPanel({
@@ -63,6 +69,17 @@ export function GaugeRulerPanel({
     ? elements.filter((element) => element.parametricRow?.id === selectedRowId).length
     : 0
   const patternHeight = activeProfile ? patternHeightEstimateCm(elements, activeProfile) : null
+
+  useEffect(() => {
+    if (!selectedRulerId || placingRuler) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || isEditingTarget(event.target)) return
+      event.preventDefault()
+      onDeleteRuler(selectedRulerId)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onDeleteRuler, placingRuler, selectedRulerId])
 
   return (
     <section className="panel-section gauge-panel">
@@ -216,7 +233,7 @@ export function GaugeRulerPanel({
 
       <div className="gauge-ruler-section">
         <div className="section-title-row gauge-ruler-heading">
-          <h3>{ru ? 'Линейки' : 'Rulers'}</h3>
+          <h3>{ru ? 'Измерение по схеме' : 'Chart measurement'}</h3>
           <span className="muted-text">{rulers.length}</span>
         </div>
         <button
@@ -224,12 +241,12 @@ export function GaugeRulerPanel({
           onClick={onToggleRulerTool}
           aria-pressed={placingRuler}
         >
-          <span>↔</span>{placingRuler ? (ru ? 'Отменить линейку' : 'Cancel ruler') : (ru ? 'Поставить линейку' : 'Place ruler')}<kbd>R</kbd>
+          <span>↔</span>{placingRuler ? (ru ? 'Отменить измерение' : 'Cancel measurement') : (ru ? 'Новая область измерения' : 'New measurement region')}<kbd>R</kbd>
         </button>
-        <small className="muted-text">
+        <small className="muted-text gauge-ruler-instruction">
           {ru
-            ? 'Проведите линейку через схему: полупрозрачный коридор автоматически считает пересечённые элементы. Для привязанных точек одного ряда сохраняется точный семантический диапазон.'
-            : 'Draw through the chart: the translucent corridor automatically counts intersected elements. Endpoints snapped to one semantic row keep the exact row range.'}
+            ? 'Проведите линию через нужные петли/столбики. Считаются только точки постановки элементов внутри полупрозрачной области — форма и высота символа на результат не влияют.'
+            : 'Draw through the stitches/columns you want to measure. Only element anchor points inside the translucent region are counted; glyph shape and height do not affect the result.'}
         </small>
 
         {rulers.length > 0 && (
@@ -247,94 +264,66 @@ export function GaugeRulerPanel({
           </div>
         )}
 
-        {selectedRuler && (
-          <div className="ruler-editor">
-            <strong>{ru ? 'Выбранная линейка' : 'Selected ruler'}</strong>
-            <label className="gauge-field">
-              <span>{ru ? 'Тип измерения' : 'Measurement type'}</span>
-              <select
-                aria-label={ru ? 'Тип измерения' : 'Measurement type'}
-                value={selectedRuler.mode ?? 'stitches'}
-                onChange={(event) => onUpdateRuler(selectedRuler.id, {
-                  mode: event.target.value as 'stitches' | 'rows',
-                })}
-              >
-                <option value="stitches">{ru ? 'Петли → ширина' : 'Stitches → width'}</option>
-                <option value="rows">{ru ? 'Ряды → высота' : 'Rows → height'}</option>
-              </select>
-            </label>
-            <label className="gauge-field">
-              <span>{ru ? 'Образец для расчёта' : 'Gauge swatch'}</span>
-              <select
-                aria-label={ru ? 'Образец линейки' : 'Ruler gauge swatch'}
-                value={selectedRuler.profileId ?? ''}
-                onChange={(event) => onUpdateRuler(selectedRuler.id, { profileId: event.target.value || undefined })}
-              >
-                <option value="">{ru ? 'Активный образец' : 'Active swatch'}</option>
-                {gauge.profiles.map((profile) => (
-                  <option key={profile.id} value={profile.id}>{profile.name}</option>
-                ))}
-              </select>
-            </label>
-            {(selectedRuler.mode ?? 'stitches') === 'rows' ? (
+        {selectedRuler && (() => {
+          const estimate = rulerEstimate(selectedRuler, elements, gauge)
+          const count = estimate.mode === 'rows' ? estimate.rowCount ?? 0 : estimate.stitchCount ?? 0
+          return (
+            <div className="ruler-editor">
+              <strong>{ru ? 'Выбранная область' : 'Selected region'}</strong>
               <label className="gauge-field">
-                <span>{ru ? 'Рядов вручную (переопределить авто)' : 'Manual rows (override auto)'}</span>
-                <DraftNumberInput
-                  value={selectedRuler.manualRowCount ?? 0}
-                  min={0}
-                  max={20000}
-                  step={1}
-                  commitOnBlur
-                  ariaLabel={ru ? 'Рядов линейки вручную' : 'Manual ruler row count'}
-                  onChange={(value) => onUpdateRuler(selectedRuler.id, {
-                    manualRowCount: value > 0 ? Math.round(value) : undefined,
+                <span>{ru ? 'Что считать' : 'Count as'}</span>
+                <select
+                  aria-label={ru ? 'Тип измерения' : 'Measurement type'}
+                  value={selectedRuler.mode ?? 'stitches'}
+                  onChange={(event) => onUpdateRuler(selectedRuler.id, {
+                    mode: event.target.value as 'stitches' | 'rows',
                   })}
-                />
+                >
+                  <option value="stitches">{ru ? 'Петли / столбики → ширина' : 'Stitches / columns → width'}</option>
+                  <option value="rows">{ru ? 'Ряды → высота' : 'Rows → height'}</option>
+                </select>
               </label>
-            ) : (
               <label className="gauge-field">
-                <span>{ru ? 'Петель вручную (переопределить авто)' : 'Manual stitches (override auto)'}</span>
-                <DraftNumberInput
-                  value={selectedRuler.manualStitchCount ?? 0}
-                  min={0}
-                  max={20000}
-                  step={1}
-                  commitOnBlur
-                  ariaLabel={ru ? 'Петель линейки вручную' : 'Manual ruler stitch count'}
-                  onChange={(value) => onUpdateRuler(selectedRuler.id, {
-                    manualStitchCount: value > 0 ? Math.round(value) : undefined,
-                  })}
-                />
+                <span>{ru ? 'Образец для сантиметров' : 'Gauge swatch for centimeters'}</span>
+                <select
+                  aria-label={ru ? 'Образец линейки' : 'Ruler gauge swatch'}
+                  value={selectedRuler.profileId ?? ''}
+                  onChange={(event) => onUpdateRuler(selectedRuler.id, { profileId: event.target.value || undefined })}
+                >
+                  <option value="">{ru ? 'Активный образец' : 'Active swatch'}</option>
+                  {gauge.profiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>{profile.name}</option>
+                  ))}
+                </select>
               </label>
-            )}
-            {(() => {
-              const estimate = rulerEstimate(selectedRuler, elements, gauge)
-              if (estimate.mode === 'rows') {
-                if (estimate.source === 'automatic' && estimate.rowCount) {
-                  return <small data-testid="ruler-auto-summary">{estimate.strategy === 'corridor'
-                    ? (ru ? `Авто по коридору: ${estimate.rowCount} р. · подсвечено ${estimate.elementIds?.length ?? 0} элементов` : `Corridor auto-count: ${estimate.rowCount} rows · ${estimate.elementIds?.length ?? 0} highlighted elements`)
-                    : (ru ? `Автоматически между рядами: ${estimate.rowCount} р.` : `Automatic between rows: ${estimate.rowCount} rows`)}</small>
-                }
-                if (estimate.source === 'manual' && estimate.rowCount) {
-                  return <small>{ru ? `Ручной расчёт: ${estimate.rowCount} р.` : `Manual count: ${estimate.rowCount} rows`}</small>
-                }
-                return <small>{ru ? 'Проведите коридор через параметрические ряды или укажите число рядов вручную.' : 'Draw the corridor through semantic rows or enter the row count manually.'}</small>
-              }
-              if (estimate.source === 'automatic' && estimate.stitchCount) {
-                return <small data-testid="ruler-auto-summary">{estimate.strategy === 'corridor'
-                  ? (ru ? `Авто по коридору: ${estimate.stitchCount} петель` : `Corridor auto-count: ${estimate.stitchCount} stitches`)
-                  : (ru ? `Автоматически по ряду: ${estimate.stitchCount} петель` : `Automatic from row: ${estimate.stitchCount} stitches`)}</small>
-              }
-              if (estimate.source === 'manual' && estimate.stitchCount) {
-                return <small>{ru ? `Ручной расчёт: ${estimate.stitchCount} петель` : `Manual count: ${estimate.stitchCount} stitches`}</small>
-              }
-              return <small>{ru ? 'Для свободной линейки укажите число петель вручную.' : 'For a free ruler, enter the stitch count manually.'}</small>
-            })()}
-            <button className="danger-button" onClick={() => onDeleteRuler(selectedRuler.id)}>
-              {ru ? 'Удалить линейку' : 'Delete ruler'}
-            </button>
-          </div>
-        )}
+
+              <div className="ruler-result" data-testid="ruler-auto-summary">
+                <strong>
+                  {estimate.mode === 'rows'
+                    ? (ru ? `${count} ряд.` : `${count} rows`)
+                    : (ru ? `${count} п./ст.` : `${count} sts/cols`)}
+                </strong>
+                {estimate.lengthCm != null ? (
+                  <b>≈ {format(estimate.lengthCm, locale)} {ru ? 'см' : 'cm'}</b>
+                ) : (
+                  <small>{ru ? 'Добавьте образец плотности для пересчёта в сантиметры.' : 'Add a gauge swatch to convert the count to centimeters.'}</small>
+                )}
+                <small>
+                  {ru
+                    ? `В области: ${estimate.elementIds?.length ?? 0} точек элементов${estimate.mode === 'rows' && estimate.rowIds?.length ? ` · семантических рядов: ${estimate.rowIds.length}` : ''}`
+                    : `In region: ${estimate.elementIds?.length ?? 0} element anchors${estimate.mode === 'rows' && estimate.rowIds?.length ? ` · semantic rows: ${estimate.rowIds.length}` : ''}`}
+                </small>
+              </div>
+
+              <small className="muted-text">
+                {ru ? 'Esc — удалить выбранную область. Потяните круглые ручки, чтобы изменить границы.' : 'Esc removes the selected region. Drag the round handles to resize it.'}
+              </small>
+              <button className="danger-button" onClick={() => onDeleteRuler(selectedRuler.id)}>
+                {ru ? 'Удалить измерение' : 'Delete measurement'}
+              </button>
+            </div>
+          )
+        })()}
       </div>
     </section>
   )
