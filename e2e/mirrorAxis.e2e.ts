@@ -41,6 +41,7 @@ test('moves and applies an explicit vertical or horizontal mirror axis', async (
   await productivity.getByRole('button', { name: 'Вертикальная', exact: true }).click()
   const verticalAxis = page.locator('.mirror-axis-overlay[data-mirror-angle="90"]')
   await expect(verticalAxis).toHaveCount(1)
+  await expect(page.locator('.productivity-mirror-preview-stitch')).toHaveCount(1)
   await expect(productivity.locator('.mirror-direction-grid')).toHaveCount(0)
   await expect(page.locator('.selection-quick-toolbar .selection-quick-mirror').first()).toBeHidden()
 
@@ -76,8 +77,9 @@ test('moves and applies an explicit vertical or horizontal mirror axis', async (
   await expect(page.locator('.stitch-element')).toHaveCount(2)
   await expect(page.locator('.stitch-element.selected')).toHaveCount(1)
 
-  await productivity.getByRole('button', { name: 'Скрыть ось', exact: true }).click()
+  await productivity.getByRole('button', { name: 'Скрыть ось / отменить', exact: true }).click()
   await expect(page.locator('.mirror-axis-overlay')).toHaveCount(0)
+  await expect(page.locator('.productivity-mirror-preview-stitch')).toHaveCount(0)
   await expect(page.locator('.selection-quick-toolbar .selection-quick-mirror').first()).toBeVisible()
   await expect(page.locator('.selection-quick-toolbar').getByRole('button', { name: 'Повернуть на 180°' })).toBeVisible()
 })
