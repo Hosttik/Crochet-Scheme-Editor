@@ -16,6 +16,7 @@ import {
   lineRenderPoints,
   parabolaRenderPoints,
 } from './guides'
+import { guideNumericValue } from './guideValueLabel'
 import { isPathGuide, pathPoseAt } from './pathGuides'
 
 function pointsAttribute(points: { x: number; y: number }[]) {
@@ -312,6 +313,18 @@ export function GuideRenderer({
           vectorEffect="non-scaling-stroke"
           pointerEvents="none"
         />
+      )}
+
+      {selected && (
+        <text
+          x={center.x + 12 / zoom}
+          y={center.y + 20 / zoom}
+          fontSize={12 / zoom}
+          className="guide-value-label"
+          pointerEvents="none"
+        >
+          {guideNumericValue(guide)}
+        </text>
       )}
 
       {selected && locked && (
