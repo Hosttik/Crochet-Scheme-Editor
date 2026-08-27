@@ -72,15 +72,16 @@ export function BackgroundImagePanel({ locale, background, onUpload, onChange, o
             />
           </label>
           <fieldset disabled={background.locked === true}>
-            <legend>{ru ? 'Положение и размер' : 'Position and size'}</legend>
+            <legend>{ru ? 'Положение, размер и поворот' : 'Position, size and rotation'}</legend>
             <div className="number-field-grid background-geometry-grid">
-              <label className="number-field"><span>X</span><DraftNumberInput commitOnBlur value={background.x} onChange={(x) => onChange({ x })} /></label>
-              <label className="number-field"><span>Y</span><DraftNumberInput commitOnBlur value={background.y} onChange={(y) => onChange({ y })} /></label>
-              <label className="number-field"><span>{ru ? 'Ширина' : 'Width'}</span><DraftNumberInput commitOnBlur min={1} value={background.width} onChange={(width) => onChange({ width })} /></label>
-              <label className="number-field"><span>{ru ? 'Высота' : 'Height'}</span><DraftNumberInput commitOnBlur min={1} value={background.height} onChange={(height) => onChange({ height })} /></label>
+              <label className="number-field"><span>X</span><DraftNumberInput ariaLabel={ru ? 'Фон X' : 'Background X'} commitOnBlur value={background.x} onChange={(x) => onChange({ x })} /></label>
+              <label className="number-field"><span>Y</span><DraftNumberInput ariaLabel={ru ? 'Фон Y' : 'Background Y'} commitOnBlur value={background.y} onChange={(y) => onChange({ y })} /></label>
+              <label className="number-field"><span>{ru ? 'Ширина' : 'Width'}</span><DraftNumberInput ariaLabel={ru ? 'Ширина фона' : 'Background width'} commitOnBlur min={1} value={background.width} onChange={(width) => onChange({ width })} /></label>
+              <label className="number-field"><span>{ru ? 'Высота' : 'Height'}</span><DraftNumberInput ariaLabel={ru ? 'Высота фона' : 'Background height'} commitOnBlur min={1} value={background.height} onChange={(height) => onChange({ height })} /></label>
+              <label className="number-field"><span>{ru ? 'Поворот °' : 'Rotation °'}</span><DraftNumberInput ariaLabel={ru ? 'Поворот изображения °' : 'Background rotation °'} commitOnBlur value={background.rotation ?? 0} onChange={(rotation) => onChange({ rotation })} /></label>
             </div>
           </fieldset>
-          <small className="muted-text">{ru ? 'Блокировка защищает положение и размер, но прозрачность и видимость остаются доступными.' : 'Lock protects position and size while opacity and visibility remain editable.'}</small>
+          <small className="muted-text">{ru ? 'Кликните подложку на холсте: тяните саму картинку для перемещения, углы — для размера, круглую ручку — для поворота. Shift сохраняет пропорции при resize и фиксирует поворот по 15°. Блокировка отключает всю геометрию.' : 'Click the underlay on canvas: drag the image to move it, corners to resize, and the round handle to rotate. Shift preserves aspect ratio while resizing and snaps rotation to 15°. Lock disables all geometry edits.'}</small>
         </>
       )}
     </section>

@@ -7,7 +7,7 @@ export type PrintSettings = {
   scalePercent: number
   overlapMm: number
   marginMm: number
-  cropMarks: boolean
+  pageFrames: boolean
 }
 
 export type PrintBounds = {
@@ -42,7 +42,7 @@ export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   scalePercent: 100,
   overlapMm: 5,
   marginMm: 10,
-  cropMarks: true,
+  pageFrames: true,
 }
 
 const PAPER_MM: Record<PrintPaper, { width: number; height: number }> = {
@@ -69,7 +69,7 @@ export function normalizedPrintSettings(settings: PrintSettings): PrintSettings 
     scalePercent: clamp(Number.isFinite(settings.scalePercent) ? settings.scalePercent : 100, 10, 400),
     overlapMm: clamp(Number.isFinite(settings.overlapMm) ? settings.overlapMm : 5, 0, Math.max(0, printableMin - 1)),
     marginMm,
-    cropMarks: settings.cropMarks !== false,
+    pageFrames: settings.pageFrames !== false,
   }
 }
 
@@ -150,20 +150,18 @@ export function buildTiledPrintHtml(
   const settings = normalizedPrintSettings(rawSettings)
   const layout = layoutPrintTiles(bounds, settings)
   const inner = svgInner(svgMarkup)
-  const crop = settings.cropMarks
-    ? '<span class="crop tl h"></span><span class="crop tl v"></span><span class="crop tr h"></span><span class="crop tr v"></span><span class="crop bl h"></span><span class="crop bl v"></span><span class="crop br h"></span><span class="crop br v"></span>'
-    : ''
+  const frame = settings.pageFrames ? '<div class="page-frame" aria-hidden="true"></div>' : ''
   const pages = layout.tiles.map((tile, index) => `
     <section class="print-page">
       <div class="printable">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="${tile.x} ${tile.y} ${tile.width} ${tile.height}" preserveAspectRatio="xMinYMin meet">${inner}</svg>
       </div>
-      ${crop}
+      ${frame}
       <div class="page-label">${escapeHtml(title)} · ${index + 1}/${layout.tiles.length}</div>
     </section>`).join('')
   const instruction = locale === 'ru'
-    ? 'Для точного масштаба оставьте масштаб печати браузера 100%.'
-    : 'For exact sizing, keep the browser print scale at 100%.'
+    ? 'Для точного масштаба оставьте масштаб печати браузера 100%. Рамка показывает границу печатной области каждой страницы.'
+    : 'For exact sizing, keep the browser print scale at 100%. The frame marks each page printable area.'
   return `<!doctype html>
 <html lang="${locale}">
 <head>
@@ -177,18 +175,8 @@ export function buildTiledPrintHtml(
   .print-page { position: relative; width: ${layout.paperWidthMm}mm; height: ${layout.paperHeightMm}mm; margin: 8px auto; background: white; break-after: page; page-break-after: always; overflow: hidden; }
   .printable { position: absolute; left: ${settings.marginMm}mm; top: ${settings.marginMm}mm; width: ${layout.printableWidthMm}mm; height: ${layout.printableHeightMm}mm; overflow: hidden; }
   .printable svg { display: block; width: 100%; height: 100%; }
+  .page-frame { position: absolute; left: ${settings.marginMm}mm; top: ${settings.marginMm}mm; width: ${layout.printableWidthMm}mm; height: ${layout.printableHeightMm}mm; border: .25mm solid #222; pointer-events: none; }
   .page-label { position: absolute; right: ${Math.max(2, settings.marginMm / 2)}mm; bottom: ${Math.max(2, settings.marginMm / 2)}mm; font-size: 8pt; color: #666; }
-  .crop { position: absolute; background: #111; }
-  .crop.h { width: 5mm; height: .2mm; }
-  .crop.v { width: .2mm; height: 5mm; }
-  .crop.tl.h { left: ${Math.max(0, settings.marginMm - 6)}mm; top: ${settings.marginMm}mm; }
-  .crop.tl.v { left: ${settings.marginMm}mm; top: ${Math.max(0, settings.marginMm - 6)}mm; }
-  .crop.tr.h { left: ${settings.marginMm + layout.printableWidthMm + 1}mm; top: ${settings.marginMm}mm; }
-  .crop.tr.v { left: ${settings.marginMm + layout.printableWidthMm}mm; top: ${Math.max(0, settings.marginMm - 6)}mm; }
-  .crop.bl.h { left: ${Math.max(0, settings.marginMm - 6)}mm; top: ${settings.marginMm + layout.printableHeightMm}mm; }
-  .crop.bl.v { left: ${settings.marginMm}mm; top: ${settings.marginMm + layout.printableHeightMm + 1}mm; }
-  .crop.br.h { left: ${settings.marginMm + layout.printableWidthMm + 1}mm; top: ${settings.marginMm + layout.printableHeightMm}mm; }
-  .crop.br.v { left: ${settings.marginMm + layout.printableWidthMm}mm; top: ${settings.marginMm + layout.printableHeightMm + 1}mm; }
   @media print {
     html, body { background: white; }
     .screen-note { display: none; }

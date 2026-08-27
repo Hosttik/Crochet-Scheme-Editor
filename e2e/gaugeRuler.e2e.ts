@@ -63,7 +63,7 @@ test('calibrates a swatch, estimates a row and measures it with a smart ruler', 
   const downloadPath = await (await downloadPromise).path()
   expect(downloadPath).not.toBeNull()
   const project = JSON.parse(await readFile(downloadPath!, 'utf8'))
-  expect(project.schemaVersion).toBe(20)
+  expect(project.schemaVersion).toBe(21)
   expect(project.gauge.profiles).toHaveLength(1)
   expect(project.gauge.profiles[0]).toMatchObject({
     name: 'СБН 10×10',

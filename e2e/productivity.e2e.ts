@@ -276,7 +276,7 @@ test('persists a stitch color through autosave, JSON and SVG export', async ({ p
   const jsonPath = await (await jsonDownload).path()
   expect(jsonPath).not.toBeNull()
   const project = JSON.parse(await readFile(jsonPath!, 'utf8'))
-  expect(project.schemaVersion).toBe(20)
+  expect(project.schemaVersion).toBe(21)
   expect(project.elements[0].color).toBe('#c2413b')
 
   const svgDownload = page.waitForEvent('download')
@@ -305,7 +305,7 @@ test('persists group ids in schema v18 and updates a renamed project immediately
   const path = await (await downloadPromise).path()
   expect(path).not.toBeNull()
   const project = JSON.parse(await readFile(path!, 'utf8'))
-  expect(project.schemaVersion).toBe(20)
+  expect(project.schemaVersion).toBe(21)
   expect(project.elements).toHaveLength(2)
   expect(project.elements[0].groupId).toBeTruthy()
   expect(project.elements[0].groupId).toBe(project.elements[1].groupId)

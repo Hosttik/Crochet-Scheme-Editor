@@ -216,7 +216,7 @@ export function projectIntegrityIssue(project: CrochetProject, strictReferences 
   if (background) {
     const maxBackgroundLength = strictReferences ? MAX_BACKGROUND_DATA_URL_LENGTH : MAX_LEGACY_BACKGROUND_DATA_URL_LENGTH
     if (background.dataUrl.length > maxBackgroundLength) return 'Background image is too large'
-    if (!bounded(background.x) || !bounded(background.y) || !positive(background.width, MAX_COORDINATE) || !positive(background.height, MAX_COORDINATE)) return 'Background image geometry is out of bounds'
+    if (!bounded(background.x) || !bounded(background.y) || !positive(background.width, MAX_COORDINATE) || !positive(background.height, MAX_COORDINATE) || !bounded(background.rotation ?? 0)) return 'Background image geometry is out of bounds'
   }
   if (!Number.isFinite(project.settings.snapping.tolerancePx) || project.settings.snapping.tolerancePx < 1 || project.settings.snapping.tolerancePx > 100) return 'Snapping tolerance is out of bounds'
 

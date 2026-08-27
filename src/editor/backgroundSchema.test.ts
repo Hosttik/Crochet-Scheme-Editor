@@ -36,8 +36,8 @@ function rawProject() {
 describe('schema v18 background image', () => {
   it('preserves valid editor underlay metadata', () => {
     const parsed = parseProject(rawProject(), snapping)
-    expect(parsed.schemaVersion).toBe(20)
-    expect(parsed.backgroundImage).toEqual(rawProject().backgroundImage)
+    expect(parsed.schemaVersion).toBe(21)
+    expect(parsed.backgroundImage).toEqual({ ...rawProject().backgroundImage, rotation: 0 })
   })
 
   it('rejects non-image data urls and invalid geometry', () => {
@@ -52,6 +52,10 @@ describe('schema v18 background image', () => {
     const badSize = rawProject() as any
     badSize.backgroundImage.width = 0
     expect(() => parseProject(badSize, snapping)).toThrow('Invalid background image')
+
+    const badRotation = rawProject() as any
+    badRotation.backgroundImage.rotation = Number.NaN
+    expect(() => parseProject(badRotation, snapping)).toThrow('Invalid background image')
   })
 
   it('keeps legacy projects background-free', () => {
@@ -59,7 +63,7 @@ describe('schema v18 background image', () => {
     legacy.schemaVersion = 16
     delete legacy.backgroundImage
     const parsed = parseProject(legacy, snapping)
-    expect(parsed.schemaVersion).toBe(20)
+    expect(parsed.schemaVersion).toBe(21)
     expect(parsed.backgroundImage).toBeUndefined()
   })
 })

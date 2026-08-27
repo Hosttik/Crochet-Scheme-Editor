@@ -12,9 +12,6 @@
   margin-top: 8px;
 }
 
-.background-canvas-image {
-  pointer-events: none;
-}
 
 .print-settings-grid {
   display: grid;
@@ -55,4 +52,81 @@
 .print-button {
   width: 100%;
   margin-bottom: 7px;
+}
+
+.background-canvas-image {
+  pointer-events: visiblePainted;
+  cursor: move;
+}
+
+.background-canvas-layer.locked .background-canvas-image {
+  cursor: default;
+}
+
+.background-selection-box {
+  fill: none;
+  stroke: #2c6fc1;
+  stroke-width: 1.5px;
+  stroke-dasharray: 6 4;
+}
+
+.background-resize-handle,
+.background-rotate-handle {
+  fill: #fff;
+  stroke: #2c6fc1;
+  stroke-width: 1.8px;
+  cursor: nwse-resize;
+}
+
+.background-resize-handle[data-handle="ne"],
+.background-resize-handle[data-handle="sw"] {
+  cursor: nesw-resize;
+}
+
+.background-rotate-handle {
+  cursor: grab;
+}
+
+.background-rotation-stem {
+  stroke: #2c6fc1;
+  stroke-width: 1.4px;
+}
+
+.background-lock-indicator {
+  pointer-events: none;
+}
+
+.print-tile-preview {
+  margin-top: 9px;
+  border: 1px solid #d5d0c7;
+  border-radius: 7px;
+  background: #f8f6f1;
+  padding: 5px;
+  height: 132px;
+}
+
+.print-tile-preview svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.print-preview-content {
+  fill: rgba(60, 65, 62, .08);
+  stroke: #8d8880;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.print-preview-frame {
+  fill: rgba(44, 111, 193, .035);
+  stroke: #2c6fc1;
+  stroke-width: 1.2px;
+}
+
+.print-preview-label {
+  font-size: 12px;
+  font-weight: 700;
+  fill: #2c6fc1;
+  pointer-events: none;
 }

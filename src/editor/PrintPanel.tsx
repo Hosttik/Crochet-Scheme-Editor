@@ -14,10 +14,20 @@ type Props = {
   onPrint: (settings: PrintSettings) => void
 }
 
+function previewViewBox(bounds: PrintBounds, tiles: { x: number; y: number; width: number; height: number }[]) {
+  const left = Math.min(bounds.left, ...tiles.map((tile) => tile.x))
+  const top = Math.min(bounds.top, ...tiles.map((tile) => tile.y))
+  const right = Math.max(bounds.left + bounds.width, ...tiles.map((tile) => tile.x + tile.width))
+  const bottom = Math.max(bounds.top + bounds.height, ...tiles.map((tile) => tile.y + tile.height))
+  const pad = Math.max(12, Math.max(right - left, bottom - top) * 0.03)
+  return `${left - pad} ${top - pad} ${right - left + pad * 2} ${bottom - top + pad * 2}`
+}
+
 export function PrintPanel({ locale, bounds, onPrint }: Props) {
   const [settings, setSettings] = useState<PrintSettings>(DEFAULT_PRINT_SETTINGS)
   const ru = locale === 'ru'
   const layout = useMemo(() => layoutPrintTiles(bounds, settings), [bounds, settings])
+  const previewBox = useMemo(() => previewViewBox(bounds, layout.tiles), [bounds, layout.tiles])
 
   const patch = (next: Partial<PrintSettings>) => setSettings((current) => ({ ...current, ...next }))
 
@@ -54,9 +64,28 @@ export function PrintPanel({ locale, bounds, onPrint }: Props) {
         </label>
       </div>
       <label className="toggle-row compact-toggle">
-        <span>{ru ? 'Метки обрезки' : 'Crop marks'}</span>
-        <input type="checkbox" checked={settings.cropMarks} onChange={(event) => patch({ cropMarks: event.target.checked })} />
+        <span>{ru ? 'Печатать рамки страниц' : 'Print page frames'}</span>
+        <input data-testid="print-page-frames" type="checkbox" checked={settings.pageFrames} onChange={(event) => patch({ pageFrames: event.target.checked })} />
       </label>
+      <div className="print-tile-preview" data-testid="print-tile-preview">
+        <svg viewBox={previewBox} aria-label={ru ? 'Предпросмотр рамок страниц' : 'Page-frame preview'}>
+          <rect x={bounds.left} y={bounds.top} width={bounds.width} height={bounds.height} className="print-preview-content" />
+          {layout.tiles.map((tile, index) => (
+            <g key={`${tile.row}-${tile.column}`}>
+              <rect
+                data-testid="print-preview-frame"
+                x={tile.x}
+                y={tile.y}
+                width={tile.width}
+                height={tile.height}
+                className="print-preview-frame"
+                vectorEffect="non-scaling-stroke"
+              />
+              <text x={tile.x + 8} y={tile.y + 16} className="print-preview-label">{index + 1}</text>
+            </g>
+          ))}
+        </svg>
+      </div>
       <p className="print-summary">
         {ru
           ? `${layout.columns} × ${layout.rows} стр. · ${layout.tiles.length} всего`
@@ -65,7 +94,7 @@ export function PrintPanel({ locale, bounds, onPrint }: Props) {
       <button className="primary-button print-button" onClick={() => onPrint(settings)}>
         {ru ? 'Открыть печать' : 'Open print view'}
       </button>
-      <small className="muted-text">{ru ? 'Для физически точного масштаба в диалоге браузера оставьте 100%.' : 'For physical scale fidelity, keep the browser print dialog at 100%.'}</small>
+      <small className="muted-text">{ru ? 'Предпросмотр показывает реальные границы и перекрытие страниц. Для физически точного масштаба в диалоге браузера оставьте 100%.' : 'Preview shows the actual page boundaries and overlap. For physical scale fidelity, keep the browser print dialog at 100%.'}</small>
     </section>
   )
 }

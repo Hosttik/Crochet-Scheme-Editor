@@ -7,6 +7,7 @@ import { RowMarkerLayer } from './editor/RowMarkerLayer'
 import { RowMarkersPanel } from './editor/RowMarkersPanel'
 import { LassoOverlay, type LassoMode } from './editor/LassoOverlay'
 import { BackgroundImagePanel } from './editor/BackgroundImagePanel'
+import { BackgroundImageCanvas } from './editor/BackgroundImageCanvas'
 import { PrintPanel } from './editor/PrintPanel'
 import { GuideAttachmentPanel } from './editor/GuideAttachmentPanel'
 import { MirrorAxisOverlay, type MirrorAxisState } from './editor/MirrorAxisOverlay'
@@ -34,6 +35,7 @@ import {
 } from './editor/document'
 import { DEFAULT_STITCH_COLOR } from './editor/elementColor'
 import { clampBackgroundOpacity, prepareBackgroundImage } from './editor/backgroundImage'
+import { backgroundImageBounds } from './editor/backgroundGeometry'
 import { buildTiledPrintHtml, parseSvgViewBox, type PrintSettings } from './editor/printLayout'
 import { usedLegendItems } from './editor/legend'
 import { deleteRowMarkerAndRenumber, isRowMarkerLocked, nextRowMarkerNumber, normalizedRowMarkerNumber } from './editor/rowMarkers'
@@ -316,11 +318,12 @@ function serializeSvg(
     left: marker.x - 8, right: marker.x + 42, top: marker.y - 14, bottom: marker.y + 14,
   })))
   if (exportBackground) {
+    const backgroundBounds = backgroundImageBounds(exportBackground)
     bounds.push({
-      left: exportBackground.x,
-      right: exportBackground.x + exportBackground.width,
-      top: exportBackground.y,
-      bottom: exportBackground.y + exportBackground.height,
+      left: backgroundBounds.left,
+      right: backgroundBounds.right,
+      top: backgroundBounds.top,
+      bottom: backgroundBounds.bottom,
     })
   }
 
@@ -331,7 +334,7 @@ function serializeSvg(
   let bottom = Math.max(...bounds.map((item) => item.bottom)) + padding
 
   const backgroundContent = exportBackground
-    ? `<image href="${escapeXml(exportBackground.dataUrl)}" x="${exportBackground.x}" y="${exportBackground.y}" width="${exportBackground.width}" height="${exportBackground.height}" opacity="${exportBackground.opacity}" preserveAspectRatio="none"/>`
+    ? `<image href="${escapeXml(exportBackground.dataUrl)}" x="${exportBackground.x}" y="${exportBackground.y}" width="${exportBackground.width}" height="${exportBackground.height}" opacity="${exportBackground.opacity}" transform="rotate(${exportBackground.rotation ?? 0} ${exportBackground.x + exportBackground.width / 2} ${exportBackground.y + exportBackground.height / 2})" preserveAspectRatio="none"/>`
     : ''
   const content = elements
     .map((element) => `<g transform="translate(${element.x} ${element.y}) rotate(${element.rotation})${element.mirrored ? ' scale(-1 1)' : ''}" style="color:${element.color ?? DEFAULT_STITCH_COLOR}">${symbolSvgMarkup(element.symbolId)}</g>`)
@@ -425,6 +428,7 @@ function App() {
   const spacePressedRef = useRef(false)
   const interactionMovedRef = useRef(false)
   const guideManipulationSnapshotRef = useRef<DocumentSnapshot | null>(null)
+  const backgroundManipulationSnapshotRef = useRef<DocumentSnapshot | null>(null)
   const rowMarkerManipulationSnapshotRef = useRef<DocumentSnapshot | null>(null)
   const clipboardRef = useRef<StitchElement[]>([])
   const pasteSerialRef = useRef(1)
@@ -448,6 +452,7 @@ function App() {
   const [gauge, setGauge] = useState<GaugeSettings>(emptyGaugeSettings)
   const [rulers, setRulers] = useState<MeasurementRuler[]>([])
   const [backgroundImage, setBackgroundImage] = useState<BackgroundImage | null>(null)
+  const [backgroundSelected, setBackgroundSelected] = useState(false)
   const [legendVisible, setLegendVisible] = useState(true)
   const [autosaveDelayMs, setAutosaveDelayMs] = useState<AutosaveDelayMs>(DEFAULT_AUTOSAVE_DELAY_MS)
   const [history, setHistory] = useState<HistoryState>(emptyHistory<DocumentSnapshot>())
@@ -739,6 +744,46 @@ function App() {
 
   const clearElementSelection = useCallback(() => setSelectedIds([]), [])
 
+  useEffect(() => {
+    if (!backgroundImage || backgroundImage.visible === false || selectedIds.length || selectedGuideId || selectedRowMarkerId || selectedRulerId) {
+      setBackgroundSelected(false)
+    }
+  }, [backgroundImage, selectedGuideId, selectedIds.length, selectedRowMarkerId, selectedRulerId])
+  useEffect(() => setBackgroundSelected(false), [activeProjectId])
+
+  const selectBackground = useCallback(() => {
+    clearElementSelection()
+    setSelectedGuideId(null)
+    setSelectedRowMarkerId(null)
+    setSelectedRulerId(null)
+    setRulerDraft(null)
+    setTool({ type: 'select' })
+    setPreview(null)
+    setSnapTarget(null)
+    setBackgroundSelected(true)
+  }, [clearElementSelection])
+  const handleBackgroundManipulationStart = useCallback(() => {
+    backgroundManipulationSnapshotRef.current = currentSnapshot()
+    setPreview(null)
+    setSnapTarget(null)
+  }, [currentSnapshot])
+  const handleBackgroundManipulationPreview = useCallback((next: BackgroundImage) => {
+    setBackgroundImage(next)
+  }, [])
+  const handleBackgroundManipulationEnd = useCallback((moved: boolean, cancelled: boolean) => {
+    const before = backgroundManipulationSnapshotRef.current
+    backgroundManipulationSnapshotRef.current = null
+    if (!before) return
+    if (cancelled) {
+      setBackgroundImage(before.backgroundImage)
+      return
+    }
+    if (moved) {
+      recordSnapshot(before)
+      setStatus(locale === 'ru' ? 'Фоновое изображение изменено' : 'Background image transformed')
+    }
+  }, [locale, recordSnapshot])
+
   const undo = useCallback(() => {
     const step = undoHistory(history, currentSnapshot())
     if (!step) return
@@ -748,6 +793,7 @@ function App() {
     setSelectedGuideId(null)
     setSelectedRowMarkerId(null)
     setSelectedRulerId(null)
+    setBackgroundSelected(false)
     setStatus(t.statusUndo)
   }, [applySnapshot, clearElementSelection, currentSnapshot, history, t.statusUndo])
 
@@ -760,6 +806,7 @@ function App() {
     setSelectedGuideId(null)
     setSelectedRowMarkerId(null)
     setSelectedRulerId(null)
+    setBackgroundSelected(false)
     setStatus(t.statusRedo)
   }, [applySnapshot, clearElementSelection, currentSnapshot, history, t.statusRedo])
 
@@ -1484,6 +1531,7 @@ function App() {
       return
     }
     if (event.button !== 0) return
+    setBackgroundSelected(false)
 
     const point = toDocumentPoint(localPoint(event.clientX, event.clientY))
     if (tool.type === 'ruler') {
@@ -2362,6 +2410,7 @@ const updateBackgroundImage = (patch: Partial<BackgroundImage>) => {
     ...patch,
     width: patch.width === undefined ? backgroundImage.width : Math.max(1, patch.width),
     height: patch.height === undefined ? backgroundImage.height : Math.max(1, patch.height),
+    rotation: patch.rotation === undefined ? backgroundImage.rotation ?? 0 : patch.rotation,
     opacity: patch.opacity === undefined ? backgroundImage.opacity : clampBackgroundOpacity(patch.opacity),
   })
 }
@@ -2369,6 +2418,7 @@ const updateBackgroundImage = (patch: Partial<BackgroundImage>) => {
 const removeBackgroundImage = () => {
   if (!backgroundImage) return
   commitBackgroundImage(null)
+  setBackgroundSelected(false)
   setStatus(locale === 'ru' ? 'Фоновое изображение удалено' : 'Background image removed')
 }
 
@@ -2806,16 +2856,16 @@ const saveProject = () => {
             <line x1="0" y1="-6000" x2="0" y2="6000" className="origin-line" />
 
             {backgroundImage && backgroundImage.visible !== false && (
-              <image
-                data-testid="background-image"
-                className="background-canvas-image"
-                href={backgroundImage.dataUrl}
-                x={backgroundImage.x}
-                y={backgroundImage.y}
-                width={backgroundImage.width}
-                height={backgroundImage.height}
-                opacity={backgroundImage.opacity}
-                preserveAspectRatio="none"
+              <BackgroundImageCanvas
+                background={backgroundImage}
+                selected={backgroundSelected && tool.type === 'select'}
+                interactive={tool.type === 'select'}
+                zoom={viewport.zoom}
+                clientToDocument={clientToDocument}
+                onSelect={selectBackground}
+                onManipulationStart={handleBackgroundManipulationStart}
+                onManipulationPreview={handleBackgroundManipulationPreview}
+                onManipulationEnd={handleBackgroundManipulationEnd}
               />
             )}
 
