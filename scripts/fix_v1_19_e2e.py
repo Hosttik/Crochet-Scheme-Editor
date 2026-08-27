@@ -71,4 +71,32 @@ new_fit = """  await placeAt(page, 'Столбик без накида', 0.12, 0
 if old_fit not in text:
     raise SystemExit('guide fit E2E block not found')
 text = text.replace(old_fit, new_fit, 1)
+
+# Hit the actual geometric midpoint of the rotated line. A fixed offset inside the
+# SVG bounding box can be off-stroke and would only test the canvas background.
+old_reverse = """  const before = await line.locator('.guide-direction-arrow').getAttribute('transform')
+  await line.locator('.guide-stroke').dblclick({ position: { x: 20, y: 1 } })
+  const after = await line.locator('.guide-direction-arrow').getAttribute('transform')
+"""
+new_reverse = """  const before = await line.locator('.guide-direction-arrow').getAttribute('transform')
+  const strokeBox = await line.locator('.guide-stroke').boundingBox()
+  expect(strokeBox).not.toBeNull()
+  await page.mouse.click(
+    strokeBox!.x + strokeBox!.width / 2,
+    strokeBox!.y + strokeBox!.height / 2,
+    { clickCount: 2 },
+  )
+  const after = await line.locator('.guide-direction-arrow').getAttribute('transform')
+"""
+if old_reverse not in text:
+    raise SystemExit('guide reverse E2E block not found')
+text = text.replace(old_reverse, new_reverse, 1)
+
+# Parabola has exactly one semantic control point plus two endpoints; the generic
+# move handle is intentionally a fourth .guide-handle.
+text = text.replace(
+    "  await expect(parabola.locator('.guide-handle')).toHaveCount(3)\n",
+    "  await expect(parabola.locator('.guide-path-endpoint')).toHaveCount(2)\n  await expect(parabola.locator('.guide-control-handle')).toHaveCount(1)\n",
+    1,
+)
 path.write_text(text)
