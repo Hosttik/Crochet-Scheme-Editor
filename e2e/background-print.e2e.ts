@@ -67,3 +67,19 @@ test('shows full page frames in tiled-print preview', async ({ page }) => {
   // Preview remains visible even when printed frames are disabled so the user can still see tiling.
   await expect(panel.getByTestId('print-preview-frame')).toHaveCount(count)
 })
+
+test('keeps the tracing underlay transparent to placement tools', async ({ page }) => {
+  await openEditor(page)
+  await uploadReference(page)
+
+  const imageBox = await page.getByTestId('background-image').boundingBox()
+  expect(imageBox).not.toBeNull()
+  await page.locator('.symbols-section .symbol-button[title^="Столбик без накида · "]').click()
+  await expect(page.locator('svg.editor-canvas')).toHaveClass(/placing/)
+  await page.mouse.click(
+    imageBox!.x + imageBox!.width / 2,
+    imageBox!.y + imageBox!.height / 2,
+  )
+  await expect(page.locator('.stitch-element')).toHaveCount(1)
+})
+

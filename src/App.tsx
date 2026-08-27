@@ -2858,7 +2858,8 @@ const saveProject = () => {
             {backgroundImage && backgroundImage.visible !== false && (
               <BackgroundImageCanvas
                 background={backgroundImage}
-                selected={backgroundSelected}
+                selected={backgroundSelected && tool.type === 'select'}
+                interactive={tool.type === 'select'}
                 zoom={viewport.zoom}
                 clientToDocument={clientToDocument}
                 onSelect={selectBackground}
