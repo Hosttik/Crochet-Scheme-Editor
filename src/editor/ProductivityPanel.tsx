@@ -6,40 +6,29 @@ import type { Locale } from '../i18n'
 import { DraftNumberInput } from './DraftNumberInput'
 import { guideCenter } from './guideManipulation'
 import {
+  mirrorElementsAcrossLine,
+  mirrorElementsToward,
   repeatSelection,
   type RepeatMode,
   type RepeatOptions,
   type GuideRepeatOrientation,
+  type MirrorDirection,
 } from './productivity'
 import { repeatPreviewSelectionKind, shouldShowRepeatPreview } from './repeatPreview'
+import { repeatDefaults } from './repeatDefaults'
 import type { MirrorAxisState } from './MirrorAxisOverlay'
 import { MirrorControls } from './MirrorControls'
-import type { MirrorDirection } from './productivity'
 import './productivity.css'
 
 const COPY = {
   ru: {
     title: 'Ускорители',
-    hint: 'Результат повтора показывается на холсте до создания.',
-    groupedPreview: 'Группа считается одним объектом: показывается ghost-preview всего мотива.',
-    multiplePreviewHidden: 'Выбрано несколько элементов: ghost-preview показывает весь временный мотив. «Группировать» сохранит его как один постоянный объект.',
+    hint: 'Измените параметр Repeat, чтобы увидеть ghost-preview. Создание происходит только по кнопке.',
+    groupedPreview: 'Ghost-preview показывает всю группу как один мотив.',
+    multiplePreviewHidden: 'Ghost-preview показывает всё временное выделение как один мотив.',
+    previewIdle: 'Предпросмотр выключен. Измените любой параметр Repeat, чтобы показать результат.',
     group: 'Группировать',
     ungroup: 'Разгруппировать',
-    mirror: 'Отражение',
-    mirrorHint: 'Быстрый Flip использует центр выделения. Для произвольного центра включите редактируемую ось.',
-    verticalAxis: 'Вертикальная ось',
-    horizontalAxis: 'Горизонтальная ось',
-    axisX: 'Позиция оси X',
-    axisY: 'Позиция оси Y',
-    axisCenter: 'По центру',
-    flipCustom: 'Отразить по оси',
-    mirrorCopyCustom: 'Копия через ось',
-    hideAxis: 'Скрыть ось',
-    axisHint: 'Красную пунктирную ось можно перетаскивать прямо на холсте.',
-    flipLeftRight: '↔ Слева / справа',
-    flipTopBottom: '↕ Сверху / снизу',
-    mirrorCopyLeftRight: '⧉↔ Копия справа',
-    mirrorCopyTopBottom: '⧉↕ Копия снизу',
     repeat: 'Повтор',
     linear: 'Линейно',
     circular: 'По кругу',
@@ -49,7 +38,7 @@ const COPY = {
     deltaX: 'ΔX',
     deltaY: 'ΔY',
     angle: 'Шаг °',
-    spacing: 'Шаг по пути',
+    spacing: 'Зазор по пути',
     orientation: 'Ориентация',
     keep: 'Не менять',
     tangent: 'По касательной',
@@ -59,32 +48,19 @@ const COPY = {
     selectionCenter: 'Центр выделения',
     noGuide: 'Нет направляющей',
     apply: 'Создать копии',
+    cancelPreview: 'Отмена предпросмотра',
     needSelection: 'Выберите один или несколько обычных элементов.',
     needGuide: 'Для движения по пути выберите направляющую.',
     groupedHint: 'Группа — постоянный мотив. Alt+клик выбирает один элемент внутри группы.',
   },
   en: {
     title: 'Productivity',
-    hint: 'Repeat results are previewed on the canvas before creation.',
-    groupedPreview: 'A group is treated as one object, so the whole motif is shown as a ghost preview.',
-    multiplePreviewHidden: 'Multiple stitches are selected: the ghost preview shows the whole temporary motif. Group saves it as one persistent object.',
+    hint: 'Change a Repeat parameter to show a ghost preview. Copies are only committed with the button.',
+    groupedPreview: 'The ghost preview treats the whole group as one motif.',
+    multiplePreviewHidden: 'The ghost preview treats the temporary selection as one motif.',
+    previewIdle: 'Preview is off. Change any Repeat parameter to show the result.',
     group: 'Group',
     ungroup: 'Ungroup',
-    mirror: 'Reflection',
-    mirrorHint: 'Quick Flip uses the selection center. Enable an editable axis for a custom mirror center.',
-    verticalAxis: 'Vertical axis',
-    horizontalAxis: 'Horizontal axis',
-    axisX: 'Axis X position',
-    axisY: 'Axis Y position',
-    axisCenter: 'Center on selection',
-    flipCustom: 'Flip across axis',
-    mirrorCopyCustom: 'Copy across axis',
-    hideAxis: 'Hide axis',
-    axisHint: 'Drag the red dashed axis directly on the canvas.',
-    flipLeftRight: '↔ Left / right',
-    flipTopBottom: '↕ Top / bottom',
-    mirrorCopyLeftRight: '⧉↔ Copy right',
-    mirrorCopyTopBottom: '⧉↕ Copy below',
     repeat: 'Repeat',
     linear: 'Linear',
     circular: 'Circular',
@@ -94,7 +70,7 @@ const COPY = {
     deltaX: 'ΔX',
     deltaY: 'ΔY',
     angle: 'Step °',
-    spacing: 'Path spacing',
+    spacing: 'Path gap',
     orientation: 'Orientation',
     keep: 'Keep',
     tangent: 'Tangent',
@@ -104,6 +80,7 @@ const COPY = {
     selectionCenter: 'Selection center',
     noGuide: 'No guide',
     apply: 'Create copies',
+    cancelPreview: 'Cancel preview',
     needSelection: 'Select one or more regular stitches.',
     needGuide: 'Choose a guide for along-guide repeat.',
     groupedHint: 'A group is a persistent motif. Alt+click selects one stitch inside it.',
@@ -120,9 +97,27 @@ function guideName(guide: Guide, locale: Locale, index: number) {
         : guide.type === 'parabola'
           ? locale === 'ru' ? 'Парабола' : 'Parabola'
           : guide.type === 'grid'
-          ? locale === 'ru' ? 'Сетка' : 'Grid'
-          : locale === 'ru' ? 'Радиальная сетка' : 'Radial grid'
+            ? locale === 'ru' ? 'Сетка' : 'Grid'
+            : locale === 'ru' ? 'Радиальная сетка' : 'Radial grid'
   return `${index + 1}. ${name}`
+}
+
+function previewGlyphs(elements: StitchElement[], className: string) {
+  return elements.map((element) => (
+    <g
+      key={element.id}
+      transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
+      className={className}
+    >
+      <g
+        className="symbol-glyph"
+        transform={element.mirrored ? 'scale(-1 1)' : undefined}
+        style={element.color ? { color: element.color } : undefined}
+      >
+        <SymbolGlyph symbolId={element.symbolId} />
+      </g>
+    </g>
+  ))
 }
 
 export function ProductivityPanel({
@@ -176,7 +171,10 @@ export function ProductivityPanel({
   const [spacing, setSpacing] = useState(48)
   const [orientation, setOrientation] = useState<GuideRepeatOrientation>('tangent')
   const [guideId, setGuideId] = useState('')
+  const [repeatPreviewActive, setRepeatPreviewActive] = useState(false)
+  const [previewDirection, setPreviewDirection] = useState<MirrorDirection | null>(null)
   const [previewTarget, setPreviewTarget] = useState<SVGGElement | null>(null)
+  const selectionKey = useMemo(() => [...selectedIds].sort().join('|'), [selectedIds])
 
   useEffect(() => {
     setPreviewTarget(document.querySelector<SVGGElement>('.editor-canvas > g'))
@@ -186,6 +184,24 @@ export function ProductivityPanel({
     if (!guideId || guides.some((guide) => guide.id === guideId)) return
     setGuideId('')
   }, [guideId, guides])
+
+  useEffect(() => {
+    const defaults = repeatDefaults(elements, selectedIds)
+    setDeltaX(defaults.deltaX)
+    setDeltaY(defaults.deltaY)
+    setSpacing(defaults.guideSpacing)
+    setRepeatPreviewActive(false)
+    setPreviewDirection(null)
+  // Selection identity is the transaction boundary; element edits inside the same
+  // selection must not overwrite spacing the user has already typed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionKey])
+
+  useEffect(() => {
+    if (!mirrorAxis) return
+    setPreviewDirection(null)
+    setRepeatPreviewActive(false)
+  }, [mirrorAxis])
 
   const selectedGuide = useMemo(
     () => guides.find((guide) => guide.id === guideId) ?? null,
@@ -197,7 +213,18 @@ export function ProductivityPanel({
     () => repeatPreviewSelectionKind(elements, selectedIds),
     [elements, selectedIds],
   )
-  const previewEnabled = shouldShowRepeatPreview(previewSelectionKind)
+  const repeatPreviewEnabled = repeatPreviewActive && shouldShowRepeatPreview(previewSelectionKind)
+
+  const activateRepeatPreview = () => {
+    setRepeatPreviewActive(true)
+    setPreviewDirection(null)
+    if (mirrorAxis) onHideMirrorAxis()
+  }
+
+  const switchMode = (next: RepeatMode) => {
+    setMode(next)
+    activateRepeatPreview()
+  }
 
   const options = useMemo<RepeatOptions | null>(() => {
     if (!copiesValid) return null
@@ -210,41 +237,54 @@ export function ProductivityPanel({
     return { mode, copies, spacing, orientation, guide: selectedGuide }
   }, [angleStep, copies, copiesValid, deltaX, deltaY, mode, orientation, selectedGuide, spacing])
 
-  const previewElements = useMemo(() => {
-    if (!canTransform || !options || !previewEnabled) return []
+  const repeatPreviewElements = useMemo(() => {
+    if (!canTransform || !options || !repeatPreviewEnabled) return []
     let index = 0
     return repeatSelection(elements, selectedIds, options, () => `__repeat-preview__:${index++}`)
-  }, [canTransform, elements, options, previewEnabled, selectedIds])
+  }, [canTransform, elements, options, repeatPreviewEnabled, selectedIds])
 
-  const apply = () => {
+  const mirrorPreviewElements = useMemo(() => {
+    if (!canTransform || !selectedIds.length) return []
+    const selected = new Set(selectedIds)
+    const transformed = mirrorAxis
+      ? mirrorElementsAcrossLine(elements, selectedIds, mirrorAxis)
+      : previewDirection
+        ? mirrorElementsToward(elements, selectedIds, previewDirection)
+        : []
+    return transformed.filter((element) => selected.has(element.id) && !element.parametricRow)
+  }, [canTransform, elements, mirrorAxis, previewDirection, selectedIds])
+
+  const applyRepeat = () => {
     if (disabled || !options) return
     onRepeat(options)
+    setRepeatPreviewActive(false)
   }
 
-  const previewPortal = previewTarget && previewElements.length > 0
+  const previewPortal = previewTarget && (repeatPreviewElements.length > 0 || mirrorPreviewElements.length > 0)
     ? createPortal(
-        <g className="productivity-repeat-preview" pointerEvents="none" aria-hidden="true">
-          {previewElements.map((element) => (
-            <g
-              key={element.id}
-              transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
-              className="productivity-repeat-preview-stitch"
-            >
-              <g className="symbol-glyph" transform={element.mirrored ? 'scale(-1 1)' : undefined} style={element.color ? { color: element.color } : undefined}>
-                <SymbolGlyph symbolId={element.symbolId} />
-              </g>
+        <g className="productivity-preview-layer" pointerEvents="none" aria-hidden="true">
+          {repeatPreviewElements.length > 0 && (
+            <g className="productivity-repeat-preview">
+              {previewGlyphs(repeatPreviewElements, 'productivity-repeat-preview-stitch')}
             </g>
-          ))}
+          )}
+          {mirrorPreviewElements.length > 0 && (
+            <g className="productivity-mirror-preview">
+              {previewGlyphs(mirrorPreviewElements, 'productivity-mirror-preview-stitch')}
+            </g>
+          )}
         </g>,
         previewTarget,
       )
     : null
 
-  const previewHint = previewSelectionKind === 'single-group'
-    ? copy.groupedPreview
-    : previewSelectionKind === 'multiple'
-      ? copy.multiplePreviewHidden
-      : copy.hint
+  const previewHint = !repeatPreviewActive
+    ? copy.previewIdle
+    : previewSelectionKind === 'single-group'
+      ? copy.groupedPreview
+      : previewSelectionKind === 'multiple'
+        ? copy.multiplePreviewHidden
+        : copy.hint
 
   return (
     <>
@@ -254,7 +294,6 @@ export function ProductivityPanel({
           <h2>{copy.title}</h2>
           <span className="muted-text">{selectedCount}</span>
         </div>
-        <p className="productivity-hint">{previewHint}</p>
 
         <div className="productivity-actions">
           <button disabled={!canGroup} onClick={onGroup}>{copy.group}</button>
@@ -266,8 +305,17 @@ export function ProductivityPanel({
           locale={locale}
           canTransform={canTransform}
           state={mirrorAxis}
+          previewDirection={previewDirection}
+          onPreviewChange={(direction) => {
+            setPreviewDirection(direction)
+            if (direction) setRepeatPreviewActive(false)
+          }}
           onDirectional={onDirectionalMirror}
-          onPreset={onConfigureMirrorAxis}
+          onPreset={(angle) => {
+            setPreviewDirection(null)
+            setRepeatPreviewActive(false)
+            onConfigureMirrorAxis(angle)
+          }}
           onStateChange={onMirrorAxisChange}
           onCenter={onCenterMirrorAxis}
           onHide={onHideMirrorAxis}
@@ -275,24 +323,42 @@ export function ProductivityPanel({
           onCopyCustom={onMirrorCopyAtCustomAxis}
         />
 
-        <div className="productivity-block">
+        <div className="productivity-block repeat-controls">
           <strong>{copy.repeat}</strong>
+          <p className="productivity-hint">{previewHint}</p>
           <div className="productivity-mode-tabs">
-            <button className={mode === 'linear' ? 'active' : ''} onClick={() => setMode('linear')}>{copy.linear}</button>
-            <button className={mode === 'circular' ? 'active' : ''} onClick={() => setMode('circular')}>{copy.circular}</button>
-            <button className={mode === 'guide' ? 'active' : ''} onClick={() => setMode('guide')}>{copy.guide}</button>
+            <button className={mode === 'linear' ? 'active' : ''} onClick={() => switchMode('linear')}>{copy.linear}</button>
+            <button className={mode === 'circular' ? 'active' : ''} onClick={() => switchMode('circular')}>{copy.circular}</button>
+            <button className={mode === 'guide' ? 'active' : ''} onClick={() => switchMode('guide')}>{copy.guide}</button>
           </div>
 
           <label className="productivity-field">
             <span>{copy.copies}</span>
-            <DraftNumberInput ariaLabel={copy.copies} min={1} max={100} integer value={copies} onChange={setCopies} onValidityChange={setCopiesValid} />
+            <DraftNumberInput
+              ariaLabel={copy.copies}
+              min={1}
+              max={100}
+              integer
+              value={copies}
+              onChange={(value) => {
+                setCopies(value)
+                activateRepeatPreview()
+              }}
+              onValidityChange={setCopiesValid}
+            />
           </label>
           {!copiesValid && <small className="productivity-field-error" role="alert">{copy.copiesInvalid}</small>}
 
           {mode === 'linear' && (
             <div className="productivity-field-grid">
-              <label className="productivity-field"><span>{copy.deltaX}</span><DraftNumberInput ariaLabel={copy.deltaX} value={deltaX} onChange={setDeltaX} /></label>
-              <label className="productivity-field"><span>{copy.deltaY}</span><DraftNumberInput ariaLabel={copy.deltaY} value={deltaY} onChange={setDeltaY} /></label>
+              <label className="productivity-field">
+                <span>{copy.deltaX}</span>
+                <DraftNumberInput ariaLabel={copy.deltaX} value={deltaX} onChange={(value) => { setDeltaX(value); activateRepeatPreview() }} />
+              </label>
+              <label className="productivity-field">
+                <span>{copy.deltaY}</span>
+                <DraftNumberInput ariaLabel={copy.deltaY} value={deltaY} onChange={(value) => { setDeltaY(value); activateRepeatPreview() }} />
+              </label>
             </div>
           )}
 
@@ -300,12 +366,15 @@ export function ProductivityPanel({
             <>
               <label className="productivity-field">
                 <span>{copy.centerLabel}</span>
-                <select value={guideId} onChange={(event) => setGuideId(event.target.value)}>
+                <select value={guideId} onChange={(event) => { setGuideId(event.target.value); activateRepeatPreview() }}>
                   <option value="">{copy.selectionCenter}</option>
                   {guides.map((guide, index) => <option key={guide.id} value={guide.id}>{guideName(guide, locale, index)}</option>)}
                 </select>
               </label>
-              <label className="productivity-field"><span>{copy.angle}</span><DraftNumberInput ariaLabel={copy.angle} step={1} value={angleStep} onChange={setAngleStep} /></label>
+              <label className="productivity-field">
+                <span>{copy.angle}</span>
+                <DraftNumberInput ariaLabel={copy.angle} step={1} value={angleStep} onChange={(value) => { setAngleStep(value); activateRepeatPreview() }} />
+              </label>
             </>
           )}
 
@@ -313,15 +382,18 @@ export function ProductivityPanel({
             <>
               <label className="productivity-field">
                 <span>{copy.guideLabel}</span>
-                <select value={guideId} onChange={(event) => setGuideId(event.target.value)}>
+                <select value={guideId} onChange={(event) => { setGuideId(event.target.value); activateRepeatPreview() }}>
                   <option value="">{copy.noGuide}</option>
                   {guides.map((guide, index) => <option key={guide.id} value={guide.id}>{guideName(guide, locale, index)}</option>)}
                 </select>
               </label>
-              <label className="productivity-field"><span>{copy.spacing}</span><DraftNumberInput ariaLabel={copy.spacing} min={1} step={1} value={spacing} onChange={setSpacing} /></label>
+              <label className="productivity-field">
+                <span>{copy.spacing}</span>
+                <DraftNumberInput ariaLabel={copy.spacing} min={0} step={1} value={spacing} onChange={(value) => { setSpacing(value); activateRepeatPreview() }} />
+              </label>
               <label className="productivity-field">
                 <span>{copy.orientation}</span>
-                <select value={orientation} onChange={(event) => setOrientation(event.target.value as GuideRepeatOrientation)}>
+                <select value={orientation} onChange={(event) => { setOrientation(event.target.value as GuideRepeatOrientation); activateRepeatPreview() }}>
                   <option value="keep">{copy.keep}</option>
                   <option value="tangent">{copy.tangent}</option>
                   <option value="radial">{copy.radial}</option>
@@ -332,7 +404,10 @@ export function ProductivityPanel({
 
           {!canTransform && <small className="productivity-warning">{copy.needSelection}</small>}
           {canTransform && needsGuide && !selectedGuide && <small className="productivity-warning">{copy.needGuide}</small>}
-          <button className="productivity-apply" disabled={disabled} onClick={apply}>{copy.apply}</button>
+          <div className="productivity-actions repeat-transaction-actions">
+            <button className="productivity-apply" disabled={disabled} onClick={applyRepeat}>{copy.apply}</button>
+            <button disabled={!repeatPreviewActive} onClick={() => setRepeatPreviewActive(false)}>{copy.cancelPreview}</button>
+          </div>
         </div>
       </section>
     </>
