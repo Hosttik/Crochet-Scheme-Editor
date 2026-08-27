@@ -6,6 +6,10 @@ Browser-based semantic editor for crochet charts and written patterns.
 
 Guide & Mirror Geometry release: straight guides now expose semantic length/angle editing, project-span fitting, visible work direction and reversible path direction. A quadratic Parabola guide adds a simple one-control-point curve while keeping legacy cubic Curve geometry intact. Mirror authoring now uses true reflected glyph parity, directional reflect/copy controls, and an arbitrary movable/rotatable custom axis that stays on the canvas while selection changes. Project schema is v20.
 
+## v1.21.0
+
+Composite-chain authoring release: the palette now includes 2/3/4-chain presets. Each preset creates real Chain stitch elements in one semantic group rather than a synthetic glyph, so selection, duplication, Repeat, legend counts, future ruler counting and JSON all retain the true number of chain stitches. The presets reuse existing group semantics, so project schema remains v21.
+
 ## v1.20.0
 
 Canvas/output usability release: background underlays can be selected directly on the canvas, moved, resized from four corners, Shift-resized with preserved aspect ratio, and rotated with a dedicated handle (Shift snaps to 15°). Rotation persists in schema v21 and is honored by SVG/print bounds. Tiled print now uses complete printable-area page frames instead of corner crop marks and includes a live page/overlap preview.
@@ -33,7 +37,7 @@ The editor combines an SVG canvas with a document model that understands guides,
 ### Editing and productivity
 
 - free-form lasso selection uses a drawn polygon; Shift adds to the current semantic selection and Alt subtracts from it, while groups and parametric rows expand as whole authoring objects
-- 44 vector crochet symbols shared by palette, canvas, Repeat preview and SVG export
+- 44 vector crochet symbols shared by palette, canvas, Repeat preview and SVG export, plus semantic 2/3/4-chain placement presets that materialize as real Chain stitches
 - core notation uses standard abbreviations from the symbol library; SC is an upright `+`, HDC/DC/TR use perpendicular top bars, and Magic Ring is a simple circle
 - free placement, multi-select, marquee selection and group move
 - larger invisible SVG hit targets make thin stitches easier to select without changing their printed appearance

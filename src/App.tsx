@@ -36,6 +36,7 @@ import {
 import { DEFAULT_STITCH_COLOR } from './editor/elementColor'
 import { clampBackgroundOpacity, prepareBackgroundImage } from './editor/backgroundImage'
 import { backgroundImageBounds } from './editor/backgroundGeometry'
+import { CHAIN_BUNDLE_COUNTS, chainBundleLayout, createChainBundle, type ChainBundleCount } from './editor/chainBundle'
 import { buildTiledPrintHtml, parseSvgViewBox, type PrintSettings } from './editor/printLayout'
 import { usedLegendItems } from './editor/legend'
 import { deleteRowMarkerAndRenumber, isRowMarkerLocked, nextRowMarkerNumber, normalizedRowMarkerNumber } from './editor/rowMarkers'
@@ -147,7 +148,7 @@ const SYMBOL_SIZES = Object.fromEntries(
   SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
 )
 
-type Tool = { type: 'select' } | { type: 'pan' } | { type: 'lasso' } | { type: 'ruler' } | { type: 'place'; symbolId: string } | { type: 'row-marker' }
+type Tool = { type: 'select' } | { type: 'pan' } | { type: 'lasso' } | { type: 'ruler' } | { type: 'place'; symbolId: string } | { type: 'place-chain-bundle'; count: ChainBundleCount } | { type: 'row-marker' }
 type DocumentSnapshot = {
   elements: StitchElement[]
   guides: Guide[]
@@ -1494,10 +1495,11 @@ function App() {
   }
 
   const updatePreview = (documentPoint: Point) => {
-    if (tool.type !== 'place') return
+    if (tool.type !== 'place' && tool.type !== 'place-chain-bundle') return
+    const symbolId = tool.type === 'place' ? tool.symbolId : 'chain'
     const proposed: StitchElement = {
       id: '__preview__',
-      symbolId: tool.symbolId,
+      symbolId,
       x: documentPoint.x,
       y: documentPoint.y,
       rotation: 0,
@@ -1583,10 +1585,11 @@ function App() {
       setStatus(locale === 'ru' ? `Добавлен номер ряда ${marker.number}` : `Added row number ${marker.number}`)
       return
     }
-    if (tool.type === 'place') {
+    if (tool.type === 'place' || tool.type === 'place-chain-bundle') {
+      const symbolId = tool.type === 'place' ? tool.symbolId : 'chain'
       const proposed: StitchElement = {
         id: createId(),
-        symbolId: tool.symbolId,
+        symbolId,
         x: point.x,
         y: point.y,
         rotation: 0,
@@ -1601,6 +1604,22 @@ function App() {
         viewport,
         snapLockRef.current,
       )
+      if (tool.type === 'place-chain-bundle') {
+        const placedBundle = createChainBundle(
+          { x: solved.x, y: solved.y },
+          tool.count,
+          solved.rotation,
+          createId,
+        )
+        commitElements([...elements, ...placedBundle])
+        setSelectedIds(placedBundle.map((element) => element.id))
+        setSelectedGuideId(null)
+        setSelectedRowMarkerId(null)
+        setStatus(locale === 'ru'
+          ? `Добавлено воздушных петель: ${tool.count}`
+          : `Placed chain stitches: ${tool.count}`)
+        return
+      }
       const placed: StitchElement = {
         ...proposed,
         x: solved.x,
@@ -1861,7 +1880,7 @@ function App() {
     event.stopPropagation()
     setSelectedRulerId(null)
 
-    if (tool.type === 'place') {
+    if (tool.type === 'place' || tool.type === 'place-chain-bundle') {
       setTool({ type: 'select' })
       setPreview(null)
       setSnapTarget(null)
@@ -2676,7 +2695,47 @@ const saveProject = () => {
         </section>
 
         <section className="panel-section symbols-section">
-          <div className="section-title-row"><h2>{t.stitches}</h2><span className="muted-text">{SYMBOLS.length}</span></div>
+          <div className="section-title-row"><h2>{t.stitches}</h2><span className="muted-text">{SYMBOLS.length + CHAIN_BUNDLE_COUNTS.length}</span></div>
+          <div className="symbol-group chain-bundle-presets">
+            <h3>{locale === 'ru' ? 'Цепочки' : 'Chain presets'}</h3>
+            <div className="symbol-grid">
+              {CHAIN_BUNDLE_COUNTS.map((count) => {
+                const active = tool.type === 'place-chain-bundle' && tool.count === count
+                const label = locale === 'ru' ? `${count} воздушные петли` : `${count} chains`
+                const abbreviation = locale === 'ru' ? `${count} ВП` : `${count} ch`
+                const title = `${label} · ${abbreviation}`
+                return (
+                  <button
+                    className={`symbol-button chain-bundle-button ${active ? 'active' : ''}`}
+                    key={`chain-bundle-${count}`}
+                    title={title}
+                    aria-label={title}
+                    onClick={() => {
+                      if (active) {
+                        setTool({ type: 'select' })
+                        setPreview(null)
+                        setSnapTarget(null)
+                        return
+                      }
+                      setTool({ type: 'place-chain-bundle', count })
+                      clearElementSelection()
+                      setSelectedGuideId(null)
+                      setSelectedRowMarkerId(null)
+                    }}
+                  >
+                    <svg viewBox="-48 -20 96 40" aria-hidden="true">
+                      {chainBundleLayout({ x: 0, y: 0 }, count).map((member, index) => (
+                        <g key={index} transform={`translate(${member.x} ${member.y})`} className="symbol-glyph">
+                          <SymbolGlyph symbolId="chain" />
+                        </g>
+                      ))}
+                    </svg>
+                    <span>{abbreviation}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
           {groupedSymbols.map(([category, symbols]) => (
             <div className="symbol-group" key={category}>
               <h3>{categoryName(category, locale)}</h3>
@@ -2830,7 +2889,7 @@ const saveProject = () => {
 
         <svg
           ref={svgRef}
-          className={`editor-canvas ${pan ? 'panning' : ''} ${tool.type === 'pan' ? 'pan-tool' : tool.type === 'place' ? 'placing' : tool.type === 'lasso' ? 'lassoing' : tool.type === 'ruler' ? 'measuring' : 'selecting'}`}
+          className={`editor-canvas ${pan ? 'panning' : ''} ${tool.type === 'pan' ? 'pan-tool' : tool.type === 'place' || tool.type === 'place-chain-bundle' ? 'placing' : tool.type === 'lasso' ? 'lassoing' : tool.type === 'ruler' ? 'measuring' : 'selecting'}`}
           onWheel={handleWheel}
           onPointerDownCapture={handleCanvasPointerDownCapture}
           onPointerDown={handleCanvasPointerDown}
@@ -2931,11 +2990,19 @@ const saveProject = () => {
               />
             )}
 
-            {preview && (
+            {preview && tool.type === 'place-chain-bundle' ? (
+              <g className="preview-stitch preview-chain-bundle">
+                {chainBundleLayout({ x: preview.x, y: preview.y }, tool.count, preview.rotation).map((member, index) => (
+                  <g key={index} transform={`translate(${member.x} ${member.y}) rotate(${preview.rotation})`}>
+                    <g className="symbol-glyph"><SymbolGlyph symbolId="chain" /></g>
+                  </g>
+                ))}
+              </g>
+            ) : preview ? (
               <g transform={`translate(${preview.x} ${preview.y}) rotate(${preview.rotation})`} className="preview-stitch">
                 <g className="symbol-glyph"><SymbolGlyph symbolId={preview.symbolId} /></g>
               </g>
-            )}
+            ) : null}
 
             {snapTarget && (
               <g className={`snap-indicator ${snapTarget.targetType === 'guide' ? 'guide-target' : ''}`} transform={`translate(${snapTarget.point.x} ${snapTarget.point.y})`}>
