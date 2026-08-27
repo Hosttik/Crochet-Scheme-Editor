@@ -10,8 +10,11 @@ import type {
 } from '../types'
 import { distance, rotatePoint } from './geometry'
 import { buildGuideSnapPoints } from './guides'
+import { isPathGuide, nearestPathParameter, pathPoseAt } from './pathGuides'
 
 export const RELEASE_TOLERANCE_PX = 18
+
+const CENTER_ON_GUIDE_SYMBOL_IDS = new Set(['chain', 'slip', 'magic-ring'])
 
 export type SnapCandidate = {
   key: string
@@ -87,6 +90,23 @@ export function buildSnapCandidates(
   return [...elementCandidates, ...guideCandidates]
 }
 
+function buildContinuousGuideCandidates(guides: Guide[], point: Point): SnapCandidate[] {
+  return guides.flatMap((guide) => {
+    if (!guide.visible || !isPathGuide(guide)) return []
+    const pathT = nearestPathParameter(guide, point)
+    const pose = pathPoseAt(guide, pathT)
+    return [{
+      key: `${guide.id}:${guide.type}:nearest`,
+      point: pose.point,
+      targetId: guide.id,
+      targetType: 'guide' as const,
+      targetRotation: pose.tangent,
+      guideType: guide.type,
+      pathT,
+    }]
+  })
+}
+
 export function orientationFromCandidate(
   mode: OrientationMode,
   currentRotation: number,
@@ -114,12 +134,32 @@ export function solveSnap(
     }
   }
 
-  const candidates = buildSnapCandidates(
+  const elementCandidates = buildElementSnapCandidates(
     elements,
-    guides,
     proposed.id,
     settings.snapToVertices,
   )
+  const discreteGuideCandidates = buildGuideSnapPoints(
+    guides.filter((guide) => !isPathGuide(guide)),
+  ).map((candidate) => ({
+    key: candidate.key,
+    point: candidate.point,
+    targetId: candidate.guideId,
+    targetType: 'guide' as const,
+    targetRotation: candidate.targetRotation,
+    guideType: candidate.guideType,
+    pathT: candidate.pathT,
+  }))
+  const continuousGuideCandidates = buildContinuousGuideCandidates(guides, {
+    x: proposed.x,
+    y: proposed.y,
+  })
+  const candidates = [
+    ...elementCandidates,
+    ...discreteGuideCandidates,
+    ...continuousGuideCandidates,
+  ]
+
   if (!candidates.length) {
     return {
       x: proposed.x,
@@ -130,6 +170,9 @@ export function solveSnap(
   }
 
   const sourcePosition = anchorWorldPosition(proposed, settings.sourceAnchor)
+  const placementReference = { x: proposed.x, y: proposed.y }
+  const detectionPoint = (candidate: SnapCandidate) =>
+    candidate.targetType === 'guide' ? placementReference : sourcePosition
   const locked = lockedKey
     ? candidates.find((candidate) => candidate.key === lockedKey)
     : undefined
@@ -138,13 +181,13 @@ export function solveSnap(
 
   if (
     locked &&
-    distance(sourcePosition, locked.point) * viewport.zoom <= RELEASE_TOLERANCE_PX
+    distance(detectionPoint(locked), locked.point) * viewport.zoom <= RELEASE_TOLERANCE_PX
   ) {
     winner = locked
   } else {
     let bestDistance = Number.POSITIVE_INFINITY
     for (const candidate of candidates) {
-      const distancePx = distance(sourcePosition, candidate.point) * viewport.zoom
+      const distancePx = distance(detectionPoint(candidate), candidate.point) * viewport.zoom
       if (distancePx <= settings.tolerancePx && distancePx < bestDistance) {
         bestDistance = distancePx
         winner = candidate
@@ -177,7 +220,10 @@ export function solveSnap(
     }
   }
 
-  const rotatedAnchor = rotatePoint(definition.anchors[settings.sourceAnchor], rotation)
+  const sourceAnchor = winner.targetType === 'guide' && CENTER_ON_GUIDE_SYMBOL_IDS.has(proposed.symbolId)
+    ? 'center'
+    : settings.sourceAnchor
+  const rotatedAnchor = rotatePoint(definition.anchors[sourceAnchor], rotation)
 
   return {
     x: winner.point.x - rotatedAnchor.x,
