@@ -24,8 +24,8 @@ const COPY = {
   ru: {
     title: 'Ускорители',
     hint: 'Измените параметр Repeat, чтобы увидеть ghost-preview. Создание происходит только по кнопке.',
-    groupedPreview: 'Ghost-preview показывает всю группу как один мотив.',
-    multiplePreviewHidden: 'Ghost-preview показывает всё временное выделение как один мотив.',
+    groupedPreview: 'Группа считается одним объектом: ghost-preview показывает весь мотив.',
+    multiplePreviewHidden: 'Выбрано несколько элементов: ghost-preview показывает весь временный мотив.',
     previewIdle: 'Предпросмотр выключен. Измените любой параметр Repeat, чтобы показать результат.',
     group: 'Группировать',
     ungroup: 'Разгруппировать',
@@ -56,8 +56,8 @@ const COPY = {
   en: {
     title: 'Productivity',
     hint: 'Change a Repeat parameter to show a ghost preview. Copies are only committed with the button.',
-    groupedPreview: 'The ghost preview treats the whole group as one motif.',
-    multiplePreviewHidden: 'The ghost preview treats the temporary selection as one motif.',
+    groupedPreview: 'A group is treated as one object: the ghost preview shows the whole motif.',
+    multiplePreviewHidden: 'Multiple stitches are selected: the ghost preview shows the whole temporary motif.',
     previewIdle: 'Preview is off. Change any Repeat parameter to show the result.',
     group: 'Group',
     ungroup: 'Ungroup',
@@ -190,7 +190,9 @@ export function ProductivityPanel({
     setDeltaX(defaults.deltaX)
     setDeltaY(defaults.deltaY)
     setSpacing(defaults.guideSpacing)
-    setRepeatPreviewActive(false)
+    // #10 only asks for a clean first single-stitch placement. Multi-selection
+    // retains the live motif preview introduced in #12.
+    setRepeatPreviewActive(selectedIds.length > 1)
     setPreviewDirection(null)
   // Selection identity is the transaction boundary; element edits inside the same
   // selection must not overwrite spacing the user has already typed.
