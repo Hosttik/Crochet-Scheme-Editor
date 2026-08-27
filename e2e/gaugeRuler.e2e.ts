@@ -12,12 +12,6 @@ async function canvasBox(page: Page) {
   return box!
 }
 
-async function placeAt(page: Page, title: string, rx: number, ry: number) {
-  await page.locator(`.symbols-section .symbol-button[title^="${title} ·"]`).click()
-  const box = await canvasBox(page)
-  await page.mouse.click(box.x + box.width * rx, box.y + box.height * ry)
-}
-
 async function addGauge(page: Page) {
   const gauge = page.locator('.gauge-panel')
   await gauge.getByRole('button', { name: 'Добавить образец плотности' }).click()
@@ -63,9 +57,11 @@ test('row mode counts anchors/semantic rows in a vertical region and Escape remo
   await openEditor(page)
   const gauge = await addGauge(page)
 
-  await placeAt(page, 'Столбик без накида', 0.38, 0.36)
-  await placeAt(page, 'Столбик без накида', 0.38, 0.48)
-  await placeAt(page, 'Столбик без накида', 0.38, 0.60)
+  await page.locator('.symbols-section .symbol-button[title^="Столбик без накида ·"]').click()
+  const box = await canvasBox(page)
+  await page.mouse.click(box.x + box.width * 0.38, box.y + box.height * 0.36)
+  await page.mouse.click(box.x + box.width * 0.38, box.y + box.height * 0.48)
+  await page.mouse.click(box.x + box.width * 0.38, box.y + box.height * 0.60)
   await expect(page.locator('.stitch-element')).toHaveCount(3)
 
   await gauge.getByRole('button', { name: 'Новая область измерения', exact: true }).click()
