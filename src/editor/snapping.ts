@@ -1,4 +1,3 @@
-import { SYMBOL_BY_ID } from '../symbols'
 import type {
   AnchorName,
   Guide,
@@ -11,6 +10,7 @@ import type {
 import { distance, rotatePoint } from './geometry'
 import { buildGuideSnapPoints } from './guides'
 import { isPathGuide, nearestPathParameter, pathPoseAt } from './pathGuides'
+import { stitchLocalAnchor } from './stitchGeometry'
 
 export const RELEASE_TOLERANCE_PX = 18
 
@@ -35,10 +35,7 @@ export type SnapResult = {
 }
 
 export function anchorWorldPosition(element: StitchElement, anchorName: AnchorName): Point {
-  const definition = SYMBOL_BY_ID.get(element.symbolId)
-  if (!definition) return { x: element.x, y: element.y }
-
-  const local = rotatePoint(definition.anchors[anchorName], element.rotation)
+  const local = rotatePoint(stitchLocalAnchor(element, anchorName), element.rotation)
   return {
     x: element.x + local.x,
     y: element.y + local.y,
@@ -209,21 +206,10 @@ export function solveSnap(
     proposed.rotation,
     winner,
   )
-  const definition = SYMBOL_BY_ID.get(proposed.symbolId)
-
-  if (!definition) {
-    return {
-      x: winner.point.x,
-      y: winner.point.y,
-      rotation,
-      candidate: winner,
-    }
-  }
-
   const sourceAnchor = winner.targetType === 'guide' && CENTER_ON_GUIDE_SYMBOL_IDS.has(proposed.symbolId)
     ? 'center'
     : settings.sourceAnchor
-  const rotatedAnchor = rotatePoint(definition.anchors[sourceAnchor], rotation)
+  const rotatedAnchor = rotatePoint(stitchLocalAnchor(proposed, sourceAnchor), rotation)
 
   return {
     x: winner.point.x - rotatedAnchor.x,
