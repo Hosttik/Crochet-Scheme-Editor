@@ -31,5 +31,5 @@ export function repeatPreviewSelectionKind(
 }
 
 export function shouldShowRepeatPreview(kind: RepeatPreviewSelectionKind) {
-  return kind === 'single-stitch' || kind === 'single-group'
+  return kind !== 'none'
 }
