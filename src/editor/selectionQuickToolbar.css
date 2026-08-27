@@ -1,7 +1,7 @@
 .selection-quick-toolbar {
   position: absolute;
   z-index: 14;
-  transform: translate(-50%, calc(-100% - 12px));
+  transform: translate(-50%, -100%);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -12,6 +12,7 @@
   box-shadow: 0 8px 24px rgba(42, 38, 32, .13);
   backdrop-filter: blur(8px);
 }
+.selection-quick-toolbar.below { transform: translate(-50%, 0); }
 .selection-quick-toolbar button {
   width: 30px;
   height: 28px;

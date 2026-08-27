@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ArcGuide, RadialGridGuide, StitchElement } from '../types'
+import type { ArcGuide, LineGuide, RadialGridGuide, StitchElement } from '../types'
 import {
   cloneSelectionWithOffset,
   cloneWithRepeatedDelta,
@@ -29,6 +29,15 @@ const arc: ArcGuide = {
   startAngle: 0,
   endAngle: 360,
   divisions: 12,
+  visible: true,
+}
+
+const lineGuide: LineGuide = {
+  id: 'line',
+  type: 'line',
+  start: { x: 0, y: 0 },
+  end: { x: 500, y: 0 },
+  divisions: 10,
   visible: true,
 }
 
@@ -138,6 +147,20 @@ describe('productivity transforms', () => {
     expect(created[0].rotation).toBe(90)
     expect(created[1].x).toBeCloseTo(-100)
     expect(created[2].y).toBeCloseTo(-100)
+  })
+
+  it('places a multi-stitch motif after its own bounds when repeating along a guide', () => {
+    const source: StitchElement[] = [
+      { id: 'a', symbolId: 'single', x: 50, y: 0, rotation: 0 },
+      { id: 'b', symbolId: 'double', x: 90, y: 0, rotation: 0 },
+    ]
+    const created = repeatSelection(source, ['a', 'b'], {
+      mode: 'guide', copies: 1, spacing: 10, orientation: 'keep', guide: lineGuide,
+    }, ids())
+    expect(created).toHaveLength(2)
+    expect(created[0].x).toBeCloseTo(127)
+    expect(created[1].x).toBeCloseTo(167)
+    expect(created[0].x - 12).toBeCloseTo(105 + 10)
   })
 
   it('walks a motif along a closed arc and follows its tangent', () => {

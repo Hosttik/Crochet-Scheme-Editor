@@ -68,3 +68,5 @@
 .productivity-repeat-preview { color: #236b4e; }
 .productivity-repeat-preview-stitch { opacity: .38; }
 .productivity-repeat-preview-stitch .symbol-glyph { color: #236b4e; }
+
+.productivity-field-error { display: block; margin-top: -5px; color: #a44036; font-size: 10px; }

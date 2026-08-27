@@ -142,6 +142,22 @@ describe('guide direct manipulation', () => {
     }
   })
 
+  it('snaps a dragged line endpoint to 15 degree increments with Shift', () => {
+    const current = { x: 100, y: 100 }
+    const free = applyGuideManipulation(line, 'end', line.end, current)
+    const snapped = applyGuideManipulation(line, 'end', line.end, current, true)
+    expect(free.type).toBe('line')
+    expect(snapped.type).toBe('line')
+    if (free.type === 'line' && snapped.type === 'line') {
+      const snappedAngle = Math.atan2(snapped.end.y - line.start.y, snapped.end.x - line.start.x) * 180 / Math.PI
+      expect(snappedAngle / 15).toBeCloseTo(Math.round(snappedAngle / 15))
+      expect(snapped.end).not.toEqual(free.end)
+      expect(Math.hypot(snapped.end.x - line.start.x, snapped.end.y - line.start.y)).toBeCloseTo(
+        Math.hypot(current.x - line.start.x, current.y - line.start.y),
+      )
+    }
+  })
+
   it('provides visible resize and rotation handles only where they apply', () => {
     expect(guideResizeHandle(arc)).not.toBeNull()
     expect(guideResizeHandle(radial)).not.toBeNull()

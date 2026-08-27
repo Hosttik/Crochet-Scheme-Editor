@@ -43,6 +43,7 @@ const COPY = {
     circular: 'По кругу',
     guide: 'По направляющей',
     copies: 'Копий',
+    copiesInvalid: 'Введите целое число от 1 до 100.',
     deltaX: 'ΔX',
     deltaY: 'ΔY',
     angle: 'Шаг °',
@@ -87,6 +88,7 @@ const COPY = {
     circular: 'Circular',
     guide: 'Along guide',
     copies: 'Copies',
+    copiesInvalid: 'Enter a whole number from 1 to 100.',
     deltaX: 'ΔX',
     deltaY: 'ΔY',
     angle: 'Step °',
@@ -165,6 +167,7 @@ export function ProductivityPanel({
   const copy = COPY[locale]
   const [mode, setMode] = useState<RepeatMode>('linear')
   const [copies, setCopies] = useState(5)
+  const [copiesValid, setCopiesValid] = useState(true)
   const [deltaX, setDeltaX] = useState(48)
   const [deltaY, setDeltaY] = useState(0)
   const [angleStep, setAngleStep] = useState(45)
@@ -187,7 +190,7 @@ export function ProductivityPanel({
     [guideId, guides],
   )
   const needsGuide = mode === 'guide'
-  const disabled = !canTransform || (needsGuide && !selectedGuide)
+  const disabled = !canTransform || !copiesValid || (needsGuide && !selectedGuide)
   const previewSelectionKind = useMemo(
     () => repeatPreviewSelectionKind(elements, selectedIds),
     [elements, selectedIds],
@@ -195,6 +198,7 @@ export function ProductivityPanel({
   const previewEnabled = shouldShowRepeatPreview(previewSelectionKind)
 
   const options = useMemo<RepeatOptions | null>(() => {
+    if (!copiesValid) return null
     if (mode === 'linear') return { mode, copies, deltaX, deltaY }
     if (mode === 'circular') {
       const center = selectedGuide ? guideCenter(selectedGuide) : undefined
@@ -202,7 +206,7 @@ export function ProductivityPanel({
     }
     if (!selectedGuide) return null
     return { mode, copies, spacing, orientation, guide: selectedGuide }
-  }, [angleStep, copies, deltaX, deltaY, mode, orientation, selectedGuide, spacing])
+  }, [angleStep, copies, copiesValid, deltaX, deltaY, mode, orientation, selectedGuide, spacing])
 
   const previewElements = useMemo(() => {
     if (!canTransform || !options || !previewEnabled) return []
@@ -302,8 +306,9 @@ export function ProductivityPanel({
 
           <label className="productivity-field">
             <span>{copy.copies}</span>
-            <DraftNumberInput ariaLabel={copy.copies} min={1} max={100} value={copies} onChange={setCopies} />
+            <DraftNumberInput ariaLabel={copy.copies} min={1} max={100} integer value={copies} onChange={setCopies} onValidityChange={setCopiesValid} />
           </label>
+          {!copiesValid && <small className="productivity-field-error" role="alert">{copy.copiesInvalid}</small>}
 
           {mode === 'linear' && (
             <div className="productivity-field-grid">

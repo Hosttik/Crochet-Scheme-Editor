@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { GuideRenderer } from './editor/GuideRenderer'
 import { LegendOverlay } from './editor/LegendOverlay'
+import { LegendPanel } from './editor/LegendPanel'
 import { RowMarkerLayer } from './editor/RowMarkerLayer'
 import { RowMarkersPanel } from './editor/RowMarkersPanel'
 import { LassoOverlay, type LassoMode } from './editor/LassoOverlay'
@@ -129,7 +130,7 @@ const DEFAULT_VIEWPORT: Viewport = { zoom: 1, panX: 460, panY: 320 }
 const DEFAULT_SNAPPING: SnappingSettings = {
   enabled: true,
   sourceAnchor: 'bottom',
-  orientationMode: 'none',
+  orientationMode: 'along',
   snapToVertices: true,
   tolerancePx: 12,
 }
@@ -140,7 +141,7 @@ const SYMBOL_SIZES = Object.fromEntries(
   SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
 )
 
-type Tool = { type: 'select' } | { type: 'lasso' } | { type: 'ruler' } | { type: 'place'; symbolId: string } | { type: 'row-marker' }
+type Tool = { type: 'select' } | { type: 'pan' } | { type: 'lasso' } | { type: 'ruler' } | { type: 'place'; symbolId: string } | { type: 'row-marker' }
 type DocumentSnapshot = {
   elements: StitchElement[]
   guides: Guide[]
@@ -1318,6 +1319,13 @@ function App() {
           setSnapTarget(null)
           setSelectedGuideId(null)
           setSelectedRowMarkerId(null)
+        } else if (event.key.toLowerCase() === 'h') {
+          event.preventDefault()
+          setTool((current) => current.type === 'pan' ? { type: 'select' } : { type: 'pan' })
+          setLasso(null)
+          setPreview(null)
+          setSnapTarget(null)
+          setRulerDraft(null)
         }
       }
 
@@ -1443,6 +1451,13 @@ function App() {
     snapLockRef.current = solved.candidate?.key ?? null
     setSnapTarget(solved.candidate)
     setPreview({ ...proposed, x: solved.x, y: solved.y, rotation: solved.rotation })
+  }
+
+  const handleCanvasPointerDownCapture = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (tool.type !== 'pan' || event.button !== 0) return
+    event.preventDefault()
+    event.stopPropagation()
+    beginPan(event)
   }
 
   const handleCanvasPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
@@ -2471,6 +2486,20 @@ const saveProject = () => {
             <span>↖</span>{t.selectMove}<kbd>Esc</kbd>
           </button>
           <button
+            className={`tool-button ${tool.type === 'pan' ? 'active' : ''}`}
+            aria-label={locale === 'ru' ? 'Ладонь / перемещение поля' : 'Hand / pan canvas'}
+            aria-pressed={tool.type === 'pan'}
+            onClick={() => {
+              setTool((current) => current.type === 'pan' ? { type: 'select' } : { type: 'pan' })
+              setLasso(null)
+              setPreview(null)
+              setSnapTarget(null)
+              setRulerDraft(null)
+            }}
+          >
+            <span>✋</span>{locale === 'ru' ? 'Ладонь' : 'Hand'}<kbd>H</kbd>
+          </button>
+          <button
             className={`tool-button ${tool.type === 'lasso' ? 'active' : ''}`}
             aria-label={locale === 'ru' ? 'Лассо' : 'Lasso'}
             onClick={() => {
@@ -2492,7 +2521,7 @@ const saveProject = () => {
           >
             <span>↔</span>{locale === 'ru' ? 'Линейка' : 'Ruler'}<kbd>R</kbd>
           </button>
-          <small className="muted-text">{locale === 'ru' ? 'Лассо: Shift добавить · Alt вычесть · Линейка: две точки · Space + drag — ладонь' : 'Lasso: Shift add · Alt subtract · Ruler: two points · Space + drag — hand'}</small>
+          <small className="muted-text">{locale === 'ru' ? 'H — постоянная ладонь · Space + drag — временная · средняя кнопка мыши тоже двигает поле' : 'H — persistent hand · Space + drag — temporary · middle mouse also pans'}</small>
         </section>
 
         <ProjectManagerPanel
@@ -2619,6 +2648,19 @@ const saveProject = () => {
             disabled={!selectedIds.length}
           >{locale === 'ru' ? 'Выбор' : 'Sel'}</button>
           <button
+            className={`fit-button ${tool.type === 'pan' ? 'active' : ''}`}
+            aria-label={locale === 'ru' ? 'Ладонь / перемещение поля' : 'Hand / pan canvas'}
+            aria-pressed={tool.type === 'pan'}
+            title="H"
+            onClick={() => {
+              setTool((current) => current.type === 'pan' ? { type: 'select' } : { type: 'pan' })
+              setLasso(null)
+              setPreview(null)
+              setSnapTarget(null)
+              setRulerDraft(null)
+            }}
+          >✋</button>
+          <button
             className={`fit-button ${tool.type === 'lasso' ? 'active' : ''}`}
             aria-label={locale === 'ru' ? 'Лассо' : 'Lasso'}
             aria-pressed={tool.type === 'lasso'}
@@ -2645,6 +2687,18 @@ const saveProject = () => {
             title={locale === 'ru' ? 'S — включить/выключить привязку' : 'S — toggle snapping'}
             onClick={toggleSnapping}
           >{snapping.enabled ? (locale === 'ru' ? '🔗 Привязка' : '🔗 Snap') : (locale === 'ru' ? 'Свободно' : 'Free')}</button>
+          <select
+            className="canvas-orientation-select"
+            aria-label={locale === 'ru' ? 'Ориентация при привязке' : 'Snap orientation'}
+            title={locale === 'ru' ? 'Автоповорот при привязке к направляющей' : 'Auto-rotate when snapping to a guide'}
+            value={snapping.orientationMode}
+            disabled={!snapping.enabled}
+            onChange={(event) => commitSnapping({ ...snapping, orientationMode: event.target.value as OrientationMode })}
+          >
+            <option value="none">{locale === 'ru' ? 'Не поворачивать' : 'Keep'}</option>
+            <option value="along">{locale === 'ru' ? 'Вдоль' : 'Along'}</option>
+            <option value="perpendicular">{locale === 'ru' ? 'Поперёк' : 'Perpendicular'}</option>
+          </select>
           <span className="canvas-hint">{t.zoomHint}</span>
         </div>
 
@@ -2666,8 +2720,9 @@ const saveProject = () => {
 
         <svg
           ref={svgRef}
-          className={`editor-canvas ${pan ? 'panning' : ''} ${tool.type === 'place' ? 'placing' : tool.type === 'lasso' ? 'lassoing' : tool.type === 'ruler' ? 'measuring' : 'selecting'}`}
+          className={`editor-canvas ${pan ? 'panning' : ''} ${tool.type === 'pan' ? 'pan-tool' : tool.type === 'place' ? 'placing' : tool.type === 'lasso' ? 'lassoing' : tool.type === 'ruler' ? 'measuring' : 'selecting'}`}
           onWheel={handleWheel}
+          onPointerDownCapture={handleCanvasPointerDownCapture}
           onPointerDown={handleCanvasPointerDown}
           onPointerMove={handleCanvasPointerMove}
           onPointerUp={(event) => finishPointerInteraction(event)}
@@ -2754,7 +2809,7 @@ const saveProject = () => {
               onMoveEnd={handleRowMarkerMoveEnd}
             />
 
-            {legendVisible && <LegendOverlay elements={elements} locale={locale} zoom={viewport.zoom} />}
+            {legendVisible && <LegendOverlay elements={elements} locale={locale} viewport={viewport} />}
 
             {mirrorAxis && productivitySelectionIds().length > 0 && (
               <MirrorAxisOverlay
@@ -2905,13 +2960,12 @@ const saveProject = () => {
           />
         </section>
 
-        <section className="panel-section">
-          <div className="section-title-row"><h2>{locale === 'ru' ? 'Легенда' : 'Legend'}</h2></div>
-          <label className="toggle-row">
-            <span><strong>{locale === 'ru' ? 'Автоматическая легенда' : 'Automatic legend'}</strong><small>{locale === 'ru' ? 'Только реально используемые элементы; включается и в SVG.' : 'Only symbols actually used; also included in SVG.'}</small></span>
-            <input type="checkbox" checked={legendVisible} onChange={(event) => commitLegendVisible(event.target.checked)} />
-          </label>
-        </section>
+        <LegendPanel
+          locale={locale}
+          elements={elements}
+          visible={legendVisible}
+          onVisibleChange={commitLegendVisible}
+        />
 
         {productivitySelectionIds().length > 0 && (
           <ProductivityPanel
@@ -2971,15 +3025,7 @@ const saveProject = () => {
               />
             </>
           ) : selectedElement ? (
-            <div className="selection-card">
-              <div className="selection-preview">
-                <svg viewBox="-30 -42 60 84"><g className="symbol-glyph" style={selectedElement.color ? { color: selectedElement.color } : undefined}><SymbolGlyph symbolId={selectedElement.symbolId} /></g></svg>
-              </div>
-              <div>
-                <strong>{symbolName(selectedElement.symbolId, SYMBOL_BY_ID.get(selectedElement.symbolId)?.name ?? selectedElement.symbolId, locale)}</strong>
-                <small>x {Math.round(selectedElement.x)} · y {Math.round(selectedElement.y)}</small>
-                <small>{Math.round(selectedElement.rotation)}°</small>
-              </div>
+            <div className="selection-card compact-selection-card">
               <div className="rotation-controls">
                 <button onClick={() => rotateSelected(-15)}>−15°</button>
                 <button onClick={() => rotateSelected(15)}>+15°</button>

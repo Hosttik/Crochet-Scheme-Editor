@@ -5,7 +5,7 @@ export const DEFAULT_LOCALE: Locale = 'ru'
 export const UI = {
   ru: {
     brandTitle: 'Редактор схем вязания',
-    brandSubtitle: 'Векторный редактор схем · v1.17.1',
+    brandSubtitle: 'Векторный редактор схем · v1.18.0',
     undo: 'Отменить',
     redo: 'Повторить',
     saveJson: 'Сохранить JSON',
@@ -32,7 +32,7 @@ export const UI = {
     rectangularGrid: 'Прямоугольная сетка',
     radialGrid: 'Радиальная сетка',
     stitches: 'Элементы',
-    zoomHint: '+/− масштаб · F всё · Shift+F выбор · Space + drag поле',
+    zoomHint: '+/− масштаб · F всё · Shift+F выбор · H ладонь',
     snapping: 'Привязка',
     allowSnapping: 'Разрешить привязку',
     snappingHint: 'S быстро включает свободное размещение или привязку к элементам и направляющим',
@@ -118,7 +118,7 @@ export const UI = {
   },
   en: {
     brandTitle: 'Crochet Scheme Editor',
-    brandSubtitle: 'Vector pattern workspace · v1.17.1',
+    brandSubtitle: 'Vector pattern workspace · v1.18.0',
     undo: 'Undo',
     redo: 'Redo',
     saveJson: 'Save JSON',
@@ -145,7 +145,7 @@ export const UI = {
     rectangularGrid: 'Rectangular grid',
     radialGrid: 'Radial grid',
     stitches: 'Stitches',
-    zoomHint: '+/− zoom · F all · Shift+F selection · Space + drag pan',
+    zoomHint: '+/− zoom · F all · Shift+F selection · H hand',
     snapping: 'Snapping',
     allowSnapping: 'Allow snapping',
     snappingHint: 'S quickly switches between free placement and snapping to stitches/guides',
