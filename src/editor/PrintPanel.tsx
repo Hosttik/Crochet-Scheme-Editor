@@ -59,13 +59,26 @@ export function PrintPanel({ locale, bounds, onPrint }: Props) {
         </label>
         <label>
           <span>{ru ? 'Перекрытие' : 'Overlap'}</span>
-          <input type="number" min="0" max="30" step="1" value={settings.overlapMm} onChange={(event) => patch({ overlapMm: Math.max(0, Number(event.target.value) || 0) })} />
+          <input data-testid="print-overlap" type="number" min="0" max="30" step="1" value={settings.overlapMm} onChange={(event) => patch({ overlapMm: Math.max(0, Number(event.target.value) || 0) })} />
           <small>mm</small>
         </label>
       </div>
       <label className="toggle-row compact-toggle">
         <span>{ru ? 'Печатать рамки страниц' : 'Print page frames'}</span>
         <input data-testid="print-page-frames" type="checkbox" checked={settings.pageFrames} onChange={(event) => patch({ pageFrames: event.target.checked })} />
+      </label>
+      <label className="toggle-row compact-toggle">
+        <span>
+          <strong>{ru ? 'Метки совмещения' : 'Alignment marks'}</strong>
+          <small>{ru ? 'Кресты совпадают на соседних листах внутри зоны перекрытия.' : 'Crosses represent matching points inside adjacent overlap areas.'}</small>
+        </span>
+        <input
+          data-testid="print-alignment-marks"
+          type="checkbox"
+          checked={settings.alignmentMarks}
+          disabled={settings.overlapMm <= 0}
+          onChange={(event) => patch({ alignmentMarks: event.target.checked })}
+        />
       </label>
       <div className="print-tile-preview" data-testid="print-tile-preview">
         <svg viewBox={previewBox} aria-label={ru ? 'Предпросмотр рамок страниц' : 'Page-frame preview'}>
@@ -94,7 +107,7 @@ export function PrintPanel({ locale, bounds, onPrint }: Props) {
       <button className="primary-button print-button" onClick={() => onPrint(settings)}>
         {ru ? 'Открыть печать' : 'Open print view'}
       </button>
-      <small className="muted-text">{ru ? 'Предпросмотр показывает реальные границы и перекрытие страниц. Для физически точного масштаба в диалоге браузера оставьте 100%.' : 'Preview shows the actual page boundaries and overlap. For physical scale fidelity, keep the browser print dialog at 100%.'}</small>
+      <small className="muted-text">{ru ? 'Для физически точного масштаба в диалоге браузера оставьте 100%. Легенда удерживается внутри печатной области.' : 'For physical scale fidelity, keep the browser print dialog at 100%. The legend is kept inside the printable area.'}</small>
     </section>
   )
 }
