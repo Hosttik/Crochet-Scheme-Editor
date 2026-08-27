@@ -99,10 +99,11 @@ export function createDirectionalMirroredCopy(
   elements: StitchElement[],
   ids: string[],
   direction: MirrorDirection,
-  gap: number,
+  _gap: number,
   createId: () => string,
 ) {
-  const safeGap = Math.max(0, Math.abs(gap))
-  const line = mirrorLineForDirection(elements, ids, direction, safeGap / 2)
+  // Directional preview and both commit actions must use the same axis. A hidden
+  // extra gap here would make Create mirrored copy jump away from its ghost.
+  const line = mirrorLineForDirection(elements, ids, direction)
   return line ? createMirroredCopyAcrossLine(elements, ids, line, createId) : []
 }
