@@ -95,8 +95,7 @@ test('authors locked guides, gap-free row numbers and an exported automatic lege
   await expect(legend).toContainText('dc · Столбик с накидом')
   await expect(legend).not.toContainText('tr ·')
 
-  const legendSection = page.locator('.panel-section').filter({ has: page.getByRole('heading', { name: 'Легенда', exact: true }) })
-  const legendToggle = legendSection.locator('input[type="checkbox"]')
+  const legendToggle = page.getByTestId('legend-visible-toggle')
   await legendToggle.uncheck()
   await expect(page.locator('.legend-overlay')).toHaveCount(0)
   await legendToggle.check()
