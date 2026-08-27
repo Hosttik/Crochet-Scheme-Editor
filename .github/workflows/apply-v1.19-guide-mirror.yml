@@ -25,6 +25,7 @@ jobs:
         run: |
           sed -i "/replace_once('src\/i18n.ts', 'v1.18.0', 'v1.19.0')/d" scripts/apply_v1_19_guide_mirror.py
           python scripts/apply_v1_19_guide_mirror.py
+          sed -i "s/guide.type === 'grid' || guide.type === 'line' || guide.type === 'curve')/guide.type === 'grid' || guide.type === 'line' || guide.type === 'curve' || guide.type === 'parabola')/" src/editor/rowGenerator.ts
           sed -i 's/v1\.18\.0/v1.19.0/g' src/i18n.ts
           npm version 1.19.0 --no-git-tag-version
       - name: Build and unit verification
