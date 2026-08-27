@@ -33,6 +33,34 @@
   cursor: grabbing;
 }
 
+.stitch-geometry-handle {
+  fill: #fff;
+  stroke: #2f7659;
+  stroke-width: 1.5;
+}
+
+.stitch-geometry-handle.uniform {
+  cursor: nwse-resize;
+}
+
+.stitch-geometry-handle.height {
+  cursor: ns-resize;
+}
+
+.stitch-geometry-handle.spread {
+  fill: #fff8df;
+  stroke: #9a650d;
+  cursor: ew-resize;
+}
+
+.stitch-geometry-handle:hover {
+  fill: #e6f1eb;
+}
+
+.stitch-geometry-handle.spread:hover {
+  fill: #fff0b9;
+}
+
 .selection-actions {
   grid-column: 1 / -1;
   display: grid;
