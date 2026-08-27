@@ -24,11 +24,16 @@ describe('repeat preview selection semantics', () => {
     expect(shouldShowRepeatPreview(repeatPreviewSelectionKind(elements, ['g1-a', 'g1-b']))).toBe(true)
   })
 
-  it('hides preview for temporary multi-selection and multiple groups', () => {
+  it('shows preview for temporary multi-selection and multiple groups', () => {
     expect(repeatPreviewSelectionKind(elements, ['a', 'b'])).toBe('multiple')
-    expect(shouldShowRepeatPreview(repeatPreviewSelectionKind(elements, ['a', 'b']))).toBe(false)
+    expect(shouldShowRepeatPreview(repeatPreviewSelectionKind(elements, ['a', 'b']))).toBe(true)
 
     expect(repeatPreviewSelectionKind(elements, ['g1-a', 'g1-b', 'g2-a', 'g2-b'])).toBe('multiple')
-    expect(shouldShowRepeatPreview(repeatPreviewSelectionKind(elements, ['g1-a', 'g1-b', 'g2-a', 'g2-b']))).toBe(false)
+    expect(shouldShowRepeatPreview(repeatPreviewSelectionKind(elements, ['g1-a', 'g1-b', 'g2-a', 'g2-b']))).toBe(true)
+  })
+
+  it('does not render a preview without a valid selection', () => {
+    expect(repeatPreviewSelectionKind(elements, [])).toBe('none')
+    expect(shouldShowRepeatPreview('none')).toBe(false)
   })
 })
