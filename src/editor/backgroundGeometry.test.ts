@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { BackgroundImage } from '../types'
 import {
+  backgroundCorners,
   backgroundImageBounds,
   moveBackground,
   resizeBackgroundFromCorner,
@@ -51,4 +52,14 @@ describe('background canvas geometry', () => {
     expect(rotated.x).toBe(background.x)
     expect(rotated.y).toBe(background.y)
   })
+
+  it('keeps the opposite world-space corner fixed while resizing a rotated image', () => {
+    const rotated = { ...background, rotation: 37 }
+    const before = backgroundCorners(rotated).nw
+    const resized = resizeBackgroundFromCorner(rotated, 'se', { x: 330, y: 210 })
+    const after = backgroundCorners(resized).nw
+    expect(after.x).toBeCloseTo(before.x, 6)
+    expect(after.y).toBeCloseTo(before.y, 6)
+  })
+
 })
