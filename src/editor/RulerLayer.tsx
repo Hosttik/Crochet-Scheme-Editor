@@ -1,5 +1,4 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import { SYMBOL_BY_ID } from '../symbols'
 import type { GaugeSettings, MeasurementRuler, Point, StitchElement } from '../types'
 import { rulerCorridorPolygon, rulerDisplayLabel, rulerEstimate } from './gauge'
 
@@ -33,7 +32,7 @@ export function RulerLayer({ rulers, selectedId, draft, elements, gauge, locale,
             {corridor.length === 4 && (
               <polygon
                 points={corridor.map((point) => `${point.x},${point.y}`).join(' ')}
-                className="ruler-corridor"
+                className="ruler-corridor ruler-anchor-region"
                 data-testid="ruler-corridor"
                 vectorEffect="non-scaling-stroke"
                 pointerEvents="none"
@@ -42,23 +41,18 @@ export function RulerLayer({ rulers, selectedId, draft, elements, gauge, locale,
             {counted.map((id) => {
               const element = byId.get(id)
               if (!element) return null
-              const definition = SYMBOL_BY_ID.get(element.symbolId)
-              const width = (definition?.width ?? 30) + 8 / zoom
-              const height = (definition?.height ?? 30) + 8 / zoom
               return (
-                <rect
+                <g
                   key={`counted:${id}`}
-                  x={-width / 2}
-                  y={-height / 2}
-                  width={width}
-                  height={height}
-                  rx={5 / zoom}
-                  transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
-                  className="ruler-counted-element"
+                  transform={`translate(${element.x} ${element.y})`}
+                  className="ruler-counted-anchor"
                   data-counted-element-id={id}
-                  vectorEffect="non-scaling-stroke"
                   pointerEvents="none"
-                />
+                >
+                  <circle r={6 / zoom} vectorEffect="non-scaling-stroke" />
+                  <line x1={-3 / zoom} y1="0" x2={3 / zoom} y2="0" vectorEffect="non-scaling-stroke" />
+                  <line x1="0" y1={-3 / zoom} x2="0" y2={3 / zoom} vectorEffect="non-scaling-stroke" />
+                </g>
               )
             })}
             <line x1={ruler.start.x} y1={ruler.start.y} x2={ruler.end.x} y2={ruler.end.y} className="ruler-hit-line" strokeWidth={16 / zoom} pointerEvents="none" />
@@ -90,6 +84,11 @@ export function RulerLayer({ rulers, selectedId, draft, elements, gauge, locale,
       })}
       {draft && (
         <g className="measurement-ruler draft" pointerEvents="none">
+          <polygon
+            points={rulerCorridorPolygon({ id: '__draft__', start: draft.start, end: draft.end }).map((point) => `${point.x},${point.y}`).join(' ')}
+            className="ruler-corridor ruler-anchor-region"
+            vectorEffect="non-scaling-stroke"
+          />
           <line x1={draft.start.x} y1={draft.start.y} x2={draft.end.x} y2={draft.end.y} className="ruler-line" vectorEffect="non-scaling-stroke" />
           <circle cx={draft.start.x} cy={draft.start.y} r={5 / zoom} className="ruler-draft-point" vectorEffect="non-scaling-stroke" />
           <circle cx={draft.end.x} cy={draft.end.y} r={5 / zoom} className="ruler-draft-point" vectorEffect="non-scaling-stroke" />
