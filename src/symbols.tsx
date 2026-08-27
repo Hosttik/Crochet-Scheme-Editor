@@ -18,6 +18,12 @@ type GlyphPart =
   | { kind: 'circle'; cx: number; cy: number; r: number; fill?: string; stroke?: string; strokeWidth?: number }
   | { kind: 'ellipse'; cx: number; cy: number; rx: number; ry: number; fill?: string; stroke?: string; strokeWidth?: number }
 
+type MultiStemSpec = {
+  count: number
+  mode: 'decrease' | 'increase'
+  family: 'single' | 'half-double' | 'double'
+}
+
 const anchors = (height: number): Record<AnchorName, Point> => ({
   top: { x: 0, y: -height / 2 },
   center: { x: 0, y: 0 },
@@ -110,10 +116,15 @@ function tallGlyph(height: number, yarnOvers: number, blo = false): GlyphPart[] 
   return parts
 }
 
-function multiStemGlyph(count: number, mode: 'decrease' | 'increase', family: 'single' | 'half-double' | 'double'): GlyphPart[] {
+function multiStemGlyph(
+  count: number,
+  mode: 'decrease' | 'increase',
+  family: 'single' | 'half-double' | 'double',
+  spreadFactor = 1,
+): GlyphPart[] {
   const topY = -22
   const bottomY = 22
-  const spread = Math.max(18, (count - 1) * 9)
+  const spread = Math.max(18, (count - 1) * 9) * Math.max(0.1, spreadFactor)
   const startX = -spread / 2
   const step = count === 1 ? 0 : spread / (count - 1)
   const parts: GlyphPart[] = []
@@ -141,6 +152,17 @@ function multiStemGlyph(count: number, mode: 'decrease' | 'increase', family: 's
 
   if (mode === 'decrease' && family !== 'single') parts.push(path(`M -7 ${topY} L 7 ${topY}`))
   return parts
+}
+
+const SEMANTIC_MULTI_STEMS: Record<string, MultiStemSpec> = {
+  'single-2-in-1': { count: 2, mode: 'increase', family: 'single' },
+  'single-3-in-1': { count: 3, mode: 'increase', family: 'single' },
+  'half-double-2-in-1': { count: 2, mode: 'increase', family: 'half-double' },
+  'half-double-3-in-1': { count: 3, mode: 'increase', family: 'half-double' },
+  'double-2-in-1': { count: 2, mode: 'increase', family: 'double' },
+  'double-3-in-1': { count: 3, mode: 'increase', family: 'double' },
+  'double-4-in-1': { count: 4, mode: 'increase', family: 'double' },
+  'double-5-shell': { count: 5, mode: 'increase', family: 'double' },
 }
 
 function postSingleGlyph(side: 'front' | 'back'): GlyphPart[] {
@@ -252,6 +274,12 @@ const commonProps = {
   vectorEffect: 'non-scaling-stroke' as const,
 }
 
+function glyphParts(symbolId: string, spread = 1) {
+  const semantic = SEMANTIC_MULTI_STEMS[symbolId]
+  if (semantic) return multiStemGlyph(semantic.count, semantic.mode, semantic.family, spread)
+  return GLYPHS[symbolId] ?? [circle(0, 0, 7)]
+}
+
 function renderPart(part: GlyphPart, key: number) {
   const fill = part.fill ?? 'none'
   const stroke = part.stroke ?? 'currentColor'
@@ -269,8 +297,8 @@ export function hasSymbolGlyph(symbolId: string) {
   return Boolean(GLYPHS[symbolId])
 }
 
-export function SymbolGlyph({ symbolId }: { symbolId: string }) {
-  const parts = GLYPHS[symbolId] ?? [circle(0, 0, 7)]
+export function SymbolGlyph({ symbolId, spread = 1 }: { symbolId: string; spread?: number }) {
+  const parts = glyphParts(symbolId, spread)
   return <>{parts.map(renderPart)}</>
 }
 
@@ -284,7 +312,6 @@ function partMarkup(part: GlyphPart): string {
   return `<ellipse cx="${part.cx}" cy="${part.cy}" rx="${part.rx}" ry="${part.ry}" ${common}/>`
 }
 
-export function symbolSvgMarkup(symbolId: string): string {
-  const parts = GLYPHS[symbolId] ?? [circle(0, 0, 7)]
-  return parts.map(partMarkup).join('')
+export function symbolSvgMarkup(symbolId: string, spread = 1): string {
+  return glyphParts(symbolId, spread).map(partMarkup).join('')
 }
