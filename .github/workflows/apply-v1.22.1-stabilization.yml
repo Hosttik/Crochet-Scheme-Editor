@@ -1,0 +1,43 @@
+name: Apply v1.22.1 stabilization
+
+on:
+  push:
+    branches: [fix/v1.22.1-stabilization-review]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: fix/v1.22.1-stabilization-review
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply stabilization changes
+        run: |
+          python scripts/apply_v1_22_1_stabilization.py
+          npm version 1.22.1 --no-git-tag-version --allow-same-version
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Build and unit verification
+        run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Full Chromium gate
+        run: npm run test:e2e
+      - name: Commit verified product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-v1.22.1-stabilization.yml scripts/apply_v1_22_1_stabilization.py
+          git add -A
+          git commit -m "Stabilize cross-feature interactions for v1.22.1"
+          git push origin HEAD:fix/v1.22.1-stabilization-review
