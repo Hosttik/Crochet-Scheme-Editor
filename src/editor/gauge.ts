@@ -59,6 +59,7 @@ export function snapRulerPoint(
   let bestDistance = maxDistance
   for (const element of elements) {
     if (element.visible === false) continue
+    if (SYMBOL_BY_ID.get(element.symbolId)?.role === 'marker') continue
     const distance = Math.hypot(element.x - point.x, element.y - point.y)
     if (distance <= bestDistance) {
       best = element
@@ -101,6 +102,37 @@ function projectedHalfExtent(element: StitchElement, axis: Point) {
     + Math.abs(axis.x * localY.x + axis.y * localY.y) * height / 2
 }
 
+function dot(left: Point, right: Point) {
+  return left.x * right.x + left.y * right.y
+}
+
+function elementLocalAxes(element: StitchElement) {
+  const angle = element.rotation * Math.PI / 180
+  return [
+    { x: Math.cos(angle), y: Math.sin(angle) },
+    { x: -Math.sin(angle), y: Math.cos(angle) },
+  ] as const
+}
+
+function corridorIntersectsElementBounds(
+  element: StitchElement,
+  corridorCenter: Point,
+  along: Point,
+  normal: Point,
+  halfLength: number,
+  halfWidth: number,
+) {
+  const relative = { x: element.x - corridorCenter.x, y: element.y - corridorCenter.y }
+  const axes = [along, normal, ...elementLocalAxes(element)]
+  return axes.every((axis) => {
+    const centerDistance = Math.abs(dot(relative, axis))
+    const corridorRadius = Math.abs(dot(along, axis)) * halfLength
+      + Math.abs(dot(normal, axis)) * halfWidth
+    const elementRadius = projectedHalfExtent(element, axis)
+    return centerDistance <= corridorRadius + elementRadius + 1e-9
+  })
+}
+
 export function rulerCorridorHits(
   ruler: MeasurementRuler,
   elements: StitchElement[],
@@ -112,15 +144,11 @@ export function rulerCorridorHits(
   if (length < 1e-6) return { elementIds: [], rowIds: [] }
   const along = { x: dx / length, y: dy / length }
   const normal = { x: -along.y, y: along.x }
+  const center = { x: (ruler.start.x + ruler.end.x) / 2, y: (ruler.start.y + ruler.end.y) / 2 }
   const hits = elements.filter((element) => {
     if (element.visible === false) return false
     if (SYMBOL_BY_ID.get(element.symbolId)?.role === 'marker') return false
-    const relative = { x: element.x - ruler.start.x, y: element.y - ruler.start.y }
-    const t = relative.x * along.x + relative.y * along.y
-    const cross = Math.abs(relative.x * normal.x + relative.y * normal.y)
-    const alongRadius = projectedHalfExtent(element, along)
-    const crossRadius = projectedHalfExtent(element, normal)
-    return t >= -alongRadius && t <= length + alongRadius && cross <= halfWidth + crossRadius
+    return corridorIntersectsElementBounds(element, center, along, normal, length / 2, Math.max(0, halfWidth))
   })
   const rowSet = new Set(hits.flatMap((element) => element.parametricRow?.id ? [element.parametricRow.id] : []))
   const orderedRows = patternRows(elements).map((row) => row.id).filter((id) => rowSet.has(id))
@@ -207,12 +235,17 @@ export function rulerEstimate(
 
   if (mode === 'rows') {
     const endpointAutomatic = automaticRulerRowCount(ruler, elements)
+    const corridorRowSet = new Set(corridor.rowIds)
+    const elementById = new Map(elements.map((element) => [element.id, element] as const))
     const corridorAutomatic = corridor.rowIds.length ? {
       count: corridor.rowIds.length,
       startRowId: corridor.rowIds[0],
       endRowId: corridor.rowIds[corridor.rowIds.length - 1],
       rowIds: corridor.rowIds,
-      elementIds: corridor.elementIds,
+      elementIds: corridor.elementIds.filter((id) => {
+        const rowId = elementById.get(id)?.parametricRow?.id
+        return Boolean(rowId && corridorRowSet.has(rowId))
+      }),
     } : null
     const automatic = endpointAutomatic ?? corridorAutomatic
     const manual = ruler.manualRowCount && ruler.manualRowCount > 0 ? ruler.manualRowCount : null

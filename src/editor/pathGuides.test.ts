@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import type { CurveGuide, LineGuide, StitchElement } from '../types'
+import type { ArcGuide, CurveGuide, LineGuide, ParabolaGuide, StitchElement } from '../types'
+import { reverseGuide } from './guideGeometry'
 import {
   attachElementToGuide,
+  elementFromAttachment,
+  isPathGuide,
   moveAttachedElement,
   nearestPathParameter,
   pathPoseAt,
   reconcileGuideAttachments,
+  remapAttachmentsForReversedGuide,
 } from './pathGuides'
 
 const line: LineGuide = {
@@ -82,4 +86,46 @@ describe('path guides', () => {
     const [reconciled] = reconcileGuideAttachments([attached], [])
     expect(reconciled.guideAttachment).toBeUndefined()
   })
+
+  it('keeps attachment position and path side stable when reversing every continuous guide type', () => {
+    const arc: ArcGuide = {
+      id: 'arc', type: 'arc', center: { x: 80, y: 30 }, radius: 70,
+      startAngle: 15, endAngle: 210, divisions: 12, visible: true,
+    }
+    const parabola: ParabolaGuide = {
+      id: 'parabola', type: 'parabola', start: { x: 0, y: 30 },
+      control: { x: 100, y: -80 }, end: { x: 200, y: 30 }, divisions: 12, visible: true,
+    }
+    for (const guide of [line, curve, arc, parabola]) {
+      const attachment = {
+        guideId: guide.id,
+        t: 0.23,
+        orientation: 'keep' as const,
+        rotationOffset: 0,
+        normalOffset: 12,
+      }
+      const positioned = elementFromAttachment({ ...stitch, id: `stitch-${guide.id}` }, guide, attachment)
+      const reversed = reverseGuide(guide)
+      expect(isPathGuide(reversed)).toBe(true)
+      if (!isPathGuide(reversed)) throw new Error('Expected a path guide')
+      const [remapped] = remapAttachmentsForReversedGuide([positioned], reversed)
+      expect(remapped.x).toBeCloseTo(positioned.x, 6)
+      expect(remapped.y).toBeCloseTo(positioned.y, 6)
+      expect(remapped.rotation).toBeCloseTo(positioned.rotation, 6)
+      expect(remapped.guideAttachment?.t).toBeCloseTo(0.77, 8)
+      expect(remapped.guideAttachment?.normalOffset).toBe(-12)
+    }
+  })
+
+  it('lets tangent-oriented stitches turn with the reversed work direction without jumping', () => {
+    const attachment = { guideId: line.id, t: 0.3, orientation: 'tangent' as const, rotationOffset: 20, normalOffset: 9 }
+    const positioned = elementFromAttachment(stitch, line, attachment)
+    const reversed = reverseGuide(line)
+    if (!isPathGuide(reversed)) throw new Error('Expected a path guide')
+    const [remapped] = remapAttachmentsForReversedGuide([positioned], reversed)
+    expect(remapped.x).toBeCloseTo(positioned.x, 6)
+    expect(remapped.y).toBeCloseTo(positioned.y, 6)
+    expect(Math.abs(remapped.rotation - positioned.rotation)).toBeCloseTo(180, 6)
+  })
+
 })

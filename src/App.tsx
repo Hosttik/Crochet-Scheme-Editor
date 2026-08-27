@@ -51,6 +51,7 @@ import {
   isPathGuide,
   moveAttachedElement,
   reconcileGuideAttachments,
+  remapAttachmentsForReversedGuide,
 } from './editor/pathGuides'
 import { createDirectionalMirroredCopy, createMirroredCopy, createMirroredCopyAcrossLine } from './editor/mirrorCopy'
 import {
@@ -2188,19 +2189,19 @@ function App() {
 
   const reverseGuideDirection = useCallback((target: Guide) => {
     if (target.locked === true || !isPathGuide(target)) return
-    commitGuides(guides.map((guide) => guide.id === target.id ? reverseGuide(guide) : guide))
+    const reversed = reverseGuide(target)
+    if (!isPathGuide(reversed)) return
+    commitGuides(guides.map((guide) => guide.id === target.id ? reversed : guide))
+    setElements(remapAttachmentsForReversedGuide(elements, reversed))
     setStatus(locale === 'ru' ? 'Направление направляющей изменено' : 'Guide direction reversed')
-  }, [commitGuides, guides, locale])
+  }, [commitGuides, elements, guides, locale])
 
   const fitSelectedLineToProject = useCallback(() => {
     if (!selectedGuide || selectedGuide.type !== 'line' || selectedGuide.locked === true) return
     const ids = visibleElements.map((element) => element.id)
     let bounds = selectionAabb(visibleElements, ids, SYMBOL_SIZES)
     if (backgroundImage && backgroundImage.visible !== false) {
-      const imageBounds = {
-        left: backgroundImage.x, top: backgroundImage.y,
-        right: backgroundImage.x + backgroundImage.width, bottom: backgroundImage.y + backgroundImage.height,
-      }
+      const imageBounds = backgroundImageBounds(backgroundImage)
       bounds = bounds ? {
         left: Math.min(bounds.left, imageBounds.left), top: Math.min(bounds.top, imageBounds.top),
         right: Math.max(bounds.right, imageBounds.right), bottom: Math.max(bounds.bottom, imageBounds.bottom),

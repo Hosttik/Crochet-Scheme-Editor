@@ -2,13 +2,13 @@
 
 Browser-based semantic editor for crochet charts and written patterns.
 
+## v1.22.1
+
+Stabilization review release: path-direction reversal now preserves manual guide-attachment positions and normal-side offsets; Smart Ruler uses exact oriented-rectangle corridor intersection, ignores marker-role snap targets, and highlights only elements that actually contribute to row counts; Line project-span fitting now respects rotated tracing-underlay bounds. Additional regressions cover rotated background resize/history and mirrored grouped Repeat behavior. Project schema remains v21.
+
 ## v1.22.0
 
 Smart Ruler corridor release: free measurement rulers now auto-count visible stitch geometry intersected by a finite translucent corridor, including manual/non-parametric motifs such as the 2/3/4-chain presets. Row mode counts unique semantic rows crossed by the corridor, selected rulers highlight the elements contributing to automatic counts, and explicit manual counts remain available as an override/fallback. Existing same-row endpoint snapping retains its exact semantic range behavior. Project schema remains v21.
-
-## v1.19.0
-
-Guide & Mirror Geometry release: straight guides now expose semantic length/angle editing, project-span fitting, visible work direction and reversible path direction. A quadratic Parabola guide adds a simple one-control-point curve while keeping legacy cubic Curve geometry intact. Mirror authoring now uses true reflected glyph parity, directional reflect/copy controls, and an arbitrary movable/rotatable custom axis that stays on the canvas while selection changes. Project schema is v20.
 
 ## v1.21.0
 
@@ -18,10 +18,13 @@ Composite-chain authoring release: the palette now includes 2/3/4-chain presets.
 
 Canvas/output usability release: background underlays can be selected directly on the canvas, moved, resized from four corners, Shift-resized with preserved aspect ratio, and rotated with a dedicated handle (Shift snaps to 15°). Rotation persists in schema v21 and is honored by SVG/print bounds. Tiled print now uses complete printable-area page frames instead of corner crop marks and includes a live page/overlap preview.
 
+## v1.19.0
+
+Guide & Mirror Geometry release: straight guides now expose semantic length/angle editing, project-span fitting, visible work direction and reversible path direction. A quadratic Parabola guide adds a simple one-control-point curve while keeping legacy cubic Curve geometry intact. Mirror authoring now uses true reflected glyph parity, directional reflect/copy controls, and an arbitrary movable/rotatable custom axis that stays on the canvas while selection changes. Project schema is v20.
+
 ## v1.18.0
 
 Core usability release: explicit Hand/Pan mode, visible snap-orientation control with guide auto-rotation, 15° Shift snapping for straight-guide endpoints, safer Repeat inputs, motif-aware guide spacing, non-overlapping selection actions and a persistent used-symbol legend window. The symbol library currently contains 44 definitions and project schema remains v19.
-
 ## v1.15.1
 
 Stability and data-integrity release. It hardens local project persistence, autosave transitions, semantic locking, project import validation, large background handling and release verification without changing the authoring model introduced in v1.15.
@@ -135,12 +138,12 @@ The editor combines an SVG canvas with a document model that understands guides,
 ### Persistence and export
 
 - optional background image underlays persist with position, size, opacity, visibility and geometry lock; underlays are editor-only by default and can be explicitly included in SVG/print output
-- tiled print output supports A4/Letter, portrait/landscape, 10-400% physical scale, configurable page overlap and crop marks; the preview reports the exact page grid before opening the browser print view
+- tiled print output supports A4/Letter, portrait/landscape, 10-400% physical scale, configurable page overlap and complete printable-area frames; the preview reports the exact page grid before opening the browser print view
 - independent red-dot row-number annotations support automatic first-gap numbering, drag, manual numbering, visibility and lock
 - row-number annotations persist through autosave/JSON and are included in SVG export
 - automatic legend is derived from actually used visible stitch symbols, shows abbreviation plus localized RU/EN name, can be toggled, and is included in SVG export
 - autosave delay is configurable per project: Off, legacy Fast (0.65 s), 5 s, 15 s, 30 s or 60 s; switching Off is persisted immediately
-- current project JSON schema is v21; v1-v19 remain loadable through runtime validation/migration
+- current project JSON schema is v21; v1-v20 remain loadable through runtime validation/migration
 - schema v13 introduced optional six-digit hex visual color per stitch
 - schema v14 adds Line/Curve guide persistence and optional manual `guideAttachment` metadata
 - schema v15 adds guide lock state, independent row-number annotations and legend visibility settings
@@ -149,6 +152,7 @@ The editor combines an SVG canvas with a document model that understands guides,
 - schema v18 introduces strict integrity/resource validation for current documents while preserving legacy migration paths
 - schema v19 adds gauge profiles and smart measurement rulers
 - schema v20 adds quadratic Parabola guides and persisted stitch mirror parity
+- schema v21 adds persisted background-image rotation while retaining legacy zero-rotation defaults
 - manual group ids, topology parent ids, manual topology overrides, mixed/rich row programs, row construction semantics and generated-offset baselines are persisted and validated
 - local multi-project storage in IndexedDB
 - automatic migration of the legacy single autosave into the first local project
@@ -169,7 +173,7 @@ Every pull request runs:
 - Vitest unit tests
 - Vite production build
 - Playwright Chromium E2E flows
-- public GitHub Pages endpoint smoke check
+- `main` repeats the build/unit/Chromium gate before GitHub Pages deployment
 
 ## Local development
 

@@ -201,4 +201,19 @@ describe('productivity transforms', () => {
     expect(next[0]).toMatchObject({ x: 80, y: 30, rotation: 30 })
     expect(next[1]).toMatchObject({ x: 100, y: 30, rotation: 40 })
   })
+
+  it('preserves mirror parity and creates fresh groups when repeating a mirrored motif', () => {
+    const mirroredGroup: StitchElement[] = [
+      { id: 'm1', symbolId: 'chain', x: 20, y: 0, rotation: 10, mirrored: true, groupId: 'source-group' },
+      { id: 'm2', symbolId: 'chain', x: 42, y: 0, rotation: 10, mirrored: true, groupId: 'source-group' },
+    ]
+    const created = repeatSelection(mirroredGroup, ['m1', 'm2'], {
+      mode: 'linear', copies: 1, deltaX: 60, deltaY: 0,
+    }, ids())
+    expect(created).toHaveLength(2)
+    expect(created.every((element) => element.mirrored === true)).toBe(true)
+    expect(created[0].groupId).toBe(created[1].groupId)
+    expect(created[0].groupId).not.toBe('source-group')
+  })
+
 })

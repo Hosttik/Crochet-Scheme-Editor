@@ -222,4 +222,38 @@ describe('gauge calculations', () => {
     expect(hits.elementIds).toEqual(['visible'])
   })
 
+
+  it('does not snap ruler endpoints to Start/End marker-role symbols', () => {
+    const sample: StitchElement[] = [
+      { id: 'marker', symbolId: 'start-marker', x: 0, y: 0, rotation: 0 },
+      { id: 'stitch', symbolId: 'chain', x: 5, y: 0, rotation: 0 },
+    ]
+    const snapped = snapRulerPoint({ x: 0, y: 0 }, sample, 1)
+    expect(snapped.elementId).toBe('stitch')
+    expect(snapped.point).toEqual({ x: 5, y: 0 })
+  })
+
+  it('uses full oriented-rectangle SAT so a rotated stitch near a corridor corner is not a false positive', () => {
+    const sample: StitchElement[] = [
+      { id: 'corner-miss', symbolId: 'single', x: -12, y: -24, rotation: 5 },
+      { id: 'real-hit', symbolId: 'single', x: 20, y: 0, rotation: 5 },
+    ]
+    const hits = rulerCorridorHits({ id: 'sat', start: { x: 0, y: 0 }, end: { x: 100, y: 0 } }, sample)
+    expect(hits.elementIds).toEqual(['real-hit'])
+  })
+
+  it('highlights only semantic stitch hits when row corridor count ignores free stitches', () => {
+    const semantic = [
+      rowElement('row-a', 'semantic-a', 0, 1),
+      rowElement('row-b', 'semantic-b', 0, 2),
+    ]
+    const free: StitchElement = { id: 'free-between', symbolId: 'chain', x: 0, y: 60, rotation: 0 }
+    const estimate = rulerEstimate({
+      id: 'row-highlight', start: { x: 0, y: 28 }, end: { x: 0, y: 92 }, mode: 'rows',
+    }, [...semantic, free], gauge)
+    expect(estimate).toMatchObject({ rowCount: 2, source: 'automatic', strategy: 'corridor' })
+    expect(estimate.elementIds).toEqual(['row-a', 'row-b'])
+    expect(estimate.elementIds).not.toContain('free-between')
+  })
+
 })

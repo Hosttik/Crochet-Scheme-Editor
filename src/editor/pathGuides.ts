@@ -259,6 +259,27 @@ export function moveAttachedElement(
   return elementFromAttachment(element, guide, { ...current, t })
 }
 
+/**
+ * Re-map manual attachments after a path has been reversed. Reversing a path
+ * maps the same world point from t to 1-t and flips the path normal. Tangent
+ * and normal oriented stitches intentionally turn with the new work direction;
+ * `keep` orientation stays visually unchanged through elementFromAttachment.
+ */
+export function remapAttachmentsForReversedGuide(
+  elements: StitchElement[],
+  reversedGuide: PathGuide,
+) {
+  return elements.map((element) => {
+    const attachment = element.guideAttachment
+    if (!attachment || attachment.guideId !== reversedGuide.id || element.parametricRow) return element
+    return elementFromAttachment(element, reversedGuide, {
+      ...attachment,
+      t: 1 - attachment.t,
+      normalOffset: -attachment.normalOffset,
+    })
+  })
+}
+
 export function reconcileGuideAttachments(elements: StitchElement[], guides: Guide[]) {
   const byId = new Map(guides.filter(isPathGuide).map((guide) => [guide.id, guide] as const))
   return elements.map((element) => {
