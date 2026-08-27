@@ -57,7 +57,7 @@ export function LegendPanel({
           <strong>{ru ? 'Показывать на схеме' : 'Show on canvas'}</strong>
           <small>{ru ? 'Легенда закреплена в видимой области и также включается в SVG.' : 'The legend stays in view and is also included in SVG.'}</small>
         </span>
-        <input type="checkbox" checked={visible} onChange={(event) => onVisibleChange(event.target.checked)} />
+        <input data-testid="legend-visible-toggle" type="checkbox" checked={visible} onChange={(event) => onVisibleChange(event.target.checked)} />
       </label>
       <div className="legend-used-heading">{ru ? 'Использованные символы' : 'Used symbols'}</div>
       {!items.length ? (
