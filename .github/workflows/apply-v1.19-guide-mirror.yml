@@ -26,6 +26,7 @@ jobs:
           sed -i "/replace_once('src\/i18n.ts', 'v1.18.0', 'v1.19.0')/d" scripts/apply_v1_19_guide_mirror.py
           python scripts/apply_v1_19_guide_mirror.py
           sed -i "s/guide.type === 'grid' || guide.type === 'line' || guide.type === 'curve')/guide.type === 'grid' || guide.type === 'line' || guide.type === 'curve' || guide.type === 'parabola')/" src/editor/rowGenerator.ts
+          python scripts/fix_v1_19_gate.py
           sed -i 's/v1\.18\.0/v1.19.0/g' src/i18n.ts
           npm version 1.19.0 --no-git-tag-version
       - name: Build and unit verification
@@ -38,6 +39,7 @@ jobs:
         run: |
           rm -f .github/workflows/apply-v1.19-guide-mirror.yml
           rm -f scripts/apply_v1_19_guide_mirror.py
+          rm -f scripts/fix_v1_19_gate.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
