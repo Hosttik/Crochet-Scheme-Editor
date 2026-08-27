@@ -50,7 +50,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/apply-v1.22.1-stabilization.yml scripts/apply_v1_22_1_stabilization.py
+          git rm -f .github/workflows/apply-v1.22.1-stabilization.yml scripts/apply_v1_22_1_stabilization.py
           git add -A
           git commit -m "Stabilize cross-feature interactions for v1.22.1"
           git push origin HEAD:fix/v1.22.1-stabilization-review
