@@ -1,0 +1,47 @@
+name: Apply v1.21 composite chains
+
+on:
+  push:
+    branches:
+      - feature/v1.21-composite-chains
+    paths:
+      - scripts/apply_v1_21_composite_chains.py
+      - .github/workflows/apply-v1.21-composite-chains.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/v1.21-composite-chains
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply v1.21 changes
+        run: |
+          python scripts/apply_v1_21_composite_chains.py
+          npm version 1.21.0 --no-git-tag-version --allow-same-version
+      - name: Install dependencies
+        run: npm ci
+      - name: Build and unit verification
+        run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Full Chromium gate
+        run: npm run test:e2e
+      - name: Commit verified product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-v1.21-composite-chains.yml scripts/apply_v1_21_composite_chains.py
+          git add -A
+          git commit -m "Add semantic 2/3/4-chain placement presets for v1.21.0"
+          git push origin HEAD:feature/v1.21-composite-chains
