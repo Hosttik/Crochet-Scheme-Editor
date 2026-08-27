@@ -23,6 +23,19 @@ jobs:
           cache: npm
       - name: Apply stabilization changes
         run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply_v1_22_1_stabilization.py')
+          text = path.read_text()
+          old = '''text = replace_once(text, "\\n})\\n", insert + "\\n})\\n", 'append mirrored motif regression')'''
+          new = '''if "\\n})\\n" not in text:
+              raise RuntimeError('append mirrored motif regression: closing describe block not found')
+          head, tail = text.rsplit("\\n})\\n", 1)
+          text = head + insert + "\\n})\\n" + tail'''
+          if text.count(old) != 1:
+              raise RuntimeError(f'patcher hotfix expected one target, got {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          PY
           python scripts/apply_v1_22_1_stabilization.py
           npm version 1.22.1 --no-git-tag-version --allow-same-version
       - name: Install dependencies
