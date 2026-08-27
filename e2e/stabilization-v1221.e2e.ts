@@ -94,6 +94,6 @@ test('rotated tracing underlay participates in project-span fitting and its edit
 
   await page.locator('.guide-add-grid button').filter({ hasText: 'Линия' }).click()
   await page.getByRole('button', { name: 'По размеру проекта' }).click()
-  const fittedLength = Number(await page.getByLabel('Длина').inputValue())
-  expect(fittedLength).toBeCloseTo(rotatedWidth + 64, 0)
+  await expect.poll(async () => Number(await page.getByLabel('Длина').inputValue()))
+    .toBeCloseTo(rotatedWidth + 64, 0)
 })
