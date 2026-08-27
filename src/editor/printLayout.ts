@@ -173,29 +173,54 @@ export function parseLegendPrintBounds(markup: string): PrintBounds | null {
   return { left, top, width: Math.max(width, right - left), height }
 }
 
+function tileAt(layout: PrintLayout, row: number, column: number) {
+  return layout.tiles.find((candidate) => candidate.row === row && candidate.column === column) ?? null
+}
+
+function horizontalOverlapMm(left: PrintTile, right: PrintTile, layout: PrintLayout) {
+  const overlapDoc = Math.max(0, Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x))
+  return (overlapDoc / left.width) * layout.printableWidthMm
+}
+
+function verticalOverlapMm(top: PrintTile, bottom: PrintTile, layout: PrintLayout) {
+  const overlapDoc = Math.max(0, Math.min(top.y + top.height, bottom.y + bottom.height) - Math.max(top.y, bottom.y))
+  return (overlapDoc / top.height) * layout.printableHeightMm
+}
+
 function registrationMarks(tile: PrintTile, layout: PrintLayout, settings: PrintSettings) {
   if (!settings.alignmentMarks || settings.overlapMm <= 0 || (layout.rows === 1 && layout.columns === 1)) return ''
-  const offset = Math.max(0.8, settings.overlapMm / 2)
   const marks: string[] = []
   const add = (style: string) => marks.push(`<i class="registration-cross" style="${style}"></i>`)
 
-  if (tile.column > 0) {
+  const leftNeighbor = tile.column > 0 ? tileAt(layout, tile.row, tile.column - 1) : null
+  if (leftNeighbor) {
+    const offset = horizontalOverlapMm(leftNeighbor, tile, layout) / 2
     add(`left:${offset}mm;top:28%`)
     add(`left:${offset}mm;top:72%`)
   }
-  if (tile.column < layout.columns - 1) {
+
+  const rightNeighbor = tile.column < layout.columns - 1 ? tileAt(layout, tile.row, tile.column + 1) : null
+  if (rightNeighbor) {
+    const offset = horizontalOverlapMm(tile, rightNeighbor, layout) / 2
     add(`right:${offset}mm;top:28%`)
     add(`right:${offset}mm;top:72%`)
   }
-  if (tile.row > 0) {
+
+  const topNeighbor = tile.row > 0 ? tileAt(layout, tile.row - 1, tile.column) : null
+  if (topNeighbor) {
+    const offset = verticalOverlapMm(topNeighbor, tile, layout) / 2
     add(`top:${offset}mm;left:28%`)
     add(`top:${offset}mm;left:72%`)
   }
-  if (tile.row < layout.rows - 1) {
+
+  const bottomNeighbor = tile.row < layout.rows - 1 ? tileAt(layout, tile.row + 1, tile.column) : null
+  if (bottomNeighbor) {
+    const offset = verticalOverlapMm(tile, bottomNeighbor, layout) / 2
     add(`bottom:${offset}mm;left:28%`)
     add(`bottom:${offset}mm;left:72%`)
   }
-  return `<div class="registration-marks" aria-hidden="true">${marks.join('')}</div>`
+
+  return marks.length ? `<div class="registration-marks" aria-hidden="true">${marks.join('')}</div>` : ''
 }
 
 function tileContains(tile: PrintTile, point: { x: number; y: number }) {
