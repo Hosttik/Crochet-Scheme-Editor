@@ -6,7 +6,6 @@ import { isElementLocked, isElementVisible } from './document'
 import { RowConstructionOverlay } from './RowConstructionOverlay'
 import { selectionAabb, type Rect } from './selection'
 import {
-  documentPointToElementLocal,
   geometryFromHandleDrag,
   normalizedStitchGeometry,
   resolvedStitchGeometry,
@@ -40,6 +39,14 @@ function sameGeometry(left?: StitchGeometry, right?: StitchGeometry) {
   )
 }
 
+function pointerInElementFrame(event: ReactPointerEvent<SVGCircleElement>): Point {
+  const group = event.currentTarget.parentElement as SVGGElement | null
+  const matrix = group?.getScreenCTM()
+  if (!matrix) return { x: 0, y: 0 }
+  const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())
+  return { x: point.x, y: point.y }
+}
+
 export function StitchLayer({
   elements,
   selectedIds,
@@ -48,7 +55,6 @@ export function StitchLayer({
   sourceAnchor,
   marquee,
   selectedTopologyParentId,
-  clientToDocument,
   onElementPointerDown,
   onRotatePointerDown,
   onGeometryCommit,
@@ -61,7 +67,6 @@ export function StitchLayer({
   sourceAnchor: AnchorName
   marquee: Rect | null
   selectedTopologyParentId?: string | null
-  clientToDocument: (clientX: number, clientY: number) => Point
   onElementPointerDown: (
     event: ReactPointerEvent<SVGGElement>,
     element: StitchElement,
@@ -127,14 +132,13 @@ export function StitchLayer({
     if (event.button !== 0 || isElementLocked(element) || element.parametricRow) return
     event.preventDefault()
     event.stopPropagation()
-    const point = clientToDocument(event.clientX, event.clientY)
     const geometry = normalizedStitchGeometry(element.symbolId, resolvedStitchGeometry(element)) ?? {}
     setGeometryDrag({
       pointerId: event.pointerId,
       elementId: element.id,
       handle,
       startElement: { ...element, geometry },
-      startLocal: documentPointToElementLocal(element, point),
+      startLocal: pointerInElementFrame(event),
       geometry,
     })
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -145,8 +149,7 @@ export function StitchLayer({
     if (!active || active.pointerId !== event.pointerId) return
     event.preventDefault()
     event.stopPropagation()
-    const point = clientToDocument(event.clientX, event.clientY)
-    const currentLocal = documentPointToElementLocal(active.startElement, point)
+    const currentLocal = pointerInElementFrame(event)
     const geometry = normalizedStitchGeometry(
       active.startElement.symbolId,
       geometryFromHandleDrag(active.startElement, active.handle, active.startLocal, currentLocal),
