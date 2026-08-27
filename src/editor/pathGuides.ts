@@ -4,11 +4,12 @@ import type {
   Guide,
   GuideAttachment,
   LineGuide,
+  ParabolaGuide,
   Point,
   StitchElement,
 } from '../types'
 
-export type PathGuide = ArcGuide | LineGuide | CurveGuide
+export type PathGuide = ArcGuide | LineGuide | CurveGuide | ParabolaGuide
 
 export type PathPose = {
   point: Point
@@ -36,6 +37,21 @@ function vectorAngle(x: number, y: number, fallback = 0) {
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t
+}
+
+function quadraticPoint(guide: ParabolaGuide, t: number): Point {
+  const u = 1 - t
+  return {
+    x: u * u * guide.start.x + 2 * u * t * guide.control.x + t * t * guide.end.x,
+    y: u * u * guide.start.y + 2 * u * t * guide.control.y + t * t * guide.end.y,
+  }
+}
+
+function quadraticDerivative(guide: ParabolaGuide, t: number): Point {
+  return {
+    x: 2 * (1 - t) * (guide.control.x - guide.start.x) + 2 * t * (guide.end.x - guide.control.x),
+    y: 2 * (1 - t) * (guide.control.y - guide.start.y) + 2 * t * (guide.end.y - guide.control.y),
+  }
 }
 
 function cubicPoint(guide: CurveGuide, t: number): Point {
@@ -73,7 +89,7 @@ function cubicDerivative(guide: CurveGuide, t: number): Point {
 }
 
 export function isPathGuide(guide: Guide): guide is PathGuide {
-  return guide.type === 'arc' || guide.type === 'line' || guide.type === 'curve'
+  return guide.type === 'arc' || guide.type === 'line' || guide.type === 'curve' || guide.type === 'parabola'
 }
 
 export function pathPoseAt(guide: PathGuide, rawT: number): PathPose {
@@ -101,6 +117,12 @@ export function pathPoseAt(guide: PathGuide, rawT: number): PathPose {
       },
       tangent: angle + (sweep < 0 ? -90 : 90),
     }
+  }
+
+  if (guide.type === 'parabola') {
+    const point = quadraticPoint(guide, t)
+    const derivative = quadraticDerivative(guide, t)
+    return { point, tangent: vectorAngle(derivative.x, derivative.y) }
   }
 
   const point = cubicPoint(guide, t)
@@ -162,7 +184,7 @@ export function pathLength(guide: PathGuide, segments = 160) {
 }
 
 export function parameterAtPathDistance(guide: PathGuide, startT: number, delta: number): number | null {
-  const samples = guide.type === 'curve' ? 240 : 160
+  const samples = guide.type === 'curve' || guide.type === 'parabola' ? 240 : 160
   const direction = delta >= 0 ? 1 : -1
   const target = Math.abs(delta)
   if (target < EPSILON) return clamp01(startT)

@@ -148,7 +148,7 @@ export function StitchLayer({
               />
             )}
 
-            <g className="symbol-glyph" style={element.color ? { color: element.color } : undefined}>
+            <g className="symbol-glyph" transform={element.mirrored ? 'scale(-1 1)' : undefined} style={element.color ? { color: element.color } : undefined}>
               <SymbolGlyph symbolId={element.symbolId} />
             </g>
 

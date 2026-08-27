@@ -33,16 +33,16 @@ describe('custom mirror axis', () => {
   it('reflects selected stitches across an explicit vertical axis', () => {
     const mirrored = mirrorElementsAroundAxis(source, ['a', 'b'], 'left-right', 100)
 
-    expect(mirrored[0]).toMatchObject({ x: 190, y: 20, rotation: 165 })
+    expect(mirrored[0]).toMatchObject({ x: 190, y: 20, rotation: -15, mirrored: true })
     expect(mirrored[0].guideAttachment).toBeUndefined()
-    expect(mirrored[1]).toMatchObject({ x: 170, y: 40, rotation: -150 })
+    expect(mirrored[1]).toMatchObject({ x: 170, y: 40, rotation: 30, mirrored: true })
     expect(mirrored[2]).toEqual(source[2])
   })
 
   it('reflects selected stitches across an explicit horizontal axis', () => {
     const mirrored = mirrorElementsAroundAxis(source, ['a'], 'top-bottom', -20)
 
-    expect(mirrored[0]).toMatchObject({ x: 10, y: -60, rotation: -15 })
+    expect(mirrored[0]).toMatchObject({ x: 10, y: -60, rotation: 165, mirrored: true })
     expect(mirrored[1]).toEqual(source[1])
   })
 
@@ -50,8 +50,8 @@ describe('custom mirror axis', () => {
     const created = createMirroredCopyAroundAxis(source, ['a', 'b'], 'left-right', 100, ids())
 
     expect(created).toHaveLength(2)
-    expect(created[0]).toMatchObject({ x: 190, y: 20, rotation: 165, locked: false })
-    expect(created[1]).toMatchObject({ x: 170, y: 40, rotation: -150, locked: false })
+    expect(created[0]).toMatchObject({ x: 190, y: 20, rotation: -15, mirrored: true, locked: false })
+    expect(created[1]).toMatchObject({ x: 170, y: 40, rotation: 30, mirrored: true, locked: false })
     expect(created[0].id).not.toBe('a')
     expect(created[1].id).not.toBe('b')
     expect(created[0].guideAttachment).toBeUndefined()

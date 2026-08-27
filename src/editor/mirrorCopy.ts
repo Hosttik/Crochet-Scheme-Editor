@@ -5,8 +5,12 @@ import {
   cloneSelectionWithOffset,
   groupElements,
   mirrorElements,
+  mirrorElementsAcrossLine,
   mirrorElementsAroundAxis,
+  mirrorLineForDirection,
   type MirrorAxis,
+  type MirrorDirection,
+  type MirrorLine,
 } from './productivity'
 
 function boundsOf(elements: StitchElement[]): Rect | null {
@@ -74,4 +78,31 @@ export function createMirroredCopyAroundAxis(
   const copiedIds = copied.map((element) => element.id)
   const mirrored = mirrorElementsAroundAxis(copied, copiedIds, axis, coordinate)
   return mirrored.length > 1 ? groupElements(mirrored, copiedIds, createId()) : mirrored
+}
+
+export function createMirroredCopyAcrossLine(
+  elements: StitchElement[],
+  ids: string[],
+  line: MirrorLine,
+  createId: () => string,
+) {
+  const selected = new Set(ids)
+  const source = elements.filter((element) => selected.has(element.id) && !element.parametricRow)
+  if (!source.length) return []
+  const copied = cloneSelectionWithOffset(elements, ids, 0, 0, createId)
+  const copiedIds = copied.map((element) => element.id)
+  const mirrored = mirrorElementsAcrossLine(copied, copiedIds, line)
+  return mirrored.length > 1 ? groupElements(mirrored, copiedIds, createId()) : mirrored
+}
+
+export function createDirectionalMirroredCopy(
+  elements: StitchElement[],
+  ids: string[],
+  direction: MirrorDirection,
+  gap: number,
+  createId: () => string,
+) {
+  const safeGap = Math.max(0, Math.abs(gap))
+  const line = mirrorLineForDirection(elements, ids, direction, safeGap / 2)
+  return line ? createMirroredCopyAcrossLine(elements, ids, line, createId) : []
 }

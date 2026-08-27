@@ -195,3 +195,8 @@ The SVG DOM is a rendering layer, not the source of truth. The current architect
 - rendering and React UI
 
 The original 25-item usability backlog is now functionally covered. A future color-domain milestone can turn visual colors into explicit yarn/color-change semantics without conflating presentation color with stitch topology.
+
+### v1.19.0 Guide & Mirror Geometry
+- semantic line length/angle, project-span fitting, visible guide direction and reversible path direction
+- quadratic Parabola guide with one control point while legacy cubic Curve remains compatible
+- true reflected stitch parity, directional mirror/copy presets, and a persistent movable/rotatable custom mirror axis

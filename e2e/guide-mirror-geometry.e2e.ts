@@ -20,7 +20,7 @@ async function placeAt(page: Page, title: string, rx: number, ry: number) {
 
 test('edits straight guides by length and angle, shows direction, and reverses by double click', async ({ page }) => {
   await openEditor(page)
-  await page.getByRole('button', { name: 'Линия', exact: true }).click()
+  await page.locator('.guide-add-grid button').filter({ hasText: 'Линия' }).click()
 
   const line = page.locator('.guide-line')
   await expect(line).toBeVisible()
@@ -38,13 +38,20 @@ test('edits straight guides by length and angle, shows direction, and reverses b
   await expect(page.getByLabel('Угол °')).toHaveValue('30')
 
   const before = await line.locator('.guide-direction-arrow').getAttribute('transform')
-  await line.locator('.guide-stroke').dblclick({ position: { x: 20, y: 1 } })
+  const strokeBox = await line.locator('.guide-stroke').boundingBox()
+  expect(strokeBox).not.toBeNull()
+  await page.mouse.click(
+    strokeBox!.x + strokeBox!.width / 2,
+    strokeBox!.y + strokeBox!.height / 2,
+    { clickCount: 2 },
+  )
   const after = await line.locator('.guide-direction-arrow').getAttribute('transform')
   expect(after).not.toBe(before)
 
-  await placeAt(page, 'Столбик без накида', 0.78, 0.70)
+  await placeAt(page, 'Столбик без накида', 0.12, 0.70)
+  await placeAt(page, 'Столбик с накидом', 0.88, 0.70)
   await page.keyboard.press('Escape')
-  await page.getByRole('button', { name: 'Линия', exact: true }).first().click()
+  await page.locator('.guide-list button').filter({ hasText: 'Линия' }).click()
   await page.getByRole('button', { name: 'По размеру проекта' }).click()
   const fittedLength = Number(await page.getByLabel('Длина').inputValue())
   expect(fittedLength).toBeGreaterThan(420)
@@ -52,12 +59,13 @@ test('edits straight guides by length and angle, shows direction, and reverses b
 
 test('creates a quadratic parabola with one editable control point', async ({ page }) => {
   await openEditor(page)
-  await page.getByRole('button', { name: 'Парабола', exact: true }).click()
+  await page.locator('.guide-add-grid button').filter({ hasText: 'Парабола' }).click()
 
   const parabola = page.locator('.guide-parabola')
   await expect(parabola).toBeVisible()
   await expect(parabola.locator('.guide-direction-arrow')).toHaveCount(1)
-  await expect(parabola.locator('.guide-handle')).toHaveCount(3)
+  await expect(parabola.locator('.guide-path-endpoint')).toHaveCount(2)
+  await expect(parabola.locator('.guide-control-handle')).toHaveCount(1)
   await expect(page.getByLabel('Вершина X')).toBeVisible()
   await expect(page.getByLabel('Вершина Y')).toBeVisible()
 
