@@ -43,7 +43,7 @@ test('counts actual stitch anchors inside the measurement region and converts th
   await stitches.first().click()
   await stitches.last().click()
 
-  const ruler = page.locator('.measurement-ruler').first()
+  const ruler = page.locator('.measurement-ruler:not(.draft)').first()
   await expect(ruler).toHaveCount(1)
   await expect(ruler.locator('.ruler-label')).toContainText('4 п./ст.')
   await expect(ruler.locator('.ruler-label')).toContainText('≈ 2 см')
@@ -68,10 +68,10 @@ test('row mode counts anchors/semantic rows in a vertical region and Escape remo
   const stitches = page.locator('.stitch-element')
   await stitches.first().click()
   await stitches.last().click()
-  await expect(page.locator('.measurement-ruler')).toHaveCount(1)
+  await expect(page.locator('.measurement-ruler:not(.draft)')).toHaveCount(1)
 
   await gauge.getByLabel('Тип измерения').selectOption('rows')
-  const ruler = page.locator('.measurement-ruler').first()
+  const ruler = page.locator('.measurement-ruler:not(.draft)').first()
   await expect(ruler.locator('.ruler-label')).toContainText('3 р.')
   await expect(ruler.locator('.ruler-label')).toContainText('≈ 3 см')
   await expect(gauge.getByTestId('ruler-auto-summary')).toContainText('3 ряд.')
@@ -82,7 +82,8 @@ test('row mode counts anchors/semantic rows in a vertical region and Escape remo
 
   await gauge.getByRole('button', { name: 'Новая область измерения', exact: true }).click()
   await stitches.first().click()
-  await expect(page.locator('.measurement-ruler')).toHaveCount(0)
+  await expect(page.locator('.measurement-ruler:not(.draft)')).toHaveCount(0)
+  await expect(page.locator('.measurement-ruler.draft')).toHaveCount(1)
   await page.keyboard.press('Escape')
   await expect(page.locator('svg.editor-canvas')).not.toHaveClass(/measuring/)
   await expect(page.locator('.measurement-ruler')).toHaveCount(0)
