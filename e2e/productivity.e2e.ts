@@ -37,7 +37,7 @@ async function clearCanvasSelection(page: Page) {
   await expect(page.locator('.stitch-element.selected')).toHaveCount(0)
 }
 
-test('hides temporary multi preview but previews a colored group as one ghost motif', async ({ page }) => {
+test('previews temporary multi selection and a colored group as one ghost motif', async ({ page }) => {
   await openEditor(page)
   await placeAt(page, 'Столбик без накида', 0.36, 0.42)
   await placeAt(page, 'Столбик с накидом', 0.52, 0.48)
@@ -45,8 +45,8 @@ test('hides temporary multi preview but previews a colored group as one ghost mo
   await page.keyboard.press('Control+A')
   await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
   const productivity = page.locator('.productivity-panel')
-  await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(0)
-  await expect(productivity.locator('.productivity-hint')).toContainText('временный мотив')
+  await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(10)
+  await expect(productivity.locator('.productivity-hint')).toContainText('ghost-preview показывает весь временный мотив')
 
   await productivity.getByRole('button', { name: 'Группировать', exact: true }).click()
   await expect(page.locator('.productivity-repeat-preview-group')).toHaveCount(0)
