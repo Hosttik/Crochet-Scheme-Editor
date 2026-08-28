@@ -22,6 +22,11 @@ export type EditorIconName =
   | 'duplicate'
   | 'group'
   | 'ungroup'
+  | 'row'
+  | 'bringForward'
+  | 'sendBackward'
+  | 'bringToFront'
+  | 'sendToBack'
   | 'rotateLeft'
   | 'rotateRight'
   | 'rotate180'
@@ -58,6 +63,11 @@ const paths: Record<EditorIconName, ReactNode> = {
   duplicate: <><rect x="8" y="8" width="11" height="11" rx="2" /><path d="M5 16H4a2 2 0 01-2-2V5a2 2 0 012-2h9a2 2 0 012 2v1" /></>,
   group: <><rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" /><rect x="4" y="14" width="6" height="6" rx="1" /><rect x="14" y="14" width="6" height="6" rx="1" /><path d="M10 7h4M7 10v4M17 10v4M10 17h4" strokeDasharray="2 2" /></>,
   ungroup: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><path d="M11 7h2M7 11v2M17 11v2M11 17h2" /></>,
+  row: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="4" r="1.4" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="12" cy="20" r="1.4" fill="currentColor" stroke="none" /><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" /></>,
+  bringForward: <><path d="M6 16l6 3 6-3" /><path d="M6 11l6 3 6-3" /><path d="M12 12V4M9 7l3-3 3 3" /></>,
+  sendBackward: <><path d="M6 8l6-3 6 3" /><path d="M6 13l6-3 6 3" /><path d="M12 12v8M9 17l3 3 3-3" /></>,
+  bringToFront: <><path d="M5 5h14" /><path d="M6 16l6 3 6-3" /><path d="M12 15V7M9 10l3-3 3 3" /></>,
+  sendToBack: <><path d="M5 19h14" /><path d="M6 8l6-3 6 3" /><path d="M12 9v8M9 14l3 3 3-3" /></>,
   rotateLeft: <><path d="M8 7H3V2" /><path d="M3 7a9 9 0 11-1 8" /></>,
   rotateRight: <><path d="M16 7h5V2" /><path d="M21 7a9 9 0 10 1 8" /></>,
   rotate180: <><path d="M5 7a8 8 0 0114 5" /><path d="M19 7v5h-5" /><path d="M19 17a8 8 0 01-14-5" /><path d="M5 17v-5h5" /></>,
