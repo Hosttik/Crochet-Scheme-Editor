@@ -18,7 +18,8 @@ test('uses the extracted tool rail and crochet element library', async ({ page }
 
   // The temporary adapter exposes semantic identities internally; the visible
   // UI no longer depends on translated legacy labels or button ordering.
-  await expect(page.locator('[data-ui-v2-legacy-tools="true"] [data-ui-v2-tool="pan"]')).toHaveCount(1)
+  const legacyPan = page.locator('[data-ui-v2-legacy-tools="true"] [data-ui-v2-tool="pan"]')
+  await expect(legacyPan).toHaveCount(1)
   await expect(page.locator('[data-ui-v2-legacy-library="true"] [data-ui-v2-symbol-id="chain"]')).toHaveCount(1)
   await expect(page.locator('[data-ui-v2-legacy-library="true"] [data-ui-v2-chain-count="4"]')).toHaveCount(1)
   await expect(page.locator('.ui-v2-legacy-guide-add [data-ui-v2-guide-type="line"]')).toHaveCount(1)
@@ -30,9 +31,12 @@ test('uses the extracted tool rail and crochet element library', async ({ page }
   await rail.getByRole('button', { name: /Ладонь \/ перемещение поля/ }).click()
   await expect(page.locator('.editor-canvas')).toHaveClass(/pan-tool/)
   await expect(rail.getByRole('button', { name: /Ладонь \/ перемещение поля/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(legacyPan).not.toHaveClass(/\btool-button\b/)
+  await expect(page.locator('.left-sidebar .tool-button').filter({ hasText: 'Лассо' })).toHaveCount(1)
 
   await rail.getByRole('button', { name: /Выбор \/ перемещение/ }).click()
   await expect(page.locator('.editor-canvas')).not.toHaveClass(/pan-tool/)
+  await expect(legacyPan).not.toHaveClass(/\btool-button\b/)
 
   const chain = library.getByRole('button', { name: 'Воздушная петля · ch', exact: true })
   await chain.click()
