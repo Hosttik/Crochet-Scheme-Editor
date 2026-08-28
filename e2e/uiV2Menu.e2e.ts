@@ -51,6 +51,29 @@ test('application menu supports desktop keyboard navigation', async ({ page }) =
   await expect(file).toBeFocused()
 })
 
+test('command search is reachable from Help and executes real editor commands', async ({ page }) => {
+  await openEditor(page)
+
+  await page.getByRole('button', { name: 'Справка', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Поиск по функциям…', exact: true }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'Поиск по функциям' })
+  const search = dialog.getByRole('searchbox', { name: 'Поиск по функциям' })
+  await expect(dialog).toBeVisible()
+  await expect(search).toBeFocused()
+
+  await search.fill('плотность')
+  await expect(dialog.getByRole('option', { name: /Плотность и размер/ })).toHaveCount(1)
+  await page.keyboard.press('Enter')
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByTestId('gauge-global-panel')).toHaveAttribute('open', '')
+
+  await page.keyboard.press('Control+k')
+  await expect(page.getByRole('dialog', { name: 'Поиск по функциям' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'Поиск по функциям' })).toHaveCount(0)
+})
+
 test('application menu follows the editor language switch', async ({ page }) => {
   await openEditor(page)
 
