@@ -1,14 +1,64 @@
 import { useMemo } from 'react'
 import { CHAIN_BUNDLE_COUNTS, chainBundleLayout, type ChainBundleCount } from '../editor/chainBundle'
 import { categoryName, symbolName, type Locale } from '../i18n'
-import { SYMBOLS, SymbolGlyph } from '../symbols'
+import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph } from '../symbols'
+import { EditorIcon } from './icons'
+import {
+  chainFavoriteKey,
+  symbolFavoriteKey,
+  type FavoriteElementKey,
+} from './favorites'
 import type { WorkbenchTool } from './workbenchTypes'
+import './favorites.css'
+
+type ResolvedFavorite =
+  | { key: FavoriteElementKey; kind: 'symbol'; symbolId: string }
+  | { key: FavoriteElementKey; kind: 'chain'; count: ChainBundleCount }
+
+function resolveFavorite(key: FavoriteElementKey): ResolvedFavorite | null {
+  if (key.startsWith('symbol:')) {
+    const symbolId = key.slice('symbol:'.length)
+    return SYMBOL_BY_ID.has(symbolId) ? { key, kind: 'symbol', symbolId } : null
+  }
+  const count = Number(key.slice('chain:'.length)) as ChainBundleCount
+  return CHAIN_BUNDLE_COUNTS.includes(count) ? { key, kind: 'chain', count } : null
+}
+
+function FavoriteToggle({
+  locale,
+  active,
+  label,
+  onToggle,
+}: {
+  locale: Locale
+  active: boolean
+  label: string
+  onToggle: () => void
+}) {
+  const action = active
+    ? (locale === 'ru' ? 'Удалить из избранного' : 'Remove from favorites')
+    : (locale === 'ru' ? 'Добавить в избранное' : 'Add to favorites')
+  return (
+    <button
+      type="button"
+      className={`favorite-toggle ${active ? 'is-favorite' : ''}`}
+      aria-label={`${action}: ${label}`}
+      aria-pressed={active}
+      title={`${action}: ${label}`}
+      onClick={onToggle}
+    >
+      <EditorIcon name="star" size={12} />
+    </button>
+  )
+}
 
 export function ElementLibrary({
   locale,
   tool,
   query,
+  favorites,
   onQueryChange,
+  onToggleFavorite,
   onSelectSymbol,
   onSelectChainBundle,
   onCancelPlacement,
@@ -16,7 +66,9 @@ export function ElementLibrary({
   locale: Locale
   tool: WorkbenchTool
   query: string
+  favorites: readonly FavoriteElementKey[]
   onQueryChange: (query: string) => void
+  onToggleFavorite: (key: FavoriteElementKey) => void
   onSelectSymbol: (symbolId: string) => void
   onSelectChainBundle: (count: ChainBundleCount) => void
   onCancelPlacement: () => void
@@ -31,6 +83,12 @@ export function ElementLibrary({
 
   const localeTag = locale === 'ru' ? 'ru-RU' : 'en-US'
   const normalizedQuery = query.trim().toLocaleLowerCase(localeTag)
+  const favoriteSet = useMemo(() => new Set(favorites), [favorites])
+  const resolvedFavorites = useMemo(
+    () => favorites.map(resolveFavorite).filter((item): item is ResolvedFavorite => item !== null),
+    [favorites],
+  )
+
   const filteredChainBundleCounts = useMemo(() => CHAIN_BUNDLE_COUNTS.filter((count) => {
     if (!normalizedQuery) return true
     const label = locale === 'ru' ? `${count} воздушные петли ${count} вп` : `${count} chains ${count} ch`
@@ -46,6 +104,71 @@ export function ElementLibrary({
       return haystack.includes(normalizedQuery)
     })] as const)
     .filter(([, symbols]) => symbols.length > 0), [groupedSymbols, locale, localeTag, normalizedQuery])
+
+  const renderFavoriteItem = (item: ResolvedFavorite) => {
+    if (item.kind === 'chain') {
+      const label = locale === 'ru' ? `${item.count} воздушные петли` : `${item.count} chains`
+      const abbreviation = locale === 'ru' ? `${item.count} ВП` : `${item.count} ch`
+      const title = `${label} · ${abbreviation}`
+      const active = tool.type === 'place-chain-bundle' && tool.count === item.count
+      return (
+        <div className="favorite-card" key={item.key}>
+          <button
+            type="button"
+            className={`favorite-item-button ${active ? 'active' : ''}`}
+            title={title}
+            aria-label={title}
+            aria-pressed={active}
+            onClick={() => active ? onCancelPlacement() : onSelectChainBundle(item.count)}
+          >
+            <svg viewBox="-48 -20 96 40" aria-hidden="true">
+              {chainBundleLayout({ x: 0, y: 0 }, item.count).map((member, index) => (
+                <g key={index} transform={`translate(${member.x} ${member.y})`} className="symbol-glyph">
+                  <SymbolGlyph symbolId="chain" />
+                </g>
+              ))}
+            </svg>
+            <span>{abbreviation}</span>
+          </button>
+          <FavoriteToggle
+            locale={locale}
+            active
+            label={label}
+            onToggle={() => onToggleFavorite(item.key)}
+          />
+        </div>
+      )
+    }
+
+    const symbol = SYMBOL_BY_ID.get(item.symbolId)
+    if (!symbol) return null
+    const label = symbolName(symbol.id, symbol.name, locale)
+    const title = symbol.abbreviation ? `${label} · ${symbol.abbreviation}` : label
+    const active = tool.type === 'place' && tool.symbolId === symbol.id
+    return (
+      <div className="favorite-card" key={item.key}>
+        <button
+          type="button"
+          className={`favorite-item-button ${active ? 'active' : ''}`}
+          title={title}
+          aria-label={title}
+          aria-pressed={active}
+          onClick={() => active ? onCancelPlacement() : onSelectSymbol(symbol.id)}
+        >
+          <svg viewBox="-24 -38 48 76" aria-hidden="true">
+            <g className="symbol-glyph"><SymbolGlyph symbolId={symbol.id} /></g>
+          </svg>
+          <span>{symbol.abbreviation ?? label}</span>
+        </button>
+        <FavoriteToggle
+          locale={locale}
+          active
+          label={label}
+          onToggle={() => onToggleFavorite(item.key)}
+        />
+      </div>
+    )
+  }
 
   return (
     <section className="panel-section symbols-section element-library" aria-label={locale === 'ru' ? 'Библиотека элементов' : 'Element library'}>
@@ -63,6 +186,15 @@ export function ElementLibrary({
         onChange={(event) => onQueryChange(event.target.value)}
       />
 
+      {!normalizedQuery && resolvedFavorites.length > 0 && (
+        <div className="symbol-group favorites-group" data-testid="favorites-section">
+          <h3><EditorIcon name="star" size={12} />{locale === 'ru' ? 'Избранное' : 'Favorites'}</h3>
+          <div className="symbol-grid favorite-grid">
+            {resolvedFavorites.map(renderFavoriteItem)}
+          </div>
+        </div>
+      )}
+
       {filteredChainBundleCounts.length > 0 && (
         <div className="symbol-group chain-bundle-presets">
           <h3>{locale === 'ru' ? 'Цепочки' : 'Chain presets'}</h3>
@@ -72,24 +204,32 @@ export function ElementLibrary({
               const label = locale === 'ru' ? `${count} воздушные петли` : `${count} chains`
               const abbreviation = locale === 'ru' ? `${count} ВП` : `${count} ch`
               const title = `${label} · ${abbreviation}`
+              const favoriteKey = chainFavoriteKey(count)
               return (
-                <button
-                  className={`symbol-button chain-bundle-button ${active ? 'active' : ''}`}
-                  key={`chain-bundle-${count}`}
-                  title={title}
-                  aria-label={title}
-                  aria-pressed={active}
-                  onClick={() => active ? onCancelPlacement() : onSelectChainBundle(count)}
-                >
-                  <svg viewBox="-48 -20 96 40" aria-hidden="true">
-                    {chainBundleLayout({ x: 0, y: 0 }, count).map((member, index) => (
-                      <g key={index} transform={`translate(${member.x} ${member.y})`} className="symbol-glyph">
-                        <SymbolGlyph symbolId="chain" />
-                      </g>
-                    ))}
-                  </svg>
-                  <span>{abbreviation}</span>
-                </button>
+                <div className="library-symbol-card" key={`chain-bundle-${count}`}>
+                  <button
+                    className={`symbol-button chain-bundle-button ${active ? 'active' : ''}`}
+                    title={title}
+                    aria-label={title}
+                    aria-pressed={active}
+                    onClick={() => active ? onCancelPlacement() : onSelectChainBundle(count)}
+                  >
+                    <svg viewBox="-48 -20 96 40" aria-hidden="true">
+                      {chainBundleLayout({ x: 0, y: 0 }, count).map((member, index) => (
+                        <g key={index} transform={`translate(${member.x} ${member.y})`} className="symbol-glyph">
+                          <SymbolGlyph symbolId="chain" />
+                        </g>
+                      ))}
+                    </svg>
+                    <span>{abbreviation}</span>
+                  </button>
+                  <FavoriteToggle
+                    locale={locale}
+                    active={favoriteSet.has(favoriteKey)}
+                    label={label}
+                    onToggle={() => onToggleFavorite(favoriteKey)}
+                  />
+                </div>
               )
             })}
           </div>
@@ -104,20 +244,28 @@ export function ElementLibrary({
               const active = tool.type === 'place' && tool.symbolId === symbol.id
               const label = symbolName(symbol.id, symbol.name, locale)
               const title = symbol.abbreviation ? `${label} · ${symbol.abbreviation}` : label
+              const favoriteKey = symbolFavoriteKey(symbol.id)
               return (
-                <button
-                  className={`symbol-button ${active ? 'active' : ''}`}
-                  key={symbol.id}
-                  title={title}
-                  aria-label={title}
-                  aria-pressed={active}
-                  onClick={() => active ? onCancelPlacement() : onSelectSymbol(symbol.id)}
-                >
-                  <svg viewBox="-24 -38 48 76" aria-hidden="true">
-                    <g className="symbol-glyph"><SymbolGlyph symbolId={symbol.id} /></g>
-                  </svg>
-                  <span>{symbol.abbreviation ?? label}</span>
-                </button>
+                <div className="library-symbol-card" key={symbol.id}>
+                  <button
+                    className={`symbol-button ${active ? 'active' : ''}`}
+                    title={title}
+                    aria-label={title}
+                    aria-pressed={active}
+                    onClick={() => active ? onCancelPlacement() : onSelectSymbol(symbol.id)}
+                  >
+                    <svg viewBox="-24 -38 48 76" aria-hidden="true">
+                      <g className="symbol-glyph"><SymbolGlyph symbolId={symbol.id} /></g>
+                    </svg>
+                    <span>{symbol.abbreviation ?? label}</span>
+                  </button>
+                  <FavoriteToggle
+                    locale={locale}
+                    active={favoriteSet.has(favoriteKey)}
+                    label={label}
+                    onToggle={() => onToggleFavorite(favoriteKey)}
+                  />
+                </div>
               )
             })}
           </div>
