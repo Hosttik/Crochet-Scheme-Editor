@@ -2,6 +2,7 @@ import type { Locale } from '../i18n'
 import { SYMBOLS } from '../symbols'
 import type { StitchElement, Viewport } from '../types'
 import { selectionAabb } from './selection'
+import { stitchVisualSize } from './stitchGeometry'
 import './selectionQuickToolbar.css'
 
 const SYMBOL_SIZES = Object.fromEntries(
@@ -36,6 +37,8 @@ const COPY = {
     delete: 'Delete',
   },
 } as const
+
+const QUICK_TOOLBAR_HALF_WIDTH = 184
 
 export function SelectionQuickToolbar({
   locale,
@@ -79,17 +82,17 @@ export function SelectionQuickToolbar({
 
   if (selectedIds.length === 1) {
     const element = elements.find((item) => item.id === selectedIds[0])
-    const definition = element ? SYMBOL_SIZES[element.symbolId] : undefined
-    const directRotation = element && definition && element.locked !== true && !element.parametricRow && (
+    const directRotation = element && element.locked !== true && !element.parametricRow && (
       !element.guideAttachment || element.guideAttachment.orientation === 'keep'
     )
-    if (directRotation && element && definition) {
-      const handleLocalY = -definition.height / 2 - 30
+    if (directRotation && element) {
+      const visualHeight = stitchVisualSize(element).height
+      const handleLocalY = -visualHeight / 2 - 30
       const radians = (element.rotation * Math.PI) / 180
       const handleDocumentY = element.y + handleLocalY * Math.cos(radians)
       const handleScreenY = viewport.panY + handleDocumentY * viewport.zoom
       highestInteractiveY = Math.min(highestInteractiveY, handleScreenY - 8)
-      preferBelowForCompactRotationHandle = definition.height <= 24
+      preferBelowForCompactRotationHandle = visualHeight <= 24
     }
   }
 
@@ -100,7 +103,7 @@ export function SelectionQuickToolbar({
   return (
     <div
       className={`selection-quick-toolbar ${below ? 'below' : ''}`}
-      style={{ left, top }}
+      style={{ left: `clamp(${QUICK_TOOLBAR_HALF_WIDTH}px, ${left}px, calc(100% - ${QUICK_TOOLBAR_HALF_WIDTH}px))`, top }}
       role="toolbar"
       aria-label={locale === 'ru' ? 'Быстрые действия с выделением' : 'Selection quick actions'}
     >

@@ -5,6 +5,9 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  max-width: calc(100% - 12px);
+  overflow-x: auto;
+  scrollbar-width: thin;
   padding: 5px;
   border: 1px solid rgba(184, 179, 169, .9);
   border-radius: 10px;
@@ -17,6 +20,7 @@
   width: 30px;
   height: 28px;
   padding: 0;
+  flex: 0 0 auto;
   border: 1px solid #e1ddd5;
   background: #fff;
   font-size: 12px;
@@ -25,5 +29,5 @@
 .selection-quick-toolbar button:hover:not(:disabled) { background: #edf4f0; border-color: #b7c9bf; }
 .selection-quick-toolbar .selection-quick-danger { color: #a44036; }
 .selection-quick-toolbar .selection-quick-danger:hover:not(:disabled) { background: #fff0ed; border-color: #eccbc6; }
-.selection-quick-separator { width: 1px; height: 20px; margin: 0 1px; background: #e3dfd7; pointer-events: none; }
+.selection-quick-separator { width: 1px; height: 20px; margin: 0 1px; flex: 0 0 auto; background: #e3dfd7; pointer-events: none; }
 body:has(.mirror-axis-overlay) .selection-quick-toolbar .selection-quick-mirror { display: none; }

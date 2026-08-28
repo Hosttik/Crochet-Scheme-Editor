@@ -2,6 +2,7 @@ import { SYMBOL_BY_ID, SymbolGlyph } from '../symbols'
 import { UI, symbolName, type Locale } from '../i18n'
 import type { StitchElement } from '../types'
 import { isElementLocked, isElementVisible } from './document'
+import { resolvedStitchGeometry, stitchVisualSize } from './stitchGeometry'
 
 type LayerCluster = {
   key: string
@@ -64,6 +65,11 @@ export function LayersPanel({
     const definition = SYMBOL_BY_ID.get(element.symbolId)
     const label = symbolName(element.symbolId, definition?.name ?? element.symbolId, locale)
     const zIndex = elements.indexOf(element) + 1
+    const geometry = resolvedStitchGeometry(element)
+    const visualSize = stitchVisualSize(element)
+    const fit = Math.min(1, 40 / Math.max(1, visualSize.width), 58 / Math.max(1, visualSize.height))
+    const previewScaleX = (element.mirrored ? -1 : 1) * geometry.scaleX * fit
+    const previewScaleY = geometry.scaleY * fit
     return (
       <div
         key={element.id}
@@ -92,7 +98,13 @@ export function LayersPanel({
           onClick={(event) => onSelect(element.id, event.shiftKey)}
         >
           <svg viewBox="-24 -34 48 68" aria-hidden="true">
-            <g className="symbol-glyph"><SymbolGlyph symbolId={element.symbolId} /></g>
+            <g
+              className="symbol-glyph"
+              data-testid={`layer-glyph-${element.id}`}
+              transform={`rotate(${element.rotation}) scale(${previewScaleX} ${previewScaleY})`}
+            >
+              <SymbolGlyph symbolId={element.symbolId} spread={geometry.spread} />
+            </g>
           </svg>
           <span>
             <strong>{label}</strong>

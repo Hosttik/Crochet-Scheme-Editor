@@ -6,6 +6,7 @@ import {
   expandIdsToGroups,
   groupElements,
   mirrorElements,
+  mirrorLineForDirection,
   repeatSelection,
   selectionPivot,
   ungroupElements,
@@ -102,6 +103,14 @@ describe('productivity transforms', () => {
     expect(mirrored[1]).toMatchObject({ x: 30, y: 20, rotation: 150, mirrored: true })
   })
 
+  it('uses edited visual bounds for directional mirror axes', () => {
+    const source: StitchElement[] = [
+      { id: 'wide', symbolId: 'single', x: 100, y: 0, rotation: 0, geometry: { scaleX: 2 } },
+    ]
+    const line = mirrorLineForDirection(source, ['wide'], 'right')
+    expect(line?.point.x).toBeCloseTo(124)
+  })
+
   it('duplicates with an offset while detaching semantic row topology', () => {
     const source: StitchElement[] = [{
       ...base[0],
@@ -164,6 +173,19 @@ describe('productivity transforms', () => {
     expect(created[0].x - 12).toBeCloseTo(105 + 10)
   })
 
+  it('uses edited motif geometry when calculating guide repeat span', () => {
+    const source: StitchElement[] = [
+      { id: 'a', symbolId: 'single', x: 50, y: 0, rotation: 0, geometry: { scaleX: 2 } },
+      { id: 'b', symbolId: 'double', x: 90, y: 0, rotation: 0 },
+    ]
+    const created = repeatSelection(source, ['a', 'b'], {
+      mode: 'guide', copies: 1, spacing: 10, orientation: 'keep', guide: lineGuide,
+    }, ids())
+    expect(created).toHaveLength(2)
+    expect(created[0].x).toBeCloseTo(139)
+    expect(created[1].x).toBeCloseTo(179)
+  })
+
   it('walks a motif along a closed arc and follows its tangent', () => {
     const source: StitchElement[] = [{ id: 'a', symbolId: 'single', x: 100, y: 0, rotation: 90 }]
     const quarterArc = Math.PI * 100 / 2
@@ -215,5 +237,4 @@ describe('productivity transforms', () => {
     expect(created[0].groupId).toBe(created[1].groupId)
     expect(created[0].groupId).not.toBe('source-group')
   })
-
 })

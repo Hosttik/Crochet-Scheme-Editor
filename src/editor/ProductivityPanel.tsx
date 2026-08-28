@@ -16,6 +16,7 @@ import {
 } from './productivity'
 import { repeatPreviewSelectionKind, shouldShowRepeatPreview } from './repeatPreview'
 import { repeatDefaults } from './repeatDefaults'
+import { resolvedStitchGeometry } from './stitchGeometry'
 import type { MirrorAxisState } from './MirrorAxisOverlay'
 import { MirrorControls } from './MirrorControls'
 import './productivity.css'
@@ -103,21 +104,28 @@ function guideName(guide: Guide, locale: Locale, index: number) {
 }
 
 function previewGlyphs(elements: StitchElement[], className: string) {
-  return elements.map((element) => (
-    <g
-      key={element.id}
-      transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
-      className={className}
-    >
+  return elements.map((element) => {
+    const geometry = resolvedStitchGeometry(element)
+    const scaleX = (element.mirrored ? -1 : 1) * geometry.scaleX
+    return (
       <g
-        className="symbol-glyph"
-        transform={element.mirrored ? 'scale(-1 1)' : undefined}
-        style={element.color ? { color: element.color } : undefined}
+        key={element.id}
+        transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
+        className={className}
+        data-scale-x={geometry.scaleX}
+        data-scale-y={geometry.scaleY}
+        data-spread={geometry.spread}
       >
-        <SymbolGlyph symbolId={element.symbolId} />
+        <g
+          className="symbol-glyph"
+          transform={`scale(${scaleX} ${geometry.scaleY})`}
+          style={element.color ? { color: element.color } : undefined}
+        >
+          <SymbolGlyph symbolId={element.symbolId} spread={geometry.spread} />
+        </g>
       </g>
-    </g>
-  ))
+    )
+  })
 }
 
 export function ProductivityPanel({
@@ -175,7 +183,24 @@ export function ProductivityPanel({
   const [previewDirection, setPreviewDirection] = useState<MirrorDirection | null>(null)
   const [previewTarget, setPreviewTarget] = useState<SVGGElement | null>(null)
   const suppressNextSelectionPreview = useRef(false)
+  const repeatDefaultsDirty = useRef({ deltaX: false, deltaY: false, spacing: false })
   const selectionKey = useMemo(() => [...selectedIds].sort().join('|'), [selectedIds])
+  const selectionDefaultsKey = useMemo(() => {
+    const selected = new Set(selectedIds)
+    return elements
+      .filter((element) => selected.has(element.id) && !element.parametricRow)
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .map((element) => [
+        element.id,
+        element.x,
+        element.y,
+        element.rotation,
+        element.geometry?.scaleX ?? 1,
+        element.geometry?.scaleY ?? 1,
+        element.geometry?.spread ?? 1,
+      ].join(':'))
+      .join('|')
+  }, [elements, selectedIds])
 
   useEffect(() => {
     setPreviewTarget(document.querySelector<SVGGElement>('.editor-canvas > g'))
@@ -187,6 +212,7 @@ export function ProductivityPanel({
   }, [guideId, guides])
 
   useEffect(() => {
+    repeatDefaultsDirty.current = { deltaX: false, deltaY: false, spacing: false }
     const defaults = repeatDefaults(elements, selectedIds)
     setDeltaX(defaults.deltaX)
     setDeltaY(defaults.deltaY)
@@ -198,10 +224,19 @@ export function ProductivityPanel({
     // was just created by committing Repeat/Mirror.
     setRepeatPreviewActive(!suppressAutoPreview && !mirrorAxis && selectedIds.length > 1)
     setPreviewDirection(null)
-  // Selection identity is the transaction boundary; element edits inside the same
-  // selection must not overwrite spacing the user has already typed.
+  // Selection identity is the transaction boundary for user-authored defaults.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectionKey])
+
+  useEffect(() => {
+    const defaults = repeatDefaults(elements, selectedIds)
+    const dirty = repeatDefaultsDirty.current
+    if (!dirty.deltaX) setDeltaX(defaults.deltaX)
+    if (!dirty.deltaY) setDeltaY(defaults.deltaY)
+    if (!dirty.spacing) setSpacing(defaults.guideSpacing)
+  // Geometry/relative-position edits refresh untouched defaults, while manual fields stay sticky.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionDefaultsKey])
 
   useEffect(() => {
     if (!mirrorAxis) return
@@ -366,11 +401,11 @@ export function ProductivityPanel({
             <div className="productivity-field-grid">
               <label className="productivity-field">
                 <span>{copy.deltaX}</span>
-                <DraftNumberInput ariaLabel={copy.deltaX} value={deltaX} onChange={(value) => { setDeltaX(value); activateRepeatPreview() }} />
+                <DraftNumberInput ariaLabel={copy.deltaX} value={deltaX} onChange={(value) => { repeatDefaultsDirty.current.deltaX = true; setDeltaX(value); activateRepeatPreview() }} />
               </label>
               <label className="productivity-field">
                 <span>{copy.deltaY}</span>
-                <DraftNumberInput ariaLabel={copy.deltaY} value={deltaY} onChange={(value) => { setDeltaY(value); activateRepeatPreview() }} />
+                <DraftNumberInput ariaLabel={copy.deltaY} value={deltaY} onChange={(value) => { repeatDefaultsDirty.current.deltaY = true; setDeltaY(value); activateRepeatPreview() }} />
               </label>
             </div>
           )}
@@ -402,7 +437,7 @@ export function ProductivityPanel({
               </label>
               <label className="productivity-field">
                 <span>{copy.spacing}</span>
-                <DraftNumberInput ariaLabel={copy.spacing} min={0} step={1} value={spacing} onChange={(value) => { setSpacing(value); activateRepeatPreview() }} />
+                <DraftNumberInput ariaLabel={copy.spacing} min={0} step={1} value={spacing} onChange={(value) => { repeatDefaultsDirty.current.spacing = true; setSpacing(value); activateRepeatPreview() }} />
               </label>
               <label className="productivity-field">
                 <span>{copy.orientation}</span>
