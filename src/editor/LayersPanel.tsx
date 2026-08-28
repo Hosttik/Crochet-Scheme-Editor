@@ -56,7 +56,7 @@ export function LayersPanel({
 }) {
   const t = UI[locale]
   const selected = new Set(selectedIds)
-  const canReorder = selectedIds.length > 0
+  const canReorder = elements.some((element) => selected.has(element.id) && !isElementLocked(element))
   const clusters = clusterElements(elements, locale)
 
   const renderElement = (element: StitchElement, compact = false) => {
@@ -70,6 +70,7 @@ export function LayersPanel({
     const fit = Math.min(1, 40 / Math.max(1, visualSize.width), 58 / Math.max(1, visualSize.height))
     const previewScaleX = (element.mirrored ? -1 : 1) * geometry.scaleX * fit
     const previewScaleY = geometry.scaleY * fit
+    const selectTitle = locked ? `${label} · ${t.unlockToSelect}` : label
     return (
       <div
         key={element.id}
@@ -93,8 +94,8 @@ export function LayersPanel({
         </button>
         <button
           className="layer-main-button"
-          disabled={locked}
-          title={locked ? t.unlockToSelect : label}
+          title={selectTitle}
+          aria-label={selectTitle}
           onClick={(event) => onSelect(element.id, event.shiftKey)}
         >
           <svg viewBox="-24 -34 48 68" aria-hidden="true">
@@ -148,7 +149,7 @@ export function LayersPanel({
                     {cluster.elements.map((element) => renderElement(element, true))}
                   </div>
                 </details>
-              )
+              )}
             })}
           </div>
         )}
