@@ -13,7 +13,7 @@ test('uses the extracted tool rail and crochet element library', async ({ page }
   const library = page.getByRole('region', { name: 'Библиотека элементов' })
   await expect(rail).toBeVisible()
   await expect(library).toBeVisible()
-  await expect(page.locator('.left-sidebar > .compact-section')).toBeHidden()
+  await expect(page.locator('.left-sidebar > [data-ui-v2-legacy-tools="true"]')).toBeHidden()
   await expect(page.locator('.left-sidebar > .legacy-symbols-section')).toBeHidden()
 
   // Existing regression selectors must now resolve to the extracted controls only.
@@ -40,7 +40,7 @@ test('filters the extracted library without mutating document state', async ({ p
   const search = library.getByRole('searchbox', { name: 'Поиск элементов' })
   await search.fill('dc2tog')
 
-  await expect(library.getByRole('button', { name: /dc2tog/ })).toBeVisible()
+  await expect(library.getByRole('button', { name: '2 столбика с накидом с общей вершиной · dc2tog', exact: true })).toBeVisible()
   await expect(library.getByRole('button', { name: 'Воздушная петля · ch', exact: true })).toHaveCount(0)
   await expect(page.locator('.stitch-element')).toHaveCount(0)
 })
