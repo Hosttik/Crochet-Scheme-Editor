@@ -1,7 +1,36 @@
 import type { Locale } from '../i18n'
-import { IconButton } from './primitives'
+import { EditorIcon, type EditorIconName } from './icons'
 import type { WorkbenchTool } from './workbenchTypes'
 import './toolRail.css'
+
+function RailButton({
+  icon,
+  label,
+  shortcut,
+  active,
+  onClick,
+}: {
+  icon: EditorIconName
+  label: string
+  shortcut: string
+  active: boolean
+  onClick: () => void
+}) {
+  const accessibleLabel = `${label} · ${shortcut}`
+  return (
+    <button
+      type="button"
+      className={`ui-icon-button tool-button ui-v2-tool-rail-button ${active ? 'active is-active' : ''}`}
+      aria-label={accessibleLabel}
+      title={accessibleLabel}
+      aria-pressed={active}
+      onClick={onClick}
+    >
+      <EditorIcon name={icon} />
+      <span className="tool-rail__text">{label}</span>
+    </button>
+  )
+}
 
 export function ToolRail({
   locale,
@@ -36,35 +65,11 @@ export function ToolRail({
 
   return (
     <nav className="tool-rail" aria-label={copy.label}>
-      <IconButton
-        icon="select"
-        label={`${copy.select} · Esc`}
-        active={tool.type === 'select'}
-        aria-pressed={tool.type === 'select'}
-        onClick={onSelect}
-      />
-      <IconButton
-        icon="hand"
-        label={`${copy.pan} · H`}
-        active={tool.type === 'pan'}
-        aria-pressed={tool.type === 'pan'}
-        onClick={onTogglePan}
-      />
-      <IconButton
-        icon="lasso"
-        label={`${copy.lasso} · L`}
-        active={tool.type === 'lasso'}
-        aria-pressed={tool.type === 'lasso'}
-        onClick={onToggleLasso}
-      />
+      <RailButton icon="select" label={copy.select} shortcut="Esc" active={tool.type === 'select'} onClick={onSelect} />
+      <RailButton icon="hand" label={copy.pan} shortcut="H" active={tool.type === 'pan'} onClick={onTogglePan} />
+      <RailButton icon="lasso" label={copy.lasso} shortcut="L" active={tool.type === 'lasso'} onClick={onToggleLasso} />
       <div className="tool-rail__separator" aria-hidden="true" />
-      <IconButton
-        icon="ruler"
-        label={`${copy.ruler} · R`}
-        active={tool.type === 'ruler'}
-        aria-pressed={tool.type === 'ruler'}
-        onClick={onToggleRuler}
-      />
+      <RailButton icon="ruler" label={copy.ruler} shortcut="R" active={tool.type === 'ruler'} onClick={onToggleRuler} />
     </nav>
   )
 }
