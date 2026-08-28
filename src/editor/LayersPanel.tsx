@@ -1,6 +1,7 @@
 import { SYMBOL_BY_ID, SymbolGlyph } from '../symbols'
 import { UI, symbolName, type Locale } from '../i18n'
 import type { StitchElement } from '../types'
+import { IconButton } from '../ui/primitives'
 import { isElementLocked, isElementVisible } from './document'
 import { resolvedStitchGeometry, stitchVisualSize } from './stitchGeometry'
 
@@ -76,22 +77,18 @@ export function LayersPanel({
         key={element.id}
         className={`layer-row ${compact ? 'compact' : ''} ${selected.has(element.id) ? 'selected' : ''} ${locked ? 'locked' : ''} ${visible ? '' : 'hidden'}`}
       >
-        <button
+        <IconButton
           className="layer-icon-button"
-          title={visible ? t.hideLayer : t.showLayer}
-          aria-label={visible ? t.hideLayer : t.showLayer}
+          icon={visible ? 'eye' : 'eyeOff'}
+          label={visible ? t.hideLayer : t.showLayer}
           onClick={() => onToggleVisible(element.id)}
-        >
-          {visible ? '◉' : '○'}
-        </button>
-        <button
+        />
+        <IconButton
           className="layer-icon-button"
-          title={locked ? t.unlockLayer : t.lockLayer}
-          aria-label={locked ? t.unlockLayer : t.lockLayer}
+          icon={locked ? 'lock' : 'unlock'}
+          label={locked ? t.unlockLayer : t.lockLayer}
           onClick={() => onToggleLocked(element.id)}
-        >
-          {locked ? '🔒' : '🔓'}
-        </button>
+        />
         <button
           className="layer-main-button"
           title={selectTitle}
