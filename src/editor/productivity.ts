@@ -1,4 +1,3 @@
-import { SYMBOL_BY_ID } from '../symbols'
 import type { Guide, Point, StitchElement } from '../types'
 import {
   nearestPathParameter,
@@ -6,6 +5,7 @@ import {
   pathPoseAt,
   type PathGuide,
 } from './pathGuides'
+import { stitchVisualProjectionInterval, stitchVisualSelectionBounds } from './stitchGeometry'
 
 export type MirrorAxis = 'left-right' | 'top-bottom'
 export type MirrorDirection = 'left' | 'right' | 'up' | 'down'
@@ -98,24 +98,7 @@ export function selectionPivot(elements: StitchElement[], ids: string[]): Point 
 }
 
 function selectionWorldBounds(elements: StitchElement[], ids: string[]) {
-  const selected = new Set(ids)
-  const source = elements.filter((element) => selected.has(element.id) && !element.parametricRow)
-  if (!source.length) return null
-  const bounds = source.map((element) => {
-    const definition = SYMBOL_BY_ID.get(element.symbolId)
-    const width = definition?.width ?? 30
-    const height = definition?.height ?? 30
-    const angle = radians(element.rotation)
-    const halfX = Math.abs(Math.cos(angle)) * width / 2 + Math.abs(Math.sin(angle)) * height / 2
-    const halfY = Math.abs(Math.sin(angle)) * width / 2 + Math.abs(Math.cos(angle)) * height / 2
-    return { left: element.x - halfX, right: element.x + halfX, top: element.y - halfY, bottom: element.y + halfY }
-  })
-  return {
-    left: Math.min(...bounds.map((item) => item.left)),
-    right: Math.max(...bounds.map((item) => item.right)),
-    top: Math.min(...bounds.map((item) => item.top)),
-    bottom: Math.max(...bounds.map((item) => item.bottom)),
-  }
+  return stitchVisualSelectionBounds(elements, ids, false)
 }
 
 export function mirrorLineForDirection(
@@ -429,21 +412,13 @@ function guideWalk(guide: Guide, pivot: Point) {
 }
 
 function motifSpanAlongAngle(source: StitchElement[], pivot: Point, angle: number) {
-  const axisRadians = radians(angle)
-  const axisX = Math.cos(axisRadians)
-  const axisY = Math.sin(axisRadians)
   let min = Number.POSITIVE_INFINITY
   let max = Number.NEGATIVE_INFINITY
 
   for (const element of source) {
-    const definition = SYMBOL_BY_ID.get(element.symbolId)
-    const width = definition?.width ?? 30
-    const height = definition?.height ?? 30
-    const centerProjection = (element.x - pivot.x) * axisX + (element.y - pivot.y) * axisY
-    const relativeRadians = radians(element.rotation - angle)
-    const halfExtent = Math.abs(Math.cos(relativeRadians)) * width / 2 + Math.abs(Math.sin(relativeRadians)) * height / 2
-    min = Math.min(min, centerProjection - halfExtent)
-    max = Math.max(max, centerProjection + halfExtent)
+    const interval = stitchVisualProjectionInterval(element, pivot, angle)
+    min = Math.min(min, interval.min)
+    max = Math.max(max, interval.max)
   }
 
   return Number.isFinite(min) && Number.isFinite(max) ? Math.max(0, max - min) : 0
