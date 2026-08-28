@@ -18,6 +18,18 @@ jobs:
         with:
           ref: feat/ui-v2-workbench-foundation
           fetch-depth: 0
+      - name: Normalize direct-surface documentation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/ui/LeftWorkbenchSurface.tsx')
+          text = path.read_text()
+          old = " * semantic callbacks. Once App owns the workbench layout directly this\n * component can be rendered in place and LeftWorkbenchBridge can disappear."
+          new = " * semantic callbacks from App. It is rendered directly in the left workbench\n * and does not depend on a portal or compatibility bridge."
+          if old not in text:
+              raise SystemExit('LeftWorkbenchSurface migration comment changed unexpectedly')
+          path.write_text(text.replace(old, new, 1))
+          PY
       - name: Apply direct workbench migration
         run: python scripts/migrate_ui_v2_direct_workbench.py
       - name: Remove one-shot migration files
