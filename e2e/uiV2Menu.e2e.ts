@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
-async function openEditor(page: Parameters<typeof test>[0]['page']) {
+async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
   await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
