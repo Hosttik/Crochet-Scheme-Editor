@@ -7,6 +7,14 @@ async function openEditor(page: Page) {
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
+async function openGlobalPanel(page: Page, testId: string) {
+  const details = page.getByTestId(testId)
+  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await details.locator(':scope > summary').click()
+  }
+  return details
+}
+
 async function canvasBox(page: Page) {
   const box = await page.locator('svg.editor-canvas').boundingBox()
   expect(box).not.toBeNull()
@@ -47,6 +55,7 @@ test('authors locked guides, gap-free row numbers and an exported automatic lege
   await expect(guideEditor.getByLabel('Начало X')).toBeEnabled()
 
   // #12: place 1,2,3; delete 2; existing row 3 becomes 2 and next proposed row is 3.
+  await openGlobalPanel(page, 'row-markers-global-panel')
   const rowPanel = page.locator('.row-markers-panel')
   await rowPanel.getByRole('button', { name: /Поставить ряд №1/ }).click()
   await clickCanvas(page, 0.22, 0.24)
@@ -95,18 +104,19 @@ test('authors locked guides, gap-free row numbers and an exported automatic lege
   await expect(legend).toContainText('dc · Столбик с накидом')
   await expect(legend).not.toContainText('tr ·')
 
+  await openGlobalPanel(page, 'legend-global-panel')
   const legendToggle = page.getByTestId('legend-visible-toggle')
   await legendToggle.uncheck()
   await expect(page.locator('.legend-overlay')).toHaveCount(0)
   await legendToggle.check()
   await expect(page.locator('.legend-overlay')).toHaveCount(1)
 
-  // Persist a locked guide as well, then validate schema v18 and SVG authoring output.
+  // Persist a locked guide as well, then validate schema and SVG authoring output.
   await page.locator('.guide-list button').filter({ hasText: 'Линия' }).click()
   await guideEditor.getByLabel('Заблокировать направляющую').check()
 
   const jsonDownloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Сохранить JSON' }).click()
+  await page.getByRole('button', { name: 'Экспорт проекта' }).click()
   const jsonPath = await (await jsonDownloadPromise).path()
   expect(jsonPath).not.toBeNull()
   const project = JSON.parse(await readFile(jsonPath!, 'utf8'))

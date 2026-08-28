@@ -34,7 +34,7 @@ async function dragHandle(page: Page, testId: string, dx: number, dy: number) {
 
 async function saveProjectJson(page: Page) {
   const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Сохранить JSON', exact: true }).click()
+  await page.getByRole('button', { name: 'Экспорт проекта', exact: true }).click()
   const path = await (await downloadPromise).path()
   expect(path).not.toBeNull()
   return JSON.parse(await readFile(path!, 'utf8'))

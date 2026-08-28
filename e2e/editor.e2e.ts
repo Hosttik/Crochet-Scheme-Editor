@@ -4,6 +4,13 @@ function patternRow(page: Page, number: number) {
   return page.locator('.pattern-row-number').filter({ hasText: new RegExp(`^Ряд ${number}$`) })
 }
 
+async function openPatternRows(page: Page) {
+  const details = page.getByTestId('pattern-rows-global-panel')
+  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await details.locator(':scope > summary').click()
+  }
+}
+
 test('places a stitch, restores autosave and manages local projects', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
 
@@ -38,6 +45,7 @@ test('places a stitch, restores autosave and manages local projects', async ({ p
 
 test('edits explicit parent-child topology and restores it with undo', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
+  await openPatternRows(page)
 
   await page.getByRole('button', { name: /Радиальная/ }).click()
   await expect(page.getByText('Создать параметрический ряд', { exact: true })).toBeVisible()
@@ -71,6 +79,7 @@ test('edits explicit parent-child topology and restores it with undo', async ({ 
 
 test('edits a mixed stitch rapport and restores it from autosave', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
+  await openPatternRows(page)
 
   await page.getByRole('button', { name: /Радиальная/ }).click()
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
@@ -91,6 +100,7 @@ test('edits a mixed stitch rapport and restores it from autosave', async ({ page
   await page.waitForTimeout(900)
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
   await page.reload()
+  await openPatternRows(page)
 
   await expect(page.getByText('Смешанный раппорт', { exact: true })).toBeVisible()
   await expect(page.getByText(/\(2 СБН, 1 ССН\) × 4 = 12/)).toBeVisible()
@@ -98,6 +108,7 @@ test('edits a mixed stitch rapport and restores it from autosave', async ({ page
 
 test('compiles a semantic rapport into stitch types and exact topology', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
+  await openPatternRows(page)
 
   await page.getByRole('button', { name: /Радиальная/ }).click()
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
@@ -133,6 +144,7 @@ test('compiles a semantic rapport into stitch types and exact topology', async (
   await page.waitForTimeout(900)
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
   await page.reload()
+  await openPatternRows(page)
 
   await expect(page.getByText('Семантический раппорт', { exact: true })).toBeVisible()
   await expect(page.getByText(/Ряд 2: 11 СБН, прибавка \(СБН\) = 13/)).toBeVisible()
@@ -142,6 +154,7 @@ test('compiles a semantic rapport into stitch types and exact topology', async (
 
 test('reopens Advanced for a manually changed child row offset', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
+  await openPatternRows(page)
 
   await page.getByRole('button', { name: /Радиальная/ }).click()
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
@@ -163,6 +176,7 @@ test('reopens Advanced for a manually changed child row offset', async ({ page }
   await page.waitForTimeout(900)
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
   await page.reload()
+  await openPatternRows(page)
 
   await patternRow(page, 2).click()
   const restoredEditor = page.locator('.parametric-row-editor')
@@ -173,6 +187,7 @@ test('reopens Advanced for a manually changed child row offset', async ({ page }
 
 test('persists joined and turning row construction semantics', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
+  await openPatternRows(page)
 
   await page.getByRole('button', { name: /Радиальная/ }).click()
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
@@ -203,6 +218,7 @@ test('persists joined and turning row construction semantics', async ({ page }) 
   await page.waitForTimeout(900)
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
   await page.reload()
+  await openPatternRows(page)
 
   await patternRow(page, 3).click()
   await expect(page.locator('.row-construction-status strong')).toHaveText('←')

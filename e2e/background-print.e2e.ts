@@ -6,7 +6,16 @@ async function openEditor(page: Page) {
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
+async function openGlobalPanel(page: Page, testId: string) {
+  const details = page.getByTestId(testId)
+  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await details.locator(':scope > summary').click()
+  }
+  return details
+}
+
 async function uploadReference(page: Page) {
+  await openGlobalPanel(page, 'background-global-panel')
   await page.getByTestId('background-file-input').setInputFiles({
     name: 'reference.svg',
     mimeType: 'image/svg+xml',
@@ -56,6 +65,7 @@ test('selects, resizes and rotates an existing background directly on canvas', a
 
 test('shows full page frames in tiled-print preview', async ({ page }) => {
   await openEditor(page)
+  await openGlobalPanel(page, 'print-global-panel')
   const panel = page.getByTestId('print-panel')
   await panel.getByTestId('print-scale').fill('400')
   const count = Number(await panel.getByTestId('print-page-count').textContent())
@@ -82,4 +92,3 @@ test('keeps the tracing underlay transparent to placement tools', async ({ page 
   )
   await expect(page.locator('.stitch-element')).toHaveCount(1)
 })
-

@@ -18,6 +18,13 @@ async function placeAt(page: Page, title: string, rx: number, ry: number) {
   await page.mouse.click(box.x + box.width * rx, box.y + box.height * ry)
 }
 
+async function openGlobalPanel(page: Page, testId: string) {
+  const details = page.getByTestId(testId)
+  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await details.locator(':scope > summary').click()
+  }
+}
+
 test('grabs an existing stitch directly from placement mode without creating another stitch', async ({ page }) => {
   await openEditor(page)
   await placeAt(page, 'Столбик без накида', 0.42, 0.45)
@@ -95,6 +102,7 @@ test('keeps the quick toolbar clear of the rotation handle and shows a live used
   )
   expect(overlaps).toBe(false)
 
+  await openGlobalPanel(page, 'legend-global-panel')
   const legendPanel = page.getByTestId('legend-panel')
   await expect(legendPanel.getByText('Использованные символы')).toBeVisible()
   await expect(legendPanel.locator('.legend-used-row')).toHaveCount(1)
@@ -110,6 +118,7 @@ test('keeps the quick toolbar clear of the rotation handle and shows a live used
 
 test('keeps common row controls visible and hides expert settings until requested', async ({ page }) => {
   await openEditor(page)
+  await openGlobalPanel(page, 'pattern-rows-global-panel')
   await page.getByRole('button', { name: /Радиальная/ }).click()
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
   await expect(page.locator('.pattern-row-number').filter({ hasText: /^Ряд 1$/ })).toBeVisible()

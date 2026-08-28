@@ -35,6 +35,10 @@ function angleDistance(left: number, right: number) {
 }
 
 async function uploadReference(page: Page) {
+  const details = page.getByTestId('background-global-panel')
+  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await details.locator(':scope > summary').click()
+  }
   await page.getByTestId('background-file-input').setInputFiles({
     name: 'reference.svg',
     mimeType: 'image/svg+xml',

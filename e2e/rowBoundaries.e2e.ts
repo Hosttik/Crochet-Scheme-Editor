@@ -4,8 +4,16 @@ function patternRow(page: Page, number: number) {
   return page.locator('.pattern-row-card').filter({ hasText: `Ряд ${number}` })
 }
 
+async function openPatternRows(page: Page) {
+  const details = page.getByTestId('pattern-rows-global-panel')
+  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await details.locator(':scope > summary').click()
+  }
+}
+
 test('persists counted starting chains, skipped stitches and exact joined closure', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
+  await openPatternRows(page)
 
   await page.getByRole('button', { name: /Радиальная/ }).click()
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
@@ -28,6 +36,7 @@ test('persists counted starting chains, skipped stitches and exact joined closur
   await page.waitForTimeout(900)
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
   await page.reload()
+  await openPatternRows(page)
 
   await patternRow(page, 1).click()
   await expect(page.getByRole('button', { name: 'Дополнительно' })).toHaveAttribute('aria-expanded', 'true')

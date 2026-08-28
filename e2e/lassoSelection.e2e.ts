@@ -4,6 +4,8 @@ async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
   await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
+  const snapping = page.getByTestId('snapping-global-panel')
+  await snapping.locator(':scope > summary').click()
   await page.getByLabel('Разрешить привязку').uncheck()
 }
 

@@ -233,6 +233,7 @@ test('creates circular and along-guide repeats without losing the motif selectio
 
 test('repeated Ctrl+D repeats the previous duplicate movement and rotation', async ({ page }) => {
   await openEditor(page)
+  await page.getByTestId('snapping-global-panel').locator(':scope > summary').click()
   await page.getByLabel('Разрешить привязку').uncheck()
   await placeAt(page, 'Столбик без накида', 0.38, 0.42)
 
@@ -275,7 +276,7 @@ test('persists a stitch color through autosave, JSON and SVG export', async ({ p
   await expect(page.locator('.stitch-element .symbol-glyph')).toHaveCSS('color', 'rgb(194, 65, 59)')
 
   const jsonDownload = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Сохранить JSON' }).click()
+  await page.getByRole('button', { name: 'Экспорт проекта' }).click()
   const jsonPath = await (await jsonDownload).path()
   expect(jsonPath).not.toBeNull()
   const project = JSON.parse(await readFile(jsonPath!, 'utf8'))
@@ -304,7 +305,7 @@ test('persists group ids in schema v18 and updates a renamed project immediately
   await expect(activeOption).toHaveText('Быстрый мотив')
 
   const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Сохранить JSON' }).click()
+  await page.getByRole('button', { name: 'Экспорт проекта' }).click()
   const path = await (await downloadPromise).path()
   expect(path).not.toBeNull()
   const project = JSON.parse(await readFile(path!, 'utf8'))

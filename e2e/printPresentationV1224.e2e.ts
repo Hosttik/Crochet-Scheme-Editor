@@ -18,16 +18,25 @@ async function placeAt(page: Page, title: string, rx: number, ry: number) {
   await page.mouse.click(box.x + box.width * rx, box.y + box.height * ry)
 }
 
+async function openGlobalPanel(page: Page, testId: string) {
+  const details = page.getByTestId(testId)
+  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await details.locator(':scope > summary').click()
+  }
+  return details
+}
+
 test('shows the package version in app chrome', async ({ page }) => {
   await openEditor(page)
   const version = await page.locator('.brand').evaluate((element) => getComputedStyle(element, '::after').content.replaceAll('"', ''))
-  expect(version).toBe('v1.24.1')
+  expect(version).toBe('v1.25.0')
 })
 
 test('persists white canvas and grid visibility preferences', async ({ page }) => {
   await openEditor(page)
   const paper = page.locator('svg.editor-canvas rect[fill="#fbfaf7"]')
   const grid = page.locator('svg.editor-canvas rect[fill="url(#grid)"]')
+  await openGlobalPanel(page, 'legend-global-panel')
 
   await page.getByTestId('canvas-white-toggle').check()
   await page.getByTestId('canvas-grid-toggle').uncheck()
@@ -38,6 +47,7 @@ test('persists white canvas and grid visibility preferences', async ({ page }) =
 
   await page.reload()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
+  await openGlobalPanel(page, 'legend-global-panel')
   await expect(page.getByTestId('canvas-white-toggle')).toBeChecked()
   await expect(page.getByTestId('canvas-grid-toggle')).not.toBeChecked()
 })
@@ -63,6 +73,7 @@ test('legend frame grows with labels and rows keep visible spacing', async ({ pa
 test('tiled print adds matching registration crosses and keeps legend inside printable bounds', async ({ page }) => {
   await openEditor(page)
   await placeAt(page, 'Столбик без накида', 0.48, 0.48)
+  await openGlobalPanel(page, 'print-global-panel')
 
   const panel = page.getByTestId('print-panel')
   await panel.getByTestId('print-scale').fill('400')

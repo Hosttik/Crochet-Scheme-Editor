@@ -13,6 +13,10 @@ async function canvasBox(page: Page) {
 }
 
 async function addGauge(page: Page) {
+  const details = page.getByTestId('gauge-global-panel')
+  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await details.locator(':scope > summary').click()
+  }
   const gauge = page.locator('.gauge-panel')
   await gauge.getByRole('button', { name: 'Добавить образец плотности' }).click()
   await gauge.getByLabel('Петель в образце').fill('20')
