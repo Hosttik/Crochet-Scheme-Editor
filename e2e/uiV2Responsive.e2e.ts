@@ -1,12 +1,12 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 
-async function openEditor(page: Parameters<typeof test>[0]['page']) {
+async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
   await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
-async function expectInsideViewport(page: Parameters<typeof test>[0]['page'], locator: ReturnType<Parameters<typeof test>[0]['page']['locator']>) {
+async function expectInsideViewport(page: Page, locator: Locator) {
   const box = await locator.boundingBox()
   expect(box).not.toBeNull()
   const viewport = page.viewportSize()
