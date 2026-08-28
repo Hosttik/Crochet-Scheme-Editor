@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { Locale } from '../i18n'
 import type { Guide } from '../types'
 import { EditorIcon, type EditorIconName } from './icons'
@@ -68,14 +68,18 @@ function GuideFlyout({
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const menuId = useId()
 
   useEffect(() => {
     if (!open) return
+    const focusTimer = window.setTimeout(() => itemRefs.current[0]?.focus(), 0)
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        event.preventDefault()
         setOpen(false)
         triggerRef.current?.focus()
       }
@@ -83,6 +87,7 @@ function GuideFlyout({
     window.addEventListener('pointerdown', onPointerDown)
     window.addEventListener('keydown', onKeyDown)
     return () => {
+      window.clearTimeout(focusTimer)
       window.removeEventListener('pointerdown', onPointerDown)
       window.removeEventListener('keydown', onKeyDown)
     }
@@ -117,6 +122,30 @@ function GuideFlyout({
     { type: 'radial-grid', label: copy.radial },
   ]
 
+  const focusItem = (index: number) => {
+    const normalized = (index + items.length) % items.length
+    itemRefs.current[normalized]?.focus()
+  }
+
+  const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const currentIndex = itemRefs.current.findIndex((item) => item === document.activeElement)
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      focusItem(currentIndex < 0 ? 0 : currentIndex + 1)
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      focusItem(currentIndex < 0 ? items.length - 1 : currentIndex - 1)
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      focusItem(0)
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      focusItem(items.length - 1)
+    } else if (event.key === 'Tab') {
+      setOpen(false)
+    }
+  }
+
   return (
     <div className="tool-rail__flyout-root" ref={rootRef}>
       <button
@@ -126,8 +155,15 @@ function GuideFlyout({
         aria-label={copy.guides}
         title={copy.guides}
         aria-haspopup="menu"
+        aria-controls={open ? menuId : undefined}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowDown' && !open) {
+            event.preventDefault()
+            setOpen(true)
+          }
+        }}
       >
         <EditorIcon name="guide" />
         <span className="tool-rail__text">{copy.guides}</span>
@@ -135,13 +171,22 @@ function GuideFlyout({
       </button>
 
       {open && (
-        <div className="guide-flyout" role="menu" aria-label={copy.guides}>
-          {items.map((item) => (
+        <div
+          id={menuId}
+          className="guide-flyout"
+          role="menu"
+          aria-label={copy.guides}
+          onKeyDown={handleMenuKeyDown}
+        >
+          {items.map((item, index) => (
             <button
               key={item.type}
+              ref={(node) => { itemRefs.current[index] = node }}
               type="button"
               role="menuitem"
+              tabIndex={-1}
               className="guide-flyout__item"
+              data-guide-type={item.type}
               onClick={() => {
                 onAddGuide(item.type)
                 setOpen(false)
