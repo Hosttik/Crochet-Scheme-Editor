@@ -45,7 +45,7 @@
 }
 
 /* Legacy duplicates remain mounted only as a behavioral compatibility layer. */
-.left-sidebar > .compact-section:first-child,
+.left-sidebar > .compact-section,
 .left-sidebar > .legacy-symbols-section {
   display: none !important;
 }
