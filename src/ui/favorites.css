@@ -11,19 +11,19 @@
 
 .favorite-toggle {
   position: absolute;
-  top: 3px;
-  right: 3px;
+  top: 0;
+  right: 0;
   z-index: 2;
   display: grid;
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   place-items: center;
   padding: 0;
   border: 0;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.84);
   color: var(--ui-text-faint);
-  opacity: 0.72;
+  opacity: 0.68;
 }
 
 .favorite-toggle:hover,
