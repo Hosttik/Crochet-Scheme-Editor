@@ -57,20 +57,41 @@ export function LeftWorkbenchBridge() {
   const [query, setQuery] = useState('')
 
   useEffect(() => {
-    const sidebar = document.querySelector<HTMLElement>('.left-sidebar')
-    if (!sidebar) return
-
-    const host = document.createElement('div')
-    host.className = 'ui-v2-left-bridge-host'
-    host.dataset.uiV2Bridge = 'left-workbench'
-    sidebar.prepend(host)
-    setPortalTarget(host)
+    let host: HTMLElement | null = null
+    let stateObserver: MutationObserver | null = null
+    let mountObserver: MutationObserver | null = null
 
     const sync = () => setTool(readWorkbenchTool(locale))
-    const observer = new MutationObserver(sync)
-    observer.observe(sidebar, { subtree: true, attributes: true, attributeFilter: ['class', 'aria-pressed'] })
-    const canvas = document.querySelector('.editor-canvas')
-    if (canvas) observer.observe(canvas, { attributes: true, attributeFilter: ['class'] })
+
+    const install = () => {
+      if (host) return true
+      const sidebar = document.querySelector<HTMLElement>('.left-sidebar')
+      if (!sidebar) return false
+
+      host = document.createElement('div')
+      host.className = 'ui-v2-left-bridge-host'
+      host.dataset.uiV2Bridge = 'left-workbench'
+      sidebar.prepend(host)
+      setPortalTarget(host)
+
+      stateObserver = new MutationObserver(sync)
+      stateObserver.observe(sidebar, { subtree: true, attributes: true, attributeFilter: ['class', 'aria-pressed'] })
+      const canvas = document.querySelector('.editor-canvas')
+      if (canvas) stateObserver.observe(canvas, { attributes: true, attributeFilter: ['class'] })
+      sync()
+      return true
+    }
+
+    if (!install()) {
+      const root = document.querySelector('.editor-root-v2__workbench') ?? document.body
+      mountObserver = new MutationObserver(() => {
+        if (install()) {
+          mountObserver?.disconnect()
+          mountObserver = null
+        }
+      })
+      mountObserver.observe(root, { childList: true, subtree: true })
+    }
 
     const onClick = (event: MouseEvent) => {
       const button = (event.target as Element | null)?.closest<HTMLButtonElement>('.language-switch button')
@@ -80,13 +101,14 @@ export function LeftWorkbenchBridge() {
     }
     document.addEventListener('click', onClick, true)
     window.addEventListener('keyup', sync)
-    sync()
 
     return () => {
-      observer.disconnect()
+      mountObserver?.disconnect()
+      stateObserver?.disconnect()
       document.removeEventListener('click', onClick, true)
       window.removeEventListener('keyup', sync)
-      host.remove()
+      host?.remove()
+      setPortalTarget(null)
     }
   }, [locale])
 
