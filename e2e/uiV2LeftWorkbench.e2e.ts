@@ -33,6 +33,30 @@ test('uses the extracted tool rail and crochet element library', async ({ page }
   await expect(chain).toHaveAttribute('aria-pressed', 'true')
 })
 
+test('creates guides from the tool rail flyout through the real editor handler', async ({ page }) => {
+  await openEditor(page)
+
+  const rail = page.getByRole('navigation', { name: 'Инструменты' })
+  const guideTrigger = rail.getByRole('button', { name: 'Направляющие', exact: true })
+  await guideTrigger.click()
+
+  const menu = page.getByRole('menu', { name: 'Направляющие', exact: true })
+  await expect(menu).toBeVisible()
+  await expect(guideTrigger).toHaveAttribute('aria-expanded', 'true')
+
+  await menu.getByRole('menuitem', { name: 'Линия', exact: true }).click()
+  await expect(menu).toHaveCount(0)
+  await expect(guideTrigger).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.locator('.left-sidebar > .guide-section .guide-list button')).toHaveCount(1)
+  await expect(page.locator('.statusbar')).toContainText('Линия')
+
+  await guideTrigger.click()
+  await expect(menu).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(menu).toHaveCount(0)
+  await expect(guideTrigger).toBeFocused()
+})
+
 test('filters the extracted library without mutating document state', async ({ page }) => {
   await openEditor(page)
 
