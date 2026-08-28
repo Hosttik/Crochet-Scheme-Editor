@@ -245,6 +245,11 @@ export function reconcileParametricRows(
   return reconcileTopology(next)
 }
 
+function rowIsFullyLocked(elements: StitchElement[], rowId: string) {
+  const row = rowElements(elements, rowId)
+  return row.length > 0 && row.every((element) => element.locked === true)
+}
+
 export function updateParametricRow(
   elements: StitchElement[],
   guides: Guide[],
@@ -252,7 +257,7 @@ export function updateParametricRow(
   binding: ParametricRowBinding,
   idFactory: ParametricIdFactory,
 ) {
-  if (rowElements(elements, rowId).some((element) => element.locked === true)) return elements
+  if (rowIsFullyLocked(elements, rowId)) return elements
   const rebound = elements.map((element) =>
     element.parametricRow?.id === rowId
       ? { ...element, parametricRow: binding }
@@ -358,7 +363,7 @@ export function createPatternIncreaseSequence(
 }
 
 export function deleteParametricRow(elements: StitchElement[], rowId: string) {
-  if (rowElements(elements, rowId).some((element) => element.locked === true)) return elements
+  if (rowIsFullyLocked(elements, rowId)) return elements
   const withoutDeleted = elements.filter((element) => element.parametricRow?.id !== rowId)
   return withoutDeleted.map((element) => {
     const binding = element.parametricRow
