@@ -1,0 +1,33 @@
+.tool-rail {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  grid-column: 1;
+  grid-row: 1 / span 4;
+  align-self: start;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-height: 100%;
+  padding: 8px 4px;
+  background: var(--ui-surface-subtle);
+}
+
+.tool-rail .ui-icon-button {
+  width: 36px;
+  height: 36px;
+}
+
+.tool-rail__separator {
+  width: 24px;
+  height: 1px;
+  margin: 2px 0;
+  background: var(--ui-border);
+}
+
+@media (max-width: 1080px) {
+  .tool-rail .ui-icon-button {
+    width: 32px;
+    height: 32px;
+  }
+}
