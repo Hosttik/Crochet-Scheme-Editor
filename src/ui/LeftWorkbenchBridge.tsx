@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CHAIN_BUNDLE_COUNTS, type ChainBundleCount } from '../editor/chainBundle'
+import { type ChainBundleCount } from '../editor/chainBundle'
 import { symbolName, type Locale } from '../i18n'
 import { SYMBOLS } from '../symbols'
 import { ElementLibrary } from './ElementLibrary'
@@ -9,87 +9,73 @@ import { ToolRail } from './ToolRail'
 import type { WorkbenchTool } from './workbenchTypes'
 
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
-const LEGACY_LIBRARY_SELECTOR = '.left-sidebar > .legacy-symbols-section'
+const LEGACY_LIBRARY_SELECTOR = '.left-sidebar > [data-ui-v2-legacy-library="true"]'
+const LEGACY_TOOLS_SELECTOR = '.left-sidebar > [data-ui-v2-legacy-tools="true"]'
 
 function initialLocale(): Locale {
   if (typeof window === 'undefined') return 'ru'
   return window.localStorage.getItem(LOCALE_STORAGE_KEY) === 'en' ? 'en' : 'ru'
 }
 
-function buttonByAriaLabel(label: string) {
+function legacyButtonByAriaLabel(label: string) {
   return Array.from(document.querySelectorAll<HTMLButtonElement>(`${LEGACY_LIBRARY_SELECTOR} button`))
     .find((button) => button.getAttribute('aria-label') === label) ?? null
 }
 
+/**
+ * Keep the legacy controls mounted as a temporary behavioral adapter, but make
+ * their old selector surface private so the extracted UI is the only visible
+ * and test-addressable workbench. This intentionally does not observe the
+ * sidebar subtree: observing and mutating the same class attributes caused a
+ * self-sustaining MutationObserver loop in Chromium.
+ */
 function sanitizeLegacyLeftControls(sidebar: HTMLElement) {
-  const legacyTools = sidebar.querySelector<HTMLElement>(':scope > .compact-section')
-  legacyTools?.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
-    const active = button.classList.contains('active')
-    button.dataset.legacyActive = active ? 'true' : 'false'
-    button.classList.remove('tool-button', 'active')
-    button.classList.add('legacy-tool-button')
-  })
-
-  const rawLibrary = sidebar.querySelector<HTMLElement>(':scope > .symbols-section:not(.element-library)')
-  const legacyLibrary = rawLibrary ?? sidebar.querySelector<HTMLElement>(':scope > .legacy-symbols-section')
-  if (!legacyLibrary) return
-
-  if (legacyLibrary.classList.contains('symbols-section')) {
-    legacyLibrary.classList.remove('symbols-section')
-    legacyLibrary.classList.add('legacy-symbols-section')
+  const legacyTools = sidebar.querySelector<HTMLElement>(
+    ':scope > [data-ui-v2-legacy-tools="true"], :scope > .compact-section:first-of-type',
+  )
+  if (legacyTools) {
+    legacyTools.dataset.uiV2LegacyTools = 'true'
+    legacyTools.setAttribute('aria-hidden', 'true')
+    legacyTools.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
+      button.classList.remove('tool-button', 'active')
+      button.classList.add('legacy-tool-button')
+      button.tabIndex = -1
+    })
   }
 
-  const search = legacyLibrary.querySelector<HTMLInputElement>('[data-testid="symbol-search"], .symbol-search')
+  const legacyLibrary = sidebar.querySelector<HTMLElement>(
+    ':scope > [data-ui-v2-legacy-library="true"], :scope > .symbols-section:not(.element-library)',
+  )
+  if (!legacyLibrary) return
+
+  legacyLibrary.dataset.uiV2LegacyLibrary = 'true'
+  legacyLibrary.setAttribute('aria-hidden', 'true')
+  legacyLibrary.classList.remove('symbols-section')
+  legacyLibrary.classList.add('legacy-symbols-section')
+
+  const search = legacyLibrary.querySelector<HTMLInputElement>('[data-testid="symbol-search"], .symbol-search, .legacy-symbol-search')
   if (search) {
     search.removeAttribute('data-testid')
     search.classList.remove('symbol-search')
     search.classList.add('legacy-symbol-search')
+    search.tabIndex = -1
   }
 
   legacyLibrary.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
-    const wasSymbol = button.classList.contains('symbol-button') || button.classList.contains('legacy-symbol-button')
-    if (!wasSymbol) return
-
-    const isBundle = button.classList.contains('chain-bundle-button') || button.dataset.legacySymbolKind === 'chain-bundle'
-    const active = button.classList.contains('active')
-    button.dataset.legacySymbolKind = isBundle ? 'chain-bundle' : 'symbol'
-    button.dataset.legacyActive = active ? 'true' : 'false'
     button.classList.remove('symbol-button', 'chain-bundle-button', 'active')
     button.classList.add('legacy-symbol-button')
+    button.tabIndex = -1
   })
 }
 
-function readWorkbenchTool(locale: Locale): WorkbenchTool {
+function toolFromCanvas(current: WorkbenchTool): WorkbenchTool {
   const canvas = document.querySelector('.editor-canvas')
-  if (canvas?.classList.contains('pan-tool')) return { type: 'pan' }
-  if (canvas?.classList.contains('lassoing')) return { type: 'lasso' }
-  if (canvas?.classList.contains('measuring')) return { type: 'ruler' }
-
-  const activeBundle = document.querySelector<HTMLButtonElement>(
-    `${LEGACY_LIBRARY_SELECTOR} [data-legacy-symbol-kind="chain-bundle"][data-legacy-active="true"]`,
-  )
-  if (activeBundle) {
-    const label = activeBundle.getAttribute('aria-label') ?? ''
-    const count = Number(label.match(/^\d+/)?.[0])
-    if (CHAIN_BUNDLE_COUNTS.includes(count as ChainBundleCount)) {
-      return { type: 'place-chain-bundle', count: count as ChainBundleCount }
-    }
-  }
-
-  const activeSymbol = document.querySelector<HTMLButtonElement>(
-    `${LEGACY_LIBRARY_SELECTOR} [data-legacy-symbol-kind="symbol"][data-legacy-active="true"]`,
-  )
-  if (activeSymbol) {
-    const activeLabel = activeSymbol.getAttribute('aria-label')
-    const definition = SYMBOLS.find((symbol) => {
-      const label = symbolName(symbol.id, symbol.name, locale)
-      const title = symbol.abbreviation ? `${label} · ${symbol.abbreviation}` : label
-      return title === activeLabel
-    })
-    if (definition) return { type: 'place', symbolId: definition.id }
-  }
-
-  return { type: 'select' }
+  if (!canvas) return current
+  if (canvas.classList.contains('pan-tool')) return { type: 'pan' }
+  if (canvas.classList.contains('lassoing')) return { type: 'lasso' }
+  if (canvas.classList.contains('measuring')) return { type: 'ruler' }
+  if (!canvas.classList.contains('placing')) return { type: 'select' }
+  return current
 }
 
 export function LeftWorkbenchBridge() {
@@ -100,13 +86,13 @@ export function LeftWorkbenchBridge() {
 
   useEffect(() => {
     let host: HTMLElement | null = null
-    let stateObserver: MutationObserver | null = null
+    let canvasObserver: MutationObserver | null = null
     let mountObserver: MutationObserver | null = null
 
     const sync = () => {
       const sidebar = document.querySelector<HTMLElement>('.left-sidebar')
       if (sidebar) sanitizeLegacyLeftControls(sidebar)
-      setTool(readWorkbenchTool(locale))
+      setTool((current) => toolFromCanvas(current))
     }
 
     const install = () => {
@@ -121,10 +107,11 @@ export function LeftWorkbenchBridge() {
       sidebar.prepend(host)
       setPortalTarget(host)
 
-      stateObserver = new MutationObserver(sync)
-      stateObserver.observe(sidebar, { subtree: true, attributes: true, attributeFilter: ['class', 'aria-pressed'] })
       const canvas = document.querySelector('.editor-canvas')
-      if (canvas) stateObserver.observe(canvas, { attributes: true, attributeFilter: ['class'] })
+      if (canvas) {
+        canvasObserver = new MutationObserver(() => queueMicrotask(sync))
+        canvasObserver.observe(canvas, { attributes: true, attributeFilter: ['class'] })
+      }
       sync()
       return true
     }
@@ -146,22 +133,19 @@ export function LeftWorkbenchBridge() {
       if (button?.textContent?.trim() === 'RU') setLocale('ru')
       queueMicrotask(sync)
     }
+    const onKeyUp = () => queueMicrotask(sync)
     document.addEventListener('click', onClick, true)
-    window.addEventListener('keyup', sync)
+    window.addEventListener('keyup', onKeyUp)
 
     return () => {
       mountObserver?.disconnect()
-      stateObserver?.disconnect()
+      canvasObserver?.disconnect()
       document.removeEventListener('click', onClick, true)
-      window.removeEventListener('keyup', sync)
+      window.removeEventListener('keyup', onKeyUp)
       host?.remove()
       setPortalTarget(null)
     }
-  }, [locale])
-
-  useEffect(() => {
-    setTool(readWorkbenchTool(locale))
-  }, [locale])
+  }, [])
 
   const symbolTitles = useMemo(() => new Map(SYMBOLS.map((symbol) => {
     const label = symbolName(symbol.id, symbol.name, locale)
@@ -170,15 +154,25 @@ export function LeftWorkbenchBridge() {
 
   if (!portalTarget) return null
 
-  const cancelPlacement = () => dispatchEditorShortcut('Escape')
+  const runShortcut = (key: string) => {
+    dispatchEditorShortcut(key)
+    queueMicrotask(() => setTool((current) => toolFromCanvas(current)))
+  }
+  const cancelPlacement = () => {
+    setTool({ type: 'select' })
+    runShortcut('Escape')
+  }
   const selectSymbol = (symbolId: string) => {
     const title = symbolTitles.get(symbolId)
-    if (title) buttonByAriaLabel(title)?.click()
+    if (!title) return
+    setTool({ type: 'place', symbolId })
+    legacyButtonByAriaLabel(title)?.click()
   }
   const selectChainBundle = (count: ChainBundleCount) => {
     const label = locale === 'ru' ? `${count} воздушные петли` : `${count} chains`
     const abbreviation = locale === 'ru' ? `${count} ВП` : `${count} ch`
-    buttonByAriaLabel(`${label} · ${abbreviation}`)?.click()
+    setTool({ type: 'place-chain-bundle', count })
+    legacyButtonByAriaLabel(`${label} · ${abbreviation}`)?.click()
   }
 
   return createPortal(
@@ -186,10 +180,13 @@ export function LeftWorkbenchBridge() {
       <ToolRail
         locale={locale}
         tool={tool}
-        onSelect={() => dispatchEditorShortcut('Escape')}
-        onTogglePan={() => dispatchEditorShortcut('h')}
-        onToggleLasso={() => dispatchEditorShortcut('l')}
-        onToggleRuler={() => dispatchEditorShortcut('r')}
+        onSelect={() => {
+          setTool({ type: 'select' })
+          runShortcut('Escape')
+        }}
+        onTogglePan={() => runShortcut('h')}
+        onToggleLasso={() => runShortcut('l')}
+        onToggleRuler={() => runShortcut('r')}
       />
       <ElementLibrary
         locale={locale}
