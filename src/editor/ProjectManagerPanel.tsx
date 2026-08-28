@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Locale } from '../i18n'
+import { Button, PanelHeader } from '../ui/primitives'
 import { listLocalProjects, type LocalProjectSummary } from './persistence'
 import './projectManager.css'
 
@@ -87,10 +88,10 @@ export function ProjectManagerPanel({
 
   return (
     <section className="panel-section project-manager-panel">
-      <div className="section-title-row">
-        <h2>{copy.title}</h2>
-        <span className="muted-text">{projects.length}</span>
-      </div>
+      <PanelHeader
+        title={copy.title}
+        actions={<span className="project-count" aria-label={`${copy.title}: ${projects.length}`}>{projects.length}</span>}
+      />
 
       <label className="project-name-field">
         <span>{copy.name}</span>
@@ -100,6 +101,10 @@ export function ProjectManagerPanel({
           onBlur={commitRename}
           onKeyDown={(event) => {
             if (event.key === 'Enter') event.currentTarget.blur()
+            if (event.key === 'Escape') {
+              setNameDraft(currentTitle)
+              event.currentTarget.blur()
+            }
           }}
         />
       </label>
@@ -120,10 +125,11 @@ export function ProjectManagerPanel({
       )}
 
       <div className="project-actions">
-        <button disabled={busy} onClick={() => void run(onNew)}>{copy.newProject}</button>
-        <button disabled={busy} onClick={() => void run(onDuplicate)}>{copy.duplicate}</button>
-        <button
-          className="danger"
+        <Button icon="plus" disabled={busy} onClick={() => void run(onNew)}>{copy.newProject}</Button>
+        <Button icon="duplicate" disabled={busy} onClick={() => void run(onDuplicate)}>{copy.duplicate}</Button>
+        <Button
+          icon="trash"
+          variant="danger"
           disabled={busy || projects.length <= 1}
           onClick={() => {
             const message = locale === 'ru'
@@ -133,7 +139,7 @@ export function ProjectManagerPanel({
           }}
         >
           {copy.delete}
-        </button>
+        </Button>
       </div>
       {error && <p className="project-error" role="alert">{error}</p>}
     </section>
