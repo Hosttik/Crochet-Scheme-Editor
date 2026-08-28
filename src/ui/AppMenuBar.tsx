@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Locale } from '../i18n'
+import type { ApplicationCommandId, ApplicationCommandRunner } from './applicationCommands'
 import { openCommandPalette } from './CommandPalette'
 import { runLegacyCommand } from './legacyCommandBridge'
 
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
 
 type MenuKey = 'file' | 'edit' | 'view' | 'settings' | 'help'
-type MenuItem = { label: string; command?: string; shortcut?: string; separator?: boolean }
+type MenuItem = { label: string; command?: ApplicationCommandId; shortcut?: string; separator?: boolean }
 
 const MENU_KEYS: MenuKey[] = ['file', 'edit', 'view', 'settings', 'help']
 
@@ -111,7 +112,7 @@ function initialLocale(): Locale {
   return window.localStorage.getItem(LOCALE_STORAGE_KEY) === 'en' ? 'en' : 'ru'
 }
 
-function ariaKeyShortcuts(command?: string) {
+function ariaKeyShortcuts(command?: ApplicationCommandId) {
   switch (command) {
     case 'edit.undo': return 'Control+Z Meta+Z'
     case 'edit.redo': return 'Control+Shift+Z Meta+Shift+Z'
@@ -129,11 +130,19 @@ function ariaKeyShortcuts(command?: string) {
   }
 }
 
-export function AppMenuBar() {
-  const [locale, setLocale] = useState<Locale>(initialLocale)
+export function AppMenuBar({
+  runCommand = runLegacyCommand,
+  locale: controlledLocale,
+}: {
+  runCommand?: ApplicationCommandRunner
+  locale?: Locale
+} = {}) {
+  const [legacyLocale, setLegacyLocale] = useState<Locale>(initialLocale)
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null)
   const rootRef = useRef<HTMLElement>(null)
   const triggerRefs = useRef<Partial<Record<MenuKey, HTMLButtonElement | null>>>({})
+  const locale = controlledLocale ?? legacyLocale
+  const localeControlled = controlledLocale !== undefined
   const copy = COPY[locale]
 
   useEffect(() => {
@@ -144,10 +153,11 @@ export function AppMenuBar() {
       if (event.key === 'Escape') setOpenMenu(null)
     }
     const onClick = (event: MouseEvent) => {
+      if (localeControlled) return
       const button = (event.target as Element | null)?.closest<HTMLButtonElement>('.language-switch button')
       if (!button) return
-      if (button.textContent?.trim() === 'EN') setLocale('en')
-      if (button.textContent?.trim() === 'RU') setLocale('ru')
+      if (button.textContent?.trim() === 'EN') setLegacyLocale('en')
+      if (button.textContent?.trim() === 'RU') setLegacyLocale('ru')
     }
     window.addEventListener('pointerdown', onPointerDown)
     window.addEventListener('keydown', onKeyDown)
@@ -157,11 +167,11 @@ export function AppMenuBar() {
       window.removeEventListener('keydown', onKeyDown)
       document.removeEventListener('click', onClick, true)
     }
-  }, [])
+  }, [localeControlled])
 
-  const activate = (command?: string) => {
+  const activate = (command?: ApplicationCommandId) => {
     if (command === 'ui.commandPalette') openCommandPalette()
-    else if (command) runLegacyCommand(command)
+    else if (command) runCommand(command)
     setOpenMenu(null)
   }
 
