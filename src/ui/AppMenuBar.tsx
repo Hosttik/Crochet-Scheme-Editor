@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Locale } from '../i18n'
 import { runLegacyCommand } from './legacyCommandBridge'
 
@@ -6,6 +6,8 @@ const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
 
 type MenuKey = 'file' | 'edit' | 'view' | 'settings' | 'help'
 type MenuItem = { label: string; command?: string; shortcut?: string; separator?: boolean }
+
+const MENU_KEYS: MenuKey[] = ['file', 'edit', 'view', 'settings', 'help']
 
 const COPY: Record<Locale, {
   menus: Record<MenuKey, string>
@@ -108,6 +110,7 @@ export function AppMenuBar() {
   const [locale, setLocale] = useState<Locale>(initialLocale)
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null)
   const rootRef = useRef<HTMLElement>(null)
+  const triggerRefs = useRef<Partial<Record<MenuKey, HTMLButtonElement | null>>>({})
   const copy = COPY[locale]
 
   useEffect(() => {
@@ -138,18 +141,92 @@ export function AppMenuBar() {
     setOpenMenu(null)
   }
 
+  const focusTrigger = (key: MenuKey) => {
+    requestAnimationFrame(() => triggerRefs.current[key]?.focus())
+  }
+
+  const focusMenuItem = (key: MenuKey, index: number) => {
+    requestAnimationFrame(() => {
+      const items = Array.from(
+        rootRef.current?.querySelectorAll<HTMLButtonElement>(`.app-menu[data-menu="${key}"] .app-menu__item`) ?? [],
+      )
+      if (!items.length) return
+      const normalized = (index + items.length) % items.length
+      items[normalized]?.focus()
+    })
+  }
+
+  const moveMenu = (key: MenuKey, direction: -1 | 1, open: boolean) => {
+    const index = MENU_KEYS.indexOf(key)
+    const next = MENU_KEYS[(index + direction + MENU_KEYS.length) % MENU_KEYS.length]
+    setOpenMenu(open ? next : null)
+    if (open) focusMenuItem(next, 0)
+    else focusTrigger(next)
+  }
+
+  const onTriggerKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, key: MenuKey) => {
+    if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      moveMenu(key, 1, Boolean(openMenu))
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      moveMenu(key, -1, Boolean(openMenu))
+    } else if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      setOpenMenu(key)
+      focusMenuItem(key, 0)
+    } else if (event.key === 'Escape') {
+      setOpenMenu(null)
+    }
+  }
+
+  const onItemKeyDown = (
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    key: MenuKey,
+    itemIndex: number,
+    itemCount: number,
+  ) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      focusMenuItem(key, (itemIndex + 1) % itemCount)
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      focusMenuItem(key, (itemIndex - 1 + itemCount) % itemCount)
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      focusMenuItem(key, 0)
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      focusMenuItem(key, itemCount - 1)
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      moveMenu(key, 1, true)
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      moveMenu(key, -1, true)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      setOpenMenu(null)
+      focusTrigger(key)
+    }
+  }
+
   return (
     <nav className="app-menu-bar" ref={rootRef} aria-label={locale === 'ru' ? 'Меню приложения' : 'Application menu'}>
-      {(Object.keys(copy.menus) as MenuKey[]).map((key) => {
+      {MENU_KEYS.map((key) => {
         const open = openMenu === key
+        const actionableItems = copy.items[key].filter((item) => !item.separator)
+        let actionableIndex = -1
         return (
-          <div className="app-menu" key={key}>
+          <div className="app-menu" data-menu={key} key={key}>
             <button
+              ref={(node) => { triggerRefs.current[key] = node }}
               type="button"
               className={`app-menu__trigger ${open ? 'is-open' : ''}`}
               aria-haspopup="menu"
               aria-expanded={open}
               onClick={() => setOpenMenu((current) => current === key ? null : key)}
+              onKeyDown={(event) => onTriggerKeyDown(event, key)}
               onPointerEnter={() => {
                 if (openMenu) setOpenMenu(key)
               }}
@@ -157,21 +234,28 @@ export function AppMenuBar() {
               {copy.menus[key]}
             </button>
             {open ? (
-              <div className="app-menu__popover" role="menu">
-                {copy.items[key].map((item, index) => item.separator ? (
-                  <div className="app-menu__separator" role="separator" key={`separator-${index}`} />
-                ) : (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="app-menu__item"
-                    key={`${item.command}-${item.label}`}
-                    onClick={() => activate(item.command)}
-                  >
-                    <span>{item.label}</span>
-                    {item.shortcut ? <kbd>{item.shortcut}</kbd> : null}
-                  </button>
-                ))}
+              <div className="app-menu__popover" role="menu" aria-label={copy.menus[key]}>
+                {copy.items[key].map((item, index) => {
+                  if (item.separator) {
+                    return <div className="app-menu__separator" role="separator" key={`separator-${index}`} />
+                  }
+                  actionableIndex += 1
+                  const currentIndex = actionableIndex
+                  return (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      tabIndex={-1}
+                      className="app-menu__item"
+                      key={`${item.command}-${item.label}`}
+                      onClick={() => activate(item.command)}
+                      onKeyDown={(event) => onItemKeyDown(event, key, currentIndex, actionableItems.length)}
+                    >
+                      <span>{item.label}</span>
+                      {item.shortcut ? <kbd>{item.shortcut}</kbd> : null}
+                    </button>
+                  )
+                })}
               </div>
             ) : null}
           </div>
