@@ -13,9 +13,43 @@
   background: var(--ui-surface-subtle);
 }
 
-.tool-rail .ui-icon-button {
+.tool-rail .ui-v2-tool-rail-button {
   width: 36px;
   height: 36px;
+  min-height: 36px;
+  display: grid;
+  grid-template-columns: 1fr;
+  place-items: center;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-sm);
+  background: transparent;
+  font-size: inherit;
+}
+
+.tool-rail .ui-v2-tool-rail-button:hover:not(:disabled) {
+  border-color: var(--ui-border);
+  background: var(--ui-surface-hover);
+}
+
+.tool-rail .ui-v2-tool-rail-button.active {
+  border-color: #bfd3fb;
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent-hover);
+}
+
+.tool-rail__text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .tool-rail__separator {
@@ -26,8 +60,9 @@
 }
 
 @media (max-width: 1080px) {
-  .tool-rail .ui-icon-button {
+  .tool-rail .ui-v2-tool-rail-button {
     width: 32px;
     height: 32px;
+    min-height: 32px;
   }
 }
