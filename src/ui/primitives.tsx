@@ -25,6 +25,29 @@ export function IconButton({
   )
 }
 
+export function Button({
+  children,
+  icon,
+  variant = 'default',
+  className = '',
+  ...props
+}: {
+  children: ReactNode
+  icon?: EditorIconName
+  variant?: 'default' | 'subtle' | 'danger'
+} & Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'>) {
+  return (
+    <button
+      type="button"
+      className={`ui-button ui-button--${variant} ${className}`.trim()}
+      {...props}
+    >
+      {icon ? <EditorIcon name={icon} size={16} /> : null}
+      <span className="ui-button__label">{children}</span>
+    </button>
+  )
+}
+
 export function ToolButton({
   icon,
   label,
