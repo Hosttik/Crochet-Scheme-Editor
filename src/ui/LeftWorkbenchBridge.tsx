@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { type ChainBundleCount } from '../editor/chainBundle'
 import { symbolName, type Locale } from '../i18n'
 import { SYMBOLS } from '../symbols'
+import type { Guide } from '../types'
 import { ElementLibrary } from './ElementLibrary'
 import { FavoriteQuickBar } from './FavoriteQuickBar'
 import {
@@ -16,6 +17,7 @@ import type { WorkbenchTool } from './workbenchTypes'
 
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
 const LEGACY_LIBRARY_SELECTOR = '.left-sidebar > [data-ui-v2-legacy-library="true"]'
+const LEGACY_GUIDE_TYPES: Guide['type'][] = ['arc', 'line', 'curve', 'parabola', 'grid', 'radial-grid']
 
 function initialLocale(): Locale {
   if (typeof window === 'undefined') return 'ru'
@@ -25,6 +27,10 @@ function initialLocale(): Locale {
 function legacyButtonByAriaLabel(label: string) {
   return Array.from(document.querySelectorAll<HTMLButtonElement>(`${LEGACY_LIBRARY_SELECTOR} button`))
     .find((button) => button.getAttribute('aria-label') === label) ?? null
+}
+
+function legacyGuideButtonByType(type: Guide['type']) {
+  return document.querySelector<HTMLButtonElement>(`.left-sidebar > .guide-section button[data-ui-v2-guide-type="${type}"]`)
 }
 
 /**
@@ -47,6 +53,12 @@ function sanitizeLegacyLeftControls(sidebar: HTMLElement) {
       button.tabIndex = -1
     })
   }
+
+  const guideButtons = sidebar.querySelectorAll<HTMLButtonElement>(':scope > .guide-section .guide-add-grid > button')
+  guideButtons.forEach((button, index) => {
+    const type = LEGACY_GUIDE_TYPES[index]
+    if (type) button.dataset.uiV2GuideType = type
+  })
 
   const legacyLibrary = sidebar.querySelector<HTMLElement>(
     ':scope > [data-ui-v2-legacy-library="true"], :scope > .symbols-section:not(.element-library)',
@@ -199,6 +211,10 @@ export function LeftWorkbenchBridge() {
     setTool({ type: 'place-chain-bundle', count })
     legacyButtonByAriaLabel(`${label} · ${abbreviation}`)?.click()
   }
+  const addGuide = (type: Guide['type']) => {
+    legacyGuideButtonByType(type)?.click()
+    queueMicrotask(() => setTool({ type: 'select' }))
+  }
   const toggleFavorite = (key: FavoriteElementKey) => {
     setFavorites((current) => current.includes(key)
       ? current.filter((favorite) => favorite !== key)
@@ -218,6 +234,7 @@ export function LeftWorkbenchBridge() {
             }}
             onTogglePan={() => runShortcut('h')}
             onToggleLasso={() => runShortcut('l')}
+            onAddGuide={addGuide}
             onToggleRuler={() => runShortcut('r')}
           />
           <ElementLibrary
