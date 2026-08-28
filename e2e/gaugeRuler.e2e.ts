@@ -36,7 +36,7 @@ test('counts actual stitch anchors inside the measurement region and converts th
   await expect(gauge).toContainText('20 п. / 10 см')
   await expect(gauge).toContainText('10 р. / 10 см')
 
-  await page.getByRole('button', { name: /4 воздушные петли/ }).click()
+  await page.locator('.symbols-section .symbol-button[aria-label="4 воздушные петли · 4 ВП"]').click()
   const canvas = page.locator('svg.editor-canvas')
   const box = await canvasBox(page)
   await canvas.click({ position: { x: box.width * 0.52, y: box.height * 0.48 } })
