@@ -1,10 +1,10 @@
 /*
- * UI v2 structural bridge.
+ * UI v2 workbench structure.
  *
- * The outer shell now owns a real ToolRail and ElementLibrary, portalled into
- * the existing left sidebar with App.tsx owning editor state and semantic
- * workbench commands directly. Layers are temporarily reparented into
- * the right inspector until App.tsx exposes typed panel actions directly.
+ * App.tsx now renders ToolRail and ElementLibrary directly in the left sidebar
+ * and owns their editor state/callbacks. Layers are still temporarily
+ * reparented into the right inspector until App.tsx renders that panel there
+ * directly.
  */
 
 .app-shell {
@@ -40,9 +40,8 @@
 }
 
 
-/* The ToolRail is now the sole guide-creation surface. Keep the old guide list
- * only when there is something to manage. The hidden buttons remain callable
- * by the temporary bridge until typed guide commands are extracted from App. */
+/* The ToolRail is the sole guide-creation surface. Keep the guide-management
+ * list visible only after the document actually contains a guide. */
 .left-sidebar > .guide-section:not(:has(.guide-list)) {
   display: none;
 }
