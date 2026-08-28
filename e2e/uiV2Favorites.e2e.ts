@@ -11,9 +11,7 @@ test('persists crochet favorites and exposes them as real quick placement action
   await openEditor(page)
 
   const library = page.getByRole('region', { name: 'Библиотека элементов' })
-  const mainChainCard = library.locator('.library-symbol-card').filter({
-    has: library.locator('.symbol-button[aria-label="Воздушная петля · ch"]'),
-  })
+  const mainChainCard = library.locator('.library-symbol-card:has(.symbol-button[aria-label="Воздушная петля · ch"])')
 
   await mainChainCard.getByRole('button', { name: 'Добавить в избранное: Воздушная петля', exact: true }).click()
   await expect(page.locator('.stitch-element')).toHaveCount(0)
@@ -40,9 +38,7 @@ test('persists crochet favorites and exposes them as real quick placement action
   await page.mouse.click(box!.x + box!.width * 0.5, box!.y + box!.height * 0.5)
   await expect(page.locator('.stitch-element')).toHaveCount(1)
 
-  const reloadedCard = library.locator('.library-symbol-card').filter({
-    has: library.locator('.symbol-button[aria-label="Воздушная петля · ch"]'),
-  })
+  const reloadedCard = library.locator('.library-symbol-card:has(.symbol-button[aria-label="Воздушная петля · ch"])')
   await reloadedCard.getByRole('button', { name: 'Удалить из избранного: Воздушная петля', exact: true }).click()
   await expect(library.getByTestId('favorites-section')).toHaveCount(0)
   await expect(page.getByTestId('favorite-quick-bar')).toHaveCount(0)
