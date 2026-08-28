@@ -1,4 +1,4 @@
-import type { SVGProps } from 'react'
+import type { ReactNode, SVGProps } from 'react'
 
 export type EditorIconName =
   | 'select'
@@ -31,7 +31,7 @@ export type EditorIconName =
   | 'chevronDown'
   | 'more'
 
-const paths: Record<EditorIconName, JSX.Element> = {
+const paths: Record<EditorIconName, ReactNode> = {
   select: <path d="M5 3l12 9-6 1.2L8 19 5 3z" />,
   hand: <path d="M7.5 11V6.5a1.5 1.5 0 013 0V10m0-4.5a1.5 1.5 0 013 0V10m0-3a1.5 1.5 0 013 0v4m0-2.5a1.5 1.5 0 013 0V13c0 4-2.3 7-6.4 7H9.5c-2.6 0-4.1-1.2-5.2-3l-1.5-2.5a1.5 1.5 0 012.5-1.6L7.5 15v-4z" />,
   marquee: <rect x="4" y="4" width="16" height="16" rx="2" strokeDasharray="3 3" />,
