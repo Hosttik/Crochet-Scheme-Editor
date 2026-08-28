@@ -40,8 +40,10 @@ export function RightInspectorBridge({
 
   const locale = controlledLocale ?? legacyLocale
   const activeTab = controlledTab ?? legacyTab
+  const localeControlled = controlledLocale !== undefined
+  const tabControlled = controlledTab !== undefined
   const changeTab = (tab: RightPanelTab) => {
-    if (controlledTab === undefined) setLegacyTab(tab)
+    if (!tabControlled) setLegacyTab(tab)
     onTabChange?.(tab)
   }
 
@@ -69,7 +71,7 @@ export function RightInspectorBridge({
     }
 
     const onLanguageClick = (event: MouseEvent) => {
-      if (controlledLocale !== undefined) return
+      if (localeControlled) return
       const button = (event.target as Element | null)?.closest<HTMLButtonElement>('.language-switch button')
       if (button?.textContent?.trim() === 'EN') setLegacyLocale('en')
       if (button?.textContent?.trim() === 'RU') setLegacyLocale('ru')
@@ -83,7 +85,7 @@ export function RightInspectorBridge({
       mountRef.current = null
       setPortalTarget(null)
     }
-  }, [controlledLocale])
+  }, [localeControlled])
 
   useEffect(() => {
     mountRef.current?.setActiveTab(activeTab)
