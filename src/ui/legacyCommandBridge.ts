@@ -1,3 +1,5 @@
+import type { ApplicationCommandId, ApplicationCommandRunner } from './applicationCommands'
+
 export type LegacyPanelId =
   | 'print-global-panel'
   | 'snapping-global-panel'
@@ -57,7 +59,8 @@ export function openLegacyPanel(id: LegacyPanelId) {
   return true
 }
 
-export function runLegacyCommand(command: string) {
+/** Temporary implementation of the typed application command boundary. */
+export const runLegacyCommand: ApplicationCommandRunner = (command: ApplicationCommandId) => {
   switch (command) {
     case 'file.new':
       return clickSelector('.project-actions button:first-child')
@@ -119,7 +122,7 @@ export function runLegacyCommand(command: string) {
       return openLegacyPanel('legend-global-panel')
     case 'help.controls':
       return openLegacyPanel('help-global-panel')
-    default:
+    case 'ui.commandPalette':
       return false
   }
 }
