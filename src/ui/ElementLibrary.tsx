@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { CHAIN_BUNDLE_COUNTS, chainBundleLayout, type ChainBundleCount } from '../editor/chainBundle'
 import { categoryName, symbolName, type Locale } from '../i18n'
 import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph } from '../symbols'
@@ -10,10 +10,23 @@ import {
 } from './favorites'
 import type { WorkbenchTool } from './workbenchTypes'
 import './favorites.css'
+import './elementLibrary.css'
 
 type ResolvedFavorite =
   | { key: FavoriteElementKey; kind: 'symbol'; symbolId: string }
   | { key: FavoriteElementKey; kind: 'chain'; count: ChainBundleCount }
+
+const COLLAPSED_CATEGORIES_STORAGE_KEY = 'crochet-ui-v2-library-collapsed'
+
+function loadCollapsedCategories() {
+  if (typeof window === 'undefined') return new Set<string>()
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(COLLAPSED_CATEGORIES_STORAGE_KEY) ?? '[]')
+    return new Set(Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : [])
+  } catch {
+    return new Set<string>()
+  }
+}
 
 function resolveFavorite(key: FavoriteElementKey): ResolvedFavorite | null {
   if (key.startsWith('symbol:')) {
@@ -52,6 +65,41 @@ function FavoriteToggle({
   )
 }
 
+function LibraryCategory({
+  title,
+  expanded,
+  onToggle,
+  children,
+  className = '',
+  testId,
+}: {
+  title: ReactNode
+  expanded: boolean
+  onToggle: () => void
+  children: ReactNode
+  className?: string
+  testId?: string
+}) {
+  return (
+    <div className={`symbol-group library-category ${className}`.trim()} data-testid={testId}>
+      <button
+        type="button"
+        className="library-category__header"
+        aria-expanded={expanded}
+        onClick={onToggle}
+      >
+        <span>{title}</span>
+        <EditorIcon
+          className={expanded ? '' : 'is-collapsed'}
+          name="chevronDown"
+          size={13}
+        />
+      </button>
+      {expanded ? <div className="library-category__content">{children}</div> : null}
+    </div>
+  )
+}
+
 export function ElementLibrary({
   locale,
   tool,
@@ -73,6 +121,12 @@ export function ElementLibrary({
   onSelectChainBundle: (count: ChainBundleCount) => void
   onCancelPlacement: () => void
 }) {
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(loadCollapsedCategories)
+
+  useEffect(() => {
+    window.localStorage.setItem(COLLAPSED_CATEGORIES_STORAGE_KEY, JSON.stringify([...collapsedCategories]))
+  }, [collapsedCategories])
+
   const groupedSymbols = useMemo(() => {
     const groups = new Map<string, typeof SYMBOLS>()
     for (const symbol of SYMBOLS) {
@@ -104,6 +158,16 @@ export function ElementLibrary({
       return haystack.includes(normalizedQuery)
     })] as const)
     .filter(([, symbols]) => symbols.length > 0), [groupedSymbols, locale, localeTag, normalizedQuery])
+
+  const isExpanded = (key: string) => Boolean(normalizedQuery) || !collapsedCategories.has(key)
+  const toggleCategory = (key: string) => {
+    setCollapsedCategories((current) => {
+      const next = new Set(current)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   const renderFavoriteItem = (item: ResolvedFavorite) => {
     if (item.kind === 'chain') {
@@ -187,17 +251,26 @@ export function ElementLibrary({
       />
 
       {!normalizedQuery && resolvedFavorites.length > 0 && (
-        <div className="symbol-group favorites-group" data-testid="favorites-section">
-          <h3><EditorIcon name="star" size={12} />{locale === 'ru' ? 'Избранное' : 'Favorites'}</h3>
+        <LibraryCategory
+          className="favorites-group"
+          testId="favorites-section"
+          title={<><EditorIcon name="star" size={12} />{locale === 'ru' ? 'Избранное' : 'Favorites'}</>}
+          expanded={isExpanded('favorites')}
+          onToggle={() => toggleCategory('favorites')}
+        >
           <div className="symbol-grid favorite-grid">
             {resolvedFavorites.map(renderFavoriteItem)}
           </div>
-        </div>
+        </LibraryCategory>
       )}
 
       {filteredChainBundleCounts.length > 0 && (
-        <div className="symbol-group chain-bundle-presets">
-          <h3>{locale === 'ru' ? 'Цепочки' : 'Chain presets'}</h3>
+        <LibraryCategory
+          className="chain-bundle-presets"
+          title={locale === 'ru' ? 'Цепочки' : 'Chain presets'}
+          expanded={isExpanded('chains')}
+          onToggle={() => toggleCategory('chains')}
+        >
           <div className="symbol-grid">
             {filteredChainBundleCounts.map((count) => {
               const active = tool.type === 'place-chain-bundle' && tool.count === count
@@ -233,44 +306,51 @@ export function ElementLibrary({
               )
             })}
           </div>
-        </div>
+        </LibraryCategory>
       )}
 
-      {filteredGroupedSymbols.map(([category, symbols]) => (
-        <div className="symbol-group" key={category}>
-          <h3>{categoryName(category, locale)}</h3>
-          <div className="symbol-grid">
-            {symbols.map((symbol) => {
-              const active = tool.type === 'place' && tool.symbolId === symbol.id
-              const label = symbolName(symbol.id, symbol.name, locale)
-              const title = symbol.abbreviation ? `${label} · ${symbol.abbreviation}` : label
-              const favoriteKey = symbolFavoriteKey(symbol.id)
-              return (
-                <div className="library-symbol-card" key={symbol.id}>
-                  <button
-                    className={`symbol-button ${active ? 'active' : ''}`}
-                    title={title}
-                    aria-label={title}
-                    aria-pressed={active}
-                    onClick={() => active ? onCancelPlacement() : onSelectSymbol(symbol.id)}
-                  >
-                    <svg viewBox="-24 -38 48 76" aria-hidden="true">
-                      <g className="symbol-glyph"><SymbolGlyph symbolId={symbol.id} /></g>
-                    </svg>
-                    <span>{symbol.abbreviation ?? label}</span>
-                  </button>
-                  <FavoriteToggle
-                    locale={locale}
-                    active={favoriteSet.has(favoriteKey)}
-                    label={label}
-                    onToggle={() => onToggleFavorite(favoriteKey)}
-                  />
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      ))}
+      {filteredGroupedSymbols.map(([category, symbols]) => {
+        const categoryKey = `category:${category}`
+        return (
+          <LibraryCategory
+            key={category}
+            title={categoryName(category, locale)}
+            expanded={isExpanded(categoryKey)}
+            onToggle={() => toggleCategory(categoryKey)}
+          >
+            <div className="symbol-grid">
+              {symbols.map((symbol) => {
+                const active = tool.type === 'place' && tool.symbolId === symbol.id
+                const label = symbolName(symbol.id, symbol.name, locale)
+                const title = symbol.abbreviation ? `${label} · ${symbol.abbreviation}` : label
+                const favoriteKey = symbolFavoriteKey(symbol.id)
+                return (
+                  <div className="library-symbol-card" key={symbol.id}>
+                    <button
+                      className={`symbol-button ${active ? 'active' : ''}`}
+                      title={title}
+                      aria-label={title}
+                      aria-pressed={active}
+                      onClick={() => active ? onCancelPlacement() : onSelectSymbol(symbol.id)}
+                    >
+                      <svg viewBox="-24 -38 48 76" aria-hidden="true">
+                        <g className="symbol-glyph"><SymbolGlyph symbolId={symbol.id} /></g>
+                      </svg>
+                      <span>{symbol.abbreviation ?? label}</span>
+                    </button>
+                    <FavoriteToggle
+                      locale={locale}
+                      active={favoriteSet.has(favoriteKey)}
+                      label={label}
+                      onToggle={() => onToggleFavorite(favoriteKey)}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          </LibraryCategory>
+        )
+      })}
 
       {normalizedQuery && !filteredChainBundleCounts.length && !filteredGroupedSymbols.length && (
         <p className="empty-state">{locale === 'ru' ? 'Ничего не найдено.' : 'No stitches found.'}</p>
