@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+import { createGuideFromToolRail } from './helpers/uiV2Guides'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -35,7 +36,7 @@ test('authors locked guides, gap-free row numbers and an exported automatic lege
   await openEditor(page)
 
   // #11: a locked guide stays selectable, loses geometry controls and cannot be deleted.
-  await page.locator('.guide-add-grid button').filter({ hasText: 'Линия' }).click()
+  await createGuideFromToolRail(page, 'Линия')
   const guide = page.locator('.guide-line')
   const guideEditor = page.locator('.guide-editor')
   await expect(guide).toHaveClass(/selected/)
