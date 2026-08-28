@@ -43,7 +43,7 @@ export function RightPanelTabs({
             type="button"
             role="tab"
             aria-selected={selected}
-            aria-controls={tab.id === 'layers' ? 'ui-v2-right-layers-panel' : 'ui-v2-right-options-panel'}
+            aria-controls={tab.id === 'layers' ? 'ui-v2-right-layers-panel' : undefined}
             tabIndex={selected ? 0 : -1}
             className={selected ? 'is-active' : ''}
             onClick={() => onChange(tab.id)}
