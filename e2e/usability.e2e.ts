@@ -58,9 +58,10 @@ test('shows contextual quick actions and semantic group layers', async ({ page }
   await toolbar.getByRole('button', { name: 'Группировать' }).click()
   await expect(toolbar.getByRole('button', { name: 'Разгруппировать' })).toBeVisible()
 
-  const layers = page.locator('.layers-section')
-  await expect(layers).not.toHaveAttribute('open', '')
-  await layers.locator('summary.layers-summary').click()
+  const tabs = page.getByRole('tablist', { name: 'Правая панель' })
+  await tabs.getByRole('tab', { name: 'Слои', exact: true }).click()
+  const layers = page.locator('.ui-v2-right-layers-host .layers-section')
+  await expect(layers).toBeVisible()
   await expect(page.locator('.layer-cluster summary').filter({ hasText: 'Группа / мотив' })).toBeVisible()
 
   await toolbar.getByRole('button', { name: /Отразить слева/ }).click()
