@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+import { createGuideFromToolRail } from './helpers/uiV2Guides'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -33,7 +34,7 @@ function transformParts(value: string | null) {
 test('keeps a stitch attached to a line through guide edits, autosave and detach', async ({ page }) => {
   await openEditor(page)
 
-  await page.locator('.guide-add-grid button').filter({ hasText: 'Линия' }).click()
+  await createGuideFromToolRail(page, 'Линия')
   await expect(page.locator('.guide-line')).toHaveCount(1)
   await expect(page.locator('.guide-line')).toHaveClass(/selected/)
 
