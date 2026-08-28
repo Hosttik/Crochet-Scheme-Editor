@@ -3,18 +3,18 @@ import { createPortal } from 'react-dom'
 import { type ChainBundleCount } from '../editor/chainBundle'
 import { type Locale } from '../i18n'
 import type { Guide } from '../types'
-import { ElementLibrary } from './ElementLibrary'
 import { FavoriteQuickBar } from './FavoriteQuickBar'
 import {
   loadFavorites,
   saveFavorites,
   type FavoriteElementKey,
 } from './favorites'
+import { LeftWorkbenchSurface } from './LeftWorkbenchSurface'
 import {
   createLegacyWorkbenchCommands,
   prepareLegacyWorkbenchDom,
+  readLegacyWorkbenchTool,
 } from './legacyWorkbenchAdapter'
-import { ToolRail } from './ToolRail'
 import type { WorkbenchCommands, WorkbenchTool } from './workbenchTypes'
 
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
@@ -22,16 +22,6 @@ const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
 function initialLocale(): Locale {
   if (typeof window === 'undefined') return 'ru'
   return window.localStorage.getItem(LOCALE_STORAGE_KEY) === 'en' ? 'en' : 'ru'
-}
-
-function toolFromCanvas(current: WorkbenchTool): WorkbenchTool {
-  const canvas = document.querySelector('.editor-canvas')
-  if (!canvas) return current
-  if (canvas.classList.contains('pan-tool')) return { type: 'pan' }
-  if (canvas.classList.contains('lassoing')) return { type: 'lasso' }
-  if (canvas.classList.contains('measuring')) return { type: 'ruler' }
-  if (!canvas.classList.contains('placing')) return { type: 'select' }
-  return current
 }
 
 export type LeftWorkbenchBridgeProps = {
@@ -44,6 +34,11 @@ export type LeftWorkbenchBridgeProps = {
   onAddGuide?: (type: Guide['type']) => void
 }
 
+/**
+ * Temporary migration controller. Portal discovery, legacy DOM preparation and
+ * legacy state observation live here; the actual ToolRail + ElementLibrary UI
+ * is rendered by LeftWorkbenchSurface and contains no legacy knowledge.
+ */
 export function LeftWorkbenchBridge({ commands, onAddGuide }: LeftWorkbenchBridgeProps = {}) {
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
   const [quickPortalTarget, setQuickPortalTarget] = useState<HTMLElement | null>(null)
@@ -69,7 +64,7 @@ export function LeftWorkbenchBridge({ commands, onAddGuide }: LeftWorkbenchBridg
     const sync = () => {
       const sidebar = document.querySelector<HTMLElement>('.left-sidebar')
       if (sidebar) prepareLegacyWorkbenchDom(sidebar)
-      setTool((current) => toolFromCanvas(current))
+      setTool((current) => readLegacyWorkbenchTool(current))
     }
 
     const install = () => {
@@ -141,7 +136,7 @@ export function LeftWorkbenchBridge({ commands, onAddGuide }: LeftWorkbenchBridg
 
   if (!portalTarget) return null
 
-  const syncToolSoon = () => queueMicrotask(() => setTool((current) => toolFromCanvas(current)))
+  const syncToolSoon = () => queueMicrotask(() => setTool((current) => readLegacyWorkbenchTool(current)))
   const runCommand = (command: () => void) => {
     command()
     syncToolSoon()
@@ -172,31 +167,25 @@ export function LeftWorkbenchBridge({ commands, onAddGuide }: LeftWorkbenchBridg
   return (
     <>
       {createPortal(
-        <>
-          <ToolRail
-            locale={locale}
-            tool={tool}
-            onSelect={() => {
-              setTool({ type: 'select' })
-              runCommand(activeCommands.select)
-            }}
-            onTogglePan={() => runCommand(activeCommands.togglePan)}
-            onToggleLasso={() => runCommand(activeCommands.toggleLasso)}
-            onAddGuide={addGuide}
-            onToggleRuler={() => runCommand(activeCommands.toggleRuler)}
-          />
-          <ElementLibrary
-            locale={locale}
-            tool={tool}
-            query={query}
-            favorites={favorites}
-            onQueryChange={setQuery}
-            onToggleFavorite={toggleFavorite}
-            onSelectSymbol={selectSymbol}
-            onSelectChainBundle={selectChainBundle}
-            onCancelPlacement={cancelPlacement}
-          />
-        </>,
+        <LeftWorkbenchSurface
+          locale={locale}
+          tool={tool}
+          query={query}
+          favorites={favorites}
+          onSelect={() => {
+            setTool({ type: 'select' })
+            runCommand(activeCommands.select)
+          }}
+          onTogglePan={() => runCommand(activeCommands.togglePan)}
+          onToggleLasso={() => runCommand(activeCommands.toggleLasso)}
+          onAddGuide={addGuide}
+          onToggleRuler={() => runCommand(activeCommands.toggleRuler)}
+          onQueryChange={setQuery}
+          onToggleFavorite={toggleFavorite}
+          onSelectSymbol={selectSymbol}
+          onSelectChainBundle={selectChainBundle}
+          onCancelPlacement={cancelPlacement}
+        />,
         portalTarget,
       )}
       {quickPortalTarget && createPortal(
