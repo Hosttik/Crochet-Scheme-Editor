@@ -17,7 +17,7 @@ import type { WorkbenchTool } from './workbenchTypes'
 
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
 const LEGACY_LIBRARY_SELECTOR = '.left-sidebar > [data-ui-v2-legacy-library="true"]'
-const LEGACY_GUIDE_TYPES: Guide['type'][] = ['arc', 'line', 'curve', 'parabola', 'grid', 'radial-grid']
+const LEGACY_GUIDE_FALLBACK_ORDER: Guide['type'][] = ['arc', 'line', 'curve', 'parabola', 'grid', 'radial-grid']
 
 function initialLocale(): Locale {
   if (typeof window === 'undefined') return 'ru'
@@ -31,6 +31,17 @@ function legacyButtonByAriaLabel(label: string) {
 
 function legacyGuideButtonByType(type: Guide['type']) {
   return document.querySelector<HTMLButtonElement>(`.left-sidebar > .guide-section button[data-ui-v2-guide-type="${type}"]`)
+}
+
+function legacyGuideType(button: HTMLButtonElement, index: number): Guide['type'] | undefined {
+  const label = (button.textContent ?? '').replace(/\s+/g, ' ').trim().toLocaleLowerCase()
+  if (label.includes('парабол') || label.includes('parabola')) return 'parabola'
+  if (label.includes('радиал') || label.includes('radial')) return 'radial-grid'
+  if (label.includes('прямоуголь') || label.includes('rectangular') || label === 'сетка' || label === 'grid') return 'grid'
+  if (label.includes('дуга') || label === 'arc') return 'arc'
+  if (label.includes('линия') || label === 'line') return 'line'
+  if (label.includes('кривая') || label === 'curve') return 'curve'
+  return LEGACY_GUIDE_FALLBACK_ORDER[index]
 }
 
 /**
@@ -60,7 +71,7 @@ function sanitizeLegacyLeftControls(sidebar: HTMLElement) {
     legacyGuideAdd.classList.add('ui-v2-legacy-guide-add')
     legacyGuideAdd.setAttribute('aria-hidden', 'true')
     legacyGuideAdd.querySelectorAll<HTMLButtonElement>('button').forEach((button, index) => {
-      const type = LEGACY_GUIDE_TYPES[index]
+      const type = legacyGuideType(button, index)
       if (type) button.dataset.uiV2GuideType = type
       button.tabIndex = -1
     })
