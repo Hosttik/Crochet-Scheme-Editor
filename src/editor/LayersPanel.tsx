@@ -116,6 +116,27 @@ export function LayersPanel({
     )
   }
 
+  const renderCluster = (cluster: LayerCluster) => {
+    if (cluster.kind === 'single') return renderElement(cluster.elements[0])
+    const hasSelection = cluster.elements.some((element) => selected.has(element.id))
+    return (
+      <details
+        key={cluster.key}
+        className={`layer-cluster ${hasSelection ? 'selected' : ''}`}
+        open={hasSelection || undefined}
+      >
+        <summary>
+          <span className="layer-cluster-icon">{cluster.kind === 'row' ? '◎' : '◇'}</span>
+          <strong>{cluster.label}</strong>
+          <small>{cluster.elements.length}</small>
+        </summary>
+        <div className="layer-cluster-items">
+          {cluster.elements.map((element) => renderElement(element, true))}
+        </div>
+      </details>
+    )
+  }
+
   return (
     <details className="panel-section layers-section">
       <summary className="layers-summary">
@@ -135,22 +156,7 @@ export function LayersPanel({
           <p className="empty-state">{t.noLayers}</p>
         ) : (
           <div className="layers-list semantic-layers-list">
-            {clusters.map((cluster) => {
-              if (cluster.kind === 'single') return renderElement(cluster.elements[0])
-              const hasSelection = cluster.elements.some((element) => selected.has(element.id))
-              return (
-                <details key={cluster.key} className={`layer-cluster ${hasSelection ? 'selected' : ''}`} open={hasSelection || undefined}>
-                  <summary>
-                    <span className="layer-cluster-icon">{cluster.kind === 'row' ? '◎' : '◇'}</span>
-                    <strong>{cluster.label}</strong>
-                    <small>{cluster.elements.length}</small>
-                  </summary>
-                  <div className="layer-cluster-items">
-                    {cluster.elements.map((element) => renderElement(element, true))}
-                  </div>
-                </details>
-              )}
-            })}
+            {clusters.map(renderCluster)}
           </div>
         )}
       </div>
