@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState } from 'react'
 import type { Locale } from '../i18n'
+import type { Guide } from '../types'
 import { EditorIcon, type EditorIconName } from './icons'
 import type { WorkbenchTool } from './workbenchTypes'
 import './toolRail.css'
@@ -32,12 +34,137 @@ function RailButton({
   )
 }
 
+function GuidePreviewIcon({ type }: { type: Guide['type'] }) {
+  return (
+    <svg className="guide-flyout__preview" viewBox="0 0 24 24" aria-hidden="true">
+      {type === 'line' && <path d="M5 18L19 6" />}
+      {type === 'arc' && <path d="M4 17C7 7 17 7 20 17" />}
+      {type === 'curve' && <path d="M3 16C8 4 14 20 21 8" />}
+      {type === 'parabola' && <path d="M4 18C8 5 16 5 20 18" />}
+      {type === 'grid' && (
+        <>
+          <rect x="5" y="5" width="14" height="14" rx="1" />
+          <path d="M12 5V19M5 12H19" />
+        </>
+      )}
+      {type === 'radial-grid' && (
+        <>
+          <circle cx="12" cy="12" r="7" />
+          <circle cx="12" cy="12" r="3.5" />
+          <path d="M12 5V19M5 12H19" />
+        </>
+      )}
+    </svg>
+  )
+}
+
+function GuideFlyout({
+  locale,
+  onAddGuide,
+}: {
+  locale: Locale
+  onAddGuide: (type: Guide['type']) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  const copy = locale === 'ru'
+    ? {
+        guides: 'Направляющие',
+        line: 'Линия',
+        arc: 'Дуга',
+        curve: 'Кривая',
+        parabola: 'Парабола',
+        grid: 'Прямоугольная сетка',
+        radial: 'Радиальная сетка',
+      }
+    : {
+        guides: 'Guides',
+        line: 'Line',
+        arc: 'Arc',
+        curve: 'Curve',
+        parabola: 'Parabola',
+        grid: 'Rectangular grid',
+        radial: 'Radial grid',
+      }
+
+  const items: Array<{ type: Guide['type']; label: string }> = [
+    { type: 'line', label: copy.line },
+    { type: 'arc', label: copy.arc },
+    { type: 'curve', label: copy.curve },
+    { type: 'parabola', label: copy.parabola },
+    { type: 'grid', label: copy.grid },
+    { type: 'radial-grid', label: copy.radial },
+  ]
+
+  return (
+    <div className="tool-rail__flyout-root" ref={rootRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`ui-icon-button tool-button ui-v2-tool-rail-button ${open ? 'active is-active' : ''}`}
+        aria-label={copy.guides}
+        title={copy.guides}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <EditorIcon name="guide" />
+        <span className="tool-rail__text">{copy.guides}</span>
+        <span className="tool-rail__flyout-caret" aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div className="guide-flyout" role="menu" aria-label={copy.guides}>
+          {items.map((item) => (
+            <button
+              key={item.type}
+              type="button"
+              role="menuitem"
+              className="guide-flyout__item"
+              onClick={() => {
+                onAddGuide(item.type)
+                setOpen(false)
+                triggerRef.current?.focus()
+              }}
+            >
+              <GuidePreviewIcon type={item.type} />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function ToolRail({
   locale,
   tool,
   onSelect,
   onTogglePan,
   onToggleLasso,
+  onAddGuide,
   onToggleRuler,
 }: {
   locale: Locale
@@ -45,6 +172,7 @@ export function ToolRail({
   onSelect: () => void
   onTogglePan: () => void
   onToggleLasso: () => void
+  onAddGuide: (type: Guide['type']) => void
   onToggleRuler: () => void
 }) {
   const copy = locale === 'ru'
@@ -69,6 +197,7 @@ export function ToolRail({
       <RailButton icon="hand" label={copy.pan} shortcut="H" active={tool.type === 'pan'} onClick={onTogglePan} />
       <RailButton icon="lasso" label={copy.lasso} shortcut="L" active={tool.type === 'lasso'} onClick={onToggleLasso} />
       <div className="tool-rail__separator" aria-hidden="true" />
+      <GuideFlyout locale={locale} onAddGuide={onAddGuide} />
       <RailButton icon="ruler" label={copy.ruler} shortcut="R" active={tool.type === 'ruler'} onClick={onToggleRuler} />
     </nav>
   )
