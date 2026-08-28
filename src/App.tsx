@@ -37,7 +37,7 @@ import { DEFAULT_STITCH_COLOR } from './editor/elementColor'
 import { clampBackgroundOpacity, prepareBackgroundImage } from './editor/backgroundImage'
 import { backgroundImageBounds } from './editor/backgroundGeometry'
 import { CHAIN_BUNDLE_COUNTS, chainBundleLayout, createChainBundle, type ChainBundleCount } from './editor/chainBundle'
-import { buildTiledPrintHtml, parseSvgViewBox, type PrintSettings } from './editor/printLayout'
+import { buildTiledPrintHtml, parseLegendPrintBounds, parseSvgViewBox, type PrintSettings } from './editor/printLayout'
 import { usedLegendItems } from './editor/legend'
 import { deleteRowMarkerAndRenumber, isRowMarkerLocked, nextRowMarkerNumber, normalizedRowMarkerNumber } from './editor/rowMarkers'
 import type { GuideManipulationMode } from './editor/guideManipulation'
@@ -452,6 +452,7 @@ function App() {
   const [projectTitle, setProjectTitle] = useState(UI[DEFAULT_LOCALE].projectTitle)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightCollapsed, setRightCollapsed] = useState(false)
+  const [symbolQuery, setSymbolQuery] = useState('')
   const [elements, setElements] = useState<StitchElement[]>([])
   const [guides, setGuides] = useState<Guide[]>([])
   const [rowMarkers, setRowMarkers] = useState<RowMarker[]>([])
@@ -635,6 +636,7 @@ function App() {
     [backgroundImage, legendVisible, locale, rowMarkers, t.emptySvg, visibleElements],
   )
   const outputBounds = useMemo(() => parseSvgViewBox(outputSvg), [outputSvg])
+  const outputLegendBounds = useMemo(() => parseLegendPrintBounds(outputSvg), [outputSvg])
   const groupedSymbols = useMemo(() => {
     const groups = new Map<string, typeof SYMBOLS>()
     for (const symbol of SYMBOLS) {
@@ -642,6 +644,24 @@ function App() {
     }
     return [...groups.entries()]
   }, [])
+  const normalizedSymbolQuery = symbolQuery.trim().toLocaleLowerCase(locale === 'ru' ? 'ru-RU' : 'en-US')
+  const filteredChainBundleCounts = useMemo(() => CHAIN_BUNDLE_COUNTS.filter((count) => {
+    if (!normalizedSymbolQuery) return true
+    const label = locale === 'ru' ? `${count} воздушные петли ${count} вп` : `${count} chains ${count} ch`
+    return label.toLocaleLowerCase(locale === 'ru' ? 'ru-RU' : 'en-US').includes(normalizedSymbolQuery)
+  }), [locale, normalizedSymbolQuery])
+  const filteredGroupedSymbols = useMemo(() => groupedSymbols
+    .map(([category, symbols]) => [category, symbols.filter((symbol) => {
+      if (!normalizedSymbolQuery) return true
+      const label = symbolName(symbol.id, symbol.name, locale)
+      const haystack = `${label} ${symbol.abbreviation ?? ''} ${symbol.id} ${categoryName(category, locale)}`
+        .toLocaleLowerCase(locale === 'ru' ? 'ru-RU' : 'en-US')
+      return haystack.includes(normalizedSymbolQuery)
+    })] as const)
+    .filter(([, symbols]) => symbols.length > 0), [groupedSymbols, locale, normalizedSymbolQuery])
+  const lockedSelectedCount = useMemo(() => elements.filter(
+    (element) => selectedIds.includes(element.id) && isElementLocked(element),
+  ).length, [elements, selectedIds])
 
   const localPoint = useCallback((clientX: number, clientY: number): Point => {
     const rect = svgRef.current?.getBoundingClientRect()
@@ -847,7 +867,7 @@ function App() {
       if (!marker || isRowMarkerLocked(marker)) return
       commitRowMarkers(deleteRowMarkerAndRenumber(rowMarkers, selectedRowMarkerId))
       setSelectedRowMarkerId(null)
-      setStatus(locale === 'ru' ? 'Номер ряда удалён' : 'Row number deleted')
+      setStatus(locale === 'ru' ? 'Номер ряда удалён' : 'Ruler deleted')
       return
     }
     if (selectedGuideId) {
@@ -1085,7 +1105,7 @@ function App() {
   }, [commitElements, elements, locale, productivitySelectionIds])
 
   const selectAll = useCallback(() => {
-    const selectable = elements.filter((element) => isElementVisible(element) && !isElementLocked(element))
+    const selectable = elements.filter((element) => isElementVisible(element))
     const ids = semanticSelectionIds(elements, selectable.map((element) => element.id), { visibleSeedsOnly: true })
     if (!ids.length) return
     setSelectedIds(ids)
@@ -1096,7 +1116,7 @@ function App() {
 
   const handleLayerSelect = useCallback((id: string, additive: boolean) => {
     const element = elements.find((item) => item.id === id)
-    if (!element || isElementLocked(element)) return
+    if (!element) return
     setSelectedGuideId(null)
     setTool({ type: 'select' })
     setSelectedIds((current) => {
@@ -1108,7 +1128,8 @@ function App() {
         ? current.filter((item) => !targetSet.has(item))
         : uniqueIds([...current, ...targetIds])
     })
-  }, [elements])
+    if (isElementLocked(element)) setStatus(locale === 'ru' ? 'Заблокированный элемент выбран' : 'Locked stitch selected')
+  }, [elements, locale])
 
   const toggleElementVisible = useCallback((id: string) => {
     const element = elements.find((item) => item.id === id)
@@ -1127,7 +1148,6 @@ function App() {
     const lockIds = new Set(semanticLockIds(elements, id))
     const nextLocked = !isElementLocked(element)
     commitElements(elements.map((item) => lockIds.has(item.id) ? { ...item, locked: nextLocked } : item))
-    if (nextLocked) setSelectedIds((current) => current.filter((item) => !lockIds.has(item)))
     setStatus(t.lockChanged)
   }, [commitElements, elements, t.lockChanged])
 
@@ -1823,9 +1843,7 @@ function App() {
 
     if (lasso?.pointerId === event.pointerId) {
       if (!cancelled && lasso.points.length >= 3) {
-        const selectable = elements.filter(
-          (element) => isElementVisible(element) && !isElementLocked(element),
-        )
+        const selectable = elements.filter((element) => isElementVisible(element))
         const hits = idsInLasso(selectable, lasso.points)
         const expandedHits = semanticSelectionIds(elements, hits, { visibleSeedsOnly: true })
         const hitSet = new Set(expandedHits)
@@ -1850,9 +1868,7 @@ function App() {
           marquee.current.x - marquee.start.x,
           marquee.current.y - marquee.start.y,
         ) > 2 / viewport.zoom
-        const selectable = elements.filter(
-          (element) => isElementVisible(element) && !isElementLocked(element),
-        )
+        const selectable = elements.filter((element) => isElementVisible(element))
         const hits = moved ? idsInMarquee(selectable, rect, SYMBOL_SIZES) : []
         const next = semanticSelectionIds(elements, uniqueIds([...marquee.baseIds, ...hits]), { visibleSeedsOnly: false })
         setSelectedIds(next)
@@ -1876,11 +1892,7 @@ function App() {
     event: ReactPointerEvent<SVGGElement>,
     element: StitchElement,
   ) => {
-    if (
-      event.button !== 0 ||
-      spacePressedRef.current ||
-      isElementLocked(element)
-    ) return
+    if (event.button !== 0 || spacePressedRef.current) return
     if (tool.type === 'ruler') return
     event.stopPropagation()
     setSelectedRulerId(null)
@@ -1928,6 +1940,10 @@ function App() {
 
     setSelectedIds(nextSelection)
     setSelectedGuideId(null)
+    if (isElementLocked(element)) {
+      setStatus(locale === 'ru' ? 'Заблокированный элемент выбран' : 'Locked stitch selected')
+      return
+    }
     setDrag({
       pointerId: event.pointerId,
       referenceId: element.id,
@@ -2074,7 +2090,7 @@ function App() {
   }
 
   const attachSelectedToGuide = (guideId: string, orientation: GuideAttachmentOrientation) => {
-    if (!selectedElement || selectedElement.parametricRow) return
+    if (!selectedElement || selectedElement.parametricRow || isElementLocked(selectedElement)) return
     const guide = guides.find((item) => item.id === guideId)
     if (!guide || !isPathGuide(guide)) return
     const attached = attachElementToGuide(selectedElement, guide, orientation)
@@ -2084,7 +2100,7 @@ function App() {
   }
 
   const updateSelectedGuideAttachment = (attachment: GuideAttachment) => {
-    if (!selectedElement || selectedElement.parametricRow) return
+    if (!selectedElement || selectedElement.parametricRow || isElementLocked(selectedElement)) return
     const guide = guides.find((item) => item.id === attachment.guideId)
     if (!guide || !isPathGuide(guide)) return
     const attached = elementFromAttachment(selectedElement, guide, attachment)
@@ -2093,7 +2109,7 @@ function App() {
   }
 
   const detachSelectedFromGuide = () => {
-    if (!selectedElement?.guideAttachment) return
+    if (!selectedElement?.guideAttachment || isElementLocked(selectedElement)) return
     commitElements(elements.map((element) =>
       element.id === selectedElement.id ? { ...element, guideAttachment: undefined } : element,
     ))
@@ -2392,8 +2408,6 @@ function App() {
     setAutosaveDelayMs(delayMs)
     setAutosaveState(delayMs === 0 ? 'off' : 'saving')
 
-    // Persist the selected interval immediately. Otherwise choosing 60 s and
-    // reloading before the first timer fires silently restores the old setting.
     const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, delayMs, backgroundImage, gauge, rulers)
     const task = autosaveQueueRef.current
       .catch(() => undefined)
@@ -2410,73 +2424,73 @@ function App() {
       })
   }
 
-const handleBackgroundUpload = async (file: File) => {
-  const projectIdAtStart = activeProjectId
-  try {
-    const rect = svgRef.current?.getBoundingClientRect()
-    const center = rect
-      ? screenToDocument({ x: rect.width / 2, y: rect.height / 2 }, viewport)
-      : { x: 0, y: 0 }
-    const prepared = await prepareBackgroundImage(file, center)
-    if (getActiveProjectId() !== projectIdAtStart) return
-    commitBackgroundImage(prepared)
-    setStatus(locale === 'ru' ? 'Фоновое изображение добавлено' : 'Background image added')
-  } catch (error) {
-    const fallback = locale === 'ru' ? 'Не удалось добавить изображение' : 'Could not add image'
-    setStatus(error instanceof Error ? error.message : fallback)
-  }
-}
-
-const updateBackgroundImage = (patch: Partial<BackgroundImage>) => {
-  if (!backgroundImage) return
-  commitBackgroundImage({
-    ...backgroundImage,
-    ...patch,
-    width: patch.width === undefined ? backgroundImage.width : Math.max(1, patch.width),
-    height: patch.height === undefined ? backgroundImage.height : Math.max(1, patch.height),
-    rotation: patch.rotation === undefined ? backgroundImage.rotation ?? 0 : patch.rotation,
-    opacity: patch.opacity === undefined ? backgroundImage.opacity : clampBackgroundOpacity(patch.opacity),
-  })
-}
-
-const removeBackgroundImage = () => {
-  if (!backgroundImage) return
-  commitBackgroundImage(null)
-  setBackgroundSelected(false)
-  setStatus(locale === 'ru' ? 'Фоновое изображение удалено' : 'Background image removed')
-}
-
-const openTiledPrint = (settings: PrintSettings) => {
-  const popup = window.open('', '_blank')
-  if (!popup) {
-    setStatus(locale === 'ru' ? 'Разрешите всплывающие окна для печати' : 'Allow pop-ups to open the print view')
-    return
-  }
-  const html = buildTiledPrintHtml(outputSvg, outputBounds, settings, projectTitle, locale)
-  popup.document.open()
-  popup.document.write(html)
-  popup.document.close()
-  const images = Array.from(popup.document.images)
-  void Promise.all(images.map(async (image) => {
-    if (!image.complete) {
-      await new Promise<void>((resolve) => {
-        image.addEventListener('load', () => resolve(), { once: true })
-        image.addEventListener('error', () => resolve(), { once: true })
-      })
+  const handleBackgroundUpload = async (file: File) => {
+    const projectIdAtStart = activeProjectId
+    try {
+      const rect = svgRef.current?.getBoundingClientRect()
+      const center = rect
+        ? screenToDocument({ x: rect.width / 2, y: rect.height / 2 }, viewport)
+        : { x: 0, y: 0 }
+      const prepared = await prepareBackgroundImage(file, center)
+      if (getActiveProjectId() !== projectIdAtStart) return
+      commitBackgroundImage(prepared)
+      setStatus(locale === 'ru' ? 'Фоновое изображение добавлено' : 'Background image added')
+    } catch (error) {
+      const fallback = locale === 'ru' ? 'Не удалось добавить изображение' : 'Could not add image'
+      setStatus(error instanceof Error ? error.message : fallback)
     }
-    if ('decode' in image) await image.decode().catch(() => undefined)
-  })).then(() => {
-    popup.focus()
-    popup.print()
-  })
-  setStatus(locale === 'ru' ? 'Макет печати открыт' : 'Print layout opened')
-}
+  }
 
-const saveProject = () => {
+  const updateBackgroundImage = (patch: Partial<BackgroundImage>) => {
+    if (!backgroundImage) return
+    commitBackgroundImage({
+      ...backgroundImage,
+      ...patch,
+      width: patch.width === undefined ? backgroundImage.width : Math.max(1, patch.width),
+      height: patch.height === undefined ? backgroundImage.height : Math.max(1, patch.height),
+      rotation: patch.rotation === undefined ? backgroundImage.rotation ?? 0 : patch.rotation,
+      opacity: patch.opacity === undefined ? backgroundImage.opacity : clampBackgroundOpacity(patch.opacity),
+    })
+  }
+
+  const removeBackgroundImage = () => {
+    if (!backgroundImage) return
+    commitBackgroundImage(null)
+    setBackgroundSelected(false)
+    setStatus(locale === 'ru' ? 'Фоновое изображение удалено' : 'Background image removed')
+  }
+
+  const openTiledPrint = (settings: PrintSettings) => {
+    const popup = window.open('', '_blank')
+    if (!popup) {
+      setStatus(locale === 'ru' ? 'Разрешите всплывающие окна для печати' : 'Allow pop-ups to open the print view')
+      return
+    }
+    const html = buildTiledPrintHtml(outputSvg, outputBounds, settings, projectTitle, locale)
+    popup.document.open()
+    popup.document.write(html)
+    popup.document.close()
+    const images = Array.from(popup.document.images)
+    void Promise.all(images.map(async (image) => {
+      if (!image.complete) {
+        await new Promise<void>((resolve) => {
+          image.addEventListener('load', () => resolve(), { once: true })
+          image.addEventListener('error', () => resolve(), { once: true })
+        })
+      }
+      if ('decode' in image) await image.decode().catch(() => undefined)
+    })).then(() => {
+      popup.focus()
+      popup.print()
+    })
+    setStatus(locale === 'ru' ? 'Макет печати открыт' : 'Print layout opened')
+  }
+
+  const saveProject = () => {
     const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage, gauge, rulers)
     const integrityIssue = projectIntegrityIssue(project)
     if (integrityIssue) {
-      setStatus(locale === 'ru' ? `Нельзя сохранить: ${integrityIssue}` : `Cannot save: ${integrityIssue}`)
+      setStatus(locale === 'ru' ? `Нельзя экспортировать: ${integrityIssue}` : `Cannot export: ${integrityIssue}`)
       return
     }
     downloadText('crochet-scheme.json', JSON.stringify(project, null, 2), 'application/json')
@@ -2539,6 +2553,7 @@ const saveProject = () => {
         : autosaveState === 'error' ? t.autosaveError
           : autosaveState === 'off' ? (locale === 'ru' ? 'Автосохранение выключено' : 'Autosave off')
             : t.autosaveSaved
+  const editableSelectedCount = unlockedSelectedIds().length
 
   if (!hydrated) {
     return (
@@ -2606,7 +2621,7 @@ const saveProject = () => {
 
       <aside className="sidebar left-sidebar">
         <section className="panel-section compact-section">
-          <div className="section-title-row"><h2>{t.tools}</h2><span className="badge">P0</span></div>
+          <div className="section-title-row"><h2>{t.tools}</h2></div>
           <button
             className={`tool-button ${tool.type === 'select' ? 'active' : ''}`}
             onClick={() => {
@@ -2701,47 +2716,58 @@ const saveProject = () => {
 
         <section className="panel-section symbols-section">
           <div className="section-title-row"><h2>{t.stitches}</h2><span className="muted-text">{SYMBOLS.length + CHAIN_BUNDLE_COUNTS.length}</span></div>
-          <div className="symbol-group chain-bundle-presets">
-            <h3>{locale === 'ru' ? 'Цепочки' : 'Chain presets'}</h3>
-            <div className="symbol-grid">
-              {CHAIN_BUNDLE_COUNTS.map((count) => {
-                const active = tool.type === 'place-chain-bundle' && tool.count === count
-                const label = locale === 'ru' ? `${count} воздушные петли` : `${count} chains`
-                const abbreviation = locale === 'ru' ? `${count} ВП` : `${count} ch`
-                const title = `${label} · ${abbreviation}`
-                return (
-                  <button
-                    className={`symbol-button chain-bundle-button ${active ? 'active' : ''}`}
-                    key={`chain-bundle-${count}`}
-                    title={title}
-                    aria-label={title}
-                    onClick={() => {
-                      if (active) {
-                        setTool({ type: 'select' })
-                        setPreview(null)
-                        setSnapTarget(null)
-                        return
-                      }
-                      setTool({ type: 'place-chain-bundle', count })
-                      clearElementSelection()
-                      setSelectedGuideId(null)
-                      setSelectedRowMarkerId(null)
-                    }}
-                  >
-                    <svg viewBox="-48 -20 96 40" aria-hidden="true">
-                      {chainBundleLayout({ x: 0, y: 0 }, count).map((member, index) => (
-                        <g key={index} transform={`translate(${member.x} ${member.y})`} className="symbol-glyph">
-                          <SymbolGlyph symbolId="chain" />
-                        </g>
-                      ))}
-                    </svg>
-                    <span>{abbreviation}</span>
-                  </button>
-                )
-              })}
+          <input
+            className="symbol-search"
+            data-testid="symbol-search"
+            type="search"
+            value={symbolQuery}
+            placeholder={locale === 'ru' ? 'Поиск: ВП, столбик…' : 'Search: ch, double…'}
+            aria-label={locale === 'ru' ? 'Поиск элементов' : 'Search stitches'}
+            onChange={(event) => setSymbolQuery(event.target.value)}
+          />
+          {filteredChainBundleCounts.length > 0 && (
+            <div className="symbol-group chain-bundle-presets">
+              <h3>{locale === 'ru' ? 'Цепочки' : 'Chain presets'}</h3>
+              <div className="symbol-grid">
+                {filteredChainBundleCounts.map((count) => {
+                  const active = tool.type === 'place-chain-bundle' && tool.count === count
+                  const label = locale === 'ru' ? `${count} воздушные петли` : `${count} chains`
+                  const abbreviation = locale === 'ru' ? `${count} ВП` : `${count} ch`
+                  const title = `${label} · ${abbreviation}`
+                  return (
+                    <button
+                      className={`symbol-button chain-bundle-button ${active ? 'active' : ''}`}
+                      key={`chain-bundle-${count}`}
+                      title={title}
+                      aria-label={title}
+                      onClick={() => {
+                        if (active) {
+                          setTool({ type: 'select' })
+                          setPreview(null)
+                          setSnapTarget(null)
+                          return
+                        }
+                        setTool({ type: 'place-chain-bundle', count })
+                        clearElementSelection()
+                        setSelectedGuideId(null)
+                        setSelectedRowMarkerId(null)
+                      }}
+                    >
+                      <svg viewBox="-48 -20 96 40" aria-hidden="true">
+                        {chainBundleLayout({ x: 0, y: 0 }, count).map((member, index) => (
+                          <g key={index} transform={`translate(${member.x} ${member.y})`} className="symbol-glyph">
+                            <SymbolGlyph symbolId="chain" />
+                          </g>
+                        ))}
+                      </svg>
+                      <span>{abbreviation}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-          </div>
-          {groupedSymbols.map(([category, symbols]) => (
+          )}
+          {filteredGroupedSymbols.map(([category, symbols]) => (
             <div className="symbol-group" key={category}>
               <h3>{categoryName(category, locale)}</h3>
               <div className="symbol-grid">
@@ -2768,13 +2794,16 @@ const saveProject = () => {
                       }}
                     >
                       <svg viewBox="-24 -38 48 76" aria-hidden="true"><g className="symbol-glyph"><SymbolGlyph symbolId={symbol.id} /></g></svg>
-                      <span>{label}</span>
+                      <span>{symbol.abbreviation ?? label}</span>
                     </button>
                   )
                 })}
               </div>
             </div>
           ))}
+          {normalizedSymbolQuery && !filteredChainBundleCounts.length && !filteredGroupedSymbols.length && (
+            <p className="empty-state">{locale === 'ru' ? 'Ничего не найдено.' : 'No stitches found.'}</p>
+          )}
         </section>
 
         <LayersPanel
@@ -3043,149 +3072,21 @@ const saveProject = () => {
       </main>
 
       <aside className="sidebar right-sidebar">
-        <BackgroundImagePanel
-          locale={locale}
-          background={backgroundImage}
-          onUpload={(file) => void handleBackgroundUpload(file)}
-          onChange={updateBackgroundImage}
-          onRemove={removeBackgroundImage}
-        />
+        <section className="panel-section right-panel-context" data-testid="selection-context-panel">
+          <div className="section-title-row">
+            <h2>{t.selection}</h2>
+            {lockedSelectedCount > 0 && <span className="muted-text">🔒 {lockedSelectedCount}</span>}
+          </div>
 
-        <GaugeRulerPanel
-          locale={locale}
-          gauge={gauge}
-          rulers={rulers}
-          selectedRulerId={selectedRulerId}
-          placingRuler={tool.type === 'ruler'}
-          elements={elements}
-          selectedRowId={selectedParametricRow?.id ?? null}
-          selectedRowIsCircular={selectedParametricGuide?.type === 'arc' || selectedParametricGuide?.type === 'radial-grid'}
-          onAddProfile={addGaugeProfile}
-          onUpdateProfile={updateGaugeProfile}
-          onDeleteProfile={deleteGaugeProfile}
-          onActiveProfileChange={setActiveGaugeProfile}
-          onToggleRulerTool={toggleRulerTool}
-          onSelectRuler={selectRuler}
-          onUpdateRuler={updateRuler}
-          onDeleteRuler={deleteRuler}
-        />
+          {lockedSelectedCount > 0 && (
+            <p className="locked-selection-note">
+              {locale === 'ru'
+                ? `Заблокировано в выделении: ${lockedSelectedCount}. Их можно выбирать и просматривать, но изменения применяются только к разблокированным.`
+                : `${lockedSelectedCount} selected locked stitch(es). They can be inspected, while edits only affect unlocked stitches.`}
+            </p>
+          )}
 
-        <PrintPanel locale={locale} bounds={outputBounds} onPrint={openTiledPrint} />
-
-        <section className="panel-section">
-          <div className="section-title-row"><h2>{t.snapping}</h2></div>
-          <label className="toggle-row">
-            <span><strong>{t.allowSnapping}</strong><small>{t.snappingHint}</small></span>
-            <input
-              type="checkbox"
-              checked={snapping.enabled}
-              onChange={(event) => {
-                commitSnapping({ ...snapping, enabled: event.target.checked })
-                setSnapTarget(null)
-                snapLockRef.current = null
-              }}
-            />
-          </label>
-
-          <fieldset disabled={!snapping.enabled}>
-            <legend>{t.snapPoint}</legend>
-            <div className="segmented-control">
-              {(['top', 'center', 'bottom'] as AnchorName[]).map((anchor) => (
-                <button key={anchor} className={snapping.sourceAnchor === anchor ? 'active' : ''} onClick={() => commitSnapping({ ...snapping, sourceAnchor: anchor })}>
-                  {anchorLabels[anchor]}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          <fieldset disabled={!snapping.enabled}>
-            <legend>{t.orientation}</legend>
-            <select value={snapping.orientationMode} onChange={(event) => commitSnapping({ ...snapping, orientationMode: event.target.value as OrientationMode })}>
-              <option value="none">{t.keepCurrent}</option>
-              <option value="along">{t.alongTarget}</option>
-              <option value="perpendicular">{t.perpendicular}</option>
-            </select>
-          </fieldset>
-
-          <label className="toggle-row compact-toggle">
-            <span>{t.snapToVertices}</span>
-            <input type="checkbox" checked={snapping.snapToVertices} disabled={!snapping.enabled} onChange={(event) => commitSnapping({ ...snapping, snapToVertices: event.target.checked })} />
-          </label>
-          <label className="range-row">
-            <span>{t.snapRadius} <strong>{snapping.tolerancePx}px</strong></span>
-            <input type="range" min="6" max="24" value={snapping.tolerancePx} disabled={!snapping.enabled} onChange={(event) => commitSnapping({ ...snapping, tolerancePx: Number(event.target.value) })} />
-          </label>
-        </section>
-
-        <section className="panel-section">
-          <PatternRowsPanel
-            elements={elements}
-            locale={locale}
-            selectedRowId={selectedParametricRow?.id ?? null}
-            onSelect={handleSelectPatternRow}
-            onCreateNext={handleCreateNextPatternRow}
-            onCreateSequence={handleCreatePatternSequence}
-          />
-        </section>
-
-        <section className="panel-section">
-          <RowMarkersPanel
-            locale={locale}
-            markers={rowMarkers}
-            selectedId={selectedRowMarkerId}
-            nextNumber={nextRowNumber}
-            placing={tool.type === 'row-marker'}
-            onStartPlacement={() => {
-              setTool((current) => current.type === 'row-marker' ? { type: 'select' } : { type: 'row-marker' })
-              clearElementSelection()
-              setSelectedGuideId(null)
-              setSelectedRowMarkerId(null)
-              setSelectedRulerId(null)
-              setRulerDraft(null)
-              setPreview(null)
-              setSnapTarget(null)
-            }}
-            onSelect={handleSelectRowMarker}
-            onChange={updateRowMarker}
-            onDelete={deleteRowMarker}
-          />
-        </section>
-
-        <LegendPanel
-          locale={locale}
-          elements={elements}
-          visible={legendVisible}
-          onVisibleChange={commitLegendVisible}
-        />
-
-        {productivitySelectionIds().length > 0 && (
-          <ProductivityPanel
-            locale={locale}
-            guides={guides}
-            elements={elements}
-            selectedIds={productivitySelectionIds()}
-            selectedCount={productivitySelectionIds().length}
-            canTransform
-            canGroup={productivitySelectionIds().length > 1}
-            canUngroup={productivitySelectionIds().some((id) => Boolean(elements.find((element) => element.id === id)?.groupId))}
-            onGroup={groupSelection}
-            onUngroup={ungroupSelection}
-            onDirectionalMirror={directionalMirrorSelection}
-            mirrorAxis={mirrorAxis}
-            onConfigureMirrorAxis={configureMirrorAxis}
-            onMirrorAxisChange={moveMirrorAxis}
-            onCenterMirrorAxis={centerMirrorAxis}
-            onHideMirrorAxis={() => setMirrorAxis(null)}
-            onMirrorAtCustomAxis={mirrorSelectionAroundCustomAxis}
-            onMirrorCopyAtCustomAxis={mirrorCopySelectionAroundCustomAxis}
-            onRepeat={repeatProductivitySelection}
-          />
-        )}
-
-        <section className="panel-section">
-          <div className="section-title-row"><h2>{t.selection}</h2></div>
-
-          {selectedIds.length > 0 && (
+          {editableSelectedCount > 0 && (
             <SelectionColorControl
               locale={locale}
               colors={elements
@@ -3216,41 +3117,49 @@ const saveProject = () => {
             </>
           ) : selectedElement ? (
             <div className="selection-card compact-selection-card">
-              <div className="rotation-controls">
-                <button onClick={() => rotateSelected(-15)}>−15°</button>
-                <button onClick={() => rotateSelected(15)}>+15°</button>
-              </div>
-              <GuideAttachmentPanel
-                locale={locale}
-                element={selectedElement}
-                guides={guides}
-                onAttach={attachSelectedToGuide}
-                onChange={updateSelectedGuideAttachment}
-                onDetach={detachSelectedFromGuide}
-              />
-              <div className="selection-actions">
-                <button onClick={copySelection}>{t.copy}</button>
-                <button onClick={duplicateSelection}>{t.duplicate}</button>
-              </div>
+              {!isElementLocked(selectedElement) && (
+                <>
+                  <div className="rotation-controls">
+                    <button onClick={() => rotateSelected(-15)}>−15°</button>
+                    <button onClick={() => rotateSelected(15)}>+15°</button>
+                  </div>
+                  <GuideAttachmentPanel
+                    locale={locale}
+                    element={selectedElement}
+                    guides={guides}
+                    onAttach={attachSelectedToGuide}
+                    onChange={updateSelectedGuideAttachment}
+                    onDetach={detachSelectedFromGuide}
+                  />
+                  <div className="selection-actions">
+                    <button onClick={copySelection}>{t.copy}</button>
+                    <button onClick={duplicateSelection}>{t.duplicate}</button>
+                  </div>
+                </>
+              )}
               <div className="layer-selection-controls">
                 <button onClick={() => toggleElementVisible(selectedElement.id)}>{isElementVisible(selectedElement) ? t.hideLayer : t.showLayer}</button>
-                <button onClick={() => toggleElementLocked(selectedElement.id)}>{t.lockLayer}</button>
+                <button onClick={() => toggleElementLocked(selectedElement.id)}>{isElementLocked(selectedElement) ? t.unlockLayer : t.lockLayer}</button>
               </div>
-              <button className="danger-button" onClick={deleteSelected}>{t.delete}</button>
+              {!isElementLocked(selectedElement) && <button className="danger-button" onClick={deleteSelected}>{t.delete}</button>}
             </div>
           ) : selectedIds.length > 1 ? (
             <div className="multi-selection-card">
               <strong>{t.selectedCount}: {selectedIds.length}</strong>
               <small>{t.groupMoveHint}</small>
-              <div className="rotation-controls">
-                <button onClick={() => rotateSelected(-15)}>−15°</button>
-                <button onClick={() => rotateSelected(15)}>+15°</button>
-              </div>
-              <div className="selection-actions">
-                <button onClick={copySelection}>{t.copy}</button>
-                <button onClick={duplicateSelection}>{t.duplicate}</button>
-              </div>
-              <button className="danger-button" onClick={deleteSelected}>{t.delete}</button>
+              {editableSelectedCount > 0 && (
+                <>
+                  <div className="rotation-controls">
+                    <button onClick={() => rotateSelected(-15)}>−15°</button>
+                    <button onClick={() => rotateSelected(15)}>+15°</button>
+                  </div>
+                  <div className="selection-actions">
+                    <button onClick={copySelection}>{t.copy}</button>
+                    <button onClick={duplicateSelection}>{t.duplicate}</button>
+                  </div>
+                  <button className="danger-button" onClick={deleteSelected}>{t.delete}</button>
+                </>
+              )}
             </div>
           ) : selectedGuide ? (
             <div className="guide-editor">
@@ -3363,17 +3272,178 @@ const saveProject = () => {
           )}
         </section>
 
-        <section className="panel-section help-section">
-          <div className="section-title-row"><h2>{t.controls}</h2></div>
-          <ul>
-            <li>{t.help1}</li>
-            <li>{t.help2}</li>
-            <li>{t.help3}</li>
-            <li>{t.help4}</li>
-            <li>{t.help5}</li>
-            <li>{t.help6}</li>
-          </ul>
-        </section>
+        {productivitySelectionIds().length > 0 && (
+          <ProductivityPanel
+            locale={locale}
+            guides={guides}
+            elements={elements}
+            selectedIds={productivitySelectionIds()}
+            selectedCount={productivitySelectionIds().length}
+            canTransform
+            canGroup={productivitySelectionIds().length > 1}
+            canUngroup={productivitySelectionIds().some((id) => Boolean(elements.find((element) => element.id === id)?.groupId))}
+            onGroup={groupSelection}
+            onUngroup={ungroupSelection}
+            onDirectionalMirror={directionalMirrorSelection}
+            mirrorAxis={mirrorAxis}
+            onConfigureMirrorAxis={configureMirrorAxis}
+            onMirrorAxisChange={moveMirrorAxis}
+            onCenterMirrorAxis={centerMirrorAxis}
+            onHideMirrorAxis={() => setMirrorAxis(null)}
+            onMirrorAtCustomAxis={mirrorSelectionAroundCustomAxis}
+            onMirrorCopyAtCustomAxis={mirrorCopySelectionAroundCustomAxis}
+            onRepeat={repeatProductivitySelection}
+          />
+        )}
+
+        <details className="right-panel-collapsible" data-testid="background-global-panel">
+          <summary>{locale === 'ru' ? 'Фоновое изображение' : 'Background image'}</summary>
+          <BackgroundImagePanel
+            locale={locale}
+            background={backgroundImage}
+            onUpload={(file) => void handleBackgroundUpload(file)}
+            onChange={updateBackgroundImage}
+            onRemove={removeBackgroundImage}
+          />
+        </details>
+
+        <details className="right-panel-collapsible" data-testid="gauge-global-panel">
+          <summary>{locale === 'ru' ? 'Плотность и размер' : 'Gauge & size'}</summary>
+          <GaugeRulerPanel
+            locale={locale}
+            gauge={gauge}
+            rulers={rulers}
+            selectedRulerId={selectedRulerId}
+            placingRuler={tool.type === 'ruler'}
+            elements={elements}
+            selectedRowId={selectedParametricRow?.id ?? null}
+            selectedRowIsCircular={selectedParametricGuide?.type === 'arc' || selectedParametricGuide?.type === 'radial-grid'}
+            onAddProfile={addGaugeProfile}
+            onUpdateProfile={updateGaugeProfile}
+            onDeleteProfile={deleteGaugeProfile}
+            onActiveProfileChange={setActiveGaugeProfile}
+            onToggleRulerTool={toggleRulerTool}
+            onSelectRuler={selectRuler}
+            onUpdateRuler={updateRuler}
+            onDeleteRuler={deleteRuler}
+          />
+        </details>
+
+        <details className="right-panel-collapsible" data-testid="print-global-panel">
+          <summary>{locale === 'ru' ? 'Печать по страницам' : 'Tiled print'}</summary>
+          <PrintPanel locale={locale} bounds={outputBounds} legendBounds={outputLegendBounds} onPrint={openTiledPrint} />
+        </details>
+
+        <details className="right-panel-collapsible" data-testid="snapping-global-panel">
+          <summary>{t.snapping}</summary>
+          <section className="panel-section">
+            <label className="toggle-row">
+              <span><strong>{t.allowSnapping}</strong><small>{t.snappingHint}</small></span>
+              <input
+                type="checkbox"
+                checked={snapping.enabled}
+                onChange={(event) => {
+                  commitSnapping({ ...snapping, enabled: event.target.checked })
+                  setSnapTarget(null)
+                  snapLockRef.current = null
+                }}
+              />
+            </label>
+
+            <fieldset disabled={!snapping.enabled}>
+              <legend>{t.snapPoint}</legend>
+              <div className="segmented-control">
+                {(['top', 'center', 'bottom'] as AnchorName[]).map((anchor) => (
+                  <button key={anchor} className={snapping.sourceAnchor === anchor ? 'active' : ''} onClick={() => commitSnapping({ ...snapping, sourceAnchor: anchor })}>
+                    {anchorLabels[anchor]}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset disabled={!snapping.enabled}>
+              <legend>{t.orientation}</legend>
+              <select value={snapping.orientationMode} onChange={(event) => commitSnapping({ ...snapping, orientationMode: event.target.value as OrientationMode })}>
+                <option value="none">{t.keepCurrent}</option>
+                <option value="along">{t.alongTarget}</option>
+                <option value="perpendicular">{t.perpendicular}</option>
+              </select>
+            </fieldset>
+
+            <label className="toggle-row compact-toggle">
+              <span>{t.snapToVertices}</span>
+              <input type="checkbox" checked={snapping.snapToVertices} disabled={!snapping.enabled} onChange={(event) => commitSnapping({ ...snapping, snapToVertices: event.target.checked })} />
+            </label>
+            <label className="range-row">
+              <span>{t.snapRadius} <strong>{snapping.tolerancePx}px</strong></span>
+              <input type="range" min="6" max="24" value={snapping.tolerancePx} disabled={!snapping.enabled} onChange={(event) => commitSnapping({ ...snapping, tolerancePx: Number(event.target.value) })} />
+            </label>
+          </section>
+        </details>
+
+        <details className="right-panel-collapsible" data-testid="pattern-rows-global-panel">
+          <summary>{locale === 'ru' ? 'Ряды узора' : 'Pattern rows'}</summary>
+          <section className="panel-section">
+            <PatternRowsPanel
+              elements={elements}
+              locale={locale}
+              selectedRowId={selectedParametricRow?.id ?? null}
+              onSelect={handleSelectPatternRow}
+              onCreateNext={handleCreateNextPatternRow}
+              onCreateSequence={handleCreatePatternSequence}
+            />
+          </section>
+        </details>
+
+        <details className="right-panel-collapsible" data-testid="row-markers-global-panel">
+          <summary>{locale === 'ru' ? 'Номера рядов' : 'Row numbers'}</summary>
+          <section className="panel-section">
+            <RowMarkersPanel
+              locale={locale}
+              markers={rowMarkers}
+              selectedId={selectedRowMarkerId}
+              nextNumber={nextRowNumber}
+              placing={tool.type === 'row-marker'}
+              onStartPlacement={() => {
+                setTool((current) => current.type === 'row-marker' ? { type: 'select' } : { type: 'row-marker' })
+                clearElementSelection()
+                setSelectedGuideId(null)
+                setSelectedRowMarkerId(null)
+                setSelectedRulerId(null)
+                setRulerDraft(null)
+                setPreview(null)
+                setSnapTarget(null)
+              }}
+              onSelect={handleSelectRowMarker}
+              onChange={updateRowMarker}
+              onDelete={deleteRowMarker}
+            />
+          </section>
+        </details>
+
+        <details className="right-panel-collapsible" data-testid="legend-global-panel">
+          <summary>{locale === 'ru' ? 'Легенда и холст' : 'Legend & canvas'}</summary>
+          <LegendPanel
+            locale={locale}
+            elements={elements}
+            visible={legendVisible}
+            onVisibleChange={commitLegendVisible}
+          />
+        </details>
+
+        <details className="right-panel-collapsible help-section" data-testid="help-global-panel">
+          <summary>{t.controls}</summary>
+          <section className="panel-section">
+            <ul>
+              <li>{t.help1}</li>
+              <li>{t.help2}</li>
+              <li>{t.help3}</li>
+              <li>{t.help4}</li>
+              <li>{t.help5}</li>
+              <li>{t.help6}</li>
+            </ul>
+          </section>
+        </details>
       </aside>
     </div>
   )
