@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { createGuideFromToolRail } from './helpers/uiV2Guides'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -20,7 +21,7 @@ async function placeAt(page: Page, title: string, rx: number, ry: number) {
 
 test('edits straight guides by length and angle, shows direction, and reverses by double click', async ({ page }) => {
   await openEditor(page)
-  await page.locator('.guide-add-grid button').filter({ hasText: 'Линия' }).click()
+  await createGuideFromToolRail(page, 'Линия')
 
   const line = page.locator('.guide-line')
   await expect(line).toBeVisible()
@@ -66,7 +67,7 @@ test('edits straight guides by length and angle, shows direction, and reverses b
 
 test('creates a quadratic parabola with one editable control point', async ({ page }) => {
   await openEditor(page)
-  await page.locator('.guide-add-grid button').filter({ hasText: 'Парабола' }).click()
+  await createGuideFromToolRail(page, 'Парабола')
 
   const parabola = page.locator('.guide-parabola')
   await expect(parabola).toBeVisible()
