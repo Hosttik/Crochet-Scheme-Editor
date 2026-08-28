@@ -22,14 +22,15 @@ function buttonByAriaLabel(label: string) {
 }
 
 function sanitizeLegacyLeftControls(sidebar: HTMLElement) {
-  const legacyTools = sidebar.querySelector<HTMLElement>(':scope > .compact-section:first-child')
+  const legacyTools = sidebar.querySelector<HTMLElement>(':scope > .compact-section')
   legacyTools?.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
-    if (!button.classList.contains('tool-button') && button.classList.contains('legacy-tool-button')) return
+    const active = button.classList.contains('active')
+    button.dataset.legacyActive = active ? 'true' : 'false'
     button.classList.remove('tool-button', 'active')
     button.classList.add('legacy-tool-button')
   })
 
-  const rawLibrary = sidebar.querySelector<HTMLElement>(':scope > .symbols-section')
+  const rawLibrary = sidebar.querySelector<HTMLElement>(':scope > .symbols-section:not(.element-library)')
   const legacyLibrary = rawLibrary ?? sidebar.querySelector<HTMLElement>(':scope > .legacy-symbols-section')
   if (!legacyLibrary) return
 
