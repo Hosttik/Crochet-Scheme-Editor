@@ -89,8 +89,8 @@ export function prepareLegacyWorkbenchDom(sidebar: HTMLElement) {
     legacyTools.querySelectorAll<HTMLButtonElement>('button').forEach((button, index) => {
       const kind = toolKindFromButton(button, index)
       if (kind) button.dataset.uiV2Tool = kind
-      button.classList.remove('tool-button', 'active')
-      button.classList.add('legacy-tool-button')
+      button.classList.remove('tool-button', 'active', 'legacy-tool-button')
+      button.classList.add('ui-v2-legacy-tool-control')
       button.tabIndex = -1
     })
   }
@@ -134,8 +134,8 @@ export function prepareLegacyWorkbenchDom(sidebar: HTMLElement) {
       if (symbolId) button.dataset.uiV2SymbolId = symbolId
     }
 
-    button.classList.remove('symbol-button', 'chain-bundle-button', 'active')
-    button.classList.add('legacy-symbol-button')
+    button.classList.remove('symbol-button', 'chain-bundle-button', 'active', 'legacy-symbol-button')
+    button.classList.add('ui-v2-legacy-symbol-control')
     button.tabIndex = -1
   })
 }
