@@ -19,13 +19,11 @@ export function RightInspectorBridge() {
   useEffect(() => {
     let bridgeHost: HTMLElement | null = null
     let tabsHost: HTMLElement | null = null
-    let optionsHost: HTMLElement | null = null
     let layersHost: HTMLElement | null = null
     let layersPanel: HTMLDetailsElement | null = null
-    let originalLayersParent: Node | null = null
-    let originalLayersNextSibling: Node | null = null
-    let originalLayersOpen = false
-    let originalRightChildren: Node[] = []
+    let originalParent: Node | null = null
+    let originalNextSibling: Node | null = null
+    let originalOpen = false
     let mountObserver: MutationObserver | null = null
 
     const install = () => {
@@ -35,11 +33,10 @@ export function RightInspectorBridge() {
       const legacyLayers = document.querySelector<HTMLDetailsElement>('.left-sidebar > .layers-section')
       if (!rightSidebar || !legacyLayers) return false
 
-      originalLayersParent = legacyLayers.parentNode
-      originalLayersNextSibling = legacyLayers.nextSibling
-      originalLayersOpen = legacyLayers.open
+      originalParent = legacyLayers.parentNode
+      originalNextSibling = legacyLayers.nextSibling
+      originalOpen = legacyLayers.open
       layersPanel = legacyLayers
-      originalRightChildren = Array.from(rightSidebar.childNodes)
 
       bridgeHost = document.createElement('div')
       bridgeHost.className = 'ui-v2-right-bridge-host'
@@ -48,27 +45,19 @@ export function RightInspectorBridge() {
       tabsHost = document.createElement('div')
       tabsHost.className = 'ui-v2-right-tabs-host'
 
-      optionsHost = document.createElement('div')
-      optionsHost.className = 'ui-v2-right-options-host'
-      optionsHost.id = 'ui-v2-right-options-panel'
-      optionsHost.setAttribute('role', 'tabpanel')
-      optionsHost.setAttribute('aria-labelledby', 'ui-v2-right-tab-options')
-      optionsHost.tabIndex = 0
-
       layersHost = document.createElement('div')
       layersHost.className = 'ui-v2-right-layers-host'
       layersHost.id = 'ui-v2-right-layers-panel'
       layersHost.setAttribute('role', 'tabpanel')
       layersHost.setAttribute('aria-labelledby', 'ui-v2-right-tab-layers')
       layersHost.tabIndex = 0
-      layersHost.hidden = true
 
-      originalRightChildren.forEach((node) => optionsHost?.append(node))
+      bridgeHost.append(tabsHost, layersHost)
+      rightSidebar.prepend(bridgeHost)
+
       legacyLayers.classList.add('ui-v2-moved-layers')
       layersHost.append(legacyLayers)
 
-      bridgeHost.append(tabsHost, optionsHost, layersHost)
-      rightSidebar.append(bridgeHost)
       setPortalTarget(tabsHost)
       return true
     }
@@ -96,17 +85,15 @@ export function RightInspectorBridge() {
       document.removeEventListener('click', onLanguageClick, true)
 
       const rightSidebar = document.querySelector<HTMLElement>('.right-sidebar')
-      if (rightSidebar) {
-        originalRightChildren.forEach((node) => rightSidebar.append(node))
-      }
+      rightSidebar?.classList.remove('ui-v2-tab-layers')
 
-      if (layersPanel && originalLayersParent) {
+      if (layersPanel && originalParent) {
         layersPanel.classList.remove('ui-v2-moved-layers')
-        layersPanel.open = originalLayersOpen
-        const sibling = originalLayersNextSibling && originalLayersNextSibling.parentNode === originalLayersParent
-          ? originalLayersNextSibling
+        layersPanel.open = originalOpen
+        const sibling = originalNextSibling && originalNextSibling.parentNode === originalParent
+          ? originalNextSibling
           : null
-        originalLayersParent.insertBefore(layersPanel, sibling)
+        originalParent.insertBefore(layersPanel, sibling)
       }
 
       bridgeHost?.remove()
@@ -119,12 +106,8 @@ export function RightInspectorBridge() {
     if (!rightSidebar) return
 
     const showingLayers = activeTab === 'layers'
-    const optionsHost = rightSidebar.querySelector<HTMLElement>('.ui-v2-right-options-host')
-    const layersHost = rightSidebar.querySelector<HTMLElement>('.ui-v2-right-layers-host')
-    const layersPanel = layersHost?.querySelector<HTMLDetailsElement>('.layers-section') ?? null
-
-    if (optionsHost) optionsHost.hidden = showingLayers
-    if (layersHost) layersHost.hidden = !showingLayers
+    rightSidebar.classList.toggle('ui-v2-tab-layers', showingLayers)
+    const layersPanel = rightSidebar.querySelector<HTMLDetailsElement>('.ui-v2-right-layers-host > .layers-section')
     if (layersPanel) layersPanel.open = showingLayers
   }, [activeTab, portalTarget])
 
