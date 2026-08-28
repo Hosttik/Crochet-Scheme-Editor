@@ -4,8 +4,8 @@
  * The outer shell now owns a real ToolRail and ElementLibrary, portalled into
  * the existing left sidebar while App.tsx still owns editor state. Legacy
  * controls stay mounted (and therefore callable during migration) but their
- * duplicate visual copies are hidden. This bridge is removed once App.tsx
- * exposes typed workbench actions directly.
+ * duplicate visual copies are hidden. Layers are temporarily reparented into
+ * the right inspector until App.tsx exposes typed panel actions directly.
  */
 
 .app-shell {
@@ -52,7 +52,7 @@
 
 .ui-v2-left-bridge-host > .tool-rail {
   grid-column: 1;
-  grid-row: 1 / span 4;
+  grid-row: 1 / span 3;
 }
 
 .ui-v2-left-bridge-host > .element-library {
@@ -70,12 +70,6 @@
 .left-sidebar > .guide-section {
   grid-column: 2;
   grid-row: 2;
-  min-width: 0;
-}
-
-.left-sidebar > .layers-section {
-  grid-column: 2;
-  grid-row: 4;
   min-width: 0;
 }
 
