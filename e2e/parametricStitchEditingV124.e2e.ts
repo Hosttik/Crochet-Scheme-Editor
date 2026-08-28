@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 
+// Regression gate for v1.24 direct stitch geometry editing.
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
   await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
