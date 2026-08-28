@@ -20,10 +20,15 @@ export type EditorIconName =
   | 'minus'
   | 'trash'
   | 'duplicate'
+  | 'group'
+  | 'ungroup'
   | 'rotateLeft'
   | 'rotateRight'
+  | 'rotate180'
   | 'mirrorHorizontal'
   | 'mirrorVertical'
+  | 'mirrorCopyHorizontal'
+  | 'mirrorCopyVertical'
   | 'lock'
   | 'unlock'
   | 'eye'
@@ -51,10 +56,15 @@ const paths: Record<EditorIconName, ReactNode> = {
   minus: <path d="M5 12h14" />,
   trash: <><path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6" /></>,
   duplicate: <><rect x="8" y="8" width="11" height="11" rx="2" /><path d="M5 16H4a2 2 0 01-2-2V5a2 2 0 012-2h9a2 2 0 012 2v1" /></>,
+  group: <><rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" /><rect x="4" y="14" width="6" height="6" rx="1" /><rect x="14" y="14" width="6" height="6" rx="1" /><path d="M10 7h4M7 10v4M17 10v4M10 17h4" strokeDasharray="2 2" /></>,
+  ungroup: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><path d="M11 7h2M7 11v2M17 11v2M11 17h2" /></>,
   rotateLeft: <><path d="M8 7H3V2" /><path d="M3 7a9 9 0 11-1 8" /></>,
   rotateRight: <><path d="M16 7h5V2" /><path d="M21 7a9 9 0 10 1 8" /></>,
+  rotate180: <><path d="M5 7a8 8 0 0114 5" /><path d="M19 7v5h-5" /><path d="M19 17a8 8 0 01-14-5" /><path d="M5 17v-5h5" /></>,
   mirrorHorizontal: <><path d="M12 3v18" strokeDasharray="2 2" /><path d="M9 6L3 12l6 6V6zM15 6l6 6-6 6V6z" /></>,
   mirrorVertical: <><path d="M3 12h18" strokeDasharray="2 2" /><path d="M6 9l6-6 6 6H6zM6 15l6 6 6-6H6z" /></>,
+  mirrorCopyHorizontal: <><path d="M10 4v16" strokeDasharray="2 2" /><path d="M7 7L3 12l4 5V7zM14 7l5 5-5 5V7z" /><path d="M17 4v4M15 6h4" /></>,
+  mirrorCopyVertical: <><path d="M4 10h16" strokeDasharray="2 2" /><path d="M7 7l5-4 5 4H7zM7 14l5 5 5-5H7z" /><path d="M19 15v4M17 17h4" /></>,
   lock: <><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 018 0v3" /></>,
   unlock: <><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M16 10V7a4 4 0 00-7.5-2" /></>,
   eye: <><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" /><circle cx="12" cy="12" r="2.5" /></>,
