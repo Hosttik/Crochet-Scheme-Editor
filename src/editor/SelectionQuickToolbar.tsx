@@ -39,7 +39,7 @@ const COPY = {
   },
 } as const
 
-const QUICK_TOOLBAR_HALF_WIDTH = 184
+const QUICK_TOOLBAR_HALF_WIDTH = 172
 
 export function SelectionQuickToolbar({
   locale,
@@ -109,18 +109,20 @@ export function SelectionQuickToolbar({
       aria-label={locale === 'ru' ? 'Быстрые действия с выделением' : 'Selection quick actions'}
     >
       <IconButton icon="duplicate" label={copy.duplicate} onClick={onDuplicate} />
-      {canUngroup ? (
-        <button className="selection-quick-text-action" title={copy.ungroup} aria-label={copy.ungroup} onClick={onUngroup}>U</button>
-      ) : (
-        <button className="selection-quick-text-action" title={copy.group} aria-label={copy.group} disabled={!canGroup} onClick={onGroup}>G</button>
-      )}
+      <IconButton
+        icon={canUngroup ? 'ungroup' : 'group'}
+        label={canUngroup ? copy.ungroup : copy.group}
+        disabled={!canUngroup && !canGroup}
+        onClick={canUngroup ? onUngroup : onGroup}
+      />
       <span className="selection-quick-separator" />
       <IconButton className="selection-quick-mirror" icon="mirrorHorizontal" label={copy.flipLeftRight} onClick={() => onMirror('left-right')} />
       <IconButton className="selection-quick-mirror" icon="mirrorVertical" label={copy.flipTopBottom} onClick={() => onMirror('top-bottom')} />
-      <button className="selection-quick-mirror selection-quick-copy-action" title={copy.mirrorCopyLeftRight} aria-label={copy.mirrorCopyLeftRight} onClick={() => onMirrorCopy('left-right')}>⧉↔</button>
-      <button className="selection-quick-mirror selection-quick-copy-action" title={copy.mirrorCopyTopBottom} aria-label={copy.mirrorCopyTopBottom} onClick={() => onMirrorCopy('top-bottom')}>⧉↕</button>
+      <IconButton className="selection-quick-mirror" icon="mirrorCopyHorizontal" label={copy.mirrorCopyLeftRight} onClick={() => onMirrorCopy('left-right')} />
+      <IconButton className="selection-quick-mirror" icon="mirrorCopyVertical" label={copy.mirrorCopyTopBottom} onClick={() => onMirrorCopy('top-bottom')} />
+      <span className="selection-quick-separator" />
       <IconButton icon="rotateLeft" label={copy.rotateLeft} onClick={() => onRotate(-15)} />
-      <button className="selection-quick-rotate-180" title={copy.rotate180} aria-label={copy.rotate180} onClick={() => onRotate(180)}>180°</button>
+      <IconButton icon="rotate180" label={copy.rotate180} onClick={() => onRotate(180)} />
       <IconButton icon="rotateRight" label={copy.rotateRight} onClick={() => onRotate(15)} />
       <span className="selection-quick-separator" />
       <IconButton className="selection-quick-danger" icon="trash" label={copy.delete} onClick={onDelete} />
