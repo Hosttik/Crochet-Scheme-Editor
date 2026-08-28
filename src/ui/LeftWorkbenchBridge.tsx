@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { type ChainBundleCount } from '../editor/chainBundle'
-import { symbolName, type Locale } from '../i18n'
-import { SYMBOLS } from '../symbols'
+import { type Locale } from '../i18n'
 import type { Guide } from '../types'
 import { ElementLibrary } from './ElementLibrary'
 import { FavoriteQuickBar } from './FavoriteQuickBar'
@@ -11,95 +10,18 @@ import {
   saveFavorites,
   type FavoriteElementKey,
 } from './favorites'
-import { dispatchEditorShortcut } from './legacyCommandBridge'
+import {
+  createLegacyWorkbenchCommands,
+  prepareLegacyWorkbenchDom,
+} from './legacyWorkbenchAdapter'
 import { ToolRail } from './ToolRail'
-import type { WorkbenchTool } from './workbenchTypes'
+import type { WorkbenchCommands, WorkbenchTool } from './workbenchTypes'
 
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
-const LEGACY_LIBRARY_SELECTOR = '.left-sidebar > [data-ui-v2-legacy-library="true"]'
-const LEGACY_GUIDE_FALLBACK_ORDER: Guide['type'][] = ['arc', 'line', 'curve', 'parabola', 'grid', 'radial-grid']
 
 function initialLocale(): Locale {
   if (typeof window === 'undefined') return 'ru'
   return window.localStorage.getItem(LOCALE_STORAGE_KEY) === 'en' ? 'en' : 'ru'
-}
-
-function legacyButtonByAriaLabel(label: string) {
-  return Array.from(document.querySelectorAll<HTMLButtonElement>(`${LEGACY_LIBRARY_SELECTOR} button`))
-    .find((button) => button.getAttribute('aria-label') === label) ?? null
-}
-
-function legacyGuideButtonByType(type: Guide['type']) {
-  return document.querySelector<HTMLButtonElement>(`.left-sidebar > .guide-section button[data-ui-v2-guide-type="${type}"]`)
-}
-
-function legacyGuideType(button: HTMLButtonElement, index: number): Guide['type'] | undefined {
-  const label = (button.textContent ?? '').replace(/\s+/g, ' ').trim().toLocaleLowerCase()
-  if (label.includes('парабол') || label.includes('parabola')) return 'parabola'
-  if (label.includes('радиал') || label.includes('radial')) return 'radial-grid'
-  if (label.includes('прямоуголь') || label.includes('rectangular') || label === 'сетка' || label === 'grid') return 'grid'
-  if (label.includes('дуга') || label === 'arc') return 'arc'
-  if (label.includes('линия') || label === 'line') return 'line'
-  if (label.includes('кривая') || label === 'curve') return 'curve'
-  return LEGACY_GUIDE_FALLBACK_ORDER[index]
-}
-
-/**
- * Keep the legacy controls mounted as a temporary behavioral adapter, but make
- * their old selector surface private so the extracted UI is the only visible
- * and test-addressable workbench. This intentionally does not observe the
- * sidebar subtree: observing and mutating the same class attributes caused a
- * self-sustaining MutationObserver loop in Chromium.
- */
-function sanitizeLegacyLeftControls(sidebar: HTMLElement) {
-  const legacyTools = sidebar.querySelector<HTMLElement>(
-    ':scope > [data-ui-v2-legacy-tools="true"], :scope > .compact-section:first-of-type',
-  )
-  if (legacyTools) {
-    legacyTools.dataset.uiV2LegacyTools = 'true'
-    legacyTools.setAttribute('aria-hidden', 'true')
-    legacyTools.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
-      button.classList.remove('tool-button', 'active')
-      button.classList.add('legacy-tool-button')
-      button.tabIndex = -1
-    })
-  }
-
-  const legacyGuideAdd = sidebar.querySelector<HTMLElement>(':scope > .guide-section .guide-add-grid')
-  if (legacyGuideAdd) {
-    legacyGuideAdd.dataset.uiV2LegacyGuideAdd = 'true'
-    legacyGuideAdd.classList.add('ui-v2-legacy-guide-add')
-    legacyGuideAdd.setAttribute('aria-hidden', 'true')
-    legacyGuideAdd.querySelectorAll<HTMLButtonElement>('button').forEach((button, index) => {
-      const type = legacyGuideType(button, index)
-      if (type) button.dataset.uiV2GuideType = type
-      button.tabIndex = -1
-    })
-  }
-
-  const legacyLibrary = sidebar.querySelector<HTMLElement>(
-    ':scope > [data-ui-v2-legacy-library="true"], :scope > .symbols-section:not(.element-library)',
-  )
-  if (!legacyLibrary) return
-
-  legacyLibrary.dataset.uiV2LegacyLibrary = 'true'
-  legacyLibrary.setAttribute('aria-hidden', 'true')
-  legacyLibrary.classList.remove('symbols-section')
-  legacyLibrary.classList.add('legacy-symbols-section')
-
-  const search = legacyLibrary.querySelector<HTMLInputElement>('[data-testid="symbol-search"], .symbol-search, .legacy-symbol-search')
-  if (search) {
-    search.removeAttribute('data-testid')
-    search.classList.remove('symbol-search')
-    search.classList.add('legacy-symbol-search')
-    search.tabIndex = -1
-  }
-
-  legacyLibrary.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
-    button.classList.remove('symbol-button', 'chain-bundle-button', 'active')
-    button.classList.add('legacy-symbol-button')
-    button.tabIndex = -1
-  })
 }
 
 function toolFromCanvas(current: WorkbenchTool): WorkbenchTool {
@@ -114,19 +36,27 @@ function toolFromCanvas(current: WorkbenchTool): WorkbenchTool {
 
 export type LeftWorkbenchBridgeProps = {
   /**
-   * Typed editor-owned guide command. During migration this is optional so the
-   * shell can keep using the legacy adapter until App.tsx owns the bridge.
+   * Semantic App-owned commands can replace the temporary adapter one by one.
+   * The extracted UI never needs to know which implementation handled them.
    */
+  commands?: Partial<WorkbenchCommands>
+  /** @deprecated Prefer commands.addGuide while the migration is in progress. */
   onAddGuide?: (type: Guide['type']) => void
 }
 
-export function LeftWorkbenchBridge({ onAddGuide }: LeftWorkbenchBridgeProps = {}) {
+export function LeftWorkbenchBridge({ commands, onAddGuide }: LeftWorkbenchBridgeProps = {}) {
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
   const [quickPortalTarget, setQuickPortalTarget] = useState<HTMLElement | null>(null)
   const [locale, setLocale] = useState<Locale>(initialLocale)
   const [tool, setTool] = useState<WorkbenchTool>({ type: 'select' })
   const [query, setQuery] = useState('')
   const [favorites, setFavorites] = useState<FavoriteElementKey[]>(loadFavorites)
+  const legacyCommands = useMemo(() => createLegacyWorkbenchCommands(), [])
+  const activeCommands = useMemo<WorkbenchCommands>(() => ({
+    ...legacyCommands,
+    ...commands,
+    ...(onAddGuide ? { addGuide: onAddGuide } : {}),
+  }), [commands, legacyCommands, onAddGuide])
 
   useEffect(() => saveFavorites(favorites), [favorites])
 
@@ -138,7 +68,7 @@ export function LeftWorkbenchBridge({ onAddGuide }: LeftWorkbenchBridgeProps = {
 
     const sync = () => {
       const sidebar = document.querySelector<HTMLElement>('.left-sidebar')
-      if (sidebar) sanitizeLegacyLeftControls(sidebar)
+      if (sidebar) prepareLegacyWorkbenchDom(sidebar)
       setTool((current) => toolFromCanvas(current))
     }
 
@@ -146,7 +76,7 @@ export function LeftWorkbenchBridge({ onAddGuide }: LeftWorkbenchBridgeProps = {
       if (!host) {
         const sidebar = document.querySelector<HTMLElement>('.left-sidebar')
         if (sidebar) {
-          sanitizeLegacyLeftControls(sidebar)
+          prepareLegacyWorkbenchDom(sidebar)
           host = document.createElement('div')
           host.className = 'ui-v2-left-bridge-host'
           host.dataset.uiV2Bridge = 'left-workbench'
@@ -209,37 +139,29 @@ export function LeftWorkbenchBridge({ onAddGuide }: LeftWorkbenchBridgeProps = {
     }
   }, [])
 
-  const symbolTitles = useMemo(() => new Map(SYMBOLS.map((symbol) => {
-    const label = symbolName(symbol.id, symbol.name, locale)
-    return [symbol.id, symbol.abbreviation ? `${label} · ${symbol.abbreviation}` : label]
-  })), [locale])
-
   if (!portalTarget) return null
 
-  const runShortcut = (key: string) => {
-    dispatchEditorShortcut(key)
-    queueMicrotask(() => setTool((current) => toolFromCanvas(current)))
+  const syncToolSoon = () => queueMicrotask(() => setTool((current) => toolFromCanvas(current)))
+  const runCommand = (command: () => void) => {
+    command()
+    syncToolSoon()
   }
   const cancelPlacement = () => {
     setTool({ type: 'select' })
-    runShortcut('Escape')
+    runCommand(activeCommands.select)
   }
   const selectSymbol = (symbolId: string) => {
-    const title = symbolTitles.get(symbolId)
-    if (!title) return
     setTool({ type: 'place', symbolId })
-    legacyButtonByAriaLabel(title)?.click()
+    runCommand(() => activeCommands.selectSymbol(symbolId))
   }
   const selectChainBundle = (count: ChainBundleCount) => {
-    const label = locale === 'ru' ? `${count} воздушные петли` : `${count} chains`
-    const abbreviation = locale === 'ru' ? `${count} ВП` : `${count} ch`
     setTool({ type: 'place-chain-bundle', count })
-    legacyButtonByAriaLabel(`${label} · ${abbreviation}`)?.click()
+    runCommand(() => activeCommands.selectChainBundle(count))
   }
   const addGuide = (type: Guide['type']) => {
-    if (onAddGuide) onAddGuide(type)
-    else legacyGuideButtonByType(type)?.click()
-    queueMicrotask(() => setTool({ type: 'select' }))
+    activeCommands.addGuide(type)
+    setTool({ type: 'select' })
+    syncToolSoon()
   }
   const toggleFavorite = (key: FavoriteElementKey) => {
     setFavorites((current) => current.includes(key)
@@ -256,12 +178,12 @@ export function LeftWorkbenchBridge({ onAddGuide }: LeftWorkbenchBridgeProps = {
             tool={tool}
             onSelect={() => {
               setTool({ type: 'select' })
-              runShortcut('Escape')
+              runCommand(activeCommands.select)
             }}
-            onTogglePan={() => runShortcut('h')}
-            onToggleLasso={() => runShortcut('l')}
+            onTogglePan={() => runCommand(activeCommands.togglePan)}
+            onToggleLasso={() => runCommand(activeCommands.toggleLasso)}
             onAddGuide={addGuide}
-            onToggleRuler={() => runShortcut('r')}
+            onToggleRuler={() => runCommand(activeCommands.toggleRuler)}
           />
           <ElementLibrary
             locale={locale}
