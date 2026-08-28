@@ -252,6 +252,7 @@ export function updateParametricRow(
   binding: ParametricRowBinding,
   idFactory: ParametricIdFactory,
 ) {
+  if (rowElements(elements, rowId).some((element) => element.locked === true)) return elements
   const rebound = elements.map((element) =>
     element.parametricRow?.id === rowId
       ? { ...element, parametricRow: binding }
@@ -357,6 +358,7 @@ export function createPatternIncreaseSequence(
 }
 
 export function deleteParametricRow(elements: StitchElement[], rowId: string) {
+  if (rowElements(elements, rowId).some((element) => element.locked === true)) return elements
   const withoutDeleted = elements.filter((element) => element.parametricRow?.id !== rowId)
   return withoutDeleted.map((element) => {
     const binding = element.parametricRow
