@@ -79,8 +79,9 @@ test('preserves semantic spread in Repeat ghost and Layers thumbnail', async ({ 
   await expect(ghost).toBeVisible()
   expect(numberAttr(await ghost.getAttribute('data-spread'))).toBeCloseTo(spread, 5)
 
-  const layers = page.locator('.layers-section')
-  await layers.locator('summary.layers-summary').click()
+  await page.getByRole('tablist', { name: 'Правая панель' }).getByRole('tab', { name: 'Слои', exact: true }).click()
+  const layers = page.locator('.ui-v2-right-layers-host .layers-section')
+  await expect(layers).toBeVisible()
   const layerGlyph = layers.locator('[data-testid^="layer-glyph-"]').first()
   await expect(layerGlyph).toBeVisible()
   expect(await layerGlyph.getAttribute('transform')).toContain('scale(')
