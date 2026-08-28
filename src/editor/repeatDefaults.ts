@@ -1,5 +1,5 @@
-import { SYMBOL_BY_ID } from '../symbols'
 import type { StitchElement } from '../types'
+import { stitchVisualSize } from './stitchGeometry'
 
 export type RepeatDefaults = {
   deltaX: number
@@ -17,13 +17,11 @@ function radians(value: number) {
 }
 
 function visualExtent(element: StitchElement): Extent {
-  const definition = SYMBOL_BY_ID.get(element.symbolId)
-  const width = definition?.width ?? 30
-  const height = definition?.height ?? 30
+  const size = stitchVisualSize(element)
   const angle = radians(element.rotation)
   return {
-    width: Math.abs(Math.cos(angle)) * width + Math.abs(Math.sin(angle)) * height,
-    height: Math.abs(Math.sin(angle)) * width + Math.abs(Math.cos(angle)) * height,
+    width: Math.abs(Math.cos(angle)) * size.width + Math.abs(Math.sin(angle)) * size.height,
+    height: Math.abs(Math.sin(angle)) * size.width + Math.abs(Math.cos(angle)) * size.height,
   }
 }
 

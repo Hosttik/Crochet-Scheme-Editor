@@ -35,9 +35,9 @@ export type MeasurementRuler = {
   profileId?: string
   /** Defaults to stitches for backwards-compatible schema v19 rulers. */
   mode?: RulerMeasurementMode
-  /** A positive value overrides automatic same-row stitch counting. */
+  /** Legacy compatibility only; v1.23+ chart measurement ignores manual overrides. */
   manualStitchCount?: number
-  /** A positive value overrides automatic semantic row counting. */
+  /** Legacy compatibility only; v1.23+ chart measurement ignores manual overrides. */
   manualRowCount?: number
 }
 
@@ -131,6 +131,15 @@ export type GuideAttachment = {
   normalOffset: number
 }
 
+export type StitchGeometry = {
+  /** Independent horizontal scale of the complete glyph. Defaults to 1. */
+  scaleX?: number
+  /** Independent vertical scale of the complete glyph. Defaults to 1. */
+  scaleY?: number
+  /** Semantic branch spread for increase/shell symbols. Defaults to 1. */
+  spread?: number
+}
+
 export type StitchElement = {
   id: string
   symbolId: string
@@ -140,6 +149,8 @@ export type StitchElement = {
   color?: string
   /** True when the glyph has odd reflection parity. */
   mirrored?: boolean
+  /** Optional user-edited glyph geometry introduced in schema v22. */
+  geometry?: StitchGeometry
   visible?: boolean
   locked?: boolean
   groupId?: string
@@ -269,7 +280,7 @@ export type SnappingSettings = {
 }
 
 export type CrochetProject = {
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22
   metadata: {
     title: string
     updatedAt: string

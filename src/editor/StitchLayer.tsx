@@ -1,9 +1,19 @@
+import { useEffect, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph } from '../symbols'
-import type { AnchorName, StitchElement } from '../types'
+import type { AnchorName, Point, StitchElement, StitchGeometry } from '../types'
 import { isElementLocked, isElementVisible } from './document'
 import { RowConstructionOverlay } from './RowConstructionOverlay'
 import { selectionAabb, type Rect } from './selection'
+import {
+  geometryFromHandleDrag,
+  normalizedStitchGeometry,
+  resolvedStitchGeometry,
+  stitchLocalAnchor,
+  stitchVisualSize,
+  supportsSemanticSpread,
+  type StitchGeometryHandle,
+} from './stitchGeometry'
 import { topologyChangeMarkers, type TopologyChangeMarker } from './topology'
 import './rowShaping.css'
 import './topology.css'
@@ -11,6 +21,31 @@ import './topology.css'
 const SYMBOL_SIZES = Object.fromEntries(
   SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
 )
+
+type GeometryDragState = {
+  pointerId: number
+  elementId: string
+  handle: StitchGeometryHandle
+  startElement: StitchElement
+  startLocal: Point
+  geometry: StitchGeometry
+}
+
+function sameGeometry(left?: StitchGeometry, right?: StitchGeometry) {
+  return (
+    (left?.scaleX ?? 1) === (right?.scaleX ?? 1) &&
+    (left?.scaleY ?? 1) === (right?.scaleY ?? 1) &&
+    (left?.spread ?? 1) === (right?.spread ?? 1)
+  )
+}
+
+function pointerInElementFrame(event: ReactPointerEvent<SVGCircleElement>): Point {
+  const group = event.currentTarget.parentElement as SVGGElement | null
+  const matrix = group?.getScreenCTM()
+  if (!matrix) return { x: 0, y: 0 }
+  const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())
+  return { x: point.x, y: point.y }
+}
 
 export function StitchLayer({
   elements,
@@ -22,6 +57,7 @@ export function StitchLayer({
   selectedTopologyParentId,
   onElementPointerDown,
   onRotatePointerDown,
+  onGeometryCommit,
   onTopologyMarkerPointerDown,
 }: {
   elements: StitchElement[]
@@ -39,11 +75,13 @@ export function StitchLayer({
     event: ReactPointerEvent<SVGCircleElement>,
     element: StitchElement,
   ) => void
+  onGeometryCommit: (elementId: string, geometry?: StitchGeometry) => void
   onTopologyMarkerPointerDown?: (
     event: ReactPointerEvent<SVGGElement>,
     marker: TopologyChangeMarker,
   ) => void
 }) {
+  const [geometryDrag, setGeometryDrag] = useState<GeometryDragState | null>(null)
   const visibleElements = elements.filter(isElementVisible)
   const selectedSet = new Set(selectedIds)
   const changeMarkers = topologyChangeMarkers(elements)
@@ -66,10 +104,70 @@ export function StitchLayer({
         })
       })
     : []
+  const previewElements = geometryDrag
+    ? visibleElements.map((element) => element.id === geometryDrag.elementId
+      ? { ...element, geometry: geometryDrag.geometry }
+      : element)
+    : visibleElements
   const groupBounds =
     selectedIds.length > 1
-      ? selectionAabb(visibleElements, selectedIds, SYMBOL_SIZES)
+      ? selectionAabb(previewElements, selectedIds, SYMBOL_SIZES)
       : null
+
+  useEffect(() => {
+    if (!geometryDrag) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setGeometryDrag(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [geometryDrag])
+
+  const startGeometryDrag = (
+    event: ReactPointerEvent<SVGCircleElement>,
+    element: StitchElement,
+    handle: StitchGeometryHandle,
+  ) => {
+    if (event.button !== 0 || isElementLocked(element) || element.parametricRow) return
+    event.preventDefault()
+    event.stopPropagation()
+    const geometry = normalizedStitchGeometry(element.symbolId, resolvedStitchGeometry(element)) ?? {}
+    setGeometryDrag({
+      pointerId: event.pointerId,
+      elementId: element.id,
+      handle,
+      startElement: { ...element, geometry },
+      startLocal: pointerInElementFrame(event),
+      geometry,
+    })
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const moveGeometryDrag = (event: ReactPointerEvent<SVGCircleElement>) => {
+    const active = geometryDrag
+    if (!active || active.pointerId !== event.pointerId) return
+    event.preventDefault()
+    event.stopPropagation()
+    const currentLocal = pointerInElementFrame(event)
+    const geometry = normalizedStitchGeometry(
+      active.startElement.symbolId,
+      geometryFromHandleDrag(active.startElement, active.handle, active.startLocal, currentLocal),
+    ) ?? {}
+    setGeometryDrag({ ...active, geometry })
+  }
+
+  const finishGeometryDrag = (event: ReactPointerEvent<SVGCircleElement>, cancelled = false) => {
+    const active = geometryDrag
+    if (!active || active.pointerId !== event.pointerId) return
+    event.preventDefault()
+    event.stopPropagation()
+    setGeometryDrag(null)
+    if (cancelled) return
+    const before = normalizedStitchGeometry(active.startElement.symbolId, active.startElement.geometry ?? {})
+    const after = normalizedStitchGeometry(active.startElement.symbolId, active.geometry)
+    if (!sameGeometry(before, after)) onGeometryCommit(active.elementId, after)
+  }
 
   return (
     <>
@@ -89,7 +187,7 @@ export function StitchLayer({
         </g>
       )}
 
-      <RowConstructionOverlay elements={visibleElements} selectedIds={selectedIds} zoom={zoom} />
+      <RowConstructionOverlay elements={previewElements} selectedIds={selectedIds} zoom={zoom} />
 
       {groupBounds && (
         <rect
@@ -104,12 +202,15 @@ export function StitchLayer({
       )}
 
       {visibleElements.map((element) => {
+        const renderElement = geometryDrag?.elementId === element.id
+          ? { ...element, geometry: geometryDrag.geometry }
+          : element
         const locked = isElementLocked(element)
         const selected = selectedSet.has(element.id)
         const primary = selected && element.id === primaryId
         const definition = SYMBOL_BY_ID.get(element.symbolId)
-        const width = definition?.width ?? 30
-        const height = definition?.height ?? 30
+        const { width, height } = stitchVisualSize(renderElement)
+        const geometry = resolvedStitchGeometry(renderElement)
         const hitWidth = Math.max(38, width + 18)
         const hitHeight = Math.max(38, height + 18)
         const handleY = -height / 2 - 30
@@ -117,6 +218,8 @@ export function StitchLayer({
         const canDirectRotate = !element.parametricRow && (
           !element.guideAttachment || element.guideAttachment.orientation === 'keep'
         )
+        const geometryEditable = primary && selectedIds.length === 1 && !locked && !element.parametricRow
+        const glyphScaleX = element.mirrored ? -geometry.scaleX : geometry.scaleX
 
         return (
           <g
@@ -124,6 +227,9 @@ export function StitchLayer({
             transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
             className={`stitch-element ${selected ? 'selected' : ''} ${locked ? 'locked' : ''} ${element.parametricRow ? 'parametric' : ''} ${attached ? 'attached' : ''}`}
             data-guide-attached={attached ? 'true' : undefined}
+            data-scale-x={geometry.scaleX}
+            data-scale-y={geometry.scaleY}
+            data-spread={geometry.spread}
             pointerEvents={locked ? 'none' : undefined}
             onPointerDown={locked ? undefined : (event) => onElementPointerDown(event, element)}
           >
@@ -148,8 +254,12 @@ export function StitchLayer({
               />
             )}
 
-            <g className="symbol-glyph" transform={element.mirrored ? 'scale(-1 1)' : undefined} style={element.color ? { color: element.color } : undefined}>
-              <SymbolGlyph symbolId={element.symbolId} />
+            <g
+              className="symbol-glyph"
+              transform={`scale(${glyphScaleX} ${geometry.scaleY})`}
+              style={element.color ? { color: element.color } : undefined}
+            >
+              <SymbolGlyph symbolId={element.symbolId} spread={geometry.spread} />
             </g>
 
             {attached && (
@@ -163,19 +273,64 @@ export function StitchLayer({
               />
             )}
 
-            {primary && selectedIds.length === 1 && definition && !locked && !element.parametricRow && (
+            {geometryEditable && definition && (
               <>
-                {(['top', 'center', 'bottom'] as AnchorName[]).map((anchor) => (
+                {(['top', 'center', 'bottom'] as AnchorName[]).map((anchor) => {
+                  const position = stitchLocalAnchor(renderElement, anchor)
+                  return (
+                    <circle
+                      key={anchor}
+                      cx={position.x}
+                      cy={position.y}
+                      r={4 / zoom}
+                      className={`anchor-dot ${sourceAnchor === anchor ? 'source-anchor' : ''}`}
+                      vectorEffect="non-scaling-stroke"
+                      pointerEvents="none"
+                    />
+                  )
+                })}
+
+                <circle
+                  cx={width / 2 + 8 / zoom}
+                  cy={height / 2 + 8 / zoom}
+                  r={7 / zoom}
+                  className="stitch-geometry-handle uniform"
+                  data-testid="stitch-resize-uniform"
+                  aria-label="Resize stitch"
+                  vectorEffect="non-scaling-stroke"
+                  onPointerDown={(event) => startGeometryDrag(event, renderElement, 'uniform')}
+                  onPointerMove={moveGeometryDrag}
+                  onPointerUp={finishGeometryDrag}
+                  onPointerCancel={(event) => finishGeometryDrag(event, true)}
+                />
+                <circle
+                  cx="0"
+                  cy={height / 2 + 8 / zoom}
+                  r={6.5 / zoom}
+                  className="stitch-geometry-handle height"
+                  data-testid="stitch-resize-height"
+                  aria-label="Resize stitch height"
+                  vectorEffect="non-scaling-stroke"
+                  onPointerDown={(event) => startGeometryDrag(event, renderElement, 'height')}
+                  onPointerMove={moveGeometryDrag}
+                  onPointerUp={finishGeometryDrag}
+                  onPointerCancel={(event) => finishGeometryDrag(event, true)}
+                />
+                {supportsSemanticSpread(element.symbolId) && (
                   <circle
-                    key={anchor}
-                    cx={definition.anchors[anchor].x}
-                    cy={definition.anchors[anchor].y}
-                    r={4 / zoom}
-                    className={`anchor-dot ${sourceAnchor === anchor ? 'source-anchor' : ''}`}
+                    cx={width / 2 + 8 / zoom}
+                    cy="0"
+                    r={6.5 / zoom}
+                    className="stitch-geometry-handle spread"
+                    data-testid="stitch-spread-handle"
+                    aria-label="Adjust stitch spread"
                     vectorEffect="non-scaling-stroke"
-                    pointerEvents="none"
+                    onPointerDown={(event) => startGeometryDrag(event, renderElement, 'spread')}
+                    onPointerMove={moveGeometryDrag}
+                    onPointerUp={finishGeometryDrag}
+                    onPointerCancel={(event) => finishGeometryDrag(event, true)}
                   />
-                ))}
+                )}
 
                 {canDirectRotate && (
                   <>

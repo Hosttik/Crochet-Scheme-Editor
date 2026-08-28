@@ -96,6 +96,7 @@ import {
   updateParametricRow,
 } from './editor/parametricRows'
 import {
+  elementAabb,
   idsInLasso,
   idsInMarquee,
   normalizeRect,
@@ -105,6 +106,7 @@ import {
   type Rect,
 } from './editor/selection'
 import { solveSnap, type SnapCandidate } from './editor/snapping'
+import { resolvedStitchGeometry } from './editor/stitchGeometry'
 import type { TopologyChangeMarker } from './editor/topology'
 import {
   DEFAULT_LOCALE,
@@ -311,11 +313,9 @@ function serializeSvg(
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480"><text x="320" y="240" text-anchor="middle" font-family="sans-serif" fill="#888">${escapeXml(emptyLabel)}</text></svg>`
   }
 
-  const bounds = elements.map((element) => {
-    const definition = SYMBOL_BY_ID.get(element.symbolId)
-    const half = Math.max(definition?.width ?? 30, definition?.height ?? 30) / 2 + 12
-    return { left: element.x - half, right: element.x + half, top: element.y - half, bottom: element.y + half }
-  })
+  const bounds = elements.map((element) =>
+    elementAabb(element, SYMBOL_SIZES[element.symbolId] ?? { width: 30, height: 30 }, 12),
+  )
   bounds.push(...visibleMarkers.map((marker) => ({
     left: marker.x - 8, right: marker.x + 42, top: marker.y - 14, bottom: marker.y + 14,
   })))
@@ -339,7 +339,11 @@ function serializeSvg(
     ? `<image href="${escapeXml(exportBackground.dataUrl)}" x="${exportBackground.x}" y="${exportBackground.y}" width="${exportBackground.width}" height="${exportBackground.height}" opacity="${exportBackground.opacity}" transform="rotate(${exportBackground.rotation ?? 0} ${exportBackground.x + exportBackground.width / 2} ${exportBackground.y + exportBackground.height / 2})" preserveAspectRatio="none"/>`
     : ''
   const content = elements
-    .map((element) => `<g transform="translate(${element.x} ${element.y}) rotate(${element.rotation})${element.mirrored ? ' scale(-1 1)' : ''}" style="color:${element.color ?? DEFAULT_STITCH_COLOR}">${symbolSvgMarkup(element.symbolId)}</g>`)
+    .map((element) => {
+      const geometry = resolvedStitchGeometry(element)
+      const scaleX = (element.mirrored ? -1 : 1) * geometry.scaleX
+      return `<g transform="translate(${element.x} ${element.y}) rotate(${element.rotation}) scale(${scaleX} ${geometry.scaleY})" style="color:${element.color ?? DEFAULT_STITCH_COLOR}">${symbolSvgMarkup(element.symbolId, geometry.spread)}</g>`
+    })
     .join('')
   const markerContent = visibleMarkers
     .map((marker) => `<g transform="translate(${marker.x} ${marker.y})"><circle r="5" fill="#c2413b"/><text x="10" y="4" font-family="sans-serif" font-size="13" font-weight="700" fill="#b23833">${marker.number}</text></g>`)
@@ -2954,6 +2958,16 @@ const saveProject = () => {
               selectedTopologyParentId={selectedTopologyParentId}
               onElementPointerDown={handleElementPointerDown}
               onRotatePointerDown={handleRotatePointerDown}
+              onGeometryCommit={(elementId, geometry) => {
+                const target = elements.find((element) => element.id === elementId)
+                if (!target || target.parametricRow || isElementLocked(target)) return
+                duplicateSeriesRef.current = null
+                commitElements(elements.map((element) =>
+                  element.id === elementId ? { ...element, geometry } : element,
+                ))
+                setSelectedIds([elementId])
+                setStatus(locale === 'ru' ? 'Размер элемента изменён' : 'Stitch geometry changed')
+              }}
               onTopologyMarkerPointerDown={handleTopologyMarkerPointerDown}
             />
 

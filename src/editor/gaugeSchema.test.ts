@@ -33,7 +33,7 @@ describe('gauge schema v19', () => {
         { id: 'r2', start: { x: 1, y: 2 }, end: { x: 1, y: 30 }, profileId: 'g1', mode: 'rows', manualRowCount: 4 },
       ],
     }, snapping)
-    expect(parsed.schemaVersion).toBe(21)
+    expect(parsed.schemaVersion).toBe(22)
     expect(parsed.gauge?.profiles[0]).toMatchObject({ symbolId: 'single', stitchCount: 20, widthCm: 10 })
     expect(parsed.rulers?.[0]).toMatchObject({ id: 'r1', manualStitchCount: 10 })
     expect(parsed.rulers?.[1]).toMatchObject({ id: 'r2', mode: 'rows', manualRowCount: 4 })
@@ -41,7 +41,7 @@ describe('gauge schema v19', () => {
 
   it('migrates legacy v18 projects to empty gauge/ruler collections', () => {
     const parsed = parseProject(base(18), snapping)
-    expect(parsed.schemaVersion).toBe(21)
+    expect(parsed.schemaVersion).toBe(22)
     expect(parsed.gauge).toEqual({ profiles: [] })
     expect(parsed.rulers).toEqual([])
   })
