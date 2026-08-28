@@ -112,7 +112,15 @@ function toolFromCanvas(current: WorkbenchTool): WorkbenchTool {
   return current
 }
 
-export function LeftWorkbenchBridge() {
+export type LeftWorkbenchBridgeProps = {
+  /**
+   * Typed editor-owned guide command. During migration this is optional so the
+   * shell can keep using the legacy adapter until App.tsx owns the bridge.
+   */
+  onAddGuide?: (type: Guide['type']) => void
+}
+
+export function LeftWorkbenchBridge({ onAddGuide }: LeftWorkbenchBridgeProps = {}) {
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
   const [quickPortalTarget, setQuickPortalTarget] = useState<HTMLElement | null>(null)
   const [locale, setLocale] = useState<Locale>(initialLocale)
@@ -229,7 +237,8 @@ export function LeftWorkbenchBridge() {
     legacyButtonByAriaLabel(`${label} · ${abbreviation}`)?.click()
   }
   const addGuide = (type: Guide['type']) => {
-    legacyGuideButtonByType(type)?.click()
+    if (onAddGuide) onAddGuide(type)
+    else legacyGuideButtonByType(type)?.click()
     queueMicrotask(() => setTool({ type: 'select' }))
   }
   const toggleFavorite = (key: FavoriteElementKey) => {
