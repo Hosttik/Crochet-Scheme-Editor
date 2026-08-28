@@ -13,6 +13,7 @@ import './patternAuthoring.css'
 import './documentOutput.css'
 import './gauge.css'
 import './ui/workbench-v2.css'
+import './ui/workbench-structure.css'
 
 const rootElement = document.getElementById('root')!
 rootElement.style.setProperty('--app-version-label', `"v${packageJson.version}"`)
