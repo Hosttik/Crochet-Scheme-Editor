@@ -45,7 +45,7 @@
   top: 0;
   z-index: 4;
   grid-column: 1;
-  grid-row: 1;
+  grid-row: 1 / span 4;
   align-self: start;
   display: grid;
   gap: 3px;
@@ -103,21 +103,10 @@
   min-width: 0;
 }
 
-.left-sidebar > .project-manager-panel {
-  grid-row: 1;
-}
-
-.left-sidebar > .guide-section {
-  grid-row: 2;
-}
-
-.left-sidebar > .symbols-section {
-  grid-row: 3;
-}
-
-.left-sidebar > .layers-section {
-  grid-row: 4;
-}
+.left-sidebar > .project-manager-panel { grid-row: 1; }
+.left-sidebar > .guide-section { grid-row: 2; }
+.left-sidebar > .symbols-section { grid-row: 3; }
+.left-sidebar > .layers-section { grid-row: 4; }
 
 /* Keep panel content dense enough that the rail does not steal canvas space. */
 .left-sidebar > :not(.compact-section:first-child).panel-section {
