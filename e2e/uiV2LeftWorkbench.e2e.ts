@@ -13,16 +13,11 @@ test('uses the extracted tool rail and crochet element library', async ({ page }
   const library = page.getByRole('region', { name: 'Библиотека элементов' })
   await expect(rail).toBeVisible()
   await expect(library).toBeVisible()
-  await expect(page.locator('.left-sidebar > [data-ui-v2-legacy-tools="true"]')).toBeHidden()
-  await expect(page.locator('.left-sidebar > .legacy-symbols-section')).toBeHidden()
-
-  // The temporary adapter exposes semantic identities internally; the visible
-  // UI no longer depends on translated legacy labels or button ordering.
-  const legacyPan = page.locator('[data-ui-v2-legacy-tools="true"] [data-ui-v2-tool="pan"]')
-  await expect(legacyPan).toHaveCount(1)
-  await expect(page.locator('[data-ui-v2-legacy-library="true"] [data-ui-v2-symbol-id="chain"]')).toHaveCount(1)
-  await expect(page.locator('[data-ui-v2-legacy-library="true"] [data-ui-v2-chain-count="4"]')).toHaveCount(1)
-  await expect(page.locator('.ui-v2-legacy-guide-add [data-ui-v2-guide-type="line"]')).toHaveCount(1)
+  // App now owns the complete typed workbench boundary, so the hidden
+  // compatibility controls are physically gone rather than merely hidden.
+  await expect(page.locator('[data-ui-v2-legacy-tools="true"]')).toHaveCount(0)
+  await expect(page.locator('[data-ui-v2-legacy-library="true"]')).toHaveCount(0)
+  await expect(page.locator('.ui-v2-legacy-guide-add')).toHaveCount(0)
 
   // Existing regression selectors must now resolve to the extracted controls only.
   await expect(page.locator('.left-sidebar .tool-button').filter({ hasText: 'Лассо' })).toHaveCount(1)
@@ -31,12 +26,10 @@ test('uses the extracted tool rail and crochet element library', async ({ page }
   await rail.getByRole('button', { name: /Ладонь \/ перемещение поля/ }).click()
   await expect(page.locator('.editor-canvas')).toHaveClass(/pan-tool/)
   await expect(rail.getByRole('button', { name: /Ладонь \/ перемещение поля/ })).toHaveAttribute('aria-pressed', 'true')
-  await expect(legacyPan).not.toHaveClass(/\btool-button\b/)
   await expect(page.locator('.left-sidebar .tool-button').filter({ hasText: 'Лассо' })).toHaveCount(1)
 
   await rail.getByRole('button', { name: /Выбор \/ перемещение/ }).click()
   await expect(page.locator('.editor-canvas')).not.toHaveClass(/pan-tool/)
-  await expect(legacyPan).not.toHaveClass(/\btool-button\b/)
 
   const chain = library.getByRole('button', { name: 'Воздушная петля · ch', exact: true })
   await chain.click()
@@ -51,9 +44,7 @@ test('keeps semantic element commands working after a locale switch', async ({ p
   const library = page.getByRole('region', { name: 'Element library' })
   await expect(library).toBeVisible()
 
-  // The legacy implementation may re-render translated labels, but the
-  // semantic adapter key remains the stable command target.
-  await expect(page.locator('[data-ui-v2-legacy-library="true"] [data-ui-v2-symbol-id="chain"]')).toHaveCount(1)
+  await expect(page.locator('[data-ui-v2-legacy-library="true"]')).toHaveCount(0)
   const chain = library.getByRole('button', { name: 'Chain · ch', exact: true })
   await chain.click()
   await expect(page.locator('.editor-canvas')).toHaveClass(/placing/)
@@ -70,9 +61,7 @@ test('creates guides only from the ToolRail surface through the real editor hand
   await openEditor(page)
 
   const rail = page.getByRole('navigation', { name: 'Инструменты' })
-  const legacyGuideAdd = page.locator('.left-sidebar .ui-v2-legacy-guide-add')
-  await expect(legacyGuideAdd).toBeHidden()
-  await expect(legacyGuideAdd).toHaveAttribute('aria-hidden', 'true')
+  await expect(page.locator('.left-sidebar .ui-v2-legacy-guide-add')).toHaveCount(0)
   await expect(page.locator('.left-sidebar > .guide-section')).toBeHidden()
 
   const guideTrigger = rail.getByRole('button', { name: 'Направляющие', exact: true })

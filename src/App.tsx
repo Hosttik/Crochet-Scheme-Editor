@@ -36,7 +36,7 @@ import {
 import { DEFAULT_STITCH_COLOR } from './editor/elementColor'
 import { clampBackgroundOpacity, prepareBackgroundImage } from './editor/backgroundImage'
 import { backgroundImageBounds } from './editor/backgroundGeometry'
-import { CHAIN_BUNDLE_COUNTS, chainBundleLayout, createChainBundle, type ChainBundleCount } from './editor/chainBundle'
+import { chainBundleLayout, createChainBundle, type ChainBundleCount } from './editor/chainBundle'
 import { buildTiledPrintHtml, parseLegendPrintBounds, parseSvgViewBox, type PrintSettings } from './editor/printLayout'
 import { usedLegendItems } from './editor/legend'
 import { deleteRowMarkerAndRenumber, isRowMarkerLocked, nextRowMarkerNumber, normalizedRowMarkerNumber } from './editor/rowMarkers'
@@ -111,11 +111,12 @@ import type { TopologyChangeMarker } from './editor/topology'
 import {
   DEFAULT_LOCALE,
   UI,
-  categoryName,
   symbolName,
   type Locale,
 } from './i18n'
 import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph, symbolSvgMarkup } from './symbols'
+import { EditorShell } from './ui/EditorShell'
+import type { WorkbenchCommands, WorkbenchTool } from './ui/workbenchTypes'
 import type {
   AutosaveDelayMs,
   AnchorName,
@@ -151,7 +152,6 @@ const SYMBOL_SIZES = Object.fromEntries(
   SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
 )
 
-type Tool = { type: 'select' } | { type: 'pan' } | { type: 'lasso' } | { type: 'ruler' } | { type: 'place'; symbolId: string } | { type: 'place-chain-bundle'; count: ChainBundleCount } | { type: 'row-marker' }
 type DocumentSnapshot = {
   elements: StitchElement[]
   guides: Guide[]
@@ -452,7 +452,6 @@ function App() {
   const [projectTitle, setProjectTitle] = useState(UI[DEFAULT_LOCALE].projectTitle)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightCollapsed, setRightCollapsed] = useState(false)
-  const [symbolQuery, setSymbolQuery] = useState('')
   const [elements, setElements] = useState<StitchElement[]>([])
   const [guides, setGuides] = useState<Guide[]>([])
   const [rowMarkers, setRowMarkers] = useState<RowMarker[]>([])
@@ -463,7 +462,7 @@ function App() {
   const [legendVisible, setLegendVisible] = useState(true)
   const [autosaveDelayMs, setAutosaveDelayMs] = useState<AutosaveDelayMs>(DEFAULT_AUTOSAVE_DELAY_MS)
   const [history, setHistory] = useState<HistoryState>(emptyHistory<DocumentSnapshot>())
-  const [tool, setTool] = useState<Tool>({ type: 'select' })
+  const [tool, setTool] = useState<WorkbenchTool>({ type: 'select' })
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectedGuideId, setSelectedGuideId] = useState<string | null>(null)
   const [selectedRowMarkerId, setSelectedRowMarkerId] = useState<string | null>(null)
@@ -637,28 +636,6 @@ function App() {
   )
   const outputBounds = useMemo(() => parseSvgViewBox(outputSvg), [outputSvg])
   const outputLegendBounds = useMemo(() => parseLegendPrintBounds(outputSvg), [outputSvg])
-  const groupedSymbols = useMemo(() => {
-    const groups = new Map<string, typeof SYMBOLS>()
-    for (const symbol of SYMBOLS) {
-      groups.set(symbol.category, [...(groups.get(symbol.category) ?? []), symbol])
-    }
-    return [...groups.entries()]
-  }, [])
-  const normalizedSymbolQuery = symbolQuery.trim().toLocaleLowerCase(locale === 'ru' ? 'ru-RU' : 'en-US')
-  const filteredChainBundleCounts = useMemo(() => CHAIN_BUNDLE_COUNTS.filter((count) => {
-    if (!normalizedSymbolQuery) return true
-    const label = locale === 'ru' ? `${count} воздушные петли ${count} вп` : `${count} chains ${count} ch`
-    return label.toLocaleLowerCase(locale === 'ru' ? 'ru-RU' : 'en-US').includes(normalizedSymbolQuery)
-  }), [locale, normalizedSymbolQuery])
-  const filteredGroupedSymbols = useMemo(() => groupedSymbols
-    .map(([category, symbols]) => [category, symbols.filter((symbol) => {
-      if (!normalizedSymbolQuery) return true
-      const label = symbolName(symbol.id, symbol.name, locale)
-      const haystack = `${label} ${symbol.abbreviation ?? ''} ${symbol.id} ${categoryName(category, locale)}`
-        .toLocaleLowerCase(locale === 'ru' ? 'ru-RU' : 'en-US')
-      return haystack.includes(normalizedSymbolQuery)
-    })] as const)
-    .filter(([, symbols]) => symbols.length > 0), [groupedSymbols, locale, normalizedSymbolQuery])
   const lockedSelectedCount = useMemo(() => elements.filter(
     (element) => selectedIds.includes(element.id) && isElementLocked(element),
   ).length, [elements, selectedIds])
@@ -2117,7 +2094,7 @@ function App() {
     setStatus(locale === 'ru' ? 'Связь с направляющей снята' : 'Guide attachment removed')
   }
 
-  const addGuide = (type: Guide['type']) => {
+  const addGuide = useCallback((type: Guide['type']) => {
     const rect = svgRef.current?.getBoundingClientRect()
     const center = toDocumentPoint({
       x: (rect?.width ?? 800) / 2,
@@ -2198,7 +2175,86 @@ function App() {
     setTool({ type: 'select' })
     setPreview(null)
     setStatus(`${guideLabel(guide, locale)} ${t.added}`)
-  }
+  }, [clearElementSelection, commitGuides, guides, locale, t.added, toDocumentPoint])
+
+  const selectWorkbenchTool = useCallback(() => {
+    setTool({ type: 'select' })
+    setLasso(null)
+    setPreview(null)
+    setSnapTarget(null)
+    setRulerDraft(null)
+    setRulerDrag(null)
+  }, [])
+
+  const togglePanWorkbenchTool = useCallback(() => {
+    setTool((current) => current.type === 'pan' ? { type: 'select' } : { type: 'pan' })
+    setLasso(null)
+    setPreview(null)
+    setSnapTarget(null)
+    setRulerDraft(null)
+  }, [])
+
+  const toggleLassoWorkbenchTool = useCallback(() => {
+    setTool((current) => current.type === 'lasso' ? { type: 'select' } : { type: 'lasso' })
+    setLasso(null)
+    setPreview(null)
+    setSnapTarget(null)
+    setSelectedGuideId(null)
+    setSelectedRowMarkerId(null)
+    setSelectedRulerId(null)
+  }, [])
+
+  const selectWorkbenchSymbol = useCallback((symbolId: string) => {
+    if (tool.type === 'place' && tool.symbolId === symbolId) {
+      setTool({ type: 'select' })
+      setPreview(null)
+      setSnapTarget(null)
+      return
+    }
+    setTool({ type: 'place', symbolId })
+    clearElementSelection()
+    setSelectedGuideId(null)
+    setSelectedRowMarkerId(null)
+    setSelectedRulerId(null)
+    setRulerDraft(null)
+    setPreview(null)
+    setSnapTarget(null)
+  }, [clearElementSelection, tool])
+
+  const selectWorkbenchChainBundle = useCallback((count: ChainBundleCount) => {
+    if (tool.type === 'place-chain-bundle' && tool.count === count) {
+      setTool({ type: 'select' })
+      setPreview(null)
+      setSnapTarget(null)
+      return
+    }
+    setTool({ type: 'place-chain-bundle', count })
+    clearElementSelection()
+    setSelectedGuideId(null)
+    setSelectedRowMarkerId(null)
+    setSelectedRulerId(null)
+    setRulerDraft(null)
+    setPreview(null)
+    setSnapTarget(null)
+  }, [clearElementSelection, tool])
+
+  const workbenchCommands = useMemo<WorkbenchCommands>(() => ({
+    select: selectWorkbenchTool,
+    togglePan: togglePanWorkbenchTool,
+    toggleLasso: toggleLassoWorkbenchTool,
+    toggleRuler: toggleRulerTool,
+    addGuide,
+    selectSymbol: selectWorkbenchSymbol,
+    selectChainBundle: selectWorkbenchChainBundle,
+  }), [
+    addGuide,
+    selectWorkbenchChainBundle,
+    selectWorkbenchSymbol,
+    selectWorkbenchTool,
+    toggleLassoWorkbenchTool,
+    togglePanWorkbenchTool,
+    toggleRulerTool,
+  ])
 
   const updateSelectedGuide = (updater: (guide: Guide) => Guide) => {
     if (!selectedGuide) return
@@ -2567,7 +2623,8 @@ function App() {
   }
 
   return (
-    <div className={`app-shell ${leftCollapsed ? 'left-collapsed' : ''} ${rightCollapsed ? 'right-collapsed' : ''}`}>
+    <EditorShell locale={locale} workbenchCommands={workbenchCommands} workbenchTool={tool}>
+      <div className={`app-shell ${leftCollapsed ? 'left-collapsed' : ''} ${rightCollapsed ? 'right-collapsed' : ''}`}>
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">C</div>
@@ -2620,57 +2677,6 @@ function App() {
       </header>
 
       <aside className="sidebar left-sidebar">
-        <section className="panel-section compact-section">
-          <div className="section-title-row"><h2>{t.tools}</h2></div>
-          <button
-            className={`tool-button ${tool.type === 'select' ? 'active' : ''}`}
-            onClick={() => {
-              setTool({ type: 'select' })
-              setLasso(null)
-              setPreview(null)
-              setSnapTarget(null)
-            }}
-          >
-            <span>↖</span>{t.selectMove}<kbd>Esc</kbd>
-          </button>
-          <button
-            className={`tool-button ${tool.type === 'pan' ? 'active' : ''}`}
-            aria-label={locale === 'ru' ? 'Ладонь / перемещение поля' : 'Hand / pan canvas'}
-            aria-pressed={tool.type === 'pan'}
-            onClick={() => {
-              setTool((current) => current.type === 'pan' ? { type: 'select' } : { type: 'pan' })
-              setLasso(null)
-              setPreview(null)
-              setSnapTarget(null)
-              setRulerDraft(null)
-            }}
-          >
-            <span>✋</span>{locale === 'ru' ? 'Ладонь' : 'Hand'}<kbd>H</kbd>
-          </button>
-          <button
-            className={`tool-button ${tool.type === 'lasso' ? 'active' : ''}`}
-            aria-label={locale === 'ru' ? 'Лассо' : 'Lasso'}
-            onClick={() => {
-              setTool((current) => current.type === 'lasso' ? { type: 'select' } : { type: 'lasso' })
-              setLasso(null)
-              setPreview(null)
-              setSnapTarget(null)
-              setSelectedGuideId(null)
-              setSelectedRowMarkerId(null)
-            }}
-          >
-            <span>⌁</span>{locale === 'ru' ? 'Лассо' : 'Lasso'}<kbd>L</kbd>
-          </button>
-          <button
-            className={`tool-button ${tool.type === 'ruler' ? 'active' : ''}`}
-            aria-label={locale === 'ru' ? 'Линейка' : 'Ruler'}
-            aria-pressed={tool.type === 'ruler'}
-            onClick={toggleRulerTool}
-          >
-            <span>↔</span>{locale === 'ru' ? 'Линейка' : 'Ruler'}<kbd>R</kbd>
-          </button>
-          <small className="muted-text">{locale === 'ru' ? 'H — постоянная ладонь · Space + drag — временная · средняя кнопка мыши тоже двигает поле' : 'H — persistent hand · Space + drag — temporary · middle mouse also pans'}</small>
-        </section>
 
         <ProjectManagerPanel
           locale={locale}
@@ -2685,14 +2691,6 @@ function App() {
 
         <section className="panel-section guide-section">
           <div className="section-title-row"><h2>{t.guides}</h2><span className="muted-text">{guides.length}</span></div>
-          <div className="guide-add-grid">
-            <button onClick={() => addGuide('arc')}><strong>⌒</strong><span>{t.arc}</span></button>
-            <button onClick={() => addGuide('line')}><strong>／</strong><span>{locale === 'ru' ? 'Линия' : 'Line'}</span></button>
-            <button onClick={() => addGuide('curve')}><strong>∿</strong><span>{locale === 'ru' ? 'Кривая' : 'Curve'}</span></button>
-            <button onClick={() => addGuide('parabola')}><strong>∩</strong><span>{locale === 'ru' ? 'Парабола' : 'Parabola'}</span></button>
-            <button onClick={() => addGuide('grid')}><strong>▦</strong><span>{t.grid}</span></button>
-            <button onClick={() => addGuide('radial-grid')}><strong>◎</strong><span>{t.radial}</span></button>
-          </div>
           {guides.length > 0 && (
             <div className="guide-list">
               {guides.map((guide, index) => (
@@ -2711,98 +2709,6 @@ function App() {
                 </button>
               ))}
             </div>
-          )}
-        </section>
-
-        <section className="panel-section symbols-section">
-          <div className="section-title-row"><h2>{t.stitches}</h2><span className="muted-text">{SYMBOLS.length + CHAIN_BUNDLE_COUNTS.length}</span></div>
-          <input
-            className="symbol-search"
-            data-testid="symbol-search"
-            type="search"
-            value={symbolQuery}
-            placeholder={locale === 'ru' ? 'Поиск: ВП, столбик…' : 'Search: ch, double…'}
-            aria-label={locale === 'ru' ? 'Поиск элементов' : 'Search stitches'}
-            onChange={(event) => setSymbolQuery(event.target.value)}
-          />
-          {filteredChainBundleCounts.length > 0 && (
-            <div className="symbol-group chain-bundle-presets">
-              <h3>{locale === 'ru' ? 'Цепочки' : 'Chain presets'}</h3>
-              <div className="symbol-grid">
-                {filteredChainBundleCounts.map((count) => {
-                  const active = tool.type === 'place-chain-bundle' && tool.count === count
-                  const label = locale === 'ru' ? `${count} воздушные петли` : `${count} chains`
-                  const abbreviation = locale === 'ru' ? `${count} ВП` : `${count} ch`
-                  const title = `${label} · ${abbreviation}`
-                  return (
-                    <button
-                      className={`symbol-button chain-bundle-button ${active ? 'active' : ''}`}
-                      key={`chain-bundle-${count}`}
-                      title={title}
-                      aria-label={title}
-                      onClick={() => {
-                        if (active) {
-                          setTool({ type: 'select' })
-                          setPreview(null)
-                          setSnapTarget(null)
-                          return
-                        }
-                        setTool({ type: 'place-chain-bundle', count })
-                        clearElementSelection()
-                        setSelectedGuideId(null)
-                        setSelectedRowMarkerId(null)
-                      }}
-                    >
-                      <svg viewBox="-48 -20 96 40" aria-hidden="true">
-                        {chainBundleLayout({ x: 0, y: 0 }, count).map((member, index) => (
-                          <g key={index} transform={`translate(${member.x} ${member.y})`} className="symbol-glyph">
-                            <SymbolGlyph symbolId="chain" />
-                          </g>
-                        ))}
-                      </svg>
-                      <span>{abbreviation}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-          {filteredGroupedSymbols.map(([category, symbols]) => (
-            <div className="symbol-group" key={category}>
-              <h3>{categoryName(category, locale)}</h3>
-              <div className="symbol-grid">
-                {symbols.map((symbol) => {
-                  const active = tool.type === 'place' && tool.symbolId === symbol.id
-                  const label = symbolName(symbol.id, symbol.name, locale)
-                  const title = symbol.abbreviation ? `${label} · ${symbol.abbreviation}` : label
-                  return (
-                    <button
-                      className={`symbol-button ${active ? 'active' : ''}`}
-                      key={symbol.id}
-                      title={title}
-                      aria-label={title}
-                      onClick={() => {
-                        if (active) {
-                          setTool({ type: 'select' })
-                          setPreview(null)
-                          setSnapTarget(null)
-                          return
-                        }
-                        setTool({ type: 'place', symbolId: symbol.id })
-                        clearElementSelection()
-                        setSelectedGuideId(null)
-                      }}
-                    >
-                      <svg viewBox="-24 -38 48 76" aria-hidden="true"><g className="symbol-glyph"><SymbolGlyph symbolId={symbol.id} /></g></svg>
-                      <span>{symbol.abbreviation ?? label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
-          {normalizedSymbolQuery && !filteredChainBundleCounts.length && !filteredGroupedSymbols.length && (
-            <p className="empty-state">{locale === 'ru' ? 'Ничего не найдено.' : 'No stitches found.'}</p>
           )}
         </section>
 
@@ -3445,7 +3351,8 @@ function App() {
           </section>
         </details>
       </aside>
-    </div>
+      </div>
+    </EditorShell>
   )
 }
 
