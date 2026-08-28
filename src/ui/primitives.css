@@ -1,0 +1,124 @@
+.ui-icon-button {
+  width: var(--ui-control-compact);
+  height: var(--ui-control-compact);
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-sm);
+  background: transparent;
+  color: var(--ui-text-muted);
+}
+
+.ui-icon-button:hover:not(:disabled) {
+  border-color: var(--ui-border);
+  background: var(--ui-surface-hover);
+  color: var(--ui-text);
+}
+
+.ui-icon-button.is-active,
+.ui-icon-button[aria-pressed='true'] {
+  border-color: #bfd3fb;
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent-hover);
+}
+
+.ui-icon-button > svg {
+  display: block;
+  pointer-events: none;
+}
+
+.ui-tool-button {
+  width: 100%;
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--ui-space-2);
+  padding: 0 var(--ui-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-sm);
+  background: transparent;
+  color: var(--ui-text);
+  text-align: left;
+}
+
+.ui-tool-button:hover:not(:disabled) {
+  background: var(--ui-surface-hover);
+}
+
+.ui-tool-button.is-active,
+.ui-tool-button[aria-pressed='true'] {
+  border-color: #bfd3fb;
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent-hover);
+}
+
+.ui-tool-button__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.ui-panel-header {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-space-2);
+  color: var(--ui-text);
+}
+
+.ui-panel-header > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.ui-panel-header__actions,
+.ui-segmented {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.ui-segmented {
+  padding: 2px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface-subtle);
+}
+
+.ui-segmented > button {
+  min-height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--ui-radius-sm);
+  background: transparent;
+  color: var(--ui-text-muted);
+  font-size: 10px;
+}
+
+.ui-segmented > button:hover:not(:disabled) {
+  background: var(--ui-surface-hover);
+  color: var(--ui-text);
+}
+
+.ui-segmented > button.active,
+.ui-segmented > button[aria-pressed='true'] {
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.ui-divider {
+  width: 1px;
+  height: 20px;
+  flex: 0 0 auto;
+  background: var(--ui-border);
+}
