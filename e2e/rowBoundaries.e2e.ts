@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { createGuideFromToolRail } from './helpers/uiV2Guides'
 
 function patternRow(page: Page, number: number) {
   return page.locator('.pattern-row-card').filter({ hasText: `Ряд ${number}` })
@@ -15,7 +16,7 @@ test('persists counted starting chains, skipped stitches and exact joined closur
   await page.goto('/Crochet-Scheme-Editor/')
   await openPatternRows(page)
 
-  await page.getByRole('button', { name: /Радиальная/ }).click()
+  await createGuideFromToolRail(page, 'Радиальная сетка')
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
   await expect(patternRow(page, 1)).toBeVisible()
   await page.getByRole('button', { name: 'Дополнительно' }).click()
