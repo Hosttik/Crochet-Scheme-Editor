@@ -3,7 +3,7 @@ import { symbolName, type Locale } from '../i18n'
 import { SYMBOLS } from '../symbols'
 import type { Guide } from '../types'
 import { dispatchEditorShortcut } from './legacyCommandBridge'
-import type { WorkbenchCommands } from './workbenchTypes'
+import type { WorkbenchCommands, WorkbenchTool } from './workbenchTypes'
 
 const LEGACY_LIBRARY_SELECTOR = '.left-sidebar > [data-ui-v2-legacy-library="true"]'
 const LEGACY_GUIDE_FALLBACK_ORDER: Guide['type'][] = ['arc', 'line', 'curve', 'parabola', 'grid', 'radial-grid']
@@ -138,6 +138,21 @@ export function prepareLegacyWorkbenchDom(sidebar: HTMLElement) {
     button.classList.add('legacy-symbol-button')
     button.tabIndex = -1
   })
+}
+
+/**
+ * Temporary state reader for the bridge. Behavioral UI components never read
+ * the canvas classes themselves; App-owned state can replace this function
+ * when the bridge is removed.
+ */
+export function readLegacyWorkbenchTool(current: WorkbenchTool): WorkbenchTool {
+  const canvas = document.querySelector('.editor-canvas')
+  if (!canvas) return current
+  if (canvas.classList.contains('pan-tool')) return { type: 'pan' }
+  if (canvas.classList.contains('lassoing')) return { type: 'lasso' }
+  if (canvas.classList.contains('measuring')) return { type: 'ruler' }
+  if (!canvas.classList.contains('placing')) return { type: 'select' }
+  return current
 }
 
 /**
