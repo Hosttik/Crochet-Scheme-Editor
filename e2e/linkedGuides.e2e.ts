@@ -90,7 +90,7 @@ test('keeps a stitch attached to a line through guide edits, autosave and detach
   await expect(restoredAttachment.getByLabel('Ориентация')).toHaveValue('normal')
 
   const jsonDownload = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Сохранить JSON' }).click()
+  await page.getByRole('button', { name: 'Экспорт проекта' }).click()
   const jsonPath = await (await jsonDownload).path()
   expect(jsonPath).not.toBeNull()
   const project = JSON.parse(await readFile(jsonPath!, 'utf8'))
