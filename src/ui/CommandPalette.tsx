@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Locale } from '../i18n'
+import type { ApplicationCommandId, ApplicationCommandRunner } from './applicationCommands'
 import { EditorIcon } from './icons'
 import { runLegacyCommand } from './legacyCommandBridge'
 import './commandPalette.css'
@@ -11,7 +12,7 @@ export function openCommandPalette() {
 }
 
 type PaletteCommand = {
-  id: string
+  id: ApplicationCommandId
   group: string
   label: string
   shortcut?: string
@@ -78,13 +79,21 @@ function initialLocale(): Locale {
   return window.localStorage.getItem(LOCALE_STORAGE_KEY) === 'en' ? 'en' : 'ru'
 }
 
-export function CommandPalette() {
-  const [locale, setLocale] = useState<Locale>(initialLocale)
+export function CommandPalette({
+  runCommand = runLegacyCommand,
+  locale: controlledLocale,
+}: {
+  runCommand?: ApplicationCommandRunner
+  locale?: Locale
+} = {}) {
+  const [legacyLocale, setLegacyLocale] = useState<Locale>(initialLocale)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const previousFocus = useRef<HTMLElement | null>(null)
+  const locale = controlledLocale ?? legacyLocale
+  const localeControlled = controlledLocale !== undefined
 
   const copy = locale === 'ru'
     ? {
@@ -142,9 +151,10 @@ export function CommandPalette() {
       }
     }
     const onLanguageClick = (event: MouseEvent) => {
+      if (localeControlled) return
       const button = (event.target as Element | null)?.closest<HTMLButtonElement>('.language-switch button')
-      if (button?.textContent?.trim() === 'EN') setLocale('en')
-      if (button?.textContent?.trim() === 'RU') setLocale('ru')
+      if (button?.textContent?.trim() === 'EN') setLegacyLocale('en')
+      if (button?.textContent?.trim() === 'RU') setLegacyLocale('ru')
     }
     window.addEventListener(OPEN_COMMAND_PALETTE_EVENT, onOpen)
     window.addEventListener('keydown', onKeyDown)
@@ -154,7 +164,7 @@ export function CommandPalette() {
       window.removeEventListener('keydown', onKeyDown)
       document.removeEventListener('click', onLanguageClick, true)
     }
-  }, [open])
+  }, [localeControlled, open])
 
   useEffect(() => {
     if (activeIndex >= filtered.length) setActiveIndex(Math.max(0, filtered.length - 1))
@@ -163,8 +173,8 @@ export function CommandPalette() {
   if (!open) return null
 
   const run = (command: PaletteCommand) => {
-    const didRun = runLegacyCommand(command.id)
-    if (didRun) close()
+    const didRun = runCommand(command.id)
+    if (didRun !== false) close()
   }
 
   const onInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -208,7 +218,7 @@ export function CommandPalette() {
             }}
             onKeyDown={onInputKeyDown}
           />
-          <kbd>⌘/Ctrl K</kbd>
+          <kbd aria-hidden="true">⌘/Ctrl K</kbd>
         </div>
 
         <div className="command-palette__results" role="listbox" aria-label={copy.dialog}>
@@ -224,7 +234,7 @@ export function CommandPalette() {
             >
               <span className="command-palette__group">{command.group}</span>
               <span className="command-palette__label">{command.label}</span>
-              {command.shortcut ? <kbd>{command.shortcut}</kbd> : null}
+              {command.shortcut ? <kbd aria-hidden="true">{command.shortcut}</kbd> : null}
             </button>
           )) : (
             <p className="command-palette__empty">{copy.empty}</p>
