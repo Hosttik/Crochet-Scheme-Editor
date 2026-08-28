@@ -11,9 +11,9 @@
   padding: 4px;
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius-md);
-  background: rgba(255, 255, 255, .97);
-  box-shadow: var(--ui-shadow-floating);
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, .98);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .12), 0 1px 3px rgba(15, 23, 42, .08);
+  backdrop-filter: blur(12px);
 }
 
 .selection-quick-toolbar.below {
@@ -35,22 +35,18 @@
 }
 
 .selection-quick-toolbar button:hover:not(:disabled) {
-  border-color: var(--ui-border);
+  border-color: transparent;
   background: var(--ui-surface-hover);
   color: var(--ui-text);
 }
 
-.selection-quick-toolbar .selection-quick-copy-action {
-  width: 36px;
-  min-width: 36px;
-  font-size: 10px;
-  letter-spacing: -.04em;
+.selection-quick-toolbar button:focus-visible {
+  position: relative;
+  z-index: 1;
 }
 
-.selection-quick-toolbar .selection-quick-rotate-180 {
-  width: 38px;
-  min-width: 38px;
-  font-size: 9px;
+.selection-quick-toolbar button:disabled {
+  opacity: .35;
 }
 
 .selection-quick-toolbar .selection-quick-danger {
