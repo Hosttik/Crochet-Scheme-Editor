@@ -20,6 +20,12 @@ export type EditorShellProps = {
   workbenchTool?: WorkbenchTool
 }
 
+/**
+ * UI-v2 chrome boundary. The shell already accepts typed App-owned bindings;
+ * omitted props deliberately fall back to the temporary migration adapters.
+ * App.tsx can therefore take ownership command-by-command without another
+ * ToolRail / ElementLibrary structural rewrite.
+ */
 export function EditorShell({
   children,
   locale,
