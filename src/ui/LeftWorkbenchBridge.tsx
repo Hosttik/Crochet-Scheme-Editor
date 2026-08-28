@@ -54,11 +54,17 @@ function sanitizeLegacyLeftControls(sidebar: HTMLElement) {
     })
   }
 
-  const guideButtons = sidebar.querySelectorAll<HTMLButtonElement>(':scope > .guide-section .guide-add-grid > button')
-  guideButtons.forEach((button, index) => {
-    const type = LEGACY_GUIDE_TYPES[index]
-    if (type) button.dataset.uiV2GuideType = type
-  })
+  const legacyGuideAdd = sidebar.querySelector<HTMLElement>(':scope > .guide-section .guide-add-grid')
+  if (legacyGuideAdd) {
+    legacyGuideAdd.dataset.uiV2LegacyGuideAdd = 'true'
+    legacyGuideAdd.classList.add('ui-v2-legacy-guide-add')
+    legacyGuideAdd.setAttribute('aria-hidden', 'true')
+    legacyGuideAdd.querySelectorAll<HTMLButtonElement>('button').forEach((button, index) => {
+      const type = LEGACY_GUIDE_TYPES[index]
+      if (type) button.dataset.uiV2GuideType = type
+      button.tabIndex = -1
+    })
+  }
 
   const legacyLibrary = sidebar.querySelector<HTMLElement>(
     ':scope > [data-ui-v2-legacy-library="true"], :scope > .symbols-section:not(.element-library)',
