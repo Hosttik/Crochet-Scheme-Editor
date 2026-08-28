@@ -14,7 +14,11 @@ test('uses the extracted tool rail and crochet element library', async ({ page }
   await expect(rail).toBeVisible()
   await expect(library).toBeVisible()
   await expect(page.locator('.left-sidebar > .compact-section:first-child')).toBeHidden()
-  await expect(page.locator('.left-sidebar > .symbols-section')).toBeHidden()
+  await expect(page.locator('.left-sidebar > .legacy-symbols-section')).toBeHidden()
+
+  // Visible compatibility selectors must resolve to the extracted controls only.
+  await expect(page.locator('.left-sidebar .tool-button').filter({ hasText: 'Лассо' })).toHaveCount(1)
+  await expect(page.locator('.symbols-section .symbol-button[aria-label="Воздушная петля · ch"]')).toHaveCount(1)
 
   await rail.getByRole('button', { name: /Ладонь \/ перемещение поля/ }).click()
   await expect(page.locator('.editor-canvas')).toHaveClass(/pan-tool/)
