@@ -26,7 +26,7 @@ test('keeps the full desktop workbench usable at 1440px', async ({ page }) => {
   })
   await openEditor(page)
 
-  await expect(page.locator('.ui-v2-favorites-bridge-host')).toBeVisible()
+  await expect(page.locator('.ui-v2-favorites-host')).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Инструменты' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Библиотека элементов' })).toBeVisible()
   await expect(page.getByRole('tablist', { name: 'Правая панель' })).toBeVisible()
@@ -48,7 +48,7 @@ test('preserves canvas and primary chrome at the 900px narrow-desktop gate', asy
   })
   await openEditor(page)
 
-  await expect(page.locator('.ui-v2-favorites-bridge-host')).toBeHidden()
+  await expect(page.locator('.ui-v2-favorites-host')).toBeHidden()
   await expect(page.locator('.brand strong')).toContainText('Редактор схем вязания')
   await expect(page.getByRole('navigation', { name: 'Меню приложения' })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Инструменты' })).toBeVisible()

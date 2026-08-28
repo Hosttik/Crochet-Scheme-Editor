@@ -116,7 +116,10 @@ import {
 } from './i18n'
 import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph, symbolSvgMarkup } from './symbols'
 import { EditorShell } from './ui/EditorShell'
-import type { WorkbenchCommands, WorkbenchTool } from './ui/workbenchTypes'
+import { FavoriteQuickBar } from './ui/FavoriteQuickBar'
+import { loadFavorites, saveFavorites, type FavoriteElementKey } from './ui/favorites'
+import { LeftWorkbenchSurface } from './ui/LeftWorkbenchSurface'
+import type { WorkbenchTool } from './ui/workbenchTypes'
 import type {
   AutosaveDelayMs,
   AnchorName,
@@ -463,6 +466,8 @@ function App() {
   const [autosaveDelayMs, setAutosaveDelayMs] = useState<AutosaveDelayMs>(DEFAULT_AUTOSAVE_DELAY_MS)
   const [history, setHistory] = useState<HistoryState>(emptyHistory<DocumentSnapshot>())
   const [tool, setTool] = useState<WorkbenchTool>({ type: 'select' })
+  const [workbenchQuery, setWorkbenchQuery] = useState('')
+  const [favorites, setFavorites] = useState<FavoriteElementKey[]>(loadFavorites)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectedGuideId, setSelectedGuideId] = useState<string | null>(null)
   const [selectedRowMarkerId, setSelectedRowMarkerId] = useState<string | null>(null)
@@ -489,6 +494,8 @@ function App() {
     document.documentElement.lang = locale
     if (hydrated) setStatus(UI[locale].ready)
   }, [hydrated, locale])
+
+  useEffect(() => saveFavorites(favorites), [favorites])
 
   useEffect(() => {
     let cancelled = false
@@ -2238,23 +2245,11 @@ function App() {
     setSnapTarget(null)
   }, [clearElementSelection, tool])
 
-  const workbenchCommands = useMemo<WorkbenchCommands>(() => ({
-    select: selectWorkbenchTool,
-    togglePan: togglePanWorkbenchTool,
-    toggleLasso: toggleLassoWorkbenchTool,
-    toggleRuler: toggleRulerTool,
-    addGuide,
-    selectSymbol: selectWorkbenchSymbol,
-    selectChainBundle: selectWorkbenchChainBundle,
-  }), [
-    addGuide,
-    selectWorkbenchChainBundle,
-    selectWorkbenchSymbol,
-    selectWorkbenchTool,
-    toggleLassoWorkbenchTool,
-    togglePanWorkbenchTool,
-    toggleRulerTool,
-  ])
+  const toggleFavorite = useCallback((key: FavoriteElementKey) => {
+    setFavorites((current) => current.includes(key)
+      ? current.filter((favorite) => favorite !== key)
+      : [...current, key])
+  }, [])
 
   const updateSelectedGuide = (updater: (guide: Guide) => Guide) => {
     if (!selectedGuide) return
@@ -2623,7 +2618,7 @@ function App() {
   }
 
   return (
-    <EditorShell locale={locale} workbenchCommands={workbenchCommands} workbenchTool={tool}>
+    <EditorShell locale={locale}>
       <div className={`app-shell ${leftCollapsed ? 'left-collapsed' : ''} ${rightCollapsed ? 'right-collapsed' : ''}`}>
       <header className="topbar">
         <div className="brand">
@@ -2635,6 +2630,16 @@ function App() {
         </div>
 
         <div className="topbar-actions">
+          <div className="ui-v2-favorites-host">
+            <FavoriteQuickBar
+              locale={locale}
+              tool={tool}
+              favorites={favorites}
+              onSelectSymbol={selectWorkbenchSymbol}
+              onSelectChainBundle={selectWorkbenchChainBundle}
+              onCancelPlacement={selectWorkbenchTool}
+            />
+          </div>
           <span className={`autosave-indicator ${autosaveState}`}>{autosaveLabel}</span>
           <label className="autosave-control">
             <span>{locale === 'ru' ? 'Автосохранение' : 'Autosave'}</span>
@@ -2677,6 +2682,22 @@ function App() {
       </header>
 
       <aside className="sidebar left-sidebar">
+        <LeftWorkbenchSurface
+          locale={locale}
+          tool={tool}
+          query={workbenchQuery}
+          favorites={favorites}
+          onSelect={selectWorkbenchTool}
+          onTogglePan={togglePanWorkbenchTool}
+          onToggleLasso={toggleLassoWorkbenchTool}
+          onAddGuide={addGuide}
+          onToggleRuler={toggleRulerTool}
+          onQueryChange={setWorkbenchQuery}
+          onToggleFavorite={toggleFavorite}
+          onSelectSymbol={selectWorkbenchSymbol}
+          onSelectChainBundle={selectWorkbenchChainBundle}
+          onCancelPlacement={selectWorkbenchTool}
+        />
 
         <ProjectManagerPanel
           locale={locale}

@@ -26,8 +26,8 @@ export type LeftWorkbenchSurfaceProps = {
 /**
  * Pure UI v2 workbench surface. It has no knowledge of portals, legacy DOM,
  * keyboard synthesis or editor internals; all editor behavior arrives through
- * semantic callbacks. Once App owns the workbench layout directly this
- * component can be rendered in place and LeftWorkbenchBridge can disappear.
+ * semantic callbacks from App. It is rendered directly in the left workbench
+ * and does not depend on a portal or compatibility bridge.
  */
 export function LeftWorkbenchSurface({
   locale,

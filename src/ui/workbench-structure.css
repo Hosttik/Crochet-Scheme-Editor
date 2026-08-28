@@ -2,9 +2,8 @@
  * UI v2 structural bridge.
  *
  * The outer shell now owns a real ToolRail and ElementLibrary, portalled into
- * the existing left sidebar while App.tsx still owns editor state. Legacy
- * controls stay mounted (and therefore callable during migration) but their
- * duplicate visual copies are hidden. Layers are temporarily reparented into
+ * the existing left sidebar with App.tsx owning editor state and semantic
+ * workbench commands directly. Layers are temporarily reparented into
  * the right inspector until App.tsx exposes typed panel actions directly.
  */
 
@@ -40,17 +39,6 @@
   z-index: 3;
 }
 
-.ui-v2-left-bridge-host {
-  display: contents;
-}
-
-/* Legacy duplicates remain mounted only as a behavioral compatibility layer. */
-.left-sidebar > [data-ui-v2-legacy-tools="true"],
-.left-sidebar > [data-ui-v2-legacy-library="true"],
-.left-sidebar > .legacy-symbols-section,
-.left-sidebar .ui-v2-legacy-guide-add {
-  display: none !important;
-}
 
 /* The ToolRail is now the sole guide-creation surface. Keep the old guide list
  * only when there is something to manage. The hidden buttons remain callable
@@ -59,12 +47,12 @@
   display: none;
 }
 
-.ui-v2-left-bridge-host > .tool-rail {
+.left-sidebar > .tool-rail {
   grid-column: 1;
   grid-row: 1 / span 3;
 }
 
-.ui-v2-left-bridge-host > .element-library {
+.left-sidebar > .element-library {
   grid-column: 2;
   grid-row: 3;
   min-width: 0;
@@ -92,8 +80,7 @@
 }
 
 /* Keep panel content dense enough that the rail does not steal canvas space. */
-.left-sidebar > .panel-section,
-.ui-v2-left-bridge-host > .panel-section {
+.left-sidebar > .panel-section {
   padding-inline: 10px;
 }
 
