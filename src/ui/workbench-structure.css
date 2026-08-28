@@ -47,8 +47,16 @@
 /* Legacy duplicates remain mounted only as a behavioral compatibility layer. */
 .left-sidebar > [data-ui-v2-legacy-tools="true"],
 .left-sidebar > [data-ui-v2-legacy-library="true"],
-.left-sidebar > .legacy-symbols-section {
+.left-sidebar > .legacy-symbols-section,
+.left-sidebar .ui-v2-legacy-guide-add {
   display: none !important;
+}
+
+/* The ToolRail is now the sole guide-creation surface. Keep the old guide list
+ * only when there is something to manage. The hidden buttons remain callable
+ * by the temporary bridge until typed guide commands are extracted from App. */
+.left-sidebar > .guide-section:not(:has(.guide-list)) {
+  display: none;
 }
 
 .ui-v2-left-bridge-host > .tool-rail {
@@ -72,6 +80,15 @@
   grid-column: 2;
   grid-row: 2;
   min-width: 0;
+  padding-block: 8px;
+}
+
+.left-sidebar > .guide-section .section-title-row {
+  margin-bottom: 5px;
+}
+
+.left-sidebar > .guide-section .guide-list {
+  margin-top: 0;
 }
 
 /* Keep panel content dense enough that the rail does not steal canvas space. */
@@ -82,6 +99,209 @@
 
 .sidebar-toggle.left {
   left: 4px;
+}
+
+/* Selection geometry belongs to the same interaction language as the rest of
+ * UI v2; the legacy green was easy to confuse with success state. */
+.marquee-selection {
+  fill: rgba(52, 120, 246, .07);
+  stroke: var(--ui-accent);
+}
+
+.group-selection-box {
+  fill: rgba(52, 120, 246, .035);
+  stroke: var(--ui-accent);
+}
+
+.stitch-rotation-link {
+  stroke: var(--ui-accent);
+}
+
+.stitch-rotation-handle,
+.stitch-geometry-handle:not(.spread) {
+  fill: #fff;
+  stroke: var(--ui-accent);
+}
+
+/* Right inspector: one compact, predictable property surface. */
+.right-sidebar {
+  background: var(--ui-surface);
+}
+
+.right-sidebar > .right-panel-context {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.right-panel-context > .section-title-row {
+  min-height: 28px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.right-panel-context > .section-title-row h2 {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.right-panel-context .locked-selection-note {
+  margin: 0 0 10px;
+  padding: 8px 9px;
+  border: 1px solid #fed7aa;
+  border-radius: var(--ui-radius-sm);
+  background: #fff7ed;
+  color: #9a4d0a;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.right-panel-context .selection-card,
+.right-panel-context .multi-selection-card,
+.right-panel-context .guide-editor {
+  display: grid;
+  gap: 8px;
+}
+
+.right-panel-context .rotation-controls,
+.right-panel-context .selection-actions,
+.right-panel-context .layer-selection-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.right-panel-context .rotation-controls button,
+.right-panel-context .selection-actions button,
+.right-panel-context .layer-selection-controls button,
+.right-panel-context .guide-editor button:not(.danger-button) {
+  min-height: var(--ui-control-height);
+  padding: 0 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  font-size: 10px;
+}
+
+.right-panel-context .rotation-controls button:hover:not(:disabled),
+.right-panel-context .selection-actions button:hover:not(:disabled),
+.right-panel-context .layer-selection-controls button:hover:not(:disabled),
+.right-panel-context .guide-editor button:hover:not(:disabled) {
+  border-color: var(--ui-border-strong);
+  background: var(--ui-surface-hover);
+}
+
+.right-panel-context .guide-editor-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.right-panel-context .guide-editor-heading strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.right-panel-context .guide-editor-heading span {
+  flex: 0 0 auto;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: var(--ui-surface-subtle);
+  color: var(--ui-text-faint);
+  font-size: 9px;
+}
+
+.right-panel-context .guide-locked-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.right-panel-context .guide-locked-fields:disabled {
+  opacity: .55;
+}
+
+.right-panel-context .number-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.right-panel-context .number-field-grid > button {
+  grid-column: 1 / -1;
+}
+
+.right-panel-context .multi-selection-card > strong {
+  color: var(--ui-text);
+  font-size: 11px;
+}
+
+.right-panel-context .multi-selection-card > small {
+  color: var(--ui-text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.right-panel-context .danger-button {
+  width: 100%;
+}
+
+/* Global inspector groups read as an accordion rather than a stack of old
+ * bordered panels. */
+.right-sidebar > .right-panel-collapsible {
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-surface);
+}
+
+.right-sidebar > .right-panel-collapsible > summary {
+  position: relative;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 30px 0 12px;
+  list-style: none;
+  cursor: pointer;
+  color: var(--ui-text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.right-sidebar > .right-panel-collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+
+.right-sidebar > .right-panel-collapsible > summary::after {
+  content: '';
+  position: absolute;
+  right: 13px;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  transform-origin: center;
+  transition: transform 120ms ease;
+}
+
+.right-sidebar > .right-panel-collapsible[open] > summary {
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-surface-subtle);
+  color: var(--ui-text);
+}
+
+.right-sidebar > .right-panel-collapsible[open] > summary::after {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.right-sidebar > .right-panel-collapsible > .panel-section {
+  padding: 10px 12px 12px;
 }
 
 /* Keep product identity visible at the 900px usability regression width. */
@@ -127,5 +347,9 @@
 
   .left-sidebar::after {
     left: 39px;
+  }
+
+  .right-panel-context .number-field-grid {
+    grid-template-columns: 1fr;
   }
 }
