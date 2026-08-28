@@ -186,7 +186,7 @@
 .right-panel-context .rotation-controls button:hover:not(:disabled),
 .right-panel-context .selection-actions button:hover:not(:disabled),
 .right-panel-context .layer-selection-controls button:hover:not(:disabled),
-.right-panel-context .guide-editor button:hover:not(:disabled) {
+.right-panel-context .guide-editor button:not(.danger-button):hover:not(:disabled) {
   border-color: var(--ui-border-strong);
   background: var(--ui-surface-hover);
 }
