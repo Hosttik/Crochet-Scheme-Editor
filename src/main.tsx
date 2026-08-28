@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import packageJson from '../package.json'
 import App from './App'
+import { EditorShell } from './ui/EditorShell'
 import './ui/design-tokens.css'
 import './ui/primitives.css'
 import './styles.css'
@@ -20,6 +21,8 @@ rootElement.style.setProperty('--app-version-label', `"v${packageJson.version}"`
 
 createRoot(rootElement).render(
   <StrictMode>
-    <App />
+    <EditorShell>
+      <App />
+    </EditorShell>
   </StrictMode>,
 )
