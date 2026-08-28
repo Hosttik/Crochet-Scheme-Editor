@@ -79,6 +79,34 @@ test('creates guides only from the ToolRail surface through the real editor hand
   await expect(guideTrigger).toBeFocused()
 })
 
+test('collapses library categories, persists the choice and reveals matches while searching', async ({ page }) => {
+  await openEditor(page)
+
+  let library = page.getByRole('region', { name: 'Библиотека элементов' })
+  let chains = library.getByRole('button', { name: 'Цепочки', exact: true })
+  const chainPresetName = '2 воздушные петли · 2 ВП'
+  await expect(chains).toHaveAttribute('aria-expanded', 'true')
+  await expect(library.getByRole('button', { name: chainPresetName, exact: true })).toBeVisible()
+
+  await chains.click()
+  await expect(chains).toHaveAttribute('aria-expanded', 'false')
+  await expect(library.getByRole('button', { name: chainPresetName, exact: true })).toHaveCount(0)
+
+  await page.reload()
+  library = page.getByRole('region', { name: 'Библиотека элементов' })
+  chains = library.getByRole('button', { name: 'Цепочки', exact: true })
+  await expect(chains).toHaveAttribute('aria-expanded', 'false')
+
+  const search = library.getByRole('searchbox', { name: 'Поиск элементов' })
+  await search.fill('2 ВП')
+  await expect(chains).toHaveAttribute('aria-expanded', 'true')
+  await expect(library.getByRole('button', { name: chainPresetName, exact: true })).toBeVisible()
+
+  await search.fill('')
+  await expect(chains).toHaveAttribute('aria-expanded', 'false')
+  await expect(library.getByRole('button', { name: chainPresetName, exact: true })).toHaveCount(0)
+})
+
 test('filters the extracted library without mutating document state', async ({ page }) => {
   await openEditor(page)
 
