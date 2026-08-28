@@ -1,12 +1,12 @@
 .ui-v2-right-bridge-host {
-  position: sticky;
-  top: 0;
-  z-index: 6;
-  display: block;
-  background: var(--ui-surface);
+  display: contents;
 }
 
 .ui-v2-right-tabs-host {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  flex: 0 0 auto;
   border-bottom: 1px solid var(--ui-border);
   background: var(--ui-surface);
 }
@@ -55,10 +55,11 @@
 .ui-v2-right-layers-host {
   display: none;
   min-width: 0;
+  flex: 0 0 auto;
   background: var(--ui-surface);
 }
 
-.right-sidebar.ui-v2-tab-layers > :not(.ui-v2-right-bridge-host) {
+.right-sidebar.ui-v2-tab-layers > :not(.ui-v2-right-bridge-host):not(.ui-v2-right-tabs-host):not(.ui-v2-right-layers-host) {
   display: none !important;
 }
 
