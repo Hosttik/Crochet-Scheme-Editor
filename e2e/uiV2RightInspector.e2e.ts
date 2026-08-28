@@ -12,10 +12,16 @@ test('moves Layers to the right inspector and switches Options / Layers tabs', a
   const tabs = page.getByRole('tablist', { name: 'Правая панель' })
   const options = tabs.getByRole('tab', { name: 'Опции', exact: true })
   const layersTab = tabs.getByRole('tab', { name: 'Слои', exact: true })
+  const optionsPanel = page.getByRole('tabpanel', { name: 'Опции', exact: true })
+  const layersPanel = page.getByRole('tabpanel', { name: 'Слои', exact: true })
 
   await expect(tabs).toBeVisible()
   await expect(options).toHaveAttribute('aria-selected', 'true')
+  await expect(options).toHaveAttribute('tabindex', '0')
   await expect(layersTab).toHaveAttribute('aria-selected', 'false')
+  await expect(layersTab).toHaveAttribute('tabindex', '-1')
+  await expect(optionsPanel).toBeVisible()
+  await expect(layersPanel).toBeHidden()
   await expect(page.getByTestId('selection-context-panel')).toBeVisible()
 
   await expect(page.locator('.left-sidebar > .layers-section')).toHaveCount(0)
@@ -23,12 +29,38 @@ test('moves Layers to the right inspector and switches Options / Layers tabs', a
 
   await layersTab.click()
   await expect(layersTab).toHaveAttribute('aria-selected', 'true')
+  await expect(optionsPanel).toBeHidden()
+  await expect(layersPanel).toBeVisible()
   await expect(page.getByTestId('selection-context-panel')).toBeHidden()
   await expect(page.locator('.ui-v2-right-layers-host > .layers-section')).toBeVisible()
 
   await options.click()
   await expect(options).toHaveAttribute('aria-selected', 'true')
+  await expect(optionsPanel).toBeVisible()
   await expect(page.getByTestId('selection-context-panel')).toBeVisible()
+})
+
+test('supports keyboard navigation across right panel tabs', async ({ page }) => {
+  await openEditor(page)
+
+  const tabs = page.getByRole('tablist', { name: 'Правая панель' })
+  const options = tabs.getByRole('tab', { name: 'Опции', exact: true })
+  const layers = tabs.getByRole('tab', { name: 'Слои', exact: true })
+
+  await options.focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(layers).toBeFocused()
+  await expect(layers).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tabpanel', { name: 'Слои', exact: true })).toBeVisible()
+
+  await page.keyboard.press('ArrowLeft')
+  await expect(options).toBeFocused()
+  await expect(options).toHaveAttribute('aria-selected', 'true')
+
+  await page.keyboard.press('End')
+  await expect(layers).toBeFocused()
+  await page.keyboard.press('Home')
+  await expect(options).toBeFocused()
 })
 
 test('keeps real layer selection and visibility handlers after the move', async ({ page }) => {
