@@ -25,6 +25,13 @@ function clickButtonByText(labels: string[]) {
   return true
 }
 
+function clickSelector(selector: string) {
+  const button = document.querySelector<HTMLButtonElement>(selector)
+  if (!button || button.disabled) return false
+  button.click()
+  return true
+}
+
 export function dispatchEditorShortcut(
   key: string,
   options: { ctrlOrMeta?: boolean; shiftKey?: boolean } = {},
@@ -53,10 +60,13 @@ export function openLegacyPanel(id: LegacyPanelId) {
 export function runLegacyCommand(command: string) {
   switch (command) {
     case 'file.new':
-      return document.querySelector<HTMLButtonElement>('.project-actions button:first-child')?.click(), true
-    case 'file.import':
-      document.querySelector<HTMLInputElement>('input[type="file"][accept*=".json"]')?.click()
+      return clickSelector('.project-actions button:first-child')
+    case 'file.import': {
+      const input = document.querySelector<HTMLInputElement>('input[type="file"][accept*=".json"]')
+      if (!input) return false
+      input.click()
       return true
+    }
     case 'file.exportProject':
       return clickButtonByText(['Экспорт проекта', 'Export project'])
     case 'file.exportSvg':
@@ -94,11 +104,9 @@ export function runLegacyCommand(command: string) {
       dispatchEditorShortcut('f', { shiftKey: true })
       return true
     case 'view.toggleLeft':
-      document.querySelector<HTMLButtonElement>('.sidebar-toggle.left')?.click()
-      return true
+      return clickSelector('.sidebar-toggle.left')
     case 'view.toggleRight':
-      document.querySelector<HTMLButtonElement>('.sidebar-toggle.right')?.click()
-      return true
+      return clickSelector('.sidebar-toggle.right')
     case 'settings.snapping':
       return openLegacyPanel('snapping-global-panel')
     case 'settings.gauge':
