@@ -352,4 +352,19 @@
   .right-panel-context .number-field-grid {
     grid-template-columns: 1fr;
   }
+
+  /* File commands already have a complete home in the application menu. At
+   * narrow desktop widths keep Undo/Redo in the command bar and drop the
+   * duplicate export/import actions instead of letting them render offscreen.
+   * The nth-of-type selector is intentionally transitional until App.tsx owns
+   * a dedicated CommandBar component with semantic action groups. */
+  .topbar {
+    gap: 8px;
+    padding-inline: 8px;
+  }
+
+  .topbar-actions > button:nth-of-type(n + 3),
+  .topbar-actions > .toolbar-separator:last-of-type {
+    display: none;
+  }
 }
