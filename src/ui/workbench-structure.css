@@ -1,11 +1,11 @@
 /*
  * UI v2 structural bridge.
  *
- * This layer changes the desktop workbench silhouette without moving editor
- * behavior between React components yet. It keeps the existing handlers and
- * panels alive while introducing the dedicated left tool rail from the target
- * concept. Once App.tsx is decomposed, these bridge selectors can be replaced
- * by explicit EditorShell / ToolRail / ElementLibrary components.
+ * The outer shell now owns a real ToolRail and ElementLibrary, portalled into
+ * the existing left sidebar while App.tsx still owns editor state. Legacy
+ * controls stay mounted (and therefore callable during migration) but their
+ * duplicate visual copies are hidden. This bridge is removed once App.tsx
+ * exposes typed workbench actions directly.
  */
 
 .app-shell {
@@ -40,76 +40,48 @@
   z-index: 3;
 }
 
-.left-sidebar > .compact-section:first-child {
-  position: sticky;
-  top: 0;
-  z-index: 4;
+.ui-v2-left-bridge-host {
+  display: contents;
+}
+
+/* Legacy duplicates remain mounted only as a behavioral compatibility layer. */
+.left-sidebar > .compact-section:first-child,
+.left-sidebar > .symbols-section {
+  display: none !important;
+}
+
+.ui-v2-left-bridge-host > .tool-rail {
   grid-column: 1;
   grid-row: 1 / span 4;
-  align-self: start;
-  display: grid;
-  gap: 3px;
-  padding: 6px 4px;
-  border: 0;
-  background: var(--ui-surface-subtle);
 }
 
-.left-sidebar > .compact-section:first-child .section-title-row,
-.left-sidebar > .compact-section:first-child > .muted-text {
-  display: none;
-}
-
-.left-sidebar > .compact-section:first-child .tool-button {
-  width: 36px;
-  min-height: 36px;
-  grid-template-columns: 1fr;
-  place-items: center;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: var(--ui-radius-sm);
-  background: transparent;
-  font-size: 0;
-}
-
-.left-sidebar > .compact-section:first-child .tool-button > span {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  color: currentColor;
-  font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 16px;
-  line-height: 1;
-}
-
-.left-sidebar > .compact-section:first-child .tool-button > kbd {
-  display: none;
-}
-
-.left-sidebar > .compact-section:first-child .tool-button:hover:not(:disabled) {
-  background: var(--ui-surface-hover);
-}
-
-.left-sidebar > .compact-section:first-child .tool-button.active {
-  border-color: #bfd3fb;
-  background: var(--ui-accent-soft);
-  color: var(--ui-accent-hover);
-}
-
-.left-sidebar > :not(.compact-section:first-child) {
+.ui-v2-left-bridge-host > .element-library {
   grid-column: 2;
+  grid-row: 3;
   min-width: 0;
 }
 
-.left-sidebar > .project-manager-panel { grid-row: 1; }
-.left-sidebar > .guide-section { grid-row: 2; }
-.left-sidebar > .symbols-section { grid-row: 3; }
-.left-sidebar > .layers-section { grid-row: 4; }
+.left-sidebar > .project-manager-panel {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.left-sidebar > .guide-section {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+}
+
+.left-sidebar > .layers-section {
+  grid-column: 2;
+  grid-row: 4;
+  min-width: 0;
+}
 
 /* Keep panel content dense enough that the rail does not steal canvas space. */
-.left-sidebar > :not(.compact-section:first-child).panel-section {
+.left-sidebar > .panel-section,
+.ui-v2-left-bridge-host > .panel-section {
   padding-inline: 10px;
 }
 
@@ -117,11 +89,7 @@
   left: 4px;
 }
 
-/*
- * v1.25 keeps the product identity visible at the 900px regression width.
- * The visual foundation used to hide this text at 1080px, which made the
- * compact command bar look anonymous and broke the existing usability gate.
- */
+/* Keep product identity visible at the 900px usability regression width. */
 @media (min-width: 761px) {
   .brand > div:not(.brand-mark) {
     display: block;
@@ -164,10 +132,5 @@
 
   .left-sidebar::after {
     left: 39px;
-  }
-
-  .left-sidebar > .compact-section:first-child .tool-button {
-    width: 32px;
-    min-height: 32px;
   }
 }
