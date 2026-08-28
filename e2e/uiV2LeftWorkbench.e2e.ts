@@ -33,10 +33,15 @@ test('uses the extracted tool rail and crochet element library', async ({ page }
   await expect(chain).toHaveAttribute('aria-pressed', 'true')
 })
 
-test('creates guides from the tool rail flyout through the real editor handler', async ({ page }) => {
+test('creates guides only from the ToolRail surface through the real editor handler', async ({ page }) => {
   await openEditor(page)
 
   const rail = page.getByRole('navigation', { name: 'Инструменты' })
+  const legacyGuideAdd = page.locator('.left-sidebar .ui-v2-legacy-guide-add')
+  await expect(legacyGuideAdd).toBeHidden()
+  await expect(legacyGuideAdd).toHaveAttribute('aria-hidden', 'true')
+  await expect(page.locator('.left-sidebar > .guide-section')).toBeHidden()
+
   const guideTrigger = rail.getByRole('button', { name: 'Направляющие', exact: true })
   await guideTrigger.click()
 
@@ -47,6 +52,7 @@ test('creates guides from the tool rail flyout through the real editor handler',
   await menu.getByRole('menuitem', { name: 'Линия', exact: true }).click()
   await expect(menu).toHaveCount(0)
   await expect(guideTrigger).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.locator('.left-sidebar > .guide-section')).toBeVisible()
   await expect(page.locator('.left-sidebar > .guide-section .guide-list button')).toHaveCount(1)
   await expect(page.locator('.statusbar')).toContainText('Линия')
 
