@@ -184,6 +184,52 @@ export function GuideRenderer({
     )
   }
 
+  const gridLine = (
+    key: string,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+  ) => (
+    <g key={key}>
+      <line
+        x1={x1}
+        y1={y1}
+        x2={x2}
+        y2={y2}
+        className="guide-hit-area"
+        vectorEffect="non-scaling-stroke"
+      />
+      <line
+        x1={x1}
+        y1={y1}
+        x2={x2}
+        y2={y2}
+        className="guide-stroke"
+        vectorEffect="non-scaling-stroke"
+        pointerEvents="none"
+      />
+    </g>
+  )
+
+  const gridCircle = (key: string, radius: number) => (
+    <g key={key}>
+      <circle
+        r={radius}
+        className="guide-hit-area"
+        fill="none"
+        vectorEffect="non-scaling-stroke"
+      />
+      <circle
+        r={radius}
+        className="guide-stroke"
+        fill="none"
+        vectorEffect="non-scaling-stroke"
+        pointerEvents="none"
+      />
+    </g>
+  )
+
   return (
     <g
       className={`guide-layer guide-${guide.type} ${selected ? 'selected' : ''} ${locked ? 'locked' : ''}`}
@@ -245,31 +291,11 @@ export function GuideRenderer({
           <g transform={`translate(${guide.origin.x} ${guide.origin.y}) rotate(${guide.rotation})`}>
             {Array.from({ length: rows }, (_, row) => {
               const y = (row - (rows - 1) / 2) * guide.spacingY
-              return (
-                <line
-                  key={`row-${row}`}
-                  x1={-halfWidth}
-                  y1={y}
-                  x2={halfWidth}
-                  y2={y}
-                  className="guide-stroke guide-hit-target"
-                  vectorEffect="non-scaling-stroke"
-                />
-              )
+              return gridLine(`row-${row}`, -halfWidth, y, halfWidth, y)
             })}
             {Array.from({ length: columns }, (_, column) => {
               const x = (column - (columns - 1) / 2) * guide.spacingX
-              return (
-                <line
-                  key={`column-${column}`}
-                  x1={x}
-                  y1={-halfHeight}
-                  x2={x}
-                  y2={halfHeight}
-                  className="guide-stroke guide-hit-target"
-                  vectorEffect="non-scaling-stroke"
-                />
-              )
+              return gridLine(`column-${column}`, x, -halfHeight, x, halfHeight)
             })}
           </g>
         )
@@ -277,29 +303,19 @@ export function GuideRenderer({
 
       {guide.type === 'radial-grid' && (
         <g transform={`translate(${guide.center.x} ${guide.center.y})`}>
-          {Array.from({ length: Math.max(1, Math.round(guide.ringCount)) }, (_, index) => (
-            <circle
-              key={`ring-${index}`}
-              r={(index + 1) * guide.ringSpacing}
-              className="guide-stroke guide-hit-target"
-              fill="none"
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
+          {Array.from({ length: Math.max(1, Math.round(guide.ringCount)) }, (_, index) =>
+            gridCircle(`ring-${index}`, (index + 1) * guide.ringSpacing),
+          )}
           {Array.from({ length: Math.max(2, Math.round(guide.sectorCount)) }, (_, sector) => {
             const angle = guide.startAngle + (sector * 360) / Math.max(2, Math.round(guide.sectorCount))
             const radians = (angle * Math.PI) / 180
             const radius = Math.max(1, Math.round(guide.ringCount)) * guide.ringSpacing
-            return (
-              <line
-                key={`sector-${sector}`}
-                x1="0"
-                y1="0"
-                x2={Math.cos(radians) * radius}
-                y2={Math.sin(radians) * radius}
-                className="guide-stroke guide-hit-target"
-                vectorEffect="non-scaling-stroke"
-              />
+            return gridLine(
+              `sector-${sector}`,
+              0,
+              0,
+              Math.cos(radians) * radius,
+              Math.sin(radians) * radius,
             )
           })}
         </g>
