@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Locale } from '../i18n'
+import { RightPanelTabs, type RightPanelTab } from './RightPanelTabs'
 import './rightInspectorBridge.css'
 
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
-
-type InspectorTab = 'options' | 'layers'
 
 function initialLocale(): Locale {
   if (typeof window === 'undefined') return 'ru'
@@ -15,16 +14,18 @@ function initialLocale(): Locale {
 export function RightInspectorBridge() {
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
   const [locale, setLocale] = useState<Locale>(initialLocale)
-  const [activeTab, setActiveTab] = useState<InspectorTab>('options')
+  const [activeTab, setActiveTab] = useState<RightPanelTab>('options')
 
   useEffect(() => {
     let bridgeHost: HTMLElement | null = null
     let tabsHost: HTMLElement | null = null
+    let optionsHost: HTMLElement | null = null
     let layersHost: HTMLElement | null = null
     let layersPanel: HTMLDetailsElement | null = null
-    let originalParent: Node | null = null
-    let originalNextSibling: Node | null = null
-    let originalOpen = false
+    let originalLayersParent: Node | null = null
+    let originalLayersNextSibling: Node | null = null
+    let originalLayersOpen = false
+    let originalRightChildren: Node[] = []
     let mountObserver: MutationObserver | null = null
 
     const install = () => {
@@ -34,10 +35,11 @@ export function RightInspectorBridge() {
       const legacyLayers = document.querySelector<HTMLDetailsElement>('.left-sidebar > .layers-section')
       if (!rightSidebar || !legacyLayers) return false
 
-      originalParent = legacyLayers.parentNode
-      originalNextSibling = legacyLayers.nextSibling
-      originalOpen = legacyLayers.open
+      originalLayersParent = legacyLayers.parentNode
+      originalLayersNextSibling = legacyLayers.nextSibling
+      originalLayersOpen = legacyLayers.open
       layersPanel = legacyLayers
+      originalRightChildren = Array.from(rightSidebar.childNodes)
 
       bridgeHost = document.createElement('div')
       bridgeHost.className = 'ui-v2-right-bridge-host'
@@ -45,16 +47,28 @@ export function RightInspectorBridge() {
 
       tabsHost = document.createElement('div')
       tabsHost.className = 'ui-v2-right-tabs-host'
+
+      optionsHost = document.createElement('div')
+      optionsHost.className = 'ui-v2-right-options-host'
+      optionsHost.id = 'ui-v2-right-options-panel'
+      optionsHost.setAttribute('role', 'tabpanel')
+      optionsHost.setAttribute('aria-labelledby', 'ui-v2-right-tab-options')
+      optionsHost.tabIndex = 0
+
       layersHost = document.createElement('div')
       layersHost.className = 'ui-v2-right-layers-host'
       layersHost.id = 'ui-v2-right-layers-panel'
+      layersHost.setAttribute('role', 'tabpanel')
+      layersHost.setAttribute('aria-labelledby', 'ui-v2-right-tab-layers')
+      layersHost.tabIndex = 0
+      layersHost.hidden = true
 
-      bridgeHost.append(tabsHost, layersHost)
-      rightSidebar.prepend(bridgeHost)
-
+      originalRightChildren.forEach((node) => optionsHost?.append(node))
       legacyLayers.classList.add('ui-v2-moved-layers')
       layersHost.append(legacyLayers)
 
+      bridgeHost.append(tabsHost, optionsHost, layersHost)
+      rightSidebar.append(bridgeHost)
       setPortalTarget(tabsHost)
       return true
     }
@@ -82,15 +96,17 @@ export function RightInspectorBridge() {
       document.removeEventListener('click', onLanguageClick, true)
 
       const rightSidebar = document.querySelector<HTMLElement>('.right-sidebar')
-      rightSidebar?.classList.remove('ui-v2-tab-layers')
+      if (rightSidebar) {
+        originalRightChildren.forEach((node) => rightSidebar.append(node))
+      }
 
-      if (layersPanel && originalParent) {
+      if (layersPanel && originalLayersParent) {
         layersPanel.classList.remove('ui-v2-moved-layers')
-        layersPanel.open = originalOpen
-        const sibling = originalNextSibling && originalNextSibling.parentNode === originalParent
-          ? originalNextSibling
+        layersPanel.open = originalLayersOpen
+        const sibling = originalLayersNextSibling && originalLayersNextSibling.parentNode === originalLayersParent
+          ? originalLayersNextSibling
           : null
-        originalParent.insertBefore(layersPanel, sibling)
+        originalLayersParent.insertBefore(layersPanel, sibling)
       }
 
       bridgeHost?.remove()
@@ -103,39 +119,19 @@ export function RightInspectorBridge() {
     if (!rightSidebar) return
 
     const showingLayers = activeTab === 'layers'
-    rightSidebar.classList.toggle('ui-v2-tab-layers', showingLayers)
-    const layersPanel = rightSidebar.querySelector<HTMLDetailsElement>('.ui-v2-right-layers-host > .layers-section')
+    const optionsHost = rightSidebar.querySelector<HTMLElement>('.ui-v2-right-options-host')
+    const layersHost = rightSidebar.querySelector<HTMLElement>('.ui-v2-right-layers-host')
+    const layersPanel = layersHost?.querySelector<HTMLDetailsElement>('.layers-section') ?? null
+
+    if (optionsHost) optionsHost.hidden = showingLayers
+    if (layersHost) layersHost.hidden = !showingLayers
     if (layersPanel) layersPanel.open = showingLayers
   }, [activeTab, portalTarget])
 
   if (!portalTarget) return null
 
-  const copy = locale === 'ru'
-    ? { label: 'Правая панель', options: 'Опции', layers: 'Слои' }
-    : { label: 'Right panel', options: 'Options', layers: 'Layers' }
-
   return createPortal(
-    <div className="right-panel-tabs" role="tablist" aria-label={copy.label}>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={activeTab === 'options'}
-        className={activeTab === 'options' ? 'is-active' : ''}
-        onClick={() => setActiveTab('options')}
-      >
-        {copy.options}
-      </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={activeTab === 'layers'}
-        aria-controls="ui-v2-right-layers-panel"
-        className={activeTab === 'layers' ? 'is-active' : ''}
-        onClick={() => setActiveTab('layers')}
-      >
-        {copy.layers}
-      </button>
-    </div>,
+    <RightPanelTabs locale={locale} activeTab={activeTab} onChange={setActiveTab} />,
     portalTarget,
   )
 }
