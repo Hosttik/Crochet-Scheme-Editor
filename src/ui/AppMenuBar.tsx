@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Locale } from '../i18n'
+import { openCommandPalette } from './CommandPalette'
 import { runLegacyCommand } from './legacyCommandBridge'
 
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
@@ -52,6 +53,8 @@ const COPY: Record<Locale, {
         { label: 'Легенда и холст', command: 'settings.legend' },
       ],
       help: [
+        { label: 'Поиск по функциям…', command: 'ui.commandPalette', shortcut: 'Ctrl/⌘ K' },
+        { separator: true, label: '' },
         { label: 'Горячие клавиши и управление', command: 'help.controls' },
       ],
     },
@@ -95,6 +98,8 @@ const COPY: Record<Locale, {
         { label: 'Legend & canvas', command: 'settings.legend' },
       ],
       help: [
+        { label: 'Command search…', command: 'ui.commandPalette', shortcut: 'Ctrl/⌘ K' },
+        { separator: true, label: '' },
         { label: 'Shortcuts & controls', command: 'help.controls' },
       ],
     },
@@ -137,7 +142,8 @@ export function AppMenuBar() {
   }, [])
 
   const activate = (command?: string) => {
-    if (command) runLegacyCommand(command)
+    if (command === 'ui.commandPalette') openCommandPalette()
+    else if (command) runLegacyCommand(command)
     setOpenMenu(null)
   }
 
