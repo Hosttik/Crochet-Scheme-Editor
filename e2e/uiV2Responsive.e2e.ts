@@ -34,6 +34,7 @@ test('keeps the full desktop workbench usable at 1440px', async ({ page }) => {
   await expectInsideViewport(page, page.locator('.topbar'))
   await expectInsideViewport(page, page.locator('.canvas-toolbar'))
   await expectInsideViewport(page, page.locator('.right-sidebar'))
+  await expect(page.locator('.topbar .primary-button')).toBeVisible()
 })
 
 test('preserves canvas and primary chrome at the 900px narrow-desktop gate', async ({ page }) => {
@@ -62,7 +63,9 @@ test('preserves canvas and primary chrome at the 900px narrow-desktop gate', asy
   await expectInsideViewport(page, page.locator('.canvas-toolbar'))
   await expectInsideViewport(page, page.locator('.right-sidebar'))
 
-  const exportButton = page.locator('.topbar .primary-button')
-  await expect(exportButton).toBeVisible()
-  await expectInsideViewport(page, exportButton)
+  // Duplicate file actions collapse out of the narrow command bar, but the
+  // canonical application-menu command remains immediately accessible.
+  await expect(page.locator('.topbar .primary-button')).toBeHidden()
+  await page.getByRole('button', { name: 'Файл', exact: true }).click()
+  await expect(page.getByRole('menuitem', { name: 'Экспорт SVG…', exact: true })).toBeVisible()
 })
