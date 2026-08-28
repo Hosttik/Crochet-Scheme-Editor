@@ -1,5 +1,6 @@
 .ui-v2-right-bridge-host {
-  display: contents;
+  display: block;
+  min-width: 0;
 }
 
 .ui-v2-right-tabs-host {
@@ -20,8 +21,12 @@
 
 .right-panel-tabs > button {
   position: relative;
+  display: inline-flex;
   min-width: 0;
   min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 0 10px;
   border: 0;
   border-radius: var(--ui-radius-sm);
@@ -52,19 +57,23 @@
   background: var(--ui-accent);
 }
 
+.ui-v2-right-options-host,
 .ui-v2-right-layers-host {
-  display: none;
   min-width: 0;
-  flex: 0 0 auto;
   background: var(--ui-surface);
 }
 
-.right-sidebar.ui-v2-tab-layers > :not(.ui-v2-right-bridge-host):not(.ui-v2-right-tabs-host):not(.ui-v2-right-layers-host) {
-  display: none !important;
+.ui-v2-right-options-host:focus-visible,
+.ui-v2-right-layers-host:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 0;
+  box-shadow: inset var(--ui-focus-ring);
 }
 
-.right-sidebar.ui-v2-tab-layers .ui-v2-right-layers-host {
-  display: block;
+.ui-v2-right-options-host[hidden],
+.ui-v2-right-layers-host[hidden] {
+  display: none !important;
 }
 
 .ui-v2-right-layers-host > .layers-section {
@@ -92,6 +101,11 @@
 
 @media (max-width: 1080px) {
   .right-panel-tabs {
+    padding-inline: 6px;
+  }
+
+  .right-panel-tabs > button {
+    gap: 4px;
     padding-inline: 6px;
   }
 }
