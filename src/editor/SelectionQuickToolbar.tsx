@@ -38,6 +38,8 @@ const COPY = {
   },
 } as const
 
+const QUICK_TOOLBAR_HALF_WIDTH = 184
+
 export function SelectionQuickToolbar({
   locale,
   elements,
@@ -101,7 +103,7 @@ export function SelectionQuickToolbar({
   return (
     <div
       className={`selection-quick-toolbar ${below ? 'below' : ''}`}
-      style={{ left: `clamp(176px, ${left}px, calc(100% - 176px))`, top }}
+      style={{ left: `clamp(${QUICK_TOOLBAR_HALF_WIDTH}px, ${left}px, calc(100% - ${QUICK_TOOLBAR_HALF_WIDTH}px))`, top }}
       role="toolbar"
       aria-label={locale === 'ru' ? 'Быстрые действия с выделением' : 'Selection quick actions'}
     >
