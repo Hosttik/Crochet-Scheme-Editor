@@ -169,6 +169,28 @@ export function StitchLayer({
     if (!sameGeometry(before, after)) onGeometryCommit(active.elementId, after)
   }
 
+  const geometryHitTarget = (
+    element: StitchElement,
+    handle: StitchGeometryHandle,
+    cx: number,
+    cy: number,
+    testId: string,
+    className: string,
+  ) => (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={13 / zoom}
+      className={`stitch-handle-hit-target ${className}`}
+      data-testid={testId}
+      aria-label={handle === 'uniform' ? 'Resize stitch' : handle === 'height' ? 'Resize stitch height' : 'Adjust stitch spread'}
+      onPointerDown={(event) => startGeometryDrag(event, element, handle)}
+      onPointerMove={moveGeometryDrag}
+      onPointerUp={finishGeometryDrag}
+      onPointerCancel={(event) => finishGeometryDrag(event, true)}
+    />
+  )
+
   return (
     <>
       {topologyEdges.length > 0 && (
@@ -220,6 +242,9 @@ export function StitchLayer({
         )
         const geometryEditable = primary && selectedIds.length === 1 && !locked && !element.parametricRow
         const glyphScaleX = element.mirrored ? -geometry.scaleX : geometry.scaleX
+        const uniformX = width / 2 + 8 / zoom
+        const bottomY = height / 2 + 8 / zoom
+        const spreadX = width / 2 + 8 / zoom
 
         return (
           <g
@@ -230,8 +255,8 @@ export function StitchLayer({
             data-scale-x={geometry.scaleX}
             data-scale-y={geometry.scaleY}
             data-spread={geometry.spread}
-            pointerEvents={locked ? 'none' : undefined}
-            onPointerDown={locked ? undefined : (event) => onElementPointerDown(event, element)}
+            data-locked={locked ? 'true' : undefined}
+            onPointerDown={(event) => onElementPointerDown(event, element)}
           >
             <rect
               x={-hitWidth / 2}
@@ -290,46 +315,38 @@ export function StitchLayer({
                   )
                 })}
 
+                {geometryHitTarget(renderElement, 'uniform', uniformX, bottomY, 'stitch-resize-uniform', 'uniform')}
                 <circle
-                  cx={width / 2 + 8 / zoom}
-                  cy={height / 2 + 8 / zoom}
+                  cx={uniformX}
+                  cy={bottomY}
                   r={7 / zoom}
                   className="stitch-geometry-handle uniform"
-                  data-testid="stitch-resize-uniform"
-                  aria-label="Resize stitch"
                   vectorEffect="non-scaling-stroke"
-                  onPointerDown={(event) => startGeometryDrag(event, renderElement, 'uniform')}
-                  onPointerMove={moveGeometryDrag}
-                  onPointerUp={finishGeometryDrag}
-                  onPointerCancel={(event) => finishGeometryDrag(event, true)}
+                  pointerEvents="none"
                 />
+
+                {geometryHitTarget(renderElement, 'height', 0, bottomY, 'stitch-resize-height', 'height')}
                 <circle
                   cx="0"
-                  cy={height / 2 + 8 / zoom}
+                  cy={bottomY}
                   r={6.5 / zoom}
                   className="stitch-geometry-handle height"
-                  data-testid="stitch-resize-height"
-                  aria-label="Resize stitch height"
                   vectorEffect="non-scaling-stroke"
-                  onPointerDown={(event) => startGeometryDrag(event, renderElement, 'height')}
-                  onPointerMove={moveGeometryDrag}
-                  onPointerUp={finishGeometryDrag}
-                  onPointerCancel={(event) => finishGeometryDrag(event, true)}
+                  pointerEvents="none"
                 />
+
                 {supportsSemanticSpread(element.symbolId) && (
-                  <circle
-                    cx={width / 2 + 8 / zoom}
-                    cy="0"
-                    r={6.5 / zoom}
-                    className="stitch-geometry-handle spread"
-                    data-testid="stitch-spread-handle"
-                    aria-label="Adjust stitch spread"
-                    vectorEffect="non-scaling-stroke"
-                    onPointerDown={(event) => startGeometryDrag(event, renderElement, 'spread')}
-                    onPointerMove={moveGeometryDrag}
-                    onPointerUp={finishGeometryDrag}
-                    onPointerCancel={(event) => finishGeometryDrag(event, true)}
-                  />
+                  <>
+                    {geometryHitTarget(renderElement, 'spread', spreadX, 0, 'stitch-spread-handle', 'spread')}
+                    <circle
+                      cx={spreadX}
+                      cy="0"
+                      r={6.5 / zoom}
+                      className="stitch-geometry-handle spread"
+                      vectorEffect="non-scaling-stroke"
+                      pointerEvents="none"
+                    />
+                  </>
                 )}
 
                 {canDirectRotate && (
@@ -346,10 +363,19 @@ export function StitchLayer({
                     <circle
                       cx="0"
                       cy={handleY}
+                      r={13 / zoom}
+                      className="stitch-handle-hit-target rotation"
+                      data-testid="stitch-rotation-hit-target"
+                      aria-label="Rotate stitch"
+                      onPointerDown={(event) => onRotatePointerDown(event, element)}
+                    />
+                    <circle
+                      cx="0"
+                      cy={handleY}
                       r={7 / zoom}
                       className="stitch-rotation-handle"
                       vectorEffect="non-scaling-stroke"
-                      onPointerDown={(event) => onRotatePointerDown(event, element)}
+                      pointerEvents="none"
                     />
                   </>
                 )}
