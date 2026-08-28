@@ -31,6 +31,7 @@ function transformParts(value: string | null) {
 
 test('moves and applies an explicit vertical or horizontal mirror axis', async ({ page }) => {
   await openEditor(page)
+  await page.getByTestId('snapping-global-panel').locator(':scope > summary').click()
   await page.getByLabel('Разрешить привязку').uncheck()
   await placeAt(page, 'Столбик без накида', 0.42, 0.46)
 
