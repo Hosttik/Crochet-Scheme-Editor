@@ -53,13 +53,17 @@
   stroke-width: 1.5;
   opacity: 1;
 }
+/* Interaction geometry is intentionally wider than the visible guide. Because
+ * it is a transparent non-scaling stroke, guides stay visually thin while
+ * line/curve/grid/radial targets remain comfortable to acquire at any zoom. */
 .guide-hit-area {
   stroke: transparent;
-  stroke-width: 12;
+  stroke-width: 18;
+  stroke-linecap: round;
+  stroke-linejoin: round;
   fill: none;
   pointer-events: stroke;
 }
-.guide-hit-target { pointer-events: stroke; }
 .guide-snap-point {
   fill: #fff;
   stroke: #2e738f;
