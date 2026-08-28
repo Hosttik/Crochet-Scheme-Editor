@@ -1,6 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Locale } from '../i18n'
+import {
+  installLegacyRightInspector,
+  type LegacyRightInspectorMount,
+} from './legacyRightInspectorAdapter'
 import { RightPanelTabs, type RightPanelTab } from './RightPanelTabs'
 import './rightInspectorBridge.css'
 
@@ -11,54 +15,45 @@ function initialLocale(): Locale {
   return window.localStorage.getItem(LOCALE_STORAGE_KEY) === 'en' ? 'en' : 'ru'
 }
 
-export function RightInspectorBridge() {
+export type RightInspectorBridgeProps = {
+  /** App-owned locale can replace the temporary language-switch observer. */
+  locale?: Locale
+  /** App-owned tab state can replace the bridge's temporary local state. */
+  activeTab?: RightPanelTab
+  onTabChange?: (tab: RightPanelTab) => void
+}
+
+/**
+ * Temporary controller around the legacy Layers reparenting adapter. The tab
+ * UI is already semantic React; only the structural Layers move remains in the
+ * adapter and can be deleted once App.tsx renders Layers in the right column.
+ */
+export function RightInspectorBridge({
+  locale: controlledLocale,
+  activeTab: controlledTab,
+  onTabChange,
+}: RightInspectorBridgeProps = {}) {
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
-  const [locale, setLocale] = useState<Locale>(initialLocale)
-  const [activeTab, setActiveTab] = useState<RightPanelTab>('options')
+  const [legacyLocale, setLegacyLocale] = useState<Locale>(initialLocale)
+  const [legacyTab, setLegacyTab] = useState<RightPanelTab>('options')
+  const mountRef = useRef<LegacyRightInspectorMount | null>(null)
+
+  const locale = controlledLocale ?? legacyLocale
+  const activeTab = controlledTab ?? legacyTab
+  const changeTab = (tab: RightPanelTab) => {
+    if (controlledTab === undefined) setLegacyTab(tab)
+    onTabChange?.(tab)
+  }
 
   useEffect(() => {
-    let bridgeHost: HTMLElement | null = null
-    let tabsHost: HTMLElement | null = null
-    let layersHost: HTMLElement | null = null
-    let layersPanel: HTMLDetailsElement | null = null
-    let originalParent: Node | null = null
-    let originalNextSibling: Node | null = null
-    let originalOpen = false
     let mountObserver: MutationObserver | null = null
 
     const install = () => {
-      if (bridgeHost) return true
-
-      const rightSidebar = document.querySelector<HTMLElement>('.right-sidebar')
-      const legacyLayers = document.querySelector<HTMLDetailsElement>('.left-sidebar > .layers-section')
-      if (!rightSidebar || !legacyLayers) return false
-
-      originalParent = legacyLayers.parentNode
-      originalNextSibling = legacyLayers.nextSibling
-      originalOpen = legacyLayers.open
-      layersPanel = legacyLayers
-
-      bridgeHost = document.createElement('div')
-      bridgeHost.className = 'ui-v2-right-bridge-host'
-      bridgeHost.dataset.uiV2Bridge = 'right-inspector'
-
-      tabsHost = document.createElement('div')
-      tabsHost.className = 'ui-v2-right-tabs-host'
-
-      layersHost = document.createElement('div')
-      layersHost.className = 'ui-v2-right-layers-host'
-      layersHost.id = 'ui-v2-right-layers-panel'
-      layersHost.setAttribute('role', 'tabpanel')
-      layersHost.setAttribute('aria-labelledby', 'ui-v2-right-tab-layers')
-      layersHost.tabIndex = 0
-
-      bridgeHost.append(tabsHost, layersHost)
-      rightSidebar.prepend(bridgeHost)
-
-      legacyLayers.classList.add('ui-v2-moved-layers')
-      layersHost.append(legacyLayers)
-
-      setPortalTarget(tabsHost)
+      if (mountRef.current) return true
+      const mount = installLegacyRightInspector()
+      if (!mount) return false
+      mountRef.current = mount
+      setPortalTarget(mount.tabsHost)
       return true
     }
 
@@ -74,47 +69,30 @@ export function RightInspectorBridge() {
     }
 
     const onLanguageClick = (event: MouseEvent) => {
+      if (controlledLocale !== undefined) return
       const button = (event.target as Element | null)?.closest<HTMLButtonElement>('.language-switch button')
-      if (button?.textContent?.trim() === 'EN') setLocale('en')
-      if (button?.textContent?.trim() === 'RU') setLocale('ru')
+      if (button?.textContent?.trim() === 'EN') setLegacyLocale('en')
+      if (button?.textContent?.trim() === 'RU') setLegacyLocale('ru')
     }
     document.addEventListener('click', onLanguageClick, true)
 
     return () => {
       mountObserver?.disconnect()
       document.removeEventListener('click', onLanguageClick, true)
-
-      const rightSidebar = document.querySelector<HTMLElement>('.right-sidebar')
-      rightSidebar?.classList.remove('ui-v2-tab-layers')
-
-      if (layersPanel && originalParent) {
-        layersPanel.classList.remove('ui-v2-moved-layers')
-        layersPanel.open = originalOpen
-        const sibling = originalNextSibling && originalNextSibling.parentNode === originalParent
-          ? originalNextSibling
-          : null
-        originalParent.insertBefore(layersPanel, sibling)
-      }
-
-      bridgeHost?.remove()
+      mountRef.current?.destroy()
+      mountRef.current = null
       setPortalTarget(null)
     }
-  }, [])
+  }, [controlledLocale])
 
   useEffect(() => {
-    const rightSidebar = document.querySelector<HTMLElement>('.right-sidebar')
-    if (!rightSidebar) return
-
-    const showingLayers = activeTab === 'layers'
-    rightSidebar.classList.toggle('ui-v2-tab-layers', showingLayers)
-    const layersPanel = rightSidebar.querySelector<HTMLDetailsElement>('.ui-v2-right-layers-host > .layers-section')
-    if (layersPanel) layersPanel.open = showingLayers
+    mountRef.current?.setActiveTab(activeTab)
   }, [activeTab, portalTarget])
 
   if (!portalTarget) return null
 
   return createPortal(
-    <RightPanelTabs locale={locale} activeTab={activeTab} onChange={setActiveTab} />,
+    <RightPanelTabs locale={locale} activeTab={activeTab} onChange={changeTab} />,
     portalTarget,
   )
 }
