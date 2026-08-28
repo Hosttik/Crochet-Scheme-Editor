@@ -18,19 +18,22 @@
   stroke-dasharray: 3 3;
 }
 
+.stitch-handle-hit-target {
+  fill: transparent;
+  stroke: transparent;
+  pointer-events: all;
+}
+
+.stitch-handle-hit-target.uniform { cursor: nwse-resize; }
+.stitch-handle-hit-target.height { cursor: ns-resize; }
+.stitch-handle-hit-target.spread { cursor: ew-resize; }
+.stitch-handle-hit-target.rotation { cursor: grab; }
+.stitch-handle-hit-target.rotation:active { cursor: grabbing; }
+
 .stitch-rotation-handle {
   fill: #fff;
   stroke: #2f7659;
   stroke-width: 1.5;
-  cursor: grab;
-}
-
-.stitch-rotation-handle:hover {
-  fill: #e6f1eb;
-}
-
-.stitch-rotation-handle:active {
-  cursor: grabbing;
 }
 
 .stitch-geometry-handle {
@@ -39,26 +42,9 @@
   stroke-width: 1.5;
 }
 
-.stitch-geometry-handle.uniform {
-  cursor: nwse-resize;
-}
-
-.stitch-geometry-handle.height {
-  cursor: ns-resize;
-}
-
 .stitch-geometry-handle.spread {
   fill: #fff8df;
   stroke: #9a650d;
-  cursor: ew-resize;
-}
-
-.stitch-geometry-handle:hover {
-  fill: #e6f1eb;
-}
-
-.stitch-geometry-handle.spread:hover {
-  fill: #fff0b9;
 }
 
 .selection-actions {
