@@ -1,6 +1,7 @@
 import { SYMBOL_BY_ID, SymbolGlyph } from '../symbols'
 import { UI, symbolName, type Locale } from '../i18n'
 import type { StitchElement } from '../types'
+import { EditorIcon } from '../ui/icons'
 import { IconButton } from '../ui/primitives'
 import { isElementLocked, isElementVisible } from './document'
 import { resolvedStitchGeometry, stitchVisualSize } from './stitchGeometry'
@@ -123,7 +124,9 @@ export function LayersPanel({
         open={hasSelection || undefined}
       >
         <summary>
-          <span className="layer-cluster-icon">{cluster.kind === 'row' ? '◎' : '◇'}</span>
+          <span className="layer-cluster-icon" aria-hidden="true">
+            <EditorIcon name={cluster.kind === 'row' ? 'row' : 'group'} size={15} />
+          </span>
           <strong>{cluster.label}</strong>
           <small>{cluster.elements.length}</small>
         </summary>
@@ -143,10 +146,10 @@ export function LayersPanel({
 
       <div className="layers-content">
         <div className="layer-order-controls" aria-label={t.layerOrder}>
-          <button title={t.toFront} aria-label={t.toFront} disabled={!canReorder} onClick={onBringToFront}>⇈</button>
-          <button title={t.forward} aria-label={t.forward} disabled={!canReorder} onClick={onBringForward}>↑</button>
-          <button title={t.backward} aria-label={t.backward} disabled={!canReorder} onClick={onSendBackward}>↓</button>
-          <button title={t.toBack} aria-label={t.toBack} disabled={!canReorder} onClick={onSendToBack}>⇊</button>
+          <IconButton icon="bringToFront" label={t.toFront} disabled={!canReorder} onClick={onBringToFront} />
+          <IconButton icon="bringForward" label={t.forward} disabled={!canReorder} onClick={onBringForward} />
+          <IconButton icon="sendBackward" label={t.backward} disabled={!canReorder} onClick={onSendBackward} />
+          <IconButton icon="sendToBack" label={t.toBack} disabled={!canReorder} onClick={onSendToBack} />
         </div>
 
         {!elements.length ? (
