@@ -111,6 +111,24 @@ function initialLocale(): Locale {
   return window.localStorage.getItem(LOCALE_STORAGE_KEY) === 'en' ? 'en' : 'ru'
 }
 
+function ariaKeyShortcuts(command?: string) {
+  switch (command) {
+    case 'edit.undo': return 'Control+Z Meta+Z'
+    case 'edit.redo': return 'Control+Shift+Z Meta+Shift+Z'
+    case 'edit.copy': return 'Control+C Meta+C'
+    case 'edit.paste': return 'Control+V Meta+V'
+    case 'edit.duplicate': return 'Control+D Meta+D'
+    case 'edit.delete': return 'Delete'
+    case 'edit.selectAll': return 'Control+A Meta+A'
+    case 'view.zoom100': return '0'
+    case 'view.fitAll': return 'F'
+    case 'view.fitSelection': return 'Shift+F'
+    case 'settings.snapping': return 'S'
+    case 'ui.commandPalette': return 'Control+K Meta+K'
+    default: return undefined
+  }
+}
+
 export function AppMenuBar() {
   const [locale, setLocale] = useState<Locale>(initialLocale)
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null)
@@ -253,12 +271,13 @@ export function AppMenuBar() {
                       role="menuitem"
                       tabIndex={-1}
                       className="app-menu__item"
+                      aria-keyshortcuts={ariaKeyShortcuts(item.command)}
                       key={`${item.command}-${item.label}`}
                       onClick={() => activate(item.command)}
                       onKeyDown={(event) => onItemKeyDown(event, key, currentIndex, actionableItems.length)}
                     >
                       <span>{item.label}</span>
-                      {item.shortcut ? <kbd>{item.shortcut}</kbd> : null}
+                      {item.shortcut ? <kbd aria-hidden="true">{item.shortcut}</kbd> : null}
                     </button>
                   )
                 })}
