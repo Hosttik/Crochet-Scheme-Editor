@@ -117,6 +117,28 @@
   left: 4px;
 }
 
+/*
+ * v1.25 keeps the product identity visible at the 900px regression width.
+ * The visual foundation used to hide this text at 1080px, which made the
+ * compact command bar look anonymous and broke the existing usability gate.
+ */
+@media (min-width: 761px) {
+  .brand > div:not(.brand-mark) {
+    display: block;
+  }
+
+  .brand {
+    min-width: 120px;
+  }
+
+  .brand strong {
+    max-width: 125px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 @media (max-width: 1280px) {
   .app-shell {
     --left-panel-width: 252px;
