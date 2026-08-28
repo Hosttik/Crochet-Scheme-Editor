@@ -101,15 +101,22 @@ export function LeftWorkbenchBridge({
     let canvasObserver: MutationObserver | null = null
     let mountObserver: MutationObserver | null = null
 
+    const prepareSidebar = (sidebar: HTMLElement) => {
+      // React still owns this duplicate JSX during migration and can restore
+      // its className after any state update. Re-sanitize after interactions
+      // until the duplicate controls are physically removed from App.tsx.
+      prepareLegacyWorkbenchDom(sidebar)
+    }
+
     const syncLegacyTool = () => {
       if (toolControlled) return
       setLegacyTool((current) => readLegacyWorkbenchTool(current))
     }
 
-    const prepareSidebar = (sidebar: HTMLElement) => {
-      // This remains necessary even with typed commands until App.tsx stops
-      // rendering the duplicate legacy controls altogether.
-      prepareLegacyWorkbenchDom(sidebar)
+    const syncLegacySurface = () => {
+      const sidebar = document.querySelector<HTMLElement>('.left-sidebar')
+      if (sidebar) prepareSidebar(sidebar)
+      syncLegacyTool()
     }
 
     const install = () => {
@@ -126,7 +133,7 @@ export function LeftWorkbenchBridge({
           if (!toolControlled) {
             const canvas = document.querySelector('.editor-canvas')
             if (canvas) {
-              canvasObserver = new MutationObserver(() => queueMicrotask(syncLegacyTool))
+              canvasObserver = new MutationObserver(() => queueMicrotask(syncLegacySurface))
               canvasObserver.observe(canvas, { attributes: true, attributeFilter: ['class'] })
             }
             syncLegacyTool()
@@ -151,8 +158,7 @@ export function LeftWorkbenchBridge({
     if (!install()) {
       const root = document.querySelector('.editor-root-v2__workbench') ?? document.body
       mountObserver = new MutationObserver(() => {
-        const sidebar = document.querySelector<HTMLElement>('.left-sidebar')
-        if (sidebar) prepareSidebar(sidebar)
+        syncLegacySurface()
         if (install()) {
           mountObserver?.disconnect()
           mountObserver = null
@@ -167,11 +173,9 @@ export function LeftWorkbenchBridge({
         if (button?.textContent?.trim() === 'EN') setLegacyLocale('en')
         if (button?.textContent?.trim() === 'RU') setLegacyLocale('ru')
       }
-      if (!toolControlled) queueMicrotask(syncLegacyTool)
+      queueMicrotask(syncLegacySurface)
     }
-    const onKeyUp = () => {
-      if (!toolControlled) queueMicrotask(syncLegacyTool)
-    }
+    const onKeyUp = () => queueMicrotask(syncLegacySurface)
     document.addEventListener('click', onClick, true)
     window.addEventListener('keyup', onKeyUp)
 
