@@ -48,6 +48,13 @@ test('edits straight guides by length and angle, shows direction, and reverses b
   const after = await line.locator('.guide-direction-arrow').getAttribute('transform')
   expect(after).not.toBe(before)
 
+  // Fit-to-project must measure the intentionally placed project bounds, not snap the
+  // control stitches back onto the guide we are trying to fit.
+  const snapToggle = page.locator('.canvas-toolbar .snap-toggle')
+  await expect(snapToggle).toHaveAttribute('aria-pressed', 'true')
+  await snapToggle.click()
+  await expect(snapToggle).toHaveAttribute('aria-pressed', 'false')
+
   await placeAt(page, 'Столбик без накида', 0.12, 0.70)
   await placeAt(page, 'Столбик с накидом', 0.88, 0.70)
   await page.keyboard.press('Escape')
