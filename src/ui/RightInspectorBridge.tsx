@@ -53,7 +53,6 @@ export function RightInspectorBridge() {
       rightSidebar.prepend(bridgeHost)
 
       legacyLayers.classList.add('ui-v2-moved-layers')
-      legacyLayers.open = true
       layersHost.append(legacyLayers)
 
       setPortalTarget(tabsHost)
@@ -102,7 +101,11 @@ export function RightInspectorBridge() {
   useEffect(() => {
     const rightSidebar = document.querySelector<HTMLElement>('.right-sidebar')
     if (!rightSidebar) return
-    rightSidebar.classList.toggle('ui-v2-tab-layers', activeTab === 'layers')
+
+    const showingLayers = activeTab === 'layers'
+    rightSidebar.classList.toggle('ui-v2-tab-layers', showingLayers)
+    const layersPanel = rightSidebar.querySelector<HTMLDetailsElement>('.ui-v2-right-layers-host > .layers-section')
+    if (layersPanel) layersPanel.open = showingLayers
   }, [activeTab, portalTarget])
 
   if (!portalTarget) return null
