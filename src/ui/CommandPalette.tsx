@@ -118,7 +118,11 @@ export function CommandPalette() {
   }
 
   const show = () => {
-    previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const stableMenuTrigger = active
+      ?.closest<HTMLElement>('.app-menu')
+      ?.querySelector<HTMLButtonElement>('.app-menu__trigger') ?? null
+    previousFocus.current = stableMenuTrigger ?? active
     setOpen(true)
     setQuery('')
     setActiveIndex(0)
