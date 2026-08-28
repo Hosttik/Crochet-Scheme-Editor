@@ -77,6 +77,8 @@ export function LeftWorkbenchBridge({
 
   const locale = controlledLocale ?? legacyLocale
   const tool = controlledTool ?? legacyTool
+  const toolControlled = controlledTool !== undefined
+  const localeControlled = controlledLocale !== undefined
   const completeCommands = hasCompleteCommands(commands)
   const legacyCommands = useMemo(
     () => completeCommands ? null : createLegacyWorkbenchCommands(),
@@ -100,7 +102,7 @@ export function LeftWorkbenchBridge({
     let mountObserver: MutationObserver | null = null
 
     const syncLegacyTool = () => {
-      if (controlledTool !== undefined) return
+      if (toolControlled) return
       setLegacyTool((current) => readLegacyWorkbenchTool(current))
     }
 
@@ -121,7 +123,7 @@ export function LeftWorkbenchBridge({
           sidebar.prepend(host)
           setPortalTarget(host)
 
-          if (controlledTool === undefined) {
+          if (!toolControlled) {
             const canvas = document.querySelector('.editor-canvas')
             if (canvas) {
               canvasObserver = new MutationObserver(() => queueMicrotask(syncLegacyTool))
@@ -160,15 +162,15 @@ export function LeftWorkbenchBridge({
     }
 
     const onClick = (event: MouseEvent) => {
-      if (controlledLocale === undefined) {
+      if (!localeControlled) {
         const button = (event.target as Element | null)?.closest<HTMLButtonElement>('.language-switch button')
         if (button?.textContent?.trim() === 'EN') setLegacyLocale('en')
         if (button?.textContent?.trim() === 'RU') setLegacyLocale('ru')
       }
-      if (controlledTool === undefined) queueMicrotask(syncLegacyTool)
+      if (!toolControlled) queueMicrotask(syncLegacyTool)
     }
     const onKeyUp = () => {
-      if (controlledTool === undefined) queueMicrotask(syncLegacyTool)
+      if (!toolControlled) queueMicrotask(syncLegacyTool)
     }
     document.addEventListener('click', onClick, true)
     window.addEventListener('keyup', onKeyUp)
@@ -183,17 +185,17 @@ export function LeftWorkbenchBridge({
       setPortalTarget(null)
       setQuickPortalTarget(null)
     }
-  }, [controlledLocale, controlledTool])
+  }, [localeControlled, toolControlled])
 
   if (!portalTarget) return null
 
   const syncToolSoon = () => {
-    if (controlledTool === undefined) {
+    if (!toolControlled) {
       queueMicrotask(() => setLegacyTool((current) => readLegacyWorkbenchTool(current)))
     }
   }
   const setOptimisticTool = (next: WorkbenchTool) => {
-    if (controlledTool === undefined) setLegacyTool(next)
+    if (!toolControlled) setLegacyTool(next)
   }
   const runCommand = (command: () => void) => {
     command()
