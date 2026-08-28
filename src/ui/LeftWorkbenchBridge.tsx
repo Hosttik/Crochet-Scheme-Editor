@@ -9,7 +9,7 @@ import { ToolRail } from './ToolRail'
 import type { WorkbenchTool } from './workbenchTypes'
 
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
-const LEGACY_LIBRARY_SELECTOR = '.left-sidebar > .symbols-section'
+const LEGACY_LIBRARY_SELECTOR = '.left-sidebar > .legacy-symbols-section'
 
 function initialLocale(): Locale {
   if (typeof window === 'undefined') return 'ru'
@@ -21,13 +21,52 @@ function buttonByAriaLabel(label: string) {
     .find((button) => button.getAttribute('aria-label') === label) ?? null
 }
 
+function sanitizeLegacyLeftControls(sidebar: HTMLElement) {
+  const legacyTools = sidebar.querySelector<HTMLElement>(':scope > .compact-section:first-child')
+  legacyTools?.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
+    if (!button.classList.contains('tool-button') && button.classList.contains('legacy-tool-button')) return
+    button.classList.remove('tool-button', 'active')
+    button.classList.add('legacy-tool-button')
+  })
+
+  const rawLibrary = sidebar.querySelector<HTMLElement>(':scope > .symbols-section')
+  const legacyLibrary = rawLibrary ?? sidebar.querySelector<HTMLElement>(':scope > .legacy-symbols-section')
+  if (!legacyLibrary) return
+
+  if (legacyLibrary.classList.contains('symbols-section')) {
+    legacyLibrary.classList.remove('symbols-section')
+    legacyLibrary.classList.add('legacy-symbols-section')
+  }
+
+  const search = legacyLibrary.querySelector<HTMLInputElement>('[data-testid="symbol-search"], .symbol-search')
+  if (search) {
+    search.removeAttribute('data-testid')
+    search.classList.remove('symbol-search')
+    search.classList.add('legacy-symbol-search')
+  }
+
+  legacyLibrary.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
+    const wasSymbol = button.classList.contains('symbol-button') || button.classList.contains('legacy-symbol-button')
+    if (!wasSymbol) return
+
+    const isBundle = button.classList.contains('chain-bundle-button') || button.dataset.legacySymbolKind === 'chain-bundle'
+    const active = button.classList.contains('active')
+    button.dataset.legacySymbolKind = isBundle ? 'chain-bundle' : 'symbol'
+    button.dataset.legacyActive = active ? 'true' : 'false'
+    button.classList.remove('symbol-button', 'chain-bundle-button', 'active')
+    button.classList.add('legacy-symbol-button')
+  })
+}
+
 function readWorkbenchTool(locale: Locale): WorkbenchTool {
   const canvas = document.querySelector('.editor-canvas')
   if (canvas?.classList.contains('pan-tool')) return { type: 'pan' }
   if (canvas?.classList.contains('lassoing')) return { type: 'lasso' }
   if (canvas?.classList.contains('measuring')) return { type: 'ruler' }
 
-  const activeBundle = document.querySelector<HTMLButtonElement>(`${LEGACY_LIBRARY_SELECTOR} .chain-bundle-button.active`)
+  const activeBundle = document.querySelector<HTMLButtonElement>(
+    `${LEGACY_LIBRARY_SELECTOR} [data-legacy-symbol-kind="chain-bundle"][data-legacy-active="true"]`,
+  )
   if (activeBundle) {
     const label = activeBundle.getAttribute('aria-label') ?? ''
     const count = Number(label.match(/^\d+/)?.[0])
@@ -36,7 +75,9 @@ function readWorkbenchTool(locale: Locale): WorkbenchTool {
     }
   }
 
-  const activeSymbol = document.querySelector<HTMLButtonElement>(`${LEGACY_LIBRARY_SELECTOR} .symbol-button.active:not(.chain-bundle-button)`)
+  const activeSymbol = document.querySelector<HTMLButtonElement>(
+    `${LEGACY_LIBRARY_SELECTOR} [data-legacy-symbol-kind="symbol"][data-legacy-active="true"]`,
+  )
   if (activeSymbol) {
     const activeLabel = activeSymbol.getAttribute('aria-label')
     const definition = SYMBOLS.find((symbol) => {
@@ -61,13 +102,18 @@ export function LeftWorkbenchBridge() {
     let stateObserver: MutationObserver | null = null
     let mountObserver: MutationObserver | null = null
 
-    const sync = () => setTool(readWorkbenchTool(locale))
+    const sync = () => {
+      const sidebar = document.querySelector<HTMLElement>('.left-sidebar')
+      if (sidebar) sanitizeLegacyLeftControls(sidebar)
+      setTool(readWorkbenchTool(locale))
+    }
 
     const install = () => {
       if (host) return true
       const sidebar = document.querySelector<HTMLElement>('.left-sidebar')
       if (!sidebar) return false
 
+      sanitizeLegacyLeftControls(sidebar)
       host = document.createElement('div')
       host.className = 'ui-v2-left-bridge-host'
       host.dataset.uiV2Bridge = 'left-workbench'
