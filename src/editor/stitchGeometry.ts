@@ -21,6 +21,10 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
 }
 
+function radians(value: number) {
+  return value * Math.PI / 180
+}
+
 export function supportsSemanticSpread(symbolId: string) {
   return SPREAD_SYMBOL_IDS.has(symbolId)
 }
@@ -58,6 +62,66 @@ export function stitchVisualSize(element: Pick<StitchElement, 'symbolId' | 'geom
   return {
     width: baseWidth * geometry.scaleX * geometry.spread,
     height: baseHeight * geometry.scaleY,
+  }
+}
+
+export type StitchVisualBounds = {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
+export function stitchVisualHalfExtentAlongAngle(
+  element: Pick<StitchElement, 'symbolId' | 'geometry' | 'rotation'>,
+  axisAngle: number,
+) {
+  const size = stitchVisualSize(element)
+  const relative = radians(element.rotation - axisAngle)
+  return Math.abs(Math.cos(relative)) * size.width / 2 + Math.abs(Math.sin(relative)) * size.height / 2
+}
+
+export function stitchVisualAabb(
+  element: Pick<StitchElement, 'symbolId' | 'geometry' | 'rotation' | 'x' | 'y'>,
+): StitchVisualBounds {
+  const halfX = stitchVisualHalfExtentAlongAngle(element, 0)
+  const halfY = stitchVisualHalfExtentAlongAngle(element, 90)
+  return {
+    left: element.x - halfX,
+    top: element.y - halfY,
+    right: element.x + halfX,
+    bottom: element.y + halfY,
+  }
+}
+
+export function stitchVisualProjectionInterval(
+  element: Pick<StitchElement, 'symbolId' | 'geometry' | 'rotation' | 'x' | 'y'>,
+  origin: Point,
+  axisAngle: number,
+) {
+  const angle = radians(axisAngle)
+  const axisX = Math.cos(angle)
+  const axisY = Math.sin(angle)
+  const center = (element.x - origin.x) * axisX + (element.y - origin.y) * axisY
+  const halfExtent = stitchVisualHalfExtentAlongAngle(element, axisAngle)
+  return { min: center - halfExtent, max: center + halfExtent }
+}
+
+export function stitchVisualSelectionBounds(
+  elements: StitchElement[],
+  ids: Iterable<string>,
+  includeParametric = true,
+): StitchVisualBounds | null {
+  const selected = new Set(ids)
+  const bounds = elements
+    .filter((element) => selected.has(element.id) && (includeParametric || !element.parametricRow))
+    .map(stitchVisualAabb)
+  if (!bounds.length) return null
+  return {
+    left: Math.min(...bounds.map((item) => item.left)),
+    top: Math.min(...bounds.map((item) => item.top)),
+    right: Math.max(...bounds.map((item) => item.right)),
+    bottom: Math.max(...bounds.map((item) => item.bottom)),
   }
 }
 
