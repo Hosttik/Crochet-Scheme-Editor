@@ -16,6 +16,13 @@ test('uses the extracted tool rail and crochet element library', async ({ page }
   await expect(page.locator('.left-sidebar > [data-ui-v2-legacy-tools="true"]')).toBeHidden()
   await expect(page.locator('.left-sidebar > .legacy-symbols-section')).toBeHidden()
 
+  // The temporary adapter exposes semantic identities internally; the visible
+  // UI no longer depends on translated legacy labels or button ordering.
+  await expect(page.locator('[data-ui-v2-legacy-tools="true"] [data-ui-v2-tool="pan"]')).toHaveCount(1)
+  await expect(page.locator('[data-ui-v2-legacy-library="true"] [data-ui-v2-symbol-id="chain"]')).toHaveCount(1)
+  await expect(page.locator('[data-ui-v2-legacy-library="true"] [data-ui-v2-chain-count="4"]')).toHaveCount(1)
+  await expect(page.locator('.ui-v2-legacy-guide-add [data-ui-v2-guide-type="line"]')).toHaveCount(1)
+
   // Existing regression selectors must now resolve to the extracted controls only.
   await expect(page.locator('.left-sidebar .tool-button').filter({ hasText: 'Лассо' })).toHaveCount(1)
   await expect(page.locator('.symbols-section .symbol-button[aria-label="Воздушная петля · ch"]')).toHaveCount(1)
@@ -31,6 +38,28 @@ test('uses the extracted tool rail and crochet element library', async ({ page }
   await chain.click()
   await expect(page.locator('.editor-canvas')).toHaveClass(/placing/)
   await expect(chain).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('keeps semantic element commands working after a locale switch', async ({ page }) => {
+  await openEditor(page)
+
+  await page.locator('.language-switch button').filter({ hasText: 'EN' }).click()
+  const library = page.getByRole('region', { name: 'Element library' })
+  await expect(library).toBeVisible()
+
+  // The legacy implementation may re-render translated labels, but the
+  // semantic adapter key remains the stable command target.
+  await expect(page.locator('[data-ui-v2-legacy-library="true"] [data-ui-v2-symbol-id="chain"]')).toHaveCount(1)
+  const chain = library.getByRole('button', { name: 'Chain · ch', exact: true })
+  await chain.click()
+  await expect(page.locator('.editor-canvas')).toHaveClass(/placing/)
+  await expect(chain).toHaveAttribute('aria-pressed', 'true')
+
+  const canvas = page.locator('svg.editor-canvas')
+  const box = await canvas.boundingBox()
+  expect(box).not.toBeNull()
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2)
+  await expect(page.locator('.stitch-element')).toHaveCount(1)
 })
 
 test('creates guides only from the ToolRail surface through the real editor handler', async ({ page }) => {
