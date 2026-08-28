@@ -1,0 +1,162 @@
+/*
+ * UI v2 structural bridge.
+ *
+ * This layer changes the desktop workbench silhouette without moving editor
+ * behavior between React components yet. It keeps the existing handlers and
+ * panels alive while introducing the dedicated left tool rail from the target
+ * concept. Once App.tsx is decomposed, these bridge selectors can be replaced
+ * by explicit EditorShell / ToolRail / ElementLibrary components.
+ */
+
+.app-shell {
+  --left-panel-width: var(--ui-left-panel);
+  --right-panel-width: var(--ui-right-panel);
+  grid-template-columns: var(--left-panel-width) minmax(0, 1fr) var(--right-panel-width);
+}
+
+.app-shell.left-collapsed { --left-panel-width: 0px; }
+.app-shell.right-collapsed { --right-panel-width: 0px; }
+
+.left-sidebar {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--ui-tool-rail) minmax(0, 1fr);
+  grid-auto-flow: row;
+  align-content: start;
+  padding: 0;
+  background:
+    linear-gradient(to right, var(--ui-surface-subtle) 0 var(--ui-tool-rail), var(--ui-surface) var(--ui-tool-rail));
+}
+
+.left-sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--ui-tool-rail) - 1px);
+  width: 1px;
+  background: var(--ui-border);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.left-sidebar > .compact-section:first-child {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  display: grid;
+  gap: 3px;
+  padding: 6px 4px;
+  border: 0;
+  background: var(--ui-surface-subtle);
+}
+
+.left-sidebar > .compact-section:first-child .section-title-row,
+.left-sidebar > .compact-section:first-child > .muted-text {
+  display: none;
+}
+
+.left-sidebar > .compact-section:first-child .tool-button {
+  width: 36px;
+  min-height: 36px;
+  grid-template-columns: 1fr;
+  place-items: center;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-sm);
+  background: transparent;
+  font-size: 0;
+}
+
+.left-sidebar > .compact-section:first-child .tool-button > span {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: currentColor;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.left-sidebar > .compact-section:first-child .tool-button > kbd {
+  display: none;
+}
+
+.left-sidebar > .compact-section:first-child .tool-button:hover:not(:disabled) {
+  background: var(--ui-surface-hover);
+}
+
+.left-sidebar > .compact-section:first-child .tool-button.active {
+  border-color: #bfd3fb;
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent-hover);
+}
+
+.left-sidebar > :not(.compact-section:first-child) {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.left-sidebar > .project-manager-panel {
+  grid-row: 1;
+}
+
+.left-sidebar > .guide-section {
+  grid-row: 2;
+}
+
+.left-sidebar > .symbols-section {
+  grid-row: 3;
+}
+
+.left-sidebar > .layers-section {
+  grid-row: 4;
+}
+
+/* Keep panel content dense enough that the rail does not steal canvas space. */
+.left-sidebar > :not(.compact-section:first-child).panel-section {
+  padding-inline: 10px;
+}
+
+.sidebar-toggle.left {
+  left: 4px;
+}
+
+@media (max-width: 1280px) {
+  .app-shell {
+    --left-panel-width: 252px;
+    --right-panel-width: 300px;
+  }
+
+  .app-shell.left-collapsed { --left-panel-width: 0px; }
+  .app-shell.right-collapsed { --right-panel-width: 0px; }
+}
+
+@media (max-width: 1080px) {
+  .app-shell {
+    --left-panel-width: 228px;
+    --right-panel-width: 280px;
+  }
+
+  .app-shell.left-collapsed { --left-panel-width: 0px; }
+  .app-shell.right-collapsed { --right-panel-width: 0px; }
+
+  .left-sidebar {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .left-sidebar::after {
+    left: 39px;
+  }
+
+  .left-sidebar > .compact-section:first-child .tool-button {
+    width: 32px;
+    min-height: 32px;
+  }
+}
