@@ -4,13 +4,18 @@ import { type ChainBundleCount } from '../editor/chainBundle'
 import { symbolName, type Locale } from '../i18n'
 import { SYMBOLS } from '../symbols'
 import { ElementLibrary } from './ElementLibrary'
+import { FavoriteQuickBar } from './FavoriteQuickBar'
+import {
+  loadFavorites,
+  saveFavorites,
+  type FavoriteElementKey,
+} from './favorites'
 import { dispatchEditorShortcut } from './legacyCommandBridge'
 import { ToolRail } from './ToolRail'
 import type { WorkbenchTool } from './workbenchTypes'
 
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
 const LEGACY_LIBRARY_SELECTOR = '.left-sidebar > [data-ui-v2-legacy-library="true"]'
-const LEGACY_TOOLS_SELECTOR = '.left-sidebar > [data-ui-v2-legacy-tools="true"]'
 
 function initialLocale(): Locale {
   if (typeof window === 'undefined') return 'ru'
@@ -80,12 +85,17 @@ function toolFromCanvas(current: WorkbenchTool): WorkbenchTool {
 
 export function LeftWorkbenchBridge() {
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
+  const [quickPortalTarget, setQuickPortalTarget] = useState<HTMLElement | null>(null)
   const [locale, setLocale] = useState<Locale>(initialLocale)
   const [tool, setTool] = useState<WorkbenchTool>({ type: 'select' })
   const [query, setQuery] = useState('')
+  const [favorites, setFavorites] = useState<FavoriteElementKey[]>(loadFavorites)
+
+  useEffect(() => saveFavorites(favorites), [favorites])
 
   useEffect(() => {
     let host: HTMLElement | null = null
+    let quickHost: HTMLElement | null = null
     let canvasObserver: MutationObserver | null = null
     let mountObserver: MutationObserver | null = null
 
@@ -96,24 +106,37 @@ export function LeftWorkbenchBridge() {
     }
 
     const install = () => {
-      if (host) return true
-      const sidebar = document.querySelector<HTMLElement>('.left-sidebar')
-      if (!sidebar) return false
+      if (!host) {
+        const sidebar = document.querySelector<HTMLElement>('.left-sidebar')
+        if (sidebar) {
+          sanitizeLegacyLeftControls(sidebar)
+          host = document.createElement('div')
+          host.className = 'ui-v2-left-bridge-host'
+          host.dataset.uiV2Bridge = 'left-workbench'
+          sidebar.prepend(host)
+          setPortalTarget(host)
 
-      sanitizeLegacyLeftControls(sidebar)
-      host = document.createElement('div')
-      host.className = 'ui-v2-left-bridge-host'
-      host.dataset.uiV2Bridge = 'left-workbench'
-      sidebar.prepend(host)
-      setPortalTarget(host)
-
-      const canvas = document.querySelector('.editor-canvas')
-      if (canvas) {
-        canvasObserver = new MutationObserver(() => queueMicrotask(sync))
-        canvasObserver.observe(canvas, { attributes: true, attributeFilter: ['class'] })
+          const canvas = document.querySelector('.editor-canvas')
+          if (canvas) {
+            canvasObserver = new MutationObserver(() => queueMicrotask(sync))
+            canvasObserver.observe(canvas, { attributes: true, attributeFilter: ['class'] })
+          }
+          sync()
+        }
       }
-      sync()
-      return true
+
+      if (!quickHost) {
+        const topbarActions = document.querySelector<HTMLElement>('.topbar-actions')
+        if (topbarActions) {
+          quickHost = document.createElement('div')
+          quickHost.className = 'ui-v2-favorites-bridge-host'
+          quickHost.dataset.uiV2Bridge = 'favorite-quick-bar'
+          topbarActions.prepend(quickHost)
+          setQuickPortalTarget(quickHost)
+        }
+      }
+
+      return Boolean(host && quickHost)
     }
 
     if (!install()) {
@@ -143,7 +166,9 @@ export function LeftWorkbenchBridge() {
       document.removeEventListener('click', onClick, true)
       window.removeEventListener('keyup', onKeyUp)
       host?.remove()
+      quickHost?.remove()
       setPortalTarget(null)
+      setQuickPortalTarget(null)
     }
   }, [])
 
@@ -174,30 +199,52 @@ export function LeftWorkbenchBridge() {
     setTool({ type: 'place-chain-bundle', count })
     legacyButtonByAriaLabel(`${label} · ${abbreviation}`)?.click()
   }
+  const toggleFavorite = (key: FavoriteElementKey) => {
+    setFavorites((current) => current.includes(key)
+      ? current.filter((favorite) => favorite !== key)
+      : [...current, key])
+  }
 
-  return createPortal(
+  return (
     <>
-      <ToolRail
-        locale={locale}
-        tool={tool}
-        onSelect={() => {
-          setTool({ type: 'select' })
-          runShortcut('Escape')
-        }}
-        onTogglePan={() => runShortcut('h')}
-        onToggleLasso={() => runShortcut('l')}
-        onToggleRuler={() => runShortcut('r')}
-      />
-      <ElementLibrary
-        locale={locale}
-        tool={tool}
-        query={query}
-        onQueryChange={setQuery}
-        onSelectSymbol={selectSymbol}
-        onSelectChainBundle={selectChainBundle}
-        onCancelPlacement={cancelPlacement}
-      />
-    </>,
-    portalTarget,
+      {createPortal(
+        <>
+          <ToolRail
+            locale={locale}
+            tool={tool}
+            onSelect={() => {
+              setTool({ type: 'select' })
+              runShortcut('Escape')
+            }}
+            onTogglePan={() => runShortcut('h')}
+            onToggleLasso={() => runShortcut('l')}
+            onToggleRuler={() => runShortcut('r')}
+          />
+          <ElementLibrary
+            locale={locale}
+            tool={tool}
+            query={query}
+            favorites={favorites}
+            onQueryChange={setQuery}
+            onToggleFavorite={toggleFavorite}
+            onSelectSymbol={selectSymbol}
+            onSelectChainBundle={selectChainBundle}
+            onCancelPlacement={cancelPlacement}
+          />
+        </>,
+        portalTarget,
+      )}
+      {quickPortalTarget && createPortal(
+        <FavoriteQuickBar
+          locale={locale}
+          tool={tool}
+          favorites={favorites}
+          onSelectSymbol={selectSymbol}
+          onSelectChainBundle={selectChainBundle}
+          onCancelPlacement={cancelPlacement}
+        />,
+        quickPortalTarget,
+      )}
+    </>
   )
 }
