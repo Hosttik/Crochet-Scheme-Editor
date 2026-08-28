@@ -196,6 +196,8 @@ Primary persistent tools:
 - Ruler;
 - Row marker / other authoring tools where appropriate.
 
+The Guides control is a creation flyout, not a second guide inspector. Opening it does not change the active canvas tool. Choosing an entry immediately creates that real guide through the same editor action used elsewhere. Escape closes the flyout and returns focus to its trigger.
+
 Tool selection should not unexpectedly erase document selection unless required by the operation.
 
 ### Crochet library
@@ -254,6 +256,8 @@ Required semantics already present in the application must be preserved:
 - ordering controls;
 - selection from layers, including locked elements when inspection is allowed.
 
+Options and Layers are true tab panels: only the selected panel participates in layout/focus. Arrow Left/Right changes tabs, Home/End jumps to the first/last tab, and focus follows selection.
+
 ## 13. Floating selection toolbar
 
 Keep it intentionally small. It must never become a second inspector.
@@ -279,6 +283,9 @@ The toolbar is positioned from the complete selection bounds and must avoid cove
 ## 15. Accessibility and input
 
 - keyboard navigation for menus and form controls;
+- application menu follows desktop menubar conventions: Down/Enter/Space opens, Up/Down moves within a menu, Left/Right moves across menus, Home/End moves to menu edges, Escape closes and restores trigger focus;
+- right Options/Layers tabs use roving focus and Arrow Left/Right plus Home/End;
+- floating creation flyouts close on Escape and return focus to the trigger;
 - visible focus ring: `0 0 0 2px rgba(52,120,246,.22)` plus blue border where appropriate;
 - icon-only buttons always have accessible names;
 - no information encoded by color alone;
