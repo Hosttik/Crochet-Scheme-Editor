@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { createGuideFromToolRail } from './helpers/uiV2Guides'
 
 function patternRow(page: Page, number: number) {
   return page.locator('.pattern-row-number').filter({ hasText: new RegExp(`^Ряд ${number}$`) })
@@ -47,7 +48,7 @@ test('edits explicit parent-child topology and restores it with undo', async ({ 
   await page.goto('/Crochet-Scheme-Editor/')
   await openPatternRows(page)
 
-  await page.getByRole('button', { name: /Радиальная/ }).click()
+  await createGuideFromToolRail(page, 'Радиальная сетка')
   await expect(page.getByText('Создать параметрический ряд', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
 
@@ -81,7 +82,7 @@ test('edits a mixed stitch rapport and restores it from autosave', async ({ page
   await page.goto('/Crochet-Scheme-Editor/')
   await openPatternRows(page)
 
-  await page.getByRole('button', { name: /Радиальная/ }).click()
+  await createGuideFromToolRail(page, 'Радиальная сетка')
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
   await expect(patternRow(page, 1)).toBeVisible()
   await page.getByRole('button', { name: 'Дополнительно' }).click()
@@ -110,7 +111,7 @@ test('compiles a semantic rapport into stitch types and exact topology', async (
   await page.goto('/Crochet-Scheme-Editor/')
   await openPatternRows(page)
 
-  await page.getByRole('button', { name: /Радиальная/ }).click()
+  await createGuideFromToolRail(page, 'Радиальная сетка')
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
   await expect(patternRow(page, 1)).toBeVisible()
 
@@ -156,7 +157,7 @@ test('reopens Advanced for a manually changed child row offset', async ({ page }
   await page.goto('/Crochet-Scheme-Editor/')
   await openPatternRows(page)
 
-  await page.getByRole('button', { name: /Радиальная/ }).click()
+  await createGuideFromToolRail(page, 'Радиальная сетка')
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
   await expect(patternRow(page, 1)).toBeVisible()
   await page.locator('.pattern-row-next-actions').getByRole('button', { name: 'Без изменений' }).click()
@@ -189,7 +190,7 @@ test('persists joined and turning row construction semantics', async ({ page }) 
   await page.goto('/Crochet-Scheme-Editor/')
   await openPatternRows(page)
 
-  await page.getByRole('button', { name: /Радиальная/ }).click()
+  await createGuideFromToolRail(page, 'Радиальная сетка')
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
   await expect(patternRow(page, 1)).toBeVisible()
   await page.getByRole('button', { name: 'Дополнительно' }).click()
