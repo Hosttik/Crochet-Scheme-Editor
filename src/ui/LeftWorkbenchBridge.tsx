@@ -9,6 +9,7 @@ import { ToolRail } from './ToolRail'
 import type { WorkbenchTool } from './workbenchTypes'
 
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
+const LEGACY_LIBRARY_SELECTOR = '.left-sidebar > .symbols-section'
 
 function initialLocale(): Locale {
   if (typeof window === 'undefined') return 'ru'
@@ -16,7 +17,7 @@ function initialLocale(): Locale {
 }
 
 function buttonByAriaLabel(label: string) {
-  return Array.from(document.querySelectorAll<HTMLButtonElement>('.left-sidebar .symbols-section button'))
+  return Array.from(document.querySelectorAll<HTMLButtonElement>(`${LEGACY_LIBRARY_SELECTOR} button`))
     .find((button) => button.getAttribute('aria-label') === label) ?? null
 }
 
@@ -26,7 +27,7 @@ function readWorkbenchTool(locale: Locale): WorkbenchTool {
   if (canvas?.classList.contains('lassoing')) return { type: 'lasso' }
   if (canvas?.classList.contains('measuring')) return { type: 'ruler' }
 
-  const activeBundle = document.querySelector<HTMLButtonElement>('.left-sidebar .symbols-section .chain-bundle-button.active')
+  const activeBundle = document.querySelector<HTMLButtonElement>(`${LEGACY_LIBRARY_SELECTOR} .chain-bundle-button.active`)
   if (activeBundle) {
     const label = activeBundle.getAttribute('aria-label') ?? ''
     const count = Number(label.match(/^\d+/)?.[0])
@@ -35,7 +36,7 @@ function readWorkbenchTool(locale: Locale): WorkbenchTool {
     }
   }
 
-  const activeSymbol = document.querySelector<HTMLButtonElement>('.left-sidebar .symbols-section .symbol-button.active:not(.chain-bundle-button)')
+  const activeSymbol = document.querySelector<HTMLButtonElement>(`${LEGACY_LIBRARY_SELECTOR} .symbol-button.active:not(.chain-bundle-button)`)
   if (activeSymbol) {
     const activeLabel = activeSymbol.getAttribute('aria-label')
     const definition = SYMBOLS.find((symbol) => {
