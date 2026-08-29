@@ -79,3 +79,18 @@ test('keeps the locked-selection count as real text while replacing its emoji pr
   expect(presentation.maskImage).toContain('data:image/svg+xml')
   expect(presentation.firstLetterSize).toBe('0px')
 })
+
+test('shows a visible focus surface around command search when opened from the keyboard', async ({ page }) => {
+  await openEditor(page)
+
+  await page.keyboard.press('Control+K')
+  const input = page.getByRole('searchbox', { name: 'Поиск по функциям', exact: true })
+  await expect(input).toBeFocused()
+
+  const focusSurface = page.locator('.command-palette__search')
+  const presentation = await focusSurface.evaluate((element) => ({
+    boxShadow: getComputedStyle(element).boxShadow,
+  }))
+  expect(presentation.boxShadow).not.toBe('none')
+  expect(presentation.boxShadow).toContain('52, 120, 246')
+})
