@@ -25,6 +25,18 @@
   gap: 6px;
 }
 
+.productivity-actions > button,
+.productivity-mode-tabs > button,
+.mirror-direction-grid > button,
+.mirror-preview-actions > button {
+  min-width: 0;
+}
+
+.productivity-actions > button {
+  padding-inline: 6px;
+  overflow-wrap: anywhere;
+}
+
 .productivity-mode-tabs {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
