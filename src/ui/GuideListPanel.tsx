@@ -1,5 +1,6 @@
 import { UI, type Locale } from '../i18n'
 import type { Guide } from '../types'
+import { EditorIcon } from './icons'
 
 type GuideListPanelProps = {
   locale: Locale
@@ -34,7 +35,11 @@ export function GuideListPanel({
             >
               <span className={`visibility-dot ${guide.visible ? '' : 'hidden'}`} />
               <span>{index + 1}. {guideLabel(guide)}</span>
-              {guide.locked && <span aria-label={locale === 'ru' ? 'Заблокирована' : 'Locked'}>🔒</span>}
+              {guide.locked && (
+                <span aria-label={locale === 'ru' ? 'Заблокирована' : 'Locked'}>
+                  <EditorIcon name="lock" size={14} className="lock-indicator-icon" />
+                </span>
+              )}
             </button>
           ))}
         </div>
