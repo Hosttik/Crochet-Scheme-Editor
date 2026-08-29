@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Locale } from '../i18n'
 import type { ApplicationCommandId, ApplicationCommandRunner } from './applicationCommands'
-import { EditorIcon } from './icons'
+import { SearchField } from './primitives'
 import './commandPalette.css'
 
 export const OPEN_COMMAND_PALETTE_EVENT = 'crochet-ui-v2:open-command-palette'
@@ -230,26 +230,24 @@ export function CommandPalette({
         aria-modal="true"
         aria-label={copy.dialog}
       >
-        <div className="command-palette__search">
-          <EditorIcon name="search" size={17} />
-          <input
-            ref={inputRef}
-            type="search"
-            value={query}
-            aria-label={copy.dialog}
-            aria-autocomplete="list"
-            aria-controls={RESULTS_ID}
-            aria-expanded="true"
-            aria-activedescendant={activeOptionId}
-            placeholder={copy.placeholder}
-            onChange={(event) => {
-              setQuery(event.target.value)
-              setActiveIndex(0)
-            }}
-            onKeyDown={onInputKeyDown}
-          />
-          <kbd aria-hidden="true">⌘/Ctrl K</kbd>
-        </div>
+        <SearchField
+          ref={inputRef}
+          wrapperClassName="command-palette__search"
+          value={query}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-controls={RESULTS_ID}
+          aria-expanded="true"
+          aria-activedescendant={activeOptionId}
+          label={copy.dialog}
+          placeholder={copy.placeholder}
+          onChange={(event) => {
+            setQuery(event.target.value)
+            setActiveIndex(0)
+          }}
+          onKeyDown={onInputKeyDown}
+          endAdornment={<kbd aria-hidden="true">⌘/Ctrl K</kbd>}
+        />
 
         <div
           ref={resultsRef}
