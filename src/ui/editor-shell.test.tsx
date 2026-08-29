@@ -6,7 +6,9 @@ import { EditorShell } from './EditorShell'
 describe('UI v2 editor shell', () => {
   it('renders the application menu above the workbench', () => {
     const markup = renderToStaticMarkup(
-      <EditorShell><main data-testid="workbench-child">Canvas</main></EditorShell>,
+      <EditorShell runCommand={() => true}>
+        <main data-testid="workbench-child">Canvas</main>
+      </EditorShell>,
     )
 
     expect(markup).toContain('class="editor-root-v2"')
