@@ -88,7 +88,7 @@ test('preserves canvas and primary chrome at the 900px narrow-desktop gate', asy
 
   await expect(page.locator('.ui-v2-favorites-host')).toBeHidden()
   await expect(page.locator('.brand strong')).toContainText('Редактор схем вязания')
-  await expect(page.getByRole('navigation', { name: 'Меню приложения' })).toBeVisible()
+  await expect(page.getByRole('menubar', { name: 'Меню приложения' })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Инструменты' })).toBeVisible()
   await expect(page.getByRole('tablist', { name: 'Правая панель' })).toBeVisible()
 
@@ -123,6 +123,6 @@ test('preserves canvas and primary chrome at the 900px narrow-desktop gate', asy
   // Duplicate file actions collapse out of the narrow command bar, but the
   // canonical application-menu command remains immediately accessible.
   await expect(page.locator('.topbar .primary-button')).toBeHidden()
-  await page.getByRole('button', { name: 'Файл', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Файл', exact: true }).click()
   await expect(page.getByRole('menuitem', { name: 'Экспорт SVG…', exact: true })).toBeVisible()
 })
