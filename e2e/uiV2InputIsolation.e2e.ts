@@ -97,7 +97,7 @@ test('closing command search with Escape does not cancel the active placement to
   await expect(chain).toHaveAttribute('aria-pressed', 'true')
 })
 
-test('Escape in an editor form field does not leak into the canvas tool state', async ({ page }) => {
+test('Escape in an editor form field is isolated while global command search remains available', async ({ page }) => {
   await openEditor(page)
   const library = page.getByRole('region', { name: 'Библиотека элементов' })
   const chain = library.getByRole('button', { name: 'Воздушная петля · ch', exact: true })
@@ -110,6 +110,13 @@ test('Escape in an editor form field does not leak into the canvas tool state', 
   await page.keyboard.press('Escape')
   await expect(canvas).toHaveClass(/placing/)
   await expect(chain).toHaveAttribute('aria-pressed', 'true')
+
+  await page.keyboard.press('Control+k')
+  const dialog = page.getByRole('dialog', { name: 'Поиск по функциям' })
+  await expect(dialog).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(canvas).toHaveClass(/placing/)
 })
 
 test('favorites section reports favorite membership independently from placement state', async ({ page }) => {
