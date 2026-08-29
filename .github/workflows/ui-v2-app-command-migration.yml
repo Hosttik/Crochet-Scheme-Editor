@@ -1,0 +1,41 @@
+name: UI v2 App command migration
+
+on:
+  push:
+    branches:
+      - feat/ui-v2-workbench-foundation
+    paths:
+      - .github/workflows/ui-v2-app-command-migration.yml
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/ui-v2-workbench-foundation
+          fetch-depth: 0
+      - name: Apply App-owned command migration
+        run: python scripts/migrate-ui-v2-app-commands.py
+      - name: Remove one-shot migration files
+        run: |
+          rm scripts/migrate-ui-v2-app-commands.py
+          rm .github/workflows/ui-v2-app-command-migration.yml
+      - name: Validate patch
+        run: |
+          git diff --check
+          test ! -e src/ui/legacyCommandBridge.ts
+          ! grep -R "legacyCommandBridge\|runLegacyCommand\|dispatchEditorShortcut" src/ui src/App.tsx
+          grep -q "runCommand={runApplicationCommand}" src/App.tsx
+          grep -q "ref={gaugePanelRef}" src/App.tsx
+          grep -q "App commands without synthetic keyboard dispatch" e2e/uiV2Menu.e2e.ts
+      - name: Commit migration
+        run: |
+          git config user.name Hosttik
+          git config user.email raz_94@mail.ru
+          git add -A
+          git commit -m "Replace legacy command bridge with App-owned commands"
+          git push origin HEAD:feat/ui-v2-workbench-foundation
