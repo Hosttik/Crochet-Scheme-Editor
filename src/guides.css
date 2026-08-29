@@ -53,16 +53,22 @@
   stroke-width: 1.5;
   opacity: 1;
 }
-/* Interaction geometry is intentionally wider than the visible guide. Because
- * it is a transparent non-scaling stroke, guides stay visually thin while
- * line/curve/grid/radial targets remain comfortable to acquire at any zoom. */
+/* Interaction geometry stays wider than the visible guide, but dense grid and
+ * radial-grid guides contain many overlapping primitives. Giving every one of
+ * those primitives the old 18px stroke effectively turned large canvas areas
+ * into guide targets. Keep standalone guides generous and dense guides tighter
+ * so nearby canvas interactions remain reachable. */
 .guide-hit-area {
   stroke: transparent;
-  stroke-width: 18;
+  stroke-width: 14;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
   pointer-events: stroke;
+}
+.guide-grid .guide-hit-area,
+.guide-radial-grid .guide-hit-area {
+  stroke-width: 10;
 }
 .guide-snap-point {
   fill: #fff;
