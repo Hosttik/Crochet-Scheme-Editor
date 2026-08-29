@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { EditorIcon } from './icons'
-import { Button, IconButton, ToolButton } from './primitives'
+import { Button, IconButton, SearchField, ToolButton } from './primitives'
 
 describe('UI v2 primitives', () => {
   it('renders outline editor icons without text glyph fallbacks', () => {
@@ -24,6 +24,17 @@ describe('UI v2 primitives', () => {
     expect(markup).toContain('ui-button--danger')
     expect(markup).toContain('aria-hidden="true"')
     expect(markup).toContain('<span class="ui-button__label">Удалить</span>')
+  })
+
+  it('renders an accessible search field with a decorative shared search icon', () => {
+    const markup = renderToStaticMarkup(
+      <SearchField label="Поиск элементов" placeholder="Поиск…" data-testid="search" />,
+    )
+    expect(markup).toContain('class="ui-search-field"')
+    expect(markup).toContain('type="search"')
+    expect(markup).toContain('aria-label="Поиск элементов"')
+    expect(markup).toContain('data-testid="search"')
+    expect(markup).toContain('aria-hidden="true"')
   })
 
   it('exposes the active state on tool buttons', () => {
