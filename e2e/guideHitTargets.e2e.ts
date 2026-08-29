@@ -46,7 +46,6 @@ test('dense grid guides stay easy to acquire without swallowing nearby canvas cl
   const x = box.x + box.width / 2 + 20
   const centerY = box.y + box.height / 2
 
-  // Deselect on an empty area first so the next click proves acquisition.
   await page.mouse.click(box.x + 24, box.y + 80)
   await expect(grid).not.toHaveClass(/selected/)
 
@@ -63,6 +62,35 @@ test('dense grid guides stay easy to acquire without swallowing nearby canvas cl
   // can start close to a grid without selecting/moving the guide instead.
   await page.mouse.click(x, centerY + 7)
   await expect(grid).not.toHaveClass(/selected/)
+})
+
+test('radial grids use the same bounded hit footprint as rectangular grids', async ({ page }) => {
+  await openEditor(page)
+
+  const rail = page.getByRole('navigation', { name: 'Инструменты' })
+  await rail.getByRole('button', { name: 'Направляющие', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Радиальная сетка', exact: true }).click()
+
+  const radial = page.locator('.guide-layer.guide-radial-grid')
+  await expect(radial).toHaveClass(/selected/)
+
+  const box = await canvasBox(page)
+  const x = box.x + box.width / 2 + 60
+  const centerY = box.y + box.height / 2
+
+  // x + 60 sits between the 40px and 80px rings and on the zero-degree sector,
+  // keeping this assertion about the sector hit area rather than a ring.
+  await page.mouse.click(box.x + 24, box.y + 80)
+  await expect(radial).not.toHaveClass(/selected/)
+
+  await page.mouse.click(x, centerY + 4)
+  await expect(radial).toHaveClass(/selected/)
+
+  await page.mouse.click(box.x + 24, box.y + 80)
+  await expect(radial).not.toHaveClass(/selected/)
+
+  await page.mouse.click(x, centerY + 7)
+  await expect(radial).not.toHaveClass(/selected/)
 })
 
 test('fit-to-project expands a selected line guide to the document bounds', async ({ page }) => {
