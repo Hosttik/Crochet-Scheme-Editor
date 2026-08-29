@@ -97,6 +97,15 @@ test('command search is reachable from Help and executes real editor commands', 
   await expect(search).toHaveAttribute('aria-controls', 'command-palette-results')
   await expect(search).toHaveAttribute('aria-activedescendant', 'command-palette-option-file-new')
 
+  await page.keyboard.press('End')
+  await expect(search).toHaveAttribute('aria-activedescendant', 'command-palette-option-help-controls')
+  await page.keyboard.press('Home')
+  await expect(search).toHaveAttribute('aria-activedescendant', 'command-palette-option-file-new')
+  await page.keyboard.press('Tab')
+  await expect(search).toBeFocused()
+  await page.keyboard.press('Shift+Tab')
+  await expect(search).toBeFocused()
+
   await page.keyboard.press('ArrowDown')
   await expect(search).toBeFocused()
   await expect(search).toHaveAttribute('aria-activedescendant', 'command-palette-option-file-import')
