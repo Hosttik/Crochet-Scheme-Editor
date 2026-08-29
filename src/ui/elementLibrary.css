@@ -1,3 +1,7 @@
+.element-library__search {
+  margin-bottom: var(--ui-space-2);
+}
+
 .library-category {
   margin-top: var(--ui-space-2);
 }
