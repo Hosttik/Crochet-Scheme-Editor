@@ -44,7 +44,10 @@ test('core editor interactions survive browser engine differences', async ({ pag
   await expect(palette).toBeHidden()
 
   const layersTab = page.getByRole('tab', { name: 'Слои', exact: true })
+  const optionsTab = page.getByRole('tab', { name: 'Параметры', exact: true })
+  await layersTab.click()
+  await expect(layersTab).toHaveAttribute('aria-selected', 'true')
   await layersTab.focus()
   await page.keyboard.press('ArrowLeft')
-  await expect(page.getByRole('tab', { name: 'Параметры', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(optionsTab).toHaveAttribute('aria-selected', 'true')
 })
