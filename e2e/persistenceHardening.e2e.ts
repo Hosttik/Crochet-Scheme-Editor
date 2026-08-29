@@ -1,9 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 
-async function placeSingleCrochet(page: Page) {
-  const canvas = page.locator('svg.editor-canvas')
-  const box = await canvas.boundingBox()
+async function canvasBox(page: Page) {
+  const box = await page.locator('svg.editor-canvas').boundingBox()
   if (!box) throw new Error('Canvas is not visible')
+  return box
+}
+
+async function placeSingleCrochet(page: Page) {
+  const box = await canvasBox(page)
   await page.locator('.symbols-section .symbol-button[title^="Столбик без накида ·"]').click()
   await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5)
 }
@@ -37,4 +41,23 @@ test('surfaces storage failure instead of reporting a successful autosave', asyn
   await expect(page.locator('.autosave-indicator')).toContainText(/ошиб|error/i)
   await expect(page.locator('.project-error')).toContainText('IndexedDB is unavailable')
   await expect(page.locator('.autosave-indicator')).not.toContainText('Автосохранено')
+})
+
+test('reports row-number deletion correctly in English', async ({ page }) => {
+  await page.goto('/Crochet-Scheme-Editor/')
+  const panel = page.getByTestId('row-markers-global-panel')
+  if (!(await panel.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await panel.locator(':scope > summary').click()
+  }
+
+  await panel.getByRole('button', { name: 'Поставить ряд №1' }).click()
+  const box = await canvasBox(page)
+  await page.mouse.click(box.x + box.width * 0.55, box.y + box.height * 0.5)
+  await expect(page.locator('.row-marker')).toHaveCount(1)
+
+  await page.getByRole('button', { name: 'EN', exact: true }).click()
+  await page.keyboard.press('Delete')
+
+  await expect(page.locator('.row-marker')).toHaveCount(0)
+  await expect(page.locator('.statusbar')).toContainText('Row number deleted')
 })
