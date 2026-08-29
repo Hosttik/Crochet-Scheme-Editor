@@ -200,26 +200,31 @@ export function AppMenuBar({
   }
 
   const onTriggerKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, key: MenuKey) => {
-    event.stopPropagation()
     if (event.key === 'ArrowRight') {
       event.preventDefault()
+      event.stopPropagation()
       moveMenu(key, 1, Boolean(openMenu))
     } else if (event.key === 'ArrowLeft') {
       event.preventDefault()
+      event.stopPropagation()
       moveMenu(key, -1, Boolean(openMenu))
     } else if (event.key === 'Home') {
       event.preventDefault()
+      event.stopPropagation()
       focusTrigger(MENU_KEYS[0])
     } else if (event.key === 'End') {
       event.preventDefault()
+      event.stopPropagation()
       focusTrigger(MENU_KEYS[MENU_KEYS.length - 1])
     } else if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
+      event.stopPropagation()
       setFocusedMenu(key)
       setOpenMenu(key)
       focusMenuItem(key, 0)
-    } else if (event.key === 'Escape') {
+    } else if (event.key === 'Escape' && openMenu) {
       event.preventDefault()
+      event.stopPropagation()
       setOpenMenu(null)
     }
   }
@@ -230,7 +235,7 @@ export function AppMenuBar({
     itemIndex: number,
     itemCount: number,
   ) => {
-    event.stopPropagation()
+    if (!event.metaKey && !event.ctrlKey && !event.altKey) event.stopPropagation()
     if (event.key === 'ArrowDown') {
       event.preventDefault()
       focusMenuItem(key, (itemIndex + 1) % itemCount)
@@ -262,7 +267,6 @@ export function AppMenuBar({
       ref={rootRef}
       role="menubar"
       aria-label={locale === 'ru' ? 'Меню приложения' : 'Application menu'}
-      onKeyDown={(event) => event.stopPropagation()}
     >
       {MENU_KEYS.map((key) => {
         const open = openMenu === key
