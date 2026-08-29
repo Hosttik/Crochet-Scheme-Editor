@@ -3171,7 +3171,7 @@ function App() {
             onBringForward={bringSelectionForward}
             onSendBackward={sendSelectionBackward}
             onBringToFront={bringSelectionToFront}
-            onSendToBack={sendSelectionBack}
+            onSendToBack={sendSelectionToBack}
           />
         </div>
       </aside>
