@@ -19,35 +19,24 @@
 }
 
 .command-palette__search {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
   min-height: 48px;
-  align-items: center;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
   gap: 8px;
   padding: 0 12px;
+  border: 0;
   border-bottom: 1px solid var(--ui-border);
-  color: var(--ui-text-muted);
+  border-radius: 0;
+  background: var(--ui-surface);
+}
+
+.command-palette__search:focus-within {
+  border-color: var(--ui-border);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ui-accent) 18%, transparent);
 }
 
 .command-palette__search input {
-  width: 100%;
   height: 46px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--ui-text);
   font-size: 13px;
-}
-
-.command-palette__search input:focus {
-  border: 0;
-  outline: 0;
-  box-shadow: none;
-}
-
-.command-palette__search input::-webkit-search-cancel-button {
-  display: none;
 }
 
 .command-palette__search kbd,
