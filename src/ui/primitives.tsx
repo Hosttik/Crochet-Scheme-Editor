@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react'
+import { forwardRef, type ButtonHTMLAttributes, type HTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react'
 import { EditorIcon, type EditorIconName } from './icons'
 
 export function IconButton({
@@ -73,6 +73,35 @@ export function ToolButton({
     </button>
   )
 }
+
+export type SearchFieldProps = {
+  label: string
+  wrapperClassName?: string
+  inputClassName?: string
+  endAdornment?: ReactNode
+} & Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'aria-label' | 'className'>
+
+export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(function SearchField({
+  label,
+  wrapperClassName = '',
+  inputClassName = '',
+  endAdornment,
+  ...props
+}, ref) {
+  return (
+    <div className={`ui-search-field ${wrapperClassName}`.trim()}>
+      <EditorIcon name="search" size={16} />
+      <input
+        ref={ref}
+        type="search"
+        aria-label={label}
+        className={inputClassName}
+        {...props}
+      />
+      {endAdornment ? <span className="ui-search-field__end">{endAdornment}</span> : null}
+    </div>
+  )
+})
 
 export function PanelHeader({
   title,
