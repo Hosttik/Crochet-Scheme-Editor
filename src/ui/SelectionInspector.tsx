@@ -16,6 +16,7 @@ import type {
   ParametricRowBinding,
   StitchElement,
 } from '../types'
+import { EditorIcon } from './icons'
 
 type SelectionInspectorProps = {
   locale: Locale
@@ -138,7 +139,9 @@ export function SelectionInspector({
     <section className="panel-section right-panel-context" data-testid="selection-context-panel">
       <div className="section-title-row">
         <h2>{t.selection}</h2>
-        {lockedSelectedCount > 0 && <span className="muted-text">🔒 {lockedSelectedCount}</span>}
+        {lockedSelectedCount > 0 && (
+          <span className="muted-text"><EditorIcon name="lock" size={14} className="lock-indicator-icon" /> {lockedSelectedCount}</span>
+        )}
       </div>
 
       {lockedSelectedCount > 0 && (
@@ -244,7 +247,7 @@ export function SelectionInspector({
                 <NumberField label={t.radius} value={selectedGuide.radius} min={10} onChange={(value) => onGuideChange((guide) => guide.type === 'arc' ? { ...guide, radius: Math.max(10, value) } : guide)} />
                 <NumberField label={t.divisions} value={selectedGuide.divisions} min={1} max={72} onChange={(value) => onGuideChange((guide) => guide.type === 'arc' ? { ...guide, divisions: Math.round(clamp(value, 1, 72)) } : guide)} />
                 <NumberField label={t.startAngle} value={selectedGuide.startAngle} onChange={(value) => onGuideChange((guide) => guide.type === 'arc' ? { ...guide, startAngle: value } : guide)} />
-                <NumberField label={t.endAngle} value={selectedGuide.endAngle} onChange={(value) => onGuideChange((guide) => guide.type === 'arc' ? { ...guide, endAngle: value } : guide)} />
+                <NumberField label={t.endAngle} value={selectedGuide.endAngle} onChange={(value) => onGuideChange((guide) => guide.type === 'arc' ? { ...guide, endAngle: value } } : guide)} />
               </div>
             )}
 
