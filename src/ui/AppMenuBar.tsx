@@ -108,7 +108,11 @@ const COPY: Record<Locale, {
 
 function initialLocale(): Locale {
   if (typeof window === 'undefined') return 'ru'
-  return window.localStorage.getItem(LOCALE_STORAGE_KEY) === 'en' ? 'en' : 'ru'
+  try {
+    return window.localStorage.getItem(LOCALE_STORAGE_KEY) === 'en' ? 'en' : 'ru'
+  } catch {
+    return 'ru'
+  }
 }
 
 function ariaKeyShortcuts(command?: ApplicationCommandId) {
@@ -149,9 +153,6 @@ export function AppMenuBar({
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpenMenu(null)
     }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpenMenu(null)
-    }
     const onClick = (event: MouseEvent) => {
       if (localeControlled) return
       const button = (event.target as Element | null)?.closest<HTMLButtonElement>('.language-switch button')
@@ -160,11 +161,9 @@ export function AppMenuBar({
       if (button.textContent?.trim() === 'RU') setLegacyLocale('ru')
     }
     window.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('keydown', onKeyDown)
     document.addEventListener('click', onClick, true)
     return () => {
       window.removeEventListener('pointerdown', onPointerDown)
-      window.removeEventListener('keydown', onKeyDown)
       document.removeEventListener('click', onClick, true)
     }
   }, [localeControlled])
@@ -201,6 +200,7 @@ export function AppMenuBar({
   }
 
   const onTriggerKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, key: MenuKey) => {
+    event.stopPropagation()
     if (event.key === 'ArrowRight') {
       event.preventDefault()
       moveMenu(key, 1, Boolean(openMenu))
@@ -219,6 +219,7 @@ export function AppMenuBar({
       setOpenMenu(key)
       focusMenuItem(key, 0)
     } else if (event.key === 'Escape') {
+      event.preventDefault()
       setOpenMenu(null)
     }
   }
@@ -229,6 +230,7 @@ export function AppMenuBar({
     itemIndex: number,
     itemCount: number,
   ) => {
+    event.stopPropagation()
     if (event.key === 'ArrowDown') {
       event.preventDefault()
       focusMenuItem(key, (itemIndex + 1) % itemCount)
@@ -260,6 +262,7 @@ export function AppMenuBar({
       ref={rootRef}
       role="menubar"
       aria-label={locale === 'ru' ? 'Меню приложения' : 'Application menu'}
+      onKeyDown={(event) => event.stopPropagation()}
     >
       {MENU_KEYS.map((key) => {
         const open = openMenu === key
