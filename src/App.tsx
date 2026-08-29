@@ -117,6 +117,7 @@ import {
 import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph, symbolSvgMarkup } from './symbols'
 import { CanvasToolbar } from './ui/CanvasToolbar'
 import { EditorShell } from './ui/EditorShell'
+import { EditorStatusbar } from './ui/EditorStatusbar'
 import { EditorTopbar } from './ui/EditorTopbar'
 import { FavoriteQuickBar } from './ui/FavoriteQuickBar'
 import { loadFavorites, saveFavorites, type FavoriteElementKey } from './ui/favorites'
@@ -2986,10 +2987,15 @@ function App() {
           </g>
         </svg>
 
-        <div className="statusbar">
-          <span>{status}</span>
-          <span>{elements.length} {t.stitchCount} · {guides.length} {t.guideCount} · {rowMarkers.length} {locale === 'ru' ? 'номеров рядов' : 'row numbers'} · {rulers.length} {locale === 'ru' ? 'линеек' : 'rulers'}{selectedIds.length ? ` · ${selectedIds.length} ${t.selectedShort}` : ''}</span>
-        </div>
+        <EditorStatusbar
+          locale={locale}
+          status={status}
+          stitchCount={elements.length}
+          guideCount={guides.length}
+          rowMarkerCount={rowMarkers.length}
+          rulerCount={rulers.length}
+          selectedCount={selectedIds.length}
+        />
       </main>
 
       <aside className="sidebar right-sidebar">
