@@ -44,7 +44,7 @@ function GuidePreviewIcon({ type }: { type: Guide['type'] }) {
       {type === 'parabola' && <path d="M4 18C8 5 16 5 20 18" />}
       {type === 'grid' && (
         <>
-          <rect x="5" y="5" width="14" height="14" rx="1" />}
+          <rect x="5" y="5" width="14" height="14" rx="1" />
           <path d="M12 5V19M5 12H19" />
         </>
       )}
