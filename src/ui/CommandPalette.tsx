@@ -72,6 +72,11 @@ const COMMANDS: Record<Locale, PaletteCommand[]> = {
 }
 
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
+const RESULTS_ID = 'command-palette-results'
+
+function commandOptionId(id: ApplicationCommandId) {
+  return `command-palette-option-${id.replace(/\./g, '-')}`
+}
 
 function initialLocale(): Locale {
   if (typeof window === 'undefined') return 'ru'
@@ -90,6 +95,7 @@ export function CommandPalette({
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const resultsRef = useRef<HTMLDivElement>(null)
   const previousFocus = useRef<HTMLElement | null>(null)
   const locale = controlledLocale ?? legacyLocale
   const localeControlled = controlledLocale !== undefined
@@ -169,7 +175,19 @@ export function CommandPalette({
     if (activeIndex >= filtered.length) setActiveIndex(Math.max(0, filtered.length - 1))
   }, [activeIndex, filtered.length])
 
+  useEffect(() => {
+    if (!open || !filtered.length) return
+    requestAnimationFrame(() => {
+      resultsRef.current
+        ?.querySelector<HTMLElement>('[role="option"][aria-selected="true"]')
+        ?.scrollIntoView({ block: 'nearest' })
+    })
+  }, [activeIndex, filtered.length, open, query])
+
   if (!open) return null
+
+  const activeCommand = filtered[activeIndex]
+  const activeOptionId = activeCommand ? commandOptionId(activeCommand.id) : undefined
 
   const run = (command: PaletteCommand) => {
     const didRun = runCommand(command.id)
@@ -210,6 +228,10 @@ export function CommandPalette({
             type="search"
             value={query}
             aria-label={copy.dialog}
+            aria-autocomplete="list"
+            aria-controls={RESULTS_ID}
+            aria-expanded="true"
+            aria-activedescendant={activeOptionId}
             placeholder={copy.placeholder}
             onChange={(event) => {
               setQuery(event.target.value)
@@ -220,12 +242,20 @@ export function CommandPalette({
           <kbd aria-hidden="true">⌘/Ctrl K</kbd>
         </div>
 
-        <div className="command-palette__results" role="listbox" aria-label={copy.dialog}>
+        <div
+          ref={resultsRef}
+          id={RESULTS_ID}
+          className="command-palette__results"
+          role="listbox"
+          aria-label={copy.dialog}
+        >
           {filtered.length ? filtered.map((command, index) => (
             <button
+              id={commandOptionId(command.id)}
               key={command.id}
               type="button"
               role="option"
+              tabIndex={-1}
               aria-selected={index === activeIndex}
               className={`command-palette__item ${index === activeIndex ? 'is-active' : ''}`}
               onMouseEnter={() => setActiveIndex(index)}
