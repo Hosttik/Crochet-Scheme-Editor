@@ -2,21 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { GuideRenderer } from './editor/GuideRenderer'
 import { LegendOverlay } from './editor/LegendOverlay'
-import { LegendPanel } from './editor/LegendPanel'
 import { RowMarkerLayer } from './editor/RowMarkerLayer'
-import { RowMarkersPanel } from './editor/RowMarkersPanel'
 import { LassoOverlay, type LassoMode } from './editor/LassoOverlay'
-import { BackgroundImagePanel } from './editor/BackgroundImagePanel'
 import { BackgroundImageCanvas } from './editor/BackgroundImageCanvas'
-import { PrintPanel } from './editor/PrintPanel'
 import { MirrorAxisOverlay, type MirrorAxisState } from './editor/MirrorAxisOverlay'
-import { PatternRowsPanel } from './editor/PatternRowsPanel'
 import { ProjectManagerPanel } from './editor/ProjectManagerPanel'
 import { ProductivityPanel } from './editor/ProductivityPanel'
 import { SelectionQuickToolbar } from './editor/SelectionQuickToolbar'
 import { LayersPanel } from './editor/LayersPanel'
 import { StitchLayer } from './editor/StitchLayer'
-import { GaugeRulerPanel } from './editor/GaugeRulerPanel'
 import { RulerLayer } from './editor/RulerLayer'
 import {
   bringForward as bringElementsForward,
@@ -118,6 +112,7 @@ import { FavoriteQuickBar } from './ui/FavoriteQuickBar'
 import { GuideListPanel } from './ui/GuideListPanel'
 import { loadFavorites, saveFavorites, type FavoriteElementKey } from './ui/favorites'
 import { LeftWorkbenchSurface } from './ui/LeftWorkbenchSurface'
+import { RightOptionsPanels } from './ui/RightOptionsPanels'
 import { RightPanelTabs, type RightPanelTab } from './ui/RightPanelTabs'
 import { SelectionInspector } from './ui/SelectionInspector'
 import { WorkspaceSidebarControls } from './ui/WorkspaceSidebarControls'
@@ -125,7 +120,6 @@ import type { ApplicationCommandId, ApplicationCommandRunner } from './ui/applic
 import type { WorkbenchTool } from './ui/workbenchTypes'
 import type {
   AutosaveDelayMs,
-  AnchorName,
   BackgroundImage,
   CrochetProject,
   GaugeProfile,
@@ -134,7 +128,6 @@ import type {
   GuideAttachment,
   GuideAttachmentOrientation,
   MeasurementRuler,
-  OrientationMode,
   ParametricRowBinding,
   Point,
   RowMarker,
@@ -1945,6 +1938,17 @@ function App() {
     setSnapTarget(null)
   }, [clearElementSelection])
 
+  const toggleRowMarkerPlacement = useCallback(() => {
+    setTool((current) => current.type === 'row-marker' ? { type: 'select' } : { type: 'row-marker' })
+    clearElementSelection()
+    setSelectedGuideId(null)
+    setSelectedRowMarkerId(null)
+    setSelectedRulerId(null)
+    setRulerDraft(null)
+    setPreview(null)
+    setSnapTarget(null)
+  }, [clearElementSelection])
+
   const handleRowMarkerMoveStart = useCallback(() => {
     rowMarkerManipulationSnapshotRef.current = currentSnapshot()
   }, [currentSnapshot])
@@ -2497,7 +2501,6 @@ function App() {
     })
     setStatus(locale === 'ru' ? 'Макет печати открыт' : 'Print layout opened')
   }
-
   const saveProject = () => {
     const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage, gauge, rulers)
     const integrityIssue = projectIntegrityIssue(project)
@@ -2632,11 +2635,12 @@ function App() {
     }
   }
 
-  const anchorLabels: Record<AnchorName, string> = {
-    top: t.top,
-    center: t.center,
-    bottom: t.bottom,
-  }
+  const handleSnappingEnabledChange = useCallback((enabled: boolean) => {
+    commitSnapping({ ...snapping, enabled })
+    setSnapTarget(null)
+    snapLockRef.current = null
+  }, [commitSnapping, snapping])
+
   const marqueeRect: Rect | null = marquee
     ? normalizeRect(marquee.start, marquee.current)
     : null
@@ -3003,154 +3007,72 @@ function App() {
           />
         )}
 
-        <details className="right-panel-collapsible" data-testid="background-global-panel">
-          <summary>{locale === 'ru' ? 'Фоновое изображение' : 'Background image'}</summary>
-          <BackgroundImagePanel
-            locale={locale}
-            background={backgroundImage}
-            onUpload={(file) => void handleBackgroundUpload(file)}
-            onChange={updateBackgroundImage}
-            onRemove={removeBackgroundImage}
-          />
-        </details>
-
-        <details ref={gaugePanelRef} className="right-panel-collapsible" data-testid="gauge-global-panel">
-          <summary>{locale === 'ru' ? 'Плотность и размер' : 'Gauge & size'}</summary>
-          <GaugeRulerPanel
-            locale={locale}
-            gauge={gauge}
-            rulers={rulers}
-            selectedRulerId={selectedRulerId}
-            placingRuler={tool.type === 'ruler'}
-            elements={elements}
-            selectedRowId={selectedParametricRow?.id ?? null}
-            selectedRowIsCircular={selectedParametricGuide?.type === 'arc' || selectedParametricGuide?.type === 'radial-grid'}
-            onAddProfile={addGaugeProfile}
-            onUpdateProfile={updateGaugeProfile}
-            onDeleteProfile={deleteGaugeProfile}
-            onActiveProfileChange={setActiveGaugeProfile}
-            onToggleRulerTool={toggleRulerTool}
-            onSelectRuler={selectRuler}
-            onUpdateRuler={updateRuler}
-            onDeleteRuler={deleteRuler}
-          />
-        </details>
-
-        <details ref={printPanelRef} className="right-panel-collapsible" data-testid="print-global-panel">
-          <summary>{locale === 'ru' ? 'Печать по страницам' : 'Tiled print'}</summary>
-          <PrintPanel locale={locale} bounds={outputBounds} legendBounds={outputLegendBounds} onPrint={openTiledPrint} />
-        </details>
-
-        <details ref={snappingPanelRef} className="right-panel-collapsible" data-testid="snapping-global-panel">
-          <summary>{t.snapping}</summary>
-          <section className="panel-section">
-            <label className="toggle-row">
-              <span><strong>{t.allowSnapping}</strong><small>{t.snappingHint}</small></span>
-              <input
-                type="checkbox"
-                checked={snapping.enabled}
-                onChange={(event) => {
-                  commitSnapping({ ...snapping, enabled: event.target.checked })
-                  setSnapTarget(null)
-                  snapLockRef.current = null
-                }}
-              />
-            </label>
-
-            <fieldset disabled={!snapping.enabled}>
-              <legend>{t.snapPoint}</legend>
-              <div className="segmented-control">
-                {(['top', 'center', 'bottom'] as AnchorName[]).map((anchor) => (
-                  <button key={anchor} className={snapping.sourceAnchor === anchor ? 'active' : ''} onClick={() => commitSnapping({ ...snapping, sourceAnchor: anchor })}>
-                    {anchorLabels[anchor]}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-
-            <fieldset disabled={!snapping.enabled}>
-              <legend>{t.orientation}</legend>
-              <select value={snapping.orientationMode} onChange={(event) => commitSnapping({ ...snapping, orientationMode: event.target.value as OrientationMode })}>
-                <option value="none">{t.keepCurrent}</option>
-                <option value="along">{t.alongTarget}</option>
-                <option value="perpendicular">{t.perpendicular}</option>
-              </select>
-            </fieldset>
-
-            <label className="toggle-row compact-toggle">
-              <span>{t.snapToVertices}</span>
-              <input type="checkbox" checked={snapping.snapToVertices} disabled={!snapping.enabled} onChange={(event) => commitSnapping({ ...snapping, snapToVertices: event.target.checked })} />
-            </label>
-            <label className="range-row">
-              <span>{t.snapRadius} <strong>{snapping.tolerancePx}px</strong></span>
-              <input type="range" min="6" max="24" value={snapping.tolerancePx} disabled={!snapping.enabled} onChange={(event) => commitSnapping({ ...snapping, tolerancePx: Number(event.target.value) })} />
-            </label>
-          </section>
-        </details>
-
-        <details ref={patternRowsPanelRef} className="right-panel-collapsible" data-testid="pattern-rows-global-panel">
-          <summary>{locale === 'ru' ? 'Ряды узора' : 'Pattern rows'}</summary>
-          <section className="panel-section">
-            <PatternRowsPanel
-              elements={elements}
-              locale={locale}
-              selectedRowId={selectedParametricRow?.id ?? null}
-              onSelect={handleSelectPatternRow}
-              onCreateNext={handleCreateNextPatternRow}
-              onCreateSequence={handleCreatePatternSequence}
-            />
-          </section>
-        </details>
-
-        <details ref={rowMarkersPanelRef} className="right-panel-collapsible" data-testid="row-markers-global-panel">
-          <summary>{locale === 'ru' ? 'Номера рядов' : 'Row numbers'}</summary>
-          <section className="panel-section">
-            <RowMarkersPanel
-              locale={locale}
-              markers={rowMarkers}
-              selectedId={selectedRowMarkerId}
-              nextNumber={nextRowNumber}
-              placing={tool.type === 'row-marker'}
-              onStartPlacement={() => {
-                setTool((current) => current.type === 'row-marker' ? { type: 'select' } : { type: 'row-marker' })
-                clearElementSelection()
-                setSelectedGuideId(null)
-                setSelectedRowMarkerId(null)
-                setSelectedRulerId(null)
-                setRulerDraft(null)
-                setPreview(null)
-                setSnapTarget(null)
-              }}
-              onSelect={handleSelectRowMarker}
-              onChange={updateRowMarker}
-              onDelete={deleteRowMarker}
-            />
-          </section>
-        </details>
-
-        <details ref={legendPanelRef} className="right-panel-collapsible" data-testid="legend-global-panel">
-          <summary>{locale === 'ru' ? 'Легенда и холст' : 'Legend & canvas'}</summary>
-          <LegendPanel
-            locale={locale}
-            elements={elements}
-            visible={legendVisible}
-            onVisibleChange={commitLegendVisible}
-          />
-        </details>
-
-        <details ref={helpPanelRef} className="right-panel-collapsible help-section" data-testid="help-global-panel">
-          <summary>{t.controls}</summary>
-          <section className="panel-section">
-            <ul>
-              <li>{t.help1}</li>
-              <li>{t.help2}</li>
-              <li>{t.help3}</li>
-              <li>{t.help4}</li>
-              <li>{t.help5}</li>
-              <li>{t.help6}</li>
-            </ul>
-          </section>
-        </details>
+        <RightOptionsPanels
+          locale={locale}
+          gaugePanelRef={gaugePanelRef}
+          printPanelRef={printPanelRef}
+          snappingPanelRef={snappingPanelRef}
+          patternRowsPanelRef={patternRowsPanelRef}
+          rowMarkersPanelRef={rowMarkersPanelRef}
+          legendPanelRef={legendPanelRef}
+          helpPanelRef={helpPanelRef}
+          backgroundPanelProps={{
+            background: backgroundImage,
+            onUpload: (file) => void handleBackgroundUpload(file),
+            onChange: updateBackgroundImage,
+            onRemove: removeBackgroundImage,
+          }}
+          gaugePanelProps={{
+            gauge,
+            rulers,
+            selectedRulerId,
+            placingRuler: tool.type === 'ruler',
+            elements,
+            selectedRowId: selectedParametricRow?.id ?? null,
+            selectedRowIsCircular: selectedParametricGuide?.type === 'arc' || selectedParametricGuide?.type === 'radial-grid',
+            onAddProfile: addGaugeProfile,
+            onUpdateProfile: updateGaugeProfile,
+            onDeleteProfile: deleteGaugeProfile,
+            onActiveProfileChange: setActiveGaugeProfile,
+            onToggleRulerTool: toggleRulerTool,
+            onSelectRuler: selectRuler,
+            onUpdateRuler: updateRuler,
+            onDeleteRuler: deleteRuler,
+          }}
+          printPanelProps={{
+            bounds: outputBounds,
+            legendBounds: outputLegendBounds,
+            onPrint: openTiledPrint,
+          }}
+          patternRowsPanelProps={{
+            elements,
+            selectedRowId: selectedParametricRow?.id ?? null,
+            onSelect: handleSelectPatternRow,
+            onCreateNext: handleCreateNextPatternRow,
+            onCreateSequence: handleCreatePatternSequence,
+          }}
+          rowMarkersPanelProps={{
+            markers: rowMarkers,
+            selectedId: selectedRowMarkerId,
+            nextNumber: nextRowNumber,
+            placing: tool.type === 'row-marker',
+            onStartPlacement: toggleRowMarkerPlacement,
+            onSelect: handleSelectRowMarker,
+            onChange: updateRowMarker,
+            onDelete: deleteRowMarker,
+          }}
+          legendPanelProps={{
+            elements,
+            visible: legendVisible,
+            onVisibleChange: commitLegendVisible,
+          }}
+          snapping={snapping}
+          onSnappingEnabledChange={handleSnappingEnabledChange}
+          onSourceAnchorChange={(sourceAnchor) => commitSnapping({ ...snapping, sourceAnchor })}
+          onOrientationChange={(orientationMode) => commitSnapping({ ...snapping, orientationMode })}
+          onSnapToVerticesChange={(snapToVertices) => commitSnapping({ ...snapping, snapToVertices })}
+          onToleranceChange={(tolerancePx) => commitSnapping({ ...snapping, tolerancePx })}
+        />
         </div>
 
         <div
