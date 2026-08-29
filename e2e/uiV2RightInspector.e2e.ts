@@ -12,13 +12,18 @@ test('renders Layers directly in the right inspector and switches Options / Laye
   const tabs = page.getByRole('tablist', { name: 'Правая панель' })
   const options = tabs.getByRole('tab', { name: 'Опции', exact: true })
   const layersTab = tabs.getByRole('tab', { name: 'Слои', exact: true })
+  const optionsPanel = page.getByRole('tabpanel', { name: 'Опции', exact: true })
   const layersPanel = page.getByRole('tabpanel', { name: 'Слои', exact: true })
 
   await expect(tabs).toBeVisible()
+  await expect(tabs).toHaveAttribute('aria-orientation', 'horizontal')
   await expect(options).toHaveAttribute('aria-selected', 'true')
+  await expect(options).toHaveAttribute('aria-controls', 'ui-v2-right-options-panel')
   await expect(options).toHaveAttribute('tabindex', '0')
   await expect(layersTab).toHaveAttribute('aria-selected', 'false')
+  await expect(layersTab).toHaveAttribute('aria-controls', 'ui-v2-right-layers-panel')
   await expect(layersTab).toHaveAttribute('tabindex', '-1')
+  await expect(optionsPanel).toBeVisible()
   await expect(layersPanel).toBeHidden()
   await expect(page.getByTestId('selection-context-panel')).toBeVisible()
 
@@ -28,12 +33,14 @@ test('renders Layers directly in the right inspector and switches Options / Laye
 
   await layersTab.click()
   await expect(layersTab).toHaveAttribute('aria-selected', 'true')
+  await expect(optionsPanel).toBeHidden()
   await expect(layersPanel).toBeVisible()
   await expect(page.getByTestId('selection-context-panel')).toBeHidden()
   await expect(page.locator('.ui-v2-right-layers-host > .layers-section')).toBeVisible()
 
   await options.click()
   await expect(options).toHaveAttribute('aria-selected', 'true')
+  await expect(optionsPanel).toBeVisible()
   await expect(layersPanel).toBeHidden()
   await expect(page.getByTestId('selection-context-panel')).toBeVisible()
 })
@@ -63,7 +70,7 @@ test('supports keyboard navigation across right panel tabs', async ({ page }) =>
   await expect(options).toBeFocused()
 })
 
-test('keeps real layer selection and visibility handlers after the move', async ({ page }) => {
+test('keeps real layer selection and visibility handlers in the direct right layout', async ({ page }) => {
   await openEditor(page)
 
   const library = page.getByRole('region', { name: 'Библиотека элементов' })
@@ -78,8 +85,8 @@ test('keeps real layer selection and visibility handlers after the move', async 
   const tabs = page.getByRole('tablist', { name: 'Правая панель' })
   await tabs.getByRole('tab', { name: 'Слои', exact: true }).click()
 
-  const movedLayers = page.locator('.ui-v2-right-layers-host .layers-section')
-  const row = movedLayers.locator('.layer-row').first()
+  const layers = page.locator('.ui-v2-right-layers-host .layers-section')
+  const row = layers.locator('.layer-row').first()
   await expect(row).toBeVisible()
 
   await row.locator('.layer-main-button').click()
