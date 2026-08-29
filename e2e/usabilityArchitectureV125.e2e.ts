@@ -154,5 +154,5 @@ test('keeps responsive chrome contained and exposes clear project actions', asyn
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(900)
 
   const version = await page.locator('.brand').evaluate((element) => getComputedStyle(element, '::after').content.replaceAll('"', ''))
-  expect(version).toBe('v1.25.0')
+  expect(version).toBe('v1.26.0')
 })

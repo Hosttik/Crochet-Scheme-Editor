@@ -137,6 +137,7 @@ export function ProductivityPanel({
   canTransform,
   canGroup,
   canUngroup,
+  previewTarget = null,
   onGroup,
   onUngroup,
   onDirectionalMirror,
@@ -157,6 +158,7 @@ export function ProductivityPanel({
   canTransform: boolean
   canGroup: boolean
   canUngroup: boolean
+  previewTarget?: SVGGElement | null
   onGroup: () => void
   onUngroup: () => void
   onDirectionalMirror: (direction: MirrorDirection, copy: boolean) => void
@@ -181,7 +183,6 @@ export function ProductivityPanel({
   const [guideId, setGuideId] = useState('')
   const [repeatPreviewActive, setRepeatPreviewActive] = useState(false)
   const [previewDirection, setPreviewDirection] = useState<MirrorDirection | null>(null)
-  const [previewTarget, setPreviewTarget] = useState<SVGGElement | null>(null)
   const suppressNextSelectionPreview = useRef(false)
   const repeatDefaultsDirty = useRef({ deltaX: false, deltaY: false, spacing: false })
   const selectionKey = useMemo(() => [...selectedIds].sort().join('|'), [selectedIds])
@@ -201,10 +202,6 @@ export function ProductivityPanel({
       ].join(':'))
       .join('|')
   }, [elements, selectedIds])
-
-  useEffect(() => {
-    setPreviewTarget(document.querySelector<SVGGElement>('.editor-canvas > g'))
-  }, [])
 
   useEffect(() => {
     if (!guideId || guides.some((guide) => guide.id === guideId)) return

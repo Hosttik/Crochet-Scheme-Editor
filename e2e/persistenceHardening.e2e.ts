@@ -1,0 +1,63 @@
+import { expect, test, type Page } from '@playwright/test'
+
+async function canvasBox(page: Page) {
+  const box = await page.locator('svg.editor-canvas').boundingBox()
+  if (!box) throw new Error('Canvas is not visible')
+  return box
+}
+
+async function placeSingleCrochet(page: Page) {
+  const box = await canvasBox(page)
+  await page.locator('.symbols-section .symbol-button[title^="Столбик без накида ·"]').click()
+  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5)
+}
+
+test('flushes long-delay edits when the page is being hidden', async ({ page }) => {
+  await page.goto('/Crochet-Scheme-Editor/')
+  await page.getByLabel('Автосохранение').selectOption('60000')
+  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
+
+  await placeSingleCrochet(page)
+  await expect(page.locator('.stitch-element')).toHaveCount(1)
+
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')))
+  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
+
+  await page.reload()
+  await expect(page.getByLabel('Автосохранение')).toHaveValue('60000')
+  await expect(page.locator('.stitch-element')).toHaveCount(1)
+})
+
+test('surfaces storage failure instead of reporting a successful autosave', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      value: undefined,
+    })
+  })
+
+  await page.goto('/Crochet-Scheme-Editor/')
+
+  await expect(page.locator('.autosave-indicator')).toContainText(/ошиб|error/i)
+  await expect(page.locator('.project-error')).toContainText('IndexedDB is unavailable')
+  await expect(page.locator('.autosave-indicator')).not.toContainText('Автосохранено')
+})
+
+test('reports row-number deletion correctly in English', async ({ page }) => {
+  await page.goto('/Crochet-Scheme-Editor/')
+  const panel = page.getByTestId('row-markers-global-panel')
+  if (!(await panel.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await panel.locator(':scope > summary').click()
+  }
+
+  await panel.getByRole('button', { name: 'Поставить ряд №1' }).click()
+  const box = await canvasBox(page)
+  await page.mouse.click(box.x + box.width * 0.55, box.y + box.height * 0.5)
+  await expect(page.locator('.row-marker')).toHaveCount(1)
+
+  await page.getByRole('button', { name: 'EN', exact: true }).click()
+  await page.keyboard.press('Delete')
+
+  await expect(page.locator('.row-marker')).toHaveCount(0)
+  await expect(page.locator('.statusbar')).toContainText('Row number deleted')
+})

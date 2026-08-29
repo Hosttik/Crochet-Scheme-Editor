@@ -48,7 +48,15 @@ export function ProjectManagerPanel({
   const [nameDraft, setNameDraft] = useState(currentTitle)
   const [error, setError] = useState('')
 
-  const refresh = async () => setProjects(await listLocalProjects())
+  const refresh = async () => {
+    try {
+      setProjects(await listLocalProjects())
+      setError('')
+    } catch (reason) {
+      setProjects([])
+      setError(reason instanceof Error ? reason.message : (locale === 'ru' ? 'Не удалось прочитать локальные проекты' : 'Could not read local projects'))
+    }
+  }
 
   useEffect(() => {
     void refresh()

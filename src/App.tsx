@@ -353,8 +353,12 @@ function buildProject(
 
 function initialLocale(): Locale {
   if (typeof window === 'undefined') return DEFAULT_LOCALE
-  const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY)
-  return stored === 'ru' || stored === 'en' ? stored : DEFAULT_LOCALE
+  try {
+    const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY)
+    return stored === 'ru' || stored === 'en' ? stored : DEFAULT_LOCALE
+  } catch {
+    return DEFAULT_LOCALE
+  }
 }
 
 function isEditingTarget(target: EventTarget | null) {
@@ -378,6 +382,7 @@ function sameOrder(left: StitchElement[], right: StitchElement[]) {
 
 function App() {
   const svgRef = useRef<SVGSVGElement>(null)
+  const canvasContentRef = useRef<SVGGElement>(null)
   const loadInputRef = useRef<HTMLInputElement>(null)
   const printPanelRef = useRef<HTMLDetailsElement>(null)
   const snappingPanelRef = useRef<HTMLDetailsElement>(null)
@@ -444,7 +449,11 @@ function App() {
   const [autosaveState, setAutosaveState] = useState<AutosaveState>('loading')
 
   useEffect(() => {
-    window.localStorage.setItem(LOCALE_STORAGE_KEY, locale)
+    try {
+      window.localStorage.setItem(LOCALE_STORAGE_KEY, locale)
+    } catch {
+      // Locale still works for this session when localStorage is unavailable.
+    }
     document.documentElement.lang = locale
     if (hydrated) setStatus(UI[locale].ready)
   }, [hydrated, locale])
@@ -591,9 +600,16 @@ function App() {
     return count || undefined
   }, [elements, selectedParametricRow])
   const visibleElements = useMemo(() => elements.filter(isElementVisible), [elements])
+  const outputElementSource = drag?.startSnapshot.elements
+    ?? rotate?.startSnapshot.elements
+    ?? guideManipulationSnapshotRef.current?.elements
+    ?? elements
+  const outputRowMarkers = rowMarkerManipulationSnapshotRef.current?.rowMarkers ?? rowMarkers
+  const outputBackgroundImage = backgroundManipulationSnapshotRef.current?.backgroundImage ?? backgroundImage
+  const outputVisibleElements = useMemo(() => outputElementSource.filter(isElementVisible), [outputElementSource])
   const outputSvg = useMemo(
-    () => serializeSvg(visibleElements, rowMarkers, backgroundImage, legendVisible, locale, t.emptySvg),
-    [backgroundImage, legendVisible, locale, rowMarkers, t.emptySvg, visibleElements],
+    () => serializeSvg(outputVisibleElements, outputRowMarkers, outputBackgroundImage, legendVisible, locale, t.emptySvg),
+    [legendVisible, locale, outputBackgroundImage, outputRowMarkers, outputVisibleElements, t.emptySvg],
   )
   const outputBounds = useMemo(() => parseSvgViewBox(outputSvg), [outputSvg])
   const outputLegendBounds = useMemo(() => parseLegendPrintBounds(outputSvg), [outputSvg])
@@ -703,6 +719,28 @@ function App() {
   }, [activeProjectId, autosaveDelayMs, backgroundImage, cancelPendingAutosave, elements, enqueueProjectSave, gauge, guides, hydrated, legendVisible, locale, projectTitle, rowMarkers, rulers, snapping])
 
   useEffect(() => {
+    if (!hydrated || autosaveDelayMs === 0) return
+    let flushedWhileHidden = false
+
+    const flushForLifecycle = () => {
+      if (flushedWhileHidden || persistenceBlockedRef.current) return
+      flushedWhileHidden = true
+      void flushCurrentProject().catch(() => undefined)
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushForLifecycle()
+      else flushedWhileHidden = false
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('pagehide', flushForLifecycle)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('pagehide', flushForLifecycle)
+    }
+  }, [autosaveDelayMs, flushCurrentProject, hydrated])
+
+  useEffect(() => {
     setRulers((current) => reconcileRulerElementReferences(current, elements))
   }, [elements])
 
@@ -774,12 +812,13 @@ function App() {
     setStatus(t.statusRedo)
   }, [applySnapshot, clearElementSelection, currentSnapshot, history, t.statusRedo])
 
-  const unlockedSelectedIds = useCallback(() => {
+  const unlockedSelectionIds = useMemo(() => {
     const selected = new Set(selectedIds)
     return elements
       .filter((element) => selected.has(element.id) && !isElementLocked(element))
       .map((element) => element.id)
   }, [elements, selectedIds])
+  const unlockedSelectedIds = useCallback(() => unlockedSelectionIds, [unlockedSelectionIds])
 
   const deleteSelected = useCallback(() => {
     if (selectedIds.length) {
@@ -805,7 +844,7 @@ function App() {
       if (!marker || isRowMarkerLocked(marker)) return
       commitRowMarkers(deleteRowMarkerAndRenumber(rowMarkers, selectedRowMarkerId))
       setSelectedRowMarkerId(null)
-      setStatus(locale === 'ru' ? 'Номер ряда удалён' : 'Ruler deleted')
+      setStatus(locale === 'ru' ? 'Номер ряда удалён' : 'Row number deleted')
       return
     }
     if (selectedGuideId) {
@@ -835,12 +874,18 @@ function App() {
     unlockedSelectedIds,
   ])
 
-  const productivitySelectionIds = useCallback(() => {
-    const unlocked = new Set(unlockedSelectedIds())
-    return elements
-      .filter((element) => unlocked.has(element.id) && !element.parametricRow)
-      .map((element) => element.id)
-  }, [elements, unlockedSelectedIds])
+  const productivitySelection = useMemo(() => {
+    const unlocked = new Set(unlockedSelectionIds)
+    const ids: string[] = []
+    let canUngroup = false
+    for (const element of elements) {
+      if (!unlocked.has(element.id) || element.parametricRow) continue
+      ids.push(element.id)
+      if (element.groupId) canUngroup = true
+    }
+    return { ids, canGroup: ids.length > 1, canUngroup }
+  }, [elements, unlockedSelectionIds])
+  const productivitySelectionIds = useCallback(() => productivitySelection.ids, [productivitySelection])
 
   const copySelection = useCallback(() => {
     const copyIds = new Set(unlockedSelectedIds())
@@ -2650,7 +2695,7 @@ function App() {
         : autosaveState === 'error' ? t.autosaveError
           : autosaveState === 'off' ? (locale === 'ru' ? 'Автосохранение выключено' : 'Autosave off')
             : t.autosaveSaved
-  const editableSelectedCount = unlockedSelectedIds().length
+  const editableSelectedCount = unlockedSelectionIds.length
 
   if (!hydrated) {
     return (
@@ -2770,10 +2815,10 @@ function App() {
         <SelectionQuickToolbar
           locale={locale}
           elements={elements}
-          selectedIds={productivitySelectionIds()}
+          selectedIds={productivitySelection.ids}
           viewport={viewport}
-          canGroup={productivitySelectionIds().length > 1}
-          canUngroup={productivitySelectionIds().some((id) => Boolean(elements.find((element) => element.id === id)?.groupId))}
+          canGroup={productivitySelection.canGroup}
+          canUngroup={productivitySelection.canUngroup}
           onDuplicate={duplicateSelection}
           onGroup={groupSelection}
           onUngroup={ungroupSelection}
@@ -2804,7 +2849,7 @@ function App() {
             </pattern>
           </defs>
 
-          <g transform={`translate(${viewport.panX} ${viewport.panY}) scale(${viewport.zoom})`}>
+          <g ref={canvasContentRef} transform={`translate(${viewport.panX} ${viewport.panY}) scale(${viewport.zoom})`}>
             <rect x="-6000" y="-6000" width="12000" height="12000" fill="#fbfaf7" />
             <rect x="-6000" y="-6000" width="12000" height="12000" fill="url(#grid)" />
             <line x1="-6000" y1="0" x2="6000" y2="0" className="origin-line" />
@@ -2983,16 +3028,17 @@ function App() {
           onGenerateGuideRow={handleGenerateGuideRow}
         />
 
-        {productivitySelectionIds().length > 0 && (
+        {productivitySelection.ids.length > 0 && (
           <ProductivityPanel
             locale={locale}
             guides={guides}
             elements={elements}
-            selectedIds={productivitySelectionIds()}
-            selectedCount={productivitySelectionIds().length}
+            selectedIds={productivitySelection.ids}
+            selectedCount={productivitySelection.ids.length}
             canTransform
-            canGroup={productivitySelectionIds().length > 1}
-            canUngroup={productivitySelectionIds().some((id) => Boolean(elements.find((element) => element.id === id)?.groupId))}
+            canGroup={productivitySelection.canGroup}
+            canUngroup={productivitySelection.canUngroup}
+            previewTarget={canvasContentRef.current}
             onGroup={groupSelection}
             onUngroup={ungroupSelection}
             onDirectionalMirror={directionalMirrorSelection}

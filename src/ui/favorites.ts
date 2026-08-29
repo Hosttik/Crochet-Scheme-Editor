@@ -34,5 +34,9 @@ export function loadFavorites(): FavoriteElementKey[] {
 
 export function saveFavorites(favorites: readonly FavoriteElementKey[]) {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...new Set(favorites.filter(validFavoriteKey))]))
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...new Set(favorites.filter(validFavoriteKey))]))
+  } catch {
+    // UI preferences are non-critical and remain usable for the current session.
+  }
 }
