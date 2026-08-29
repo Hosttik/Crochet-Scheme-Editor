@@ -43,6 +43,7 @@ describe('guide list panel', () => {
     expect(markup).toContain('1. Линия')
     expect(markup).toContain('visibility-dot hidden')
     expect(markup).toContain('aria-label="Заблокирована"')
-    expect(markup).toContain('🔒')
+    expect(markup).toContain('lock-indicator-icon')
+    expect(markup).not.toContain('🔒')
   })
 })
