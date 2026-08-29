@@ -8,6 +8,7 @@ import {
   symbolFavoriteKey,
   type FavoriteElementKey,
 } from './favorites'
+import { SearchField } from './primitives'
 import type { WorkbenchTool } from './workbenchTypes'
 import './favorites.css'
 import './elementLibrary.css'
@@ -240,13 +241,12 @@ export function ElementLibrary({
         <h2>{locale === 'ru' ? 'Элементы' : 'Stitches'}</h2>
         <span className="muted-text">{SYMBOLS.length + CHAIN_BUNDLE_COUNTS.length}</span>
       </div>
-      <input
-        className="symbol-search"
+      <SearchField
+        wrapperClassName="element-library__search"
         data-testid="symbol-search"
-        type="search"
         value={query}
         placeholder={locale === 'ru' ? 'Поиск: ВП, столбик…' : 'Search: ch, double…'}
-        aria-label={locale === 'ru' ? 'Поиск элементов' : 'Search stitches'}
+        label={locale === 'ru' ? 'Поиск элементов' : 'Search stitches'}
         onChange={(event) => onQueryChange(event.target.value)}
       />
 
