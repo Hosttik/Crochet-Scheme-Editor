@@ -1,4 +1,4 @@
-import type { Locale } from '../i18n'
+import { UI, type Locale } from '../i18n'
 import type { Guide } from '../types'
 
 type GuideListPanelProps = {
@@ -16,10 +16,12 @@ export function GuideListPanel({
   guideLabel,
   onSelectGuide,
 }: GuideListPanelProps) {
+  const t = UI[locale]
+
   return (
     <section className="panel-section guide-section">
       <div className="section-title-row">
-        <h2>{locale === 'ru' ? 'Направляющие' : 'Guides'}</h2>
+        <h2>{t.guides}</h2>
         <span className="muted-text">{guides.length}</span>
       </div>
       {guides.length > 0 && (
