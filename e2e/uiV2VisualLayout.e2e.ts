@@ -15,6 +15,17 @@ async function expectNoHorizontalOverflow(locator: Locator) {
   expect(width.scrollWidth).toBeLessThanOrEqual(width.clientWidth + 1)
 }
 
+async function expectContainedHorizontally(child: Locator, parent: Locator) {
+  await expect(child).toBeVisible()
+  await expect(parent).toBeVisible()
+  const childBox = await child.boundingBox()
+  const parentBox = await parent.boundingBox()
+  expect(childBox).not.toBeNull()
+  expect(parentBox).not.toBeNull()
+  expect(childBox!.x).toBeGreaterThanOrEqual(parentBox!.x - 1)
+  expect(childBox!.x + childBox!.width).toBeLessThanOrEqual(parentBox!.x + parentBox!.width + 1)
+}
+
 async function placeAndSelectSingleStitch(page: Page) {
   await page.getByRole('button', { name: 'Столбик без накида · sc', exact: true }).click()
   const canvas = page.locator('svg.editor-canvas')
@@ -43,8 +54,10 @@ test('contains productivity controls inside the 900px inspector', async ({ page 
   await openEditor(page, 900)
   await placeAndSelectSingleStitch(page)
 
-  await expectNoHorizontalOverflow(page.locator('.right-sidebar'))
-  await expectNoHorizontalOverflow(page.locator('.productivity-panel'))
+  const sidebar = page.locator('.right-sidebar')
+  const panel = page.locator('.productivity-panel')
+  await expectContainedHorizontally(panel, sidebar)
+  await expectNoHorizontalOverflow(panel)
 
   const groupActions = page.locator('.productivity-actions').first()
   await expectNoHorizontalOverflow(groupActions)
