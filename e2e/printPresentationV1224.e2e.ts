@@ -29,7 +29,7 @@ async function openGlobalPanel(page: Page, testId: string) {
 test('shows the package version in app chrome', async ({ page }) => {
   await openEditor(page)
   const version = await page.locator('.brand').evaluate((element) => getComputedStyle(element, '::after').content.replaceAll('"', ''))
-  expect(version).toBe('v1.25.0')
+  expect(version).toBe('v1.26.0')
 })
 
 test('persists white canvas and grid visibility preferences', async ({ page }) => {
