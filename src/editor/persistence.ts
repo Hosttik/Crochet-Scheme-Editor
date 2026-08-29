@@ -16,8 +16,10 @@ export type LocalProjectSummary = {
   updatedAt: string
 }
 
+let sessionActiveProjectId = DEFAULT_PROJECT_ID
+
 function indexedDbAvailable() {
-  return typeof window !== 'undefined' && 'indexedDB' in window
+  return typeof window !== 'undefined' && typeof window.indexedDB !== 'undefined'
 }
 
 function randomProjectId() {
@@ -34,19 +36,35 @@ function summaryFor(id: string, project: CrochetProject): LocalProjectSummary {
 }
 
 export function getActiveProjectId() {
-  if (typeof window === 'undefined') return DEFAULT_PROJECT_ID
-  return window.localStorage.getItem(ACTIVE_PROJECT_KEY) || DEFAULT_PROJECT_ID
+  if (typeof window === 'undefined') return sessionActiveProjectId
+  try {
+    const stored = window.localStorage.getItem(ACTIVE_PROJECT_KEY)
+    if (stored) sessionActiveProjectId = stored
+  } catch {
+    // Keep the in-memory selection when localStorage is unavailable.
+  }
+  return sessionActiveProjectId
 }
 
 export function setActiveProjectId(id: string) {
-  if (typeof window !== 'undefined') window.localStorage.setItem(ACTIVE_PROJECT_KEY, id)
+  sessionActiveProjectId = id
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(ACTIVE_PROJECT_KEY, id)
+  } catch {
+    // Project data still lives in IndexedDB; keep the active id for this session.
+  }
 }
 
-function openDatabase(): Promise<IDBDatabase | null> {
-  if (!indexedDbAvailable()) return Promise.resolve(null)
+function openDatabase(): Promise<IDBDatabase> {
+  if (!indexedDbAvailable()) {
+    return Promise.reject(new Error('IndexedDB is unavailable'))
+  }
 
   return new Promise((resolve, reject) => {
     const request = window.indexedDB.open(DB_NAME, DB_VERSION)
+    let settled = false
+
     request.onupgradeneeded = () => {
       const database = request.result
       const transaction = request.transaction
@@ -68,23 +86,47 @@ function openDatabase(): Promise<IDBDatabase | null> {
       }
 
       if (database.objectStoreNames.contains(LEGACY_STORE_NAME)) {
-        const legacy = transaction.objectStore(LEGACY_STORE_NAME).get(LEGACY_CURRENT_KEY)
-        legacy.onsuccess = () => {
-          if (!legacy.result) return
-          const project = legacy.result as CrochetProject
-          projects.put(project, DEFAULT_PROJECT_ID)
-          summaries.put(summaryFor(DEFAULT_PROJECT_ID, project), DEFAULT_PROJECT_ID)
+        // Legacy data must only seed an empty default project. Keeping this
+        // migration idempotent prevents a later DB-version bump from restoring
+        // stale legacy content over a newer project.
+        const currentDefault = projects.get(DEFAULT_PROJECT_ID)
+        currentDefault.onsuccess = () => {
+          if (currentDefault.result) return
+          const legacy = transaction.objectStore(LEGACY_STORE_NAME).get(LEGACY_CURRENT_KEY)
+          legacy.onsuccess = () => {
+            if (!legacy.result) return
+            const project = legacy.result as CrochetProject
+            projects.put(project, DEFAULT_PROJECT_ID)
+            summaries.put(summaryFor(DEFAULT_PROJECT_ID, project), DEFAULT_PROJECT_ID)
+          }
         }
       }
     }
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error ?? new Error('Could not open IndexedDB'))
+    request.onsuccess = () => {
+      const database = request.result
+      database.onversionchange = () => database.close()
+      if (settled) {
+        database.close()
+        return
+      }
+      settled = true
+      resolve(database)
+    }
+    request.onerror = () => {
+      if (settled) return
+      settled = true
+      reject(request.error ?? new Error('Could not open IndexedDB'))
+    }
+    request.onblocked = () => {
+      if (settled) return
+      settled = true
+      reject(new Error('IndexedDB upgrade is blocked by another open tab'))
+    }
   })
 }
 
 async function readProject(id: string): Promise<CrochetProject | null> {
   const database = await openDatabase()
-  if (!database) return null
   try {
     return await new Promise<CrochetProject | null>((resolve, reject) => {
       const transaction = database.transaction(PROJECTS_STORE_NAME, 'readonly')
@@ -100,7 +142,6 @@ async function readProject(id: string): Promise<CrochetProject | null> {
 async function writeProject(id: string, project: CrochetProject): Promise<void> {
   assertProjectIntegrity(project)
   const database = await openDatabase()
-  if (!database) return
   try {
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction([PROJECTS_STORE_NAME, SUMMARIES_STORE_NAME], 'readwrite')
@@ -148,7 +189,6 @@ export async function duplicateLocalProject(project: CrochetProject, title: stri
 
 export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
   const database = await openDatabase()
-  if (!database) return []
   try {
     return await new Promise<LocalProjectSummary[]>((resolve, reject) => {
       const transaction = database.transaction(SUMMARIES_STORE_NAME, 'readonly')
@@ -167,7 +207,6 @@ export async function listLocalProjects(): Promise<LocalProjectSummary[]> {
 
 export async function deleteLocalProject(id: string): Promise<void> {
   const database = await openDatabase()
-  if (!database) return
   try {
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction([PROJECTS_STORE_NAME, SUMMARIES_STORE_NAME], 'readwrite')
