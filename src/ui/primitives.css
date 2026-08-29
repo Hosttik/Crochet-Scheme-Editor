@@ -132,6 +132,64 @@
   font-size: 11px;
 }
 
+.ui-search-field {
+  min-width: 0;
+  min-height: var(--ui-control-height);
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface);
+  color: var(--ui-text-muted);
+}
+
+.ui-search-field:focus-within {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ui-accent) 18%, transparent);
+}
+
+.ui-search-field > svg {
+  display: block;
+  pointer-events: none;
+}
+
+.ui-search-field > input {
+  min-width: 0;
+  width: 100%;
+  height: calc(var(--ui-control-height) - 2px);
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ui-text);
+  font: inherit;
+  font-size: 11px;
+}
+
+.ui-search-field > input:focus {
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+}
+
+.ui-search-field > input::placeholder {
+  color: var(--ui-text-faint);
+}
+
+.ui-search-field > input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.ui-search-field__end {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ui-text-faint);
+}
+
 .ui-panel-header {
   min-height: 36px;
   display: flex;
