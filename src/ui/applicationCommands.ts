@@ -24,9 +24,38 @@ export type ApplicationCommandId =
   | 'help.controls'
   | 'ui.commandPalette'
 
+export type ApplicationCommandState = {
+  enabled: boolean
+  disabledReason?: string
+}
+
+export type ApplicationCommandResult =
+  | { status: 'executed' }
+  | { status: 'disabled'; reason?: string }
+  | { status: 'failed'; error: string }
+
+export type ApplicationCommandRegistry = {
+  getState: (command: ApplicationCommandId) => ApplicationCommandState
+  execute: (command: ApplicationCommandId) => Promise<ApplicationCommandResult>
+}
+
 /**
- * Semantic command boundary for application chrome. Menus and command search
- * depend on command IDs only; App.tsx owns the concrete editor actions and
- * passes the runner down through EditorShell.
+ * Legacy runner type retained for lower-level adapters and tests while command
+ * surfaces migrate to ApplicationCommandRegistry. New application chrome should
+ * depend on the registry so availability and execution cannot drift apart.
  */
 export type ApplicationCommandRunner = (command: ApplicationCommandId) => boolean | void
+
+export const COMMAND_ENABLED: ApplicationCommandState = { enabled: true }
+
+export function commandDisabled(reason?: string): ApplicationCommandResult {
+  return reason ? { status: 'disabled', reason } : { status: 'disabled' }
+}
+
+export function commandExecuted(): ApplicationCommandResult {
+  return { status: 'executed' }
+}
+
+export function commandFailed(error: string): ApplicationCommandResult {
+  return { status: 'failed', error }
+}
