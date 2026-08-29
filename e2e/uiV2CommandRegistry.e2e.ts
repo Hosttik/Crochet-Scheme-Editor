@@ -30,7 +30,8 @@ test('menu command availability follows document state and disabled commands are
   }
 
   const disabledPaste = editMenu.getByRole('menuitem', { name: 'Вставить', exact: true })
-  await disabledPaste.click()
+  await disabledPaste.focus()
+  await page.keyboard.press('Enter')
   await expect(editMenu).toBeVisible()
   await expect(page.locator('.stitch-element')).toHaveCount(0)
 
