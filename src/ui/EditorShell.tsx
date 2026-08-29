@@ -3,7 +3,6 @@ import type { Locale } from '../i18n'
 import { AppMenuBar } from './AppMenuBar'
 import type { ApplicationCommandRunner } from './applicationCommands'
 import { CommandPalette } from './CommandPalette'
-import { RightInspectorBridge } from './RightInspectorBridge'
 import './editor-shell.css'
 
 export type EditorShellProps = {
@@ -19,7 +18,6 @@ export function EditorShell({ children, locale, runCommand }: EditorShellProps) 
       <CommandPalette locale={locale} runCommand={runCommand} />
       <div className="editor-root-v2__workbench">
         {children}
-        <RightInspectorBridge locale={locale} />
       </div>
     </div>
   )

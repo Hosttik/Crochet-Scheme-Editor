@@ -119,6 +119,7 @@ import { EditorShell } from './ui/EditorShell'
 import { FavoriteQuickBar } from './ui/FavoriteQuickBar'
 import { loadFavorites, saveFavorites, type FavoriteElementKey } from './ui/favorites'
 import { LeftWorkbenchSurface } from './ui/LeftWorkbenchSurface'
+import { RightPanelTabs, type RightPanelTab } from './ui/RightPanelTabs'
 import type { WorkbenchTool } from './ui/workbenchTypes'
 import type {
   AutosaveDelayMs,
@@ -468,6 +469,7 @@ function App() {
   const [tool, setTool] = useState<WorkbenchTool>({ type: 'select' })
   const [workbenchQuery, setWorkbenchQuery] = useState('')
   const [favorites, setFavorites] = useState<FavoriteElementKey[]>(loadFavorites)
+  const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('options')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectedGuideId, setSelectedGuideId] = useState<string | null>(null)
   const [selectedRowMarkerId, setSelectedRowMarkerId] = useState<string | null>(null)
@@ -2733,18 +2735,6 @@ function App() {
           )}
         </section>
 
-        <LayersPanel
-          elements={elements}
-          selectedIds={selectedIds}
-          locale={locale}
-          onSelect={handleLayerSelect}
-          onToggleVisible={toggleElementVisible}
-          onToggleLocked={toggleElementLocked}
-          onBringForward={bringSelectionForward}
-          onSendBackward={sendSelectionBackward}
-          onBringToFront={bringSelectionToFront}
-          onSendToBack={sendSelectionToBack}
-        />
       </aside>
 
       <main className="workspace">
@@ -2999,6 +2989,17 @@ function App() {
       </main>
 
       <aside className="sidebar right-sidebar">
+        <div className="ui-v2-right-tabs-host">
+          <RightPanelTabs locale={locale} activeTab={rightPanelTab} onChange={setRightPanelTab} />
+        </div>
+
+        <div
+          id="ui-v2-right-options-panel"
+          className="ui-v2-right-options-host"
+          role="tabpanel"
+          aria-labelledby="ui-v2-right-tab-options"
+          hidden={rightPanelTab !== 'options'}
+        >
         <section className="panel-section right-panel-context" data-testid="selection-context-panel">
           <div className="section-title-row">
             <h2>{t.selection}</h2>
@@ -3371,6 +3372,29 @@ function App() {
             </ul>
           </section>
         </details>
+        </div>
+
+        <div
+          id="ui-v2-right-layers-panel"
+          className="ui-v2-right-layers-host"
+          role="tabpanel"
+          aria-labelledby="ui-v2-right-tab-layers"
+          tabIndex={0}
+          hidden={rightPanelTab !== 'layers'}
+        >
+          <LayersPanel
+            elements={elements}
+            selectedIds={selectedIds}
+            locale={locale}
+            onSelect={handleLayerSelect}
+            onToggleVisible={toggleElementVisible}
+            onToggleLocked={toggleElementLocked}
+            onBringForward={bringSelectionForward}
+            onSendBackward={sendSelectionBackward}
+            onBringToFront={bringSelectionToFront}
+            onSendToBack={sendSelectionToBack}
+          />
+        </div>
       </aside>
       </div>
     </EditorShell>

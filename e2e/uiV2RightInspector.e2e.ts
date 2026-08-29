@@ -6,7 +6,7 @@ async function openEditor(page: Page) {
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
-test('moves Layers to the right inspector and switches Options / Layers tabs', async ({ page }) => {
+test('renders Layers directly in the right inspector and switches Options / Layers tabs', async ({ page }) => {
   await openEditor(page)
 
   const tabs = page.getByRole('tablist', { name: 'Правая панель' })
@@ -23,6 +23,7 @@ test('moves Layers to the right inspector and switches Options / Layers tabs', a
   await expect(page.getByTestId('selection-context-panel')).toBeVisible()
 
   await expect(page.locator('.left-sidebar > .layers-section')).toHaveCount(0)
+  await expect(page.locator('[data-ui-v2-bridge="right-inspector"]')).toHaveCount(0)
   await expect(page.locator('.ui-v2-right-layers-host > .layers-section')).toHaveCount(1)
 
   await layersTab.click()

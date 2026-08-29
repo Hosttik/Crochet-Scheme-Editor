@@ -138,7 +138,7 @@ export function LayersPanel({
   }
 
   return (
-    <details className="panel-section layers-section">
+    <details className="panel-section layers-section" open>
       <summary className="layers-summary">
         <span>{t.layers}</span>
         <span className="muted-text">{elements.length}</span>

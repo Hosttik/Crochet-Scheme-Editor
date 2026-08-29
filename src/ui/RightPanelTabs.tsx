@@ -1,6 +1,7 @@
 import type { KeyboardEvent } from 'react'
 import type { Locale } from '../i18n'
 import { EditorIcon } from './icons'
+import './rightInspector.css'
 
 export type RightPanelTab = 'options' | 'layers'
 
@@ -43,7 +44,7 @@ export function RightPanelTabs({
             type="button"
             role="tab"
             aria-selected={selected}
-            aria-controls={tab.id === 'layers' ? 'ui-v2-right-layers-panel' : undefined}
+            aria-controls={`ui-v2-right-${tab.id}-panel`}
             tabIndex={selected ? 0 : -1}
             className={selected ? 'is-active' : ''}
             onClick={() => onChange(tab.id)}

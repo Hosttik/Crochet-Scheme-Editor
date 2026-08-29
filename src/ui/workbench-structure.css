@@ -114,7 +114,7 @@
   background: var(--ui-surface);
 }
 
-.right-sidebar > .right-panel-context {
+.right-sidebar .right-panel-context {
   padding: 10px 12px 12px;
   border-bottom: 1px solid var(--ui-border);
 }
@@ -241,12 +241,12 @@
 
 /* Global inspector groups read as an accordion rather than a stack of old
  * bordered panels. */
-.right-sidebar > .right-panel-collapsible {
+.right-sidebar .right-panel-collapsible {
   border-bottom: 1px solid var(--ui-border);
   background: var(--ui-surface);
 }
 
-.right-sidebar > .right-panel-collapsible > summary {
+.right-sidebar .right-panel-collapsible > summary {
   position: relative;
   min-height: 36px;
   display: flex;
@@ -259,11 +259,11 @@
   font-weight: 600;
 }
 
-.right-sidebar > .right-panel-collapsible > summary::-webkit-details-marker {
+.right-sidebar .right-panel-collapsible > summary::-webkit-details-marker {
   display: none;
 }
 
-.right-sidebar > .right-panel-collapsible > summary::after {
+.right-sidebar .right-panel-collapsible > summary::after {
   content: '';
   position: absolute;
   right: 13px;
@@ -276,17 +276,17 @@
   transition: transform 120ms ease;
 }
 
-.right-sidebar > .right-panel-collapsible[open] > summary {
+.right-sidebar .right-panel-collapsible[open] > summary {
   border-bottom: 1px solid var(--ui-border);
   background: var(--ui-surface-subtle);
   color: var(--ui-text);
 }
 
-.right-sidebar > .right-panel-collapsible[open] > summary::after {
+.right-sidebar .right-panel-collapsible[open] > summary::after {
   transform: rotate(225deg) translate(-1px, -1px);
 }
 
-.right-sidebar > .right-panel-collapsible > .panel-section {
+.right-sidebar .right-panel-collapsible > .panel-section {
   padding: 10px 12px 12px;
 }
 
