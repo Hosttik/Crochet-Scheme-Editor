@@ -81,4 +81,28 @@ describe('selection inspector', () => {
     expect(markup).toContain('Fit to project')
     expect(markup).toContain('Reverse direction')
   })
+
+  it('uses the shared outline lock icon for locked selection state', () => {
+    const markup = renderToStaticMarkup(
+      <SelectionInspector
+        locale="en"
+        elements={[]}
+        guides={[]}
+        selectedIds={[]}
+        selectedElement={null}
+        selectedGuide={null}
+        selectedParametricRow={null}
+        selectedParametricGuide={null}
+        selectedTopologyParentId={null}
+        lockedSelectedCount={2}
+        editableSelectedCount={0}
+        guideLabel={() => ''}
+        {...callbacks}
+      />,
+    )
+
+    expect(markup).toContain('lock-indicator-icon')
+    expect(markup).toContain('2 selected locked stitch(es)')
+    expect(markup).not.toContain('🔒')
+  })
 })
