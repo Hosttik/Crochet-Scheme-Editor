@@ -98,7 +98,7 @@ test('shows a visible focus surface around command search when opened from the k
   await openEditor(page)
 
   await page.keyboard.press('Control+K')
-  const input = page.getByRole('searchbox', { name: 'Поиск по функциям', exact: true })
+  const input = page.getByRole('combobox', { name: 'Поиск по функциям', exact: true })
   await expect(input).toBeFocused()
 
   const focusSurface = page.locator('.command-palette__search')
