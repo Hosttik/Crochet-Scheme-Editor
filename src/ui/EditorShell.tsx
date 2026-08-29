@@ -8,7 +8,7 @@ import './editor-shell.css'
 export type EditorShellProps = {
   children: ReactNode
   locale?: Locale
-  runCommand?: ApplicationCommandRunner
+  runCommand: ApplicationCommandRunner
 }
 
 export function EditorShell({ children, locale, runCommand }: EditorShellProps) {

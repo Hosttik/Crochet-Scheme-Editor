@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent }
 import type { Locale } from '../i18n'
 import type { ApplicationCommandId, ApplicationCommandRunner } from './applicationCommands'
 import { openCommandPalette } from './CommandPalette'
-import { runLegacyCommand } from './legacyCommandBridge'
 
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
 
@@ -131,12 +130,12 @@ function ariaKeyShortcuts(command?: ApplicationCommandId) {
 }
 
 export function AppMenuBar({
-  runCommand = runLegacyCommand,
+  runCommand,
   locale: controlledLocale,
 }: {
-  runCommand?: ApplicationCommandRunner
+  runCommand: ApplicationCommandRunner
   locale?: Locale
-} = {}) {
+}) {
   const [legacyLocale, setLegacyLocale] = useState<Locale>(initialLocale)
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null)
   const rootRef = useRef<HTMLElement>(null)

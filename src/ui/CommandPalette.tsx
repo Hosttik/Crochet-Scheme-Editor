@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboa
 import type { Locale } from '../i18n'
 import type { ApplicationCommandId, ApplicationCommandRunner } from './applicationCommands'
 import { EditorIcon } from './icons'
-import { runLegacyCommand } from './legacyCommandBridge'
 import './commandPalette.css'
 
 export const OPEN_COMMAND_PALETTE_EVENT = 'crochet-ui-v2:open-command-palette'
@@ -80,12 +79,12 @@ function initialLocale(): Locale {
 }
 
 export function CommandPalette({
-  runCommand = runLegacyCommand,
+  runCommand,
   locale: controlledLocale,
 }: {
-  runCommand?: ApplicationCommandRunner
+  runCommand: ApplicationCommandRunner
   locale?: Locale
-} = {}) {
+}) {
   const [legacyLocale, setLegacyLocale] = useState<Locale>(initialLocale)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')

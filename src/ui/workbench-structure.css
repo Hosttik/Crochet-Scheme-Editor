@@ -1,9 +1,9 @@
 /*
  * UI v2 workbench structure.
  *
- * App.tsx owns the left ToolRail / ElementLibrary and the right Options /
- * Layers tab layout directly. Structural DOM reparenting is no longer used;
- * the remaining migration seam is application-command routing.
+ * App.tsx owns the left ToolRail / ElementLibrary, the right Options /
+ * Layers layout, and the application command runner directly. Structural DOM
+ * reparenting and synthetic command routing are no longer used.
  */
 
 .app-shell {

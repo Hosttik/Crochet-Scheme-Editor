@@ -26,6 +26,38 @@ test('application menu exposes real editor commands without duplicating dead UI'
   await expect(page.locator('.app-shell')).not.toHaveClass(/right-collapsed/)
 })
 
+test('application menu executes App commands without synthetic keyboard dispatch', async ({ page }) => {
+  await openEditor(page)
+
+  await page.evaluate(() => {
+    sessionStorage.setItem('ui-v2-synthetic-keydowns', '0')
+    window.addEventListener('keydown', (event) => {
+      if (!event.isTrusted) {
+        const count = Number(sessionStorage.getItem('ui-v2-synthetic-keydowns') ?? '0')
+        sessionStorage.setItem('ui-v2-synthetic-keydowns', String(count + 1))
+      }
+    }, true)
+  })
+
+  const library = page.getByRole('region', { name: 'Библиотека элементов' })
+  await library.getByRole('button', { name: 'Воздушная петля · ch', exact: true }).click()
+  const canvas = page.locator('svg.editor-canvas')
+  const box = await canvas.boundingBox()
+  expect(box).not.toBeNull()
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2)
+  await page.keyboard.press('Escape')
+
+  await page.getByRole('button', { name: 'Правка', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Выбрать всё', exact: true }).click()
+  await expect(page.locator('.stitch-element.selected')).toHaveCount(1)
+
+  await page.getByRole('button', { name: 'Правка', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Дублировать', exact: true }).click()
+  await expect(page.locator('.stitch-element')).toHaveCount(2)
+
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('ui-v2-synthetic-keydowns'))).toBe('0')
+})
+
 test('application menu supports desktop keyboard navigation', async ({ page }) => {
   await openEditor(page)
 

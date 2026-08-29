@@ -120,6 +120,7 @@ import { FavoriteQuickBar } from './ui/FavoriteQuickBar'
 import { loadFavorites, saveFavorites, type FavoriteElementKey } from './ui/favorites'
 import { LeftWorkbenchSurface } from './ui/LeftWorkbenchSurface'
 import { RightPanelTabs, type RightPanelTab } from './ui/RightPanelTabs'
+import type { ApplicationCommandId, ApplicationCommandRunner } from './ui/applicationCommands'
 import type { WorkbenchTool } from './ui/workbenchTypes'
 import type {
   AutosaveDelayMs,
@@ -434,6 +435,13 @@ function sameOrder(left: StitchElement[], right: StitchElement[]) {
 function App() {
   const svgRef = useRef<SVGSVGElement>(null)
   const loadInputRef = useRef<HTMLInputElement>(null)
+  const printPanelRef = useRef<HTMLDetailsElement>(null)
+  const snappingPanelRef = useRef<HTMLDetailsElement>(null)
+  const gaugePanelRef = useRef<HTMLDetailsElement>(null)
+  const patternRowsPanelRef = useRef<HTMLDetailsElement>(null)
+  const rowMarkersPanelRef = useRef<HTMLDetailsElement>(null)
+  const legendPanelRef = useRef<HTMLDetailsElement>(null)
+  const helpPanelRef = useRef<HTMLDetailsElement>(null)
   const snapLockRef = useRef<string | null>(null)
   const spacePressedRef = useRef(false)
   const interactionMovedRef = useRef(false)
@@ -2592,6 +2600,87 @@ function App() {
     setStatus(t.svgExported)
   }
 
+  const openInspectorPanel = (panel: HTMLDetailsElement | null) => {
+    if (!panel) return false
+    setRightCollapsed(false)
+    setRightPanelTab('options')
+    requestAnimationFrame(() => {
+      panel.open = true
+      panel.scrollIntoView({ block: 'nearest' })
+      panel.querySelector<HTMLElement>('summary')?.focus()
+    })
+    return true
+  }
+
+  const runApplicationCommand: ApplicationCommandRunner = (command: ApplicationCommandId) => {
+    switch (command) {
+      case 'file.new':
+        void handleNewLocalProject()
+        return true
+      case 'file.import':
+        loadInputRef.current?.click()
+        return Boolean(loadInputRef.current)
+      case 'file.exportProject':
+        saveProject()
+        return true
+      case 'file.exportSvg':
+        exportSvg()
+        return true
+      case 'file.print':
+        return openInspectorPanel(printPanelRef.current)
+      case 'edit.undo':
+        undo()
+        return true
+      case 'edit.redo':
+        redo()
+        return true
+      case 'edit.copy':
+        copySelection()
+        return true
+      case 'edit.paste':
+        pasteSelection()
+        return true
+      case 'edit.duplicate':
+        duplicateSelection()
+        return true
+      case 'edit.delete':
+        deleteSelected()
+        return true
+      case 'edit.selectAll':
+        selectAll()
+        return true
+      case 'view.zoom100':
+        setCanvasZoom(1)
+        return true
+      case 'view.fitAll':
+        fitAll()
+        return true
+      case 'view.fitSelection':
+        fitSelection()
+        return true
+      case 'view.toggleLeft':
+        setLeftCollapsed((value) => !value)
+        return true
+      case 'view.toggleRight':
+        setRightCollapsed((value) => !value)
+        return true
+      case 'settings.snapping':
+        return openInspectorPanel(snappingPanelRef.current)
+      case 'settings.gauge':
+        return openInspectorPanel(gaugePanelRef.current)
+      case 'settings.patternRows':
+        return openInspectorPanel(patternRowsPanelRef.current)
+      case 'settings.rowNumbers':
+        return openInspectorPanel(rowMarkersPanelRef.current)
+      case 'settings.legend':
+        return openInspectorPanel(legendPanelRef.current)
+      case 'help.controls':
+        return openInspectorPanel(helpPanelRef.current)
+      case 'ui.commandPalette':
+        return false
+    }
+  }
+
   const anchorLabels: Record<AnchorName, string> = {
     top: t.top,
     center: t.center,
@@ -2620,7 +2709,7 @@ function App() {
   }
 
   return (
-    <EditorShell locale={locale}>
+    <EditorShell locale={locale} runCommand={runApplicationCommand}>
       <div className={`app-shell ${leftCollapsed ? 'left-collapsed' : ''} ${rightCollapsed ? 'right-collapsed' : ''}`}>
       <header className="topbar">
         <div className="brand">
@@ -3235,7 +3324,7 @@ function App() {
           />
         </details>
 
-        <details className="right-panel-collapsible" data-testid="gauge-global-panel">
+        <details ref={gaugePanelRef} className="right-panel-collapsible" data-testid="gauge-global-panel">
           <summary>{locale === 'ru' ? 'Плотность и размер' : 'Gauge & size'}</summary>
           <GaugeRulerPanel
             locale={locale}
@@ -3257,12 +3346,12 @@ function App() {
           />
         </details>
 
-        <details className="right-panel-collapsible" data-testid="print-global-panel">
+        <details ref={printPanelRef} className="right-panel-collapsible" data-testid="print-global-panel">
           <summary>{locale === 'ru' ? 'Печать по страницам' : 'Tiled print'}</summary>
           <PrintPanel locale={locale} bounds={outputBounds} legendBounds={outputLegendBounds} onPrint={openTiledPrint} />
         </details>
 
-        <details className="right-panel-collapsible" data-testid="snapping-global-panel">
+        <details ref={snappingPanelRef} className="right-panel-collapsible" data-testid="snapping-global-panel">
           <summary>{t.snapping}</summary>
           <section className="panel-section">
             <label className="toggle-row">
@@ -3309,7 +3398,7 @@ function App() {
           </section>
         </details>
 
-        <details className="right-panel-collapsible" data-testid="pattern-rows-global-panel">
+        <details ref={patternRowsPanelRef} className="right-panel-collapsible" data-testid="pattern-rows-global-panel">
           <summary>{locale === 'ru' ? 'Ряды узора' : 'Pattern rows'}</summary>
           <section className="panel-section">
             <PatternRowsPanel
@@ -3323,7 +3412,7 @@ function App() {
           </section>
         </details>
 
-        <details className="right-panel-collapsible" data-testid="row-markers-global-panel">
+        <details ref={rowMarkersPanelRef} className="right-panel-collapsible" data-testid="row-markers-global-panel">
           <summary>{locale === 'ru' ? 'Номера рядов' : 'Row numbers'}</summary>
           <section className="panel-section">
             <RowMarkersPanel
@@ -3349,7 +3438,7 @@ function App() {
           </section>
         </details>
 
-        <details className="right-panel-collapsible" data-testid="legend-global-panel">
+        <details ref={legendPanelRef} className="right-panel-collapsible" data-testid="legend-global-panel">
           <summary>{locale === 'ru' ? 'Легенда и холст' : 'Legend & canvas'}</summary>
           <LegendPanel
             locale={locale}
@@ -3359,7 +3448,7 @@ function App() {
           />
         </details>
 
-        <details className="right-panel-collapsible help-section" data-testid="help-global-panel">
+        <details ref={helpPanelRef} className="right-panel-collapsible help-section" data-testid="help-global-panel">
           <summary>{t.controls}</summary>
           <section className="panel-section">
             <ul>
