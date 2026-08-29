@@ -36,9 +36,8 @@ describe('UI v2 editor shell', () => {
 
     expect(expanded).not.toContain('legacy-left')
     expect(expanded).not.toContain('legacy-right')
-    expect(expanded).toContain('aria-label="Свернуть левую панель"')
-    expect(expanded).toContain('aria-label="Свернуть правую панель"')
-    expect(expanded.match(/aria-expanded="true"/g)).toHaveLength(2)
+    expect(expanded).toContain('aria-label="Свернуть левую панель" aria-expanded="true"')
+    expect(expanded).toContain('aria-label="Свернуть правую панель" aria-expanded="true"')
 
     const collapsed = renderToStaticMarkup(
       <EditorShell locale="ru" runCommand={() => true}>
@@ -52,8 +51,7 @@ describe('UI v2 editor shell', () => {
       </EditorShell>,
     )
 
-    expect(collapsed).toContain('aria-label="Развернуть левую панель"')
-    expect(collapsed).toContain('aria-label="Развернуть правую панель"')
-    expect(collapsed.match(/aria-expanded="false"/g)).toHaveLength(2)
+    expect(collapsed).toContain('aria-label="Развернуть левую панель" aria-expanded="false"')
+    expect(collapsed).toContain('aria-label="Развернуть правую панель" aria-expanded="false"')
   })
 })
