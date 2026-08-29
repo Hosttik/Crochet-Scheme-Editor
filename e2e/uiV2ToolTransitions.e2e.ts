@@ -79,7 +79,7 @@ test('tool shortcuts keep the existing editing and application-menu focus contra
   await page.keyboard.press('h')
   await expect(canvas).toHaveClass(/selecting/)
 
-  await page.locator('svg.editor-canvas').focus()
+  await canvas.click({ position: { x: 12, y: 12 } })
   await page.keyboard.press('h')
   await expect(canvas).toHaveClass(/pan-tool/)
 })
