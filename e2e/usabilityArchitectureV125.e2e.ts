@@ -137,7 +137,7 @@ test('keeps responsive chrome contained and exposes clear project actions', asyn
 
   await expect(page.getByText('P0', { exact: true })).toHaveCount(0)
   await expect(page.locator('.topbar .primary-button')).toBeHidden()
-  await page.getByRole('button', { name: 'Файл', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Файл', exact: true }).click()
   await expect(page.getByRole('menuitem', { name: 'Экспорт проекта…', exact: true })).toBeVisible()
   await expect(page.getByRole('menuitem', { name: 'Импорт проекта…', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
