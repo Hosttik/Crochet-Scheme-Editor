@@ -30,8 +30,6 @@ export function WorkbenchToolShortcuts({
         || event.metaKey
         || event.ctrlKey
         || event.altKey
-        || isEditingTarget(event.target)
-        || isUiOwnedShortcutScope(event.target)
       ) return
 
       const key = event.key.toLowerCase()
@@ -44,6 +42,18 @@ export function WorkbenchToolShortcuts({
             : null
 
       if (!action) return
+
+      // App already suppresses tool shortcuts for editing targets. Leave those
+      // events untouched so text input keeps its normal behavior.
+      if (isEditingTarget(event.target)) return
+
+      // Menus/dialogs own plain-letter keyboard input while focused. Consume
+      // the tool shortcut here so the legacy App window listener cannot see it
+      // and activate a canvas tool behind the UI surface.
+      if (isUiOwnedShortcutScope(event.target)) {
+        event.stopPropagation()
+        return
+      }
 
       // App owns the state transition; this layer only routes the same keyboard
       // commands used by expert workflows into the semantic callbacks already
