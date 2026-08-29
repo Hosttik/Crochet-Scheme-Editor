@@ -117,6 +117,7 @@ import {
 import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph, symbolSvgMarkup } from './symbols'
 import { CanvasToolbar } from './ui/CanvasToolbar'
 import { EditorShell } from './ui/EditorShell'
+import { EditorTopbar } from './ui/EditorTopbar'
 import { FavoriteQuickBar } from './ui/FavoriteQuickBar'
 import { loadFavorites, saveFavorites, type FavoriteElementKey } from './ui/favorites'
 import { LeftWorkbenchSurface } from './ui/LeftWorkbenchSurface'
@@ -2713,66 +2714,33 @@ function App() {
   return (
     <EditorShell locale={locale} runCommand={runApplicationCommand}>
       <div className={`app-shell ${leftCollapsed ? 'left-collapsed' : ''} ${rightCollapsed ? 'right-collapsed' : ''}`}>
-      <header className="topbar">
-        <div className="brand">
-          <div className="brand-mark">C</div>
-          <div>
-            <strong>{t.brandTitle}</strong>
-            <span>{t.brandSubtitle}</span>
-          </div>
-        </div>
-
-        <div className="topbar-actions">
-          <div className="ui-v2-favorites-host">
-            <FavoriteQuickBar
-              locale={locale}
-              tool={tool}
-              favorites={favorites}
-              onSelectSymbol={selectWorkbenchSymbol}
-              onSelectChainBundle={selectWorkbenchChainBundle}
-              onCancelPlacement={selectWorkbenchTool}
-            />
-          </div>
-          <span className={`autosave-indicator ${autosaveState}`}>{autosaveLabel}</span>
-          <label className="autosave-control">
-            <span>{locale === 'ru' ? 'Автосохранение' : 'Autosave'}</span>
-            <select
-              aria-label={locale === 'ru' ? 'Автосохранение' : 'Autosave'}
-              value={autosaveDelayMs}
-              onChange={(event) => handleAutosaveDelayChange(Number(event.target.value) as AutosaveDelayMs)}
-            >
-              <option value={0}>{locale === 'ru' ? 'Выкл' : 'Off'}</option>
-              <option value={650}>{locale === 'ru' ? 'Быстро · 0,65 с' : 'Fast · 0.65 s'}</option>
-              <option value={5000}>5 s</option>
-              <option value={15000}>15 s</option>
-              <option value={30000}>30 s</option>
-              <option value={60000}>60 s</option>
-            </select>
-          </label>
-          <div className="language-switch" aria-label={t.language}>
-            <button className={`ghost-button ${locale === 'ru' ? 'active-lang' : ''}`} onClick={() => setLocale('ru')}>RU</button>
-            <button className={`ghost-button ${locale === 'en' ? 'active-lang' : ''}`} onClick={() => setLocale('en')}>EN</button>
-          </div>
-          <span className="toolbar-separator" />
-          <button className="ghost-button" onClick={undo} disabled={!history.past.length}>{t.undo}</button>
-          <button className="ghost-button" onClick={redo} disabled={!history.future.length}>{t.redo}</button>
-          <span className="toolbar-separator" />
-          <button className="ghost-button" onClick={saveProject}>{t.saveJson}</button>
-          <button className="ghost-button" onClick={() => loadInputRef.current?.click()}>{t.load}</button>
-          <button className="primary-button" onClick={exportSvg}>{t.exportSvg}</button>
-          <input
-            ref={loadInputRef}
-            type="file"
-            accept="application/json,.json"
-            hidden
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              if (file) void loadProject(file)
-              event.currentTarget.value = ''
-            }}
+      <EditorTopbar
+        locale={locale}
+        autosaveState={autosaveState}
+        autosaveLabel={autosaveLabel}
+        autosaveDelayMs={autosaveDelayMs}
+        canUndo={history.past.length > 0}
+        canRedo={history.future.length > 0}
+        favoriteActions={(
+          <FavoriteQuickBar
+            locale={locale}
+            tool={tool}
+            favorites={favorites}
+            onSelectSymbol={selectWorkbenchSymbol}
+            onSelectChainBundle={selectWorkbenchChainBundle}
+            onCancelPlacement={selectWorkbenchTool}
           />
-        </div>
-      </header>
+        )}
+        loadInputRef={loadInputRef}
+        onAutosaveDelayChange={handleAutosaveDelayChange}
+        onLocaleChange={setLocale}
+        onUndo={undo}
+        onRedo={redo}
+        onSaveProject={saveProject}
+        onOpenProject={() => loadInputRef.current?.click()}
+        onExportSvg={exportSvg}
+        onImportFile={loadProject}
+      />
 
       <aside className="sidebar left-sidebar">
         <LeftWorkbenchSurface
