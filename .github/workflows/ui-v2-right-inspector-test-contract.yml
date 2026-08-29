@@ -1,0 +1,70 @@
+name: UI v2 right inspector regression migration
+
+on:
+  push:
+    branches:
+      - feat/ui-v2-workbench-foundation
+    paths:
+      - .github/workflows/ui-v2-right-inspector-test-contract.yml
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/ui-v2-workbench-foundation
+          fetch-depth: 0
+      - name: Update direct right inspector regression contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          test_path = Path('e2e/productivity.e2e.ts')
+          test = test_path.read_text()
+          old = "  await expect(page.locator('.layers-section')).not.toHaveAttribute('open', '')\n"
+          new = "  await expect(page.getByRole('tabpanel', { name: 'Слои', exact: true })).toBeHidden()\n"
+          if test.count(old) != 1:
+              raise RuntimeError(f'productivity layers assertion: expected one match, got {test.count(old)}')
+          test_path.write_text(test.replace(old, new, 1))
+
+          css_path = Path('src/ui/workbench-structure.css')
+          css = css_path.read_text()
+          old_comment = """/*
+           * UI v2 workbench structure.
+           *
+           * App.tsx now renders ToolRail and ElementLibrary directly in the left sidebar
+           * and owns their editor state/callbacks. Layers are still temporarily
+           * reparented into the right inspector until App.tsx renders that panel there
+           * directly.
+           */
+          """.replace('          ', '')
+          new_comment = """/*
+           * UI v2 workbench structure.
+           *
+           * App.tsx owns the left ToolRail / ElementLibrary and the right Options /
+           * Layers tab layout directly. Structural DOM reparenting is no longer used;
+           * the remaining migration seam is application-command routing.
+           */
+          """.replace('          ', '')
+          if css.count(old_comment) != 1:
+              raise RuntimeError(f'workbench comment: expected one match, got {css.count(old_comment)}')
+          css_path.write_text(css.replace(old_comment, new_comment, 1))
+          PY
+      - name: Remove one-shot workflow
+        run: rm .github/workflows/ui-v2-right-inspector-test-contract.yml
+      - name: Validate patch
+        run: |
+          git diff --check
+          ! grep -q "layers-section.*not.toHaveAttribute('open'" e2e/productivity.e2e.ts
+          ! grep -q 'reparented into the right inspector' src/ui/workbench-structure.css
+      - name: Commit migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Update direct right inspector regression contract"
+          git push origin HEAD:feat/ui-v2-workbench-foundation
