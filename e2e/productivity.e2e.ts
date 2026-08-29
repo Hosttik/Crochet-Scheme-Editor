@@ -106,7 +106,7 @@ test('previews temporary multi selection and a colored group as one ghost motif'
 
 test('interaction pass makes selection, pan, zoom, snap and numeric editing direct', async ({ page }) => {
   await openEditor(page)
-  await expect(page.locator('.layers-section')).not.toHaveAttribute('open', '')
+  await expect(page.getByRole('tabpanel', { name: 'Слои', exact: true })).toBeHidden()
 
   await placeAt(page, 'Столбик без накида', 0.44, 0.46)
   const stitch = page.locator('.stitch-element').first()

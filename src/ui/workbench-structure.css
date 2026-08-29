@@ -1,10 +1,9 @@
 /*
  * UI v2 workbench structure.
  *
- * App.tsx now renders ToolRail and ElementLibrary directly in the left sidebar
- * and owns their editor state/callbacks. Layers are still temporarily
- * reparented into the right inspector until App.tsx renders that panel there
- * directly.
+ * App.tsx owns the left ToolRail / ElementLibrary and the right Options /
+ * Layers tab layout directly. Structural DOM reparenting is no longer used;
+ * the remaining migration seam is application-command routing.
  */
 
 .app-shell {
