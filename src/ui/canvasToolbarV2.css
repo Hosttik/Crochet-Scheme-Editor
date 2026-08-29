@@ -133,7 +133,7 @@
   /* Hand, Lasso and Ruler are duplicate access points here. Keep the complete
    * tool set in the ToolRail and prioritize zoom / fit / snapping on a narrow
    * canvas instead of forcing horizontal toolbar scrolling. */
-  .canvas-toolbar :is(
+  .canvas-toolbar button:is(
     [aria-label="Ладонь / перемещение поля"],
     [aria-label="Hand / pan canvas"],
     [aria-label="Лассо"],
