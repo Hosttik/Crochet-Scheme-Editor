@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Locale } from '../i18n'
-import type { ApplicationCommandId, ApplicationCommandRunner } from './applicationCommands'
+import type { ApplicationCommandId, ApplicationCommandRegistry } from './applicationCommands'
 import { SearchField } from './primitives'
 import './commandPalette.css'
 
@@ -88,10 +88,10 @@ function initialLocale(): Locale {
 }
 
 export function CommandPalette({
-  runCommand,
+  commandRegistry,
   locale: controlledLocale,
 }: {
-  runCommand: ApplicationCommandRunner
+  commandRegistry: ApplicationCommandRegistry
   locale?: Locale
 }) {
   const [legacyLocale, setLegacyLocale] = useState<Locale>(initialLocale)
@@ -190,9 +190,11 @@ export function CommandPalette({
   const activeCommand = filtered[activeIndex]
   const activeOptionId = activeCommand ? commandOptionId(activeCommand.id) : undefined
 
-  const run = (command: PaletteCommand) => {
-    const didRun = runCommand(command.id)
-    if (didRun !== false) close()
+  const run = async (command: PaletteCommand) => {
+    const state = commandRegistry.getState(command.id)
+    if (!state.enabled) return
+    const result = await commandRegistry.execute(command.id)
+    if (result.status !== 'disabled') close()
   }
 
   const onInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -218,7 +220,7 @@ export function CommandPalette({
     } else if (event.key === 'Enter') {
       event.preventDefault()
       const command = filtered[activeIndex]
-      if (command) run(command)
+      if (command) void run(command)
     }
   }
 
@@ -262,23 +264,31 @@ export function CommandPalette({
           role="listbox"
           aria-label={copy.dialog}
         >
-          {filtered.length ? filtered.map((command, index) => (
-            <button
-              id={commandOptionId(command.id)}
-              key={command.id}
-              type="button"
-              role="option"
-              tabIndex={-1}
-              aria-selected={index === activeIndex}
-              className={`command-palette__item ${index === activeIndex ? 'is-active' : ''}`}
-              onMouseEnter={() => setActiveIndex(index)}
-              onClick={() => run(command)}
-            >
-              <span className="command-palette__group">{command.group}</span>
-              <span className="command-palette__label">{command.label}</span>
-              {command.shortcut ? <kbd aria-hidden="true">{command.shortcut}</kbd> : null}
-            </button>
-          )) : (
+          {filtered.length ? filtered.map((command, index) => {
+            const state = commandRegistry.getState(command.id)
+            const disabled = !state.enabled
+            return (
+              <button
+                id={commandOptionId(command.id)}
+                key={command.id}
+                type="button"
+                role="option"
+                tabIndex={-1}
+                aria-selected={index === activeIndex}
+                aria-disabled={disabled || undefined}
+                title={disabled ? state.disabledReason : undefined}
+                className={`command-palette__item ${index === activeIndex ? 'is-active' : ''} ${disabled ? 'is-disabled' : ''}`}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => {
+                  if (!disabled) void run(command)
+                }}
+              >
+                <span className="command-palette__group">{command.group}</span>
+                <span className="command-palette__label">{command.label}</span>
+                {command.shortcut ? <kbd aria-hidden="true">{command.shortcut}</kbd> : null}
+              </button>
+            )
+          }) : (
             <p className="command-palette__empty">{copy.empty}</p>
           )}
         </div>
