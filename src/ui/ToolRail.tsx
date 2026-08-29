@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Locale } from '../i18n'
 import type { Guide } from '../types'
 import { EditorIcon, type EditorIconName } from './icons'
@@ -27,6 +27,7 @@ function RailButton({
       title={accessibleLabel}
       aria-pressed={active}
       onClick={onClick}
+      onKeyDown={(event) => event.stopPropagation()}
     >
       <EditorIcon name={icon} />
       <span className="tool-rail__text">{label}</span>
@@ -43,7 +44,7 @@ function GuidePreviewIcon({ type }: { type: Guide['type'] }) {
       {type === 'parabola' && <path d="M4 18C8 5 16 5 20 18" />}
       {type === 'grid' && (
         <>
-          <rect x="5" y="5" width="14" height="14" rx="1" />
+          <rect x="5" y="5" width="14" height="14" rx="1" />}
           <path d="M12 5V19M5 12H19" />
         </>
       )}
@@ -77,19 +78,10 @@ function GuideFlyout({
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
     }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        setOpen(false)
-        triggerRef.current?.focus()
-      }
-    }
     window.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('keydown', onKeyDown)
     return () => {
       window.clearTimeout(focusTimer)
       window.removeEventListener('pointerdown', onPointerDown)
-      window.removeEventListener('keydown', onKeyDown)
     }
   }, [open])
 
@@ -127,7 +119,8 @@ function GuideFlyout({
     itemRefs.current[normalized]?.focus()
   }
 
-  const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    event.stopPropagation()
     const currentIndex = itemRefs.current.findIndex((item) => item === document.activeElement)
     if (event.key === 'ArrowDown') {
       event.preventDefault()
@@ -141,6 +134,10 @@ function GuideFlyout({
     } else if (event.key === 'End') {
       event.preventDefault()
       focusItem(items.length - 1)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      setOpen(false)
+      triggerRef.current?.focus()
     } else if (event.key === 'Tab') {
       setOpen(false)
     }
@@ -159,9 +156,13 @@ function GuideFlyout({
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
         onKeyDown={(event) => {
+          event.stopPropagation()
           if (event.key === 'ArrowDown' && !open) {
             event.preventDefault()
             setOpen(true)
+          } else if (event.key === 'Escape' && open) {
+            event.preventDefault()
+            setOpen(false)
           }
         }}
       >
@@ -237,7 +238,7 @@ export function ToolRail({
       }
 
   return (
-    <nav className="tool-rail" aria-label={copy.label}>
+    <nav className="tool-rail" aria-label={copy.label} onKeyDown={(event) => event.stopPropagation()}>
       <RailButton icon="select" label={copy.select} shortcut="Esc" active={tool.type === 'select'} onClick={onSelect} />
       <RailButton icon="hand" label={copy.pan} shortcut="H" active={tool.type === 'pan'} onClick={onTogglePan} />
       <RailButton icon="lasso" label={copy.lasso} shortcut="L" active={tool.type === 'lasso'} onClick={onToggleLasso} />
