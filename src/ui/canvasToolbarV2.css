@@ -1,0 +1,154 @@
+/* Canvas toolbar v2 polish.
+ *
+ * The canvas toolbar keeps the authoritative App-owned controls while removing
+ * the remaining emoji / word-shaped tool placeholders. Icons are presentation
+ * only: accessible names stay on the existing buttons, and duplicate canvas
+ * tools collapse at the 900px desktop gate because their canonical controls
+ * remain available in the left ToolRail.
+ */
+
+.canvas-toolbar {
+  gap: 2px;
+  padding: 4px;
+}
+
+.canvas-toolbar button:not(.zoom-readout) {
+  display: inline-grid;
+  place-items: center;
+}
+
+.canvas-toolbar :is(
+  [aria-label="Уменьшить масштаб"],
+  [aria-label="Zoom out"],
+  [aria-label="Увеличить масштаб"],
+  [aria-label="Zoom in"],
+  [aria-label="Вместить всю схему"],
+  [aria-label="Fit all"],
+  [aria-label="Вместить выделение"],
+  [aria-label="Fit selection"],
+  [aria-label="Ладонь / перемещение поля"],
+  [aria-label="Hand / pan canvas"],
+  [aria-label="Лассо"],
+  [aria-label="Lasso"],
+  [aria-label="Линейка"],
+  [aria-label="Ruler"]
+),
+.canvas-toolbar .snap-toggle {
+  width: var(--ui-control-compact);
+  min-width: var(--ui-control-compact);
+  padding: 0;
+  font-size: 0;
+}
+
+.canvas-toolbar :is(
+  [aria-label="Уменьшить масштаб"],
+  [aria-label="Zoom out"],
+  [aria-label="Увеличить масштаб"],
+  [aria-label="Zoom in"],
+  [aria-label="Вместить всю схему"],
+  [aria-label="Fit all"],
+  [aria-label="Вместить выделение"],
+  [aria-label="Fit selection"],
+  [aria-label="Ладонь / перемещение поля"],
+  [aria-label="Hand / pan canvas"],
+  [aria-label="Лассо"],
+  [aria-label="Lasso"],
+  [aria-label="Линейка"],
+  [aria-label="Ruler"]
+)::before,
+.canvas-toolbar .snap-toggle::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask-image: var(--canvas-toolbar-icon);
+  mask-image: var(--canvas-toolbar-icon);
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 16px 16px;
+  mask-size: 16px 16px;
+}
+
+.canvas-toolbar :is([aria-label="Уменьшить масштаб"], [aria-label="Zoom out"]) {
+  --canvas-toolbar-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M5 12h14'/%3E%3C/svg%3E");
+}
+
+.canvas-toolbar :is([aria-label="Увеличить масштаб"], [aria-label="Zoom in"]) {
+  --canvas-toolbar-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
+}
+
+.canvas-toolbar :is([aria-label="Вместить всю схему"], [aria-label="Fit all"]) {
+  --canvas-toolbar-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 4H4v5M15 4h5v5M20 15v5h-5M4 15v5h5'/%3E%3Cpath d='M9 9h6v6H9z'/%3E%3C/svg%3E");
+}
+
+.canvas-toolbar :is([aria-label="Вместить выделение"], [aria-label="Fit selection"]) {
+  --canvas-toolbar-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5'/%3E%3Crect x='8' y='8' width='8' height='8' rx='1.5' stroke-dasharray='2 2'/%3E%3C/svg%3E");
+}
+
+.canvas-toolbar :is([aria-label="Ладонь / перемещение поля"], [aria-label="Hand / pan canvas"]) {
+  --canvas-toolbar-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7.5 11V6.5a1.5 1.5 0 0 1 3 0V10m0-4.5a1.5 1.5 0 0 1 3 0V10m0-3a1.5 1.5 0 0 1 3 0v4m0-2.5a1.5 1.5 0 0 1 3 0V13c0 4-2.3 7-6.4 7H9.5c-2.6 0-4.1-1.2-5.2-3l-1.5-2.5a1.5 1.5 0 0 1 2.5-1.6L7.5 15v-4z'/%3E%3C/svg%3E");
+}
+
+.canvas-toolbar :is([aria-label="Лассо"], [aria-label="Lasso"]) {
+  --canvas-toolbar-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 9c0 3.3-3.6 6-8 6s-8-2.7-8-6 3.6-6 8-6 8 2.7 8 6zm-5 5c0 4.5 6 2.5 6 5 0 1.1-1.1 2-2.5 2'/%3E%3C/svg%3E");
+}
+
+.canvas-toolbar :is([aria-label="Линейка"], [aria-label="Ruler"]) {
+  --canvas-toolbar-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 17 17 4l3 3L7 20l-3-3zM12 7l2 2M9 10l2 2M6 13l2 2'/%3E%3C/svg%3E");
+}
+
+.canvas-toolbar .snap-toggle {
+  --canvas-toolbar-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 4v7a6 6 0 0 0 12 0V4M6 8h4M14 8h4'/%3E%3Cpath d='M6 4h4v4H6zM14 4h4v4h-4z'/%3E%3C/svg%3E");
+}
+
+.canvas-toolbar .zoom-readout {
+  min-width: 52px;
+  padding-inline: 6px;
+}
+
+.canvas-toolbar .fit-button.active,
+.canvas-toolbar .snap-toggle.active {
+  color: var(--ui-accent-hover);
+}
+
+.canvas-toolbar .canvas-orientation-select {
+  min-width: 92px;
+}
+
+@media (max-width: 1080px) {
+  .canvas-toolbar {
+    max-width: calc(100% - 12px);
+    gap: 1px;
+    padding: 3px;
+    overflow-x: hidden;
+    scrollbar-width: none;
+  }
+
+  .canvas-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hand, Lasso and Ruler are duplicate access points here. Keep the complete
+   * tool set in the ToolRail and prioritize zoom / fit / snapping on a narrow
+   * canvas instead of forcing horizontal toolbar scrolling. */
+  .canvas-toolbar :is(
+    [aria-label="Ладонь / перемещение поля"],
+    [aria-label="Hand / pan canvas"],
+    [aria-label="Лассо"],
+    [aria-label="Lasso"],
+    [aria-label="Линейка"],
+    [aria-label="Ruler"]
+  ),
+  .canvas-toolbar .canvas-hint {
+    display: none;
+  }
+
+  .canvas-toolbar .canvas-orientation-select {
+    min-width: 76px;
+    max-width: 92px;
+    padding-inline: 4px;
+    font-size: 9px;
+  }
+}
