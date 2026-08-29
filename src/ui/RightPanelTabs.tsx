@@ -35,42 +35,46 @@ export function RightPanelTabs({
   }
 
   return (
-    <div className="right-panel-tabs" role="tablist" aria-label={copy.label} aria-orientation="horizontal">
-      {tabs.map((tab) => {
-        const selected = activeTab === tab.id
-        return (
-          <button
-            key={tab.id}
-            id={`ui-v2-right-tab-${tab.id}`}
-            type="button"
-            role="tab"
-            aria-selected={selected}
-            aria-controls={`ui-v2-right-${tab.id}-panel`}
-            tabIndex={selected ? 0 : -1}
-            className={selected ? 'is-active' : ''}
-            onClick={() => onChange(tab.id)}
-            onKeyDown={(event) => {
-              if (event.key === 'ArrowRight') moveFocus(event, 1)
-              if (event.key === 'ArrowLeft') moveFocus(event, -1)
-              if (event.key === 'Home') {
-                event.preventDefault()
-                event.stopPropagation()
-                onChange('options')
-                requestAnimationFrame(() => document.getElementById('ui-v2-right-tab-options')?.focus())
-              }
-              if (event.key === 'End') {
-                event.preventDefault()
-                event.stopPropagation()
-                onChange('layers')
-                requestAnimationFrame(() => document.getElementById('ui-v2-right-tab-layers')?.focus())
-              }
-            }}
-          >
-            <EditorIcon name={tab.icon} size={14} />
-            <span>{tab.label}</span>
-          </button>
-        )
-      })}
-    </div>
+    <>
+      <div className="right-panel-tabs" role="tablist" aria-label={copy.label} aria-orientation="horizontal">
+        {tabs.map((tab) => {
+          const selected = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              id={`ui-v2-right-tab-${tab.id}`}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-controls={`ui-v2-right-${tab.id}-panel`}
+              tabIndex={selected ? 0 : -1}
+              className={selected ? 'is-active' : ''}
+              onClick={() => onChange(tab.id)}
+              onKeyDown={(event) => {
+                if (event.key === 'ArrowRight') moveFocus(event, 1)
+                if (event.key === 'ArrowLeft') moveFocus(event, -1)
+                if (event.key === 'Home') {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  onChange('options')
+                  requestAnimationFrame(() => document.getElementById('ui-v2-right-tab-options')?.focus())
+                }
+                if (event.key === 'End') {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  onChange('layers')
+                  requestAnimationFrame(() => document.getElementById('ui-v2-right-tab-layers')?.focus())
+                }
+              }}
+            >
+              <EditorIcon name={tab.icon} size={14} />
+              <span>{tab.label}</span>
+            </button>
+          )
+        })}
+      </div>
+      <div id="ui-v2-right-context-selection" className="ui-v2-right-context-slot" data-context-slot="selection" />
+      <div id="ui-v2-right-context-productivity" className="ui-v2-right-context-slot" data-context-slot="productivity" />
+    </>
   )
 }
