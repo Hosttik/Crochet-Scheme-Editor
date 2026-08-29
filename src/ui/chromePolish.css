@@ -1,0 +1,109 @@
+/* Final UI v2 chrome cleanup.
+ *
+ * These rules remove the last visible text/emoji placeholders from compact
+ * chrome without changing the underlying App-owned behavior or accessible
+ * labels. The remaining literal characters stay in the DOM only as fallback
+ * content; presentation is supplied by the same neutral outline language as
+ * the rest of the workbench.
+ */
+
+.sidebar-toggle {
+  width: var(--ui-control-compact);
+  height: var(--ui-control-compact);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-sm);
+  background: rgba(255, 255, 255, .96);
+  color: var(--ui-text-muted);
+  font-size: 0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .06);
+}
+
+.sidebar-toggle:hover:not(:disabled) {
+  border-color: var(--ui-border-strong);
+  background: var(--ui-surface-hover);
+  color: var(--ui-text);
+}
+
+.sidebar-toggle::before,
+.guide-list span[aria-label="Заблокирована"]::before,
+.guide-list span[aria-label="Locked"]::before,
+.right-panel-context > .section-title-row .muted-text::before {
+  content: '';
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 14px 14px;
+  mask-size: 14px 14px;
+}
+
+.sidebar-toggle::before {
+  -webkit-mask-image: var(--sidebar-toggle-icon);
+  mask-image: var(--sidebar-toggle-icon);
+}
+
+.app-shell:not(.left-collapsed) .sidebar-toggle.left,
+.app-shell.right-collapsed .sidebar-toggle.right {
+  --sidebar-toggle-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m14 6-6 6 6 6'/%3E%3C/svg%3E");
+}
+
+.app-shell.left-collapsed .sidebar-toggle.left,
+.app-shell:not(.right-collapsed) .sidebar-toggle.right {
+  --sidebar-toggle-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m10 6 6 6-6 6'/%3E%3C/svg%3E");
+}
+
+.guide-list span[aria-label="Заблокирована"],
+.guide-list span[aria-label="Locked"] {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--ui-text-faint);
+  font-size: 0;
+}
+
+.guide-list span[aria-label="Заблокирована"]::before,
+.guide-list span[aria-label="Locked"]::before,
+.right-panel-context > .section-title-row .muted-text::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='10' width='14' height='11' rx='2'/%3E%3Cpath d='M8 10V7a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='10' width='14' height='11' rx='2'/%3E%3Cpath d='M8 10V7a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E");
+}
+
+/* App currently renders the locked-selection count as "🔒 N". Hide only the
+ * first rendered character and supply the shared lock glyph; the numeric count
+ * remains real text and therefore keeps its semantics and copyability. */
+.right-panel-context > .section-title-row .muted-text {
+  position: relative;
+  display: inline-block;
+  padding-left: 17px;
+  min-height: 14px;
+  line-height: 14px;
+}
+
+.right-panel-context > .section-title-row .muted-text::first-letter {
+  font-size: 0;
+}
+
+.right-panel-context > .section-title-row .muted-text::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--ui-text-faint);
+}
+
+.sidebar-toggle:focus-visible,
+.guide-list button:focus-visible,
+.canvas-toolbar button:focus-visible,
+.canvas-toolbar select:focus-visible {
+  outline: 0;
+  box-shadow: var(--ui-focus-ring);
+}
