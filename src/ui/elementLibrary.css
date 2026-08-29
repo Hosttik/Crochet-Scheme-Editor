@@ -47,6 +47,16 @@
   margin-top: 5px;
 }
 
+/*
+ * Library glyphs are intentionally lighter than canvas geometry. This keeps the
+ * dense 3/4-column picker readable without changing the authored stitch itself.
+ */
+.element-library .symbol-glyph path,
+.element-library .symbol-glyph circle,
+.element-library .symbol-glyph ellipse {
+  stroke-width: 1.35;
+}
+
 .library-category.favorites-group {
   margin-top: var(--ui-space-1);
 }
