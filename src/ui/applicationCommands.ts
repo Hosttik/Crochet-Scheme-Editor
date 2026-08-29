@@ -26,7 +26,7 @@ export type ApplicationCommandId =
 
 /**
  * Semantic command boundary for application chrome. Menus and command search
- * depend on command IDs only; the temporary DOM/keyboard implementation can be
- * replaced by App-owned callbacks without changing those UI surfaces again.
+ * depend on command IDs only; App.tsx owns the concrete editor actions and
+ * passes the runner down through EditorShell.
  */
 export type ApplicationCommandRunner = (command: ApplicationCommandId) => boolean | void
