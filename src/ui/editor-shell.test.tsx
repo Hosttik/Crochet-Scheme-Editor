@@ -2,7 +2,6 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { EditorShell } from './EditorShell'
 
-
 describe('UI v2 editor shell', () => {
   it('renders the application menu above the workbench', () => {
     const markup = renderToStaticMarkup(
@@ -21,37 +20,20 @@ describe('UI v2 editor shell', () => {
     expect(markup).toContain('data-testid="workbench-child"')
   })
 
-  it('replaces legacy workspace collapse buttons with state-aware shell controls', () => {
-    const expanded = renderToStaticMarkup(
+  it('preserves the App-owned workbench tree without rewriting workspace chrome', () => {
+    const markup = renderToStaticMarkup(
       <EditorShell locale="ru" runCommand={() => true}>
         <div className="app-shell">
           <main className="workspace">
-            <button className="sidebar-toggle left" aria-label="legacy-left">‹</button>
-            <button className="sidebar-toggle right" aria-label="legacy-right">›</button>
+            <button type="button" aria-label="App-owned workspace control">Control</button>
             <div>Canvas</div>
           </main>
         </div>
       </EditorShell>,
     )
 
-    expect(expanded).not.toContain('legacy-left')
-    expect(expanded).not.toContain('legacy-right')
-    expect(expanded).toContain('aria-label="Свернуть левую панель" aria-expanded="true"')
-    expect(expanded).toContain('aria-label="Свернуть правую панель" aria-expanded="true"')
-
-    const collapsed = renderToStaticMarkup(
-      <EditorShell locale="ru" runCommand={() => true}>
-        <div className="app-shell left-collapsed right-collapsed">
-          <main className="workspace">
-            <button className="sidebar-toggle left" aria-label="legacy-left">‹</button>
-            <button className="sidebar-toggle right" aria-label="legacy-right">›</button>
-            <div>Canvas</div>
-          </main>
-        </div>
-      </EditorShell>,
-    )
-
-    expect(collapsed).toContain('aria-label="Развернуть левую панель" aria-expanded="false"')
-    expect(collapsed).toContain('aria-label="Развернуть правую панель" aria-expanded="false"')
+    expect(markup).toContain('aria-label="App-owned workspace control"')
+    expect(markup).toContain('class="workspace"')
+    expect(markup).not.toContain('sidebar-toggle')
   })
 })
