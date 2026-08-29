@@ -31,20 +31,34 @@ async function placeChain(page: Page) {
   await page.keyboard.press('Escape')
 }
 
-test('replaces sidebar collapse text glyphs with directional outline icons', async ({ page }) => {
+test('uses state-aware semantic sidebar controls with directional outline icons', async ({ page }) => {
   await openEditor(page)
 
+  const shell = page.locator('.app-shell')
   const leftToggle = page.getByRole('button', { name: 'Свернуть левую панель', exact: true })
+  await expect(leftToggle).toHaveAttribute('aria-expanded', 'true')
   const expanded = await maskedPresentation(leftToggle)
   expect(expanded.fontSize).toBe('0px')
   expect(expanded.beforeContent).not.toBe('none')
   expect(expanded.maskImage).toContain('data:image/svg+xml')
 
   await leftToggle.click()
-  await expect(page.locator('.app-shell')).toHaveClass(/left-collapsed/)
-  const collapsed = await maskedPresentation(leftToggle)
+  await expect(shell).toHaveClass(/left-collapsed/)
+  const expandLeft = page.getByRole('button', { name: 'Развернуть левую панель', exact: true })
+  await expect(expandLeft).toHaveAttribute('aria-expanded', 'false')
+  const collapsed = await maskedPresentation(expandLeft)
   expect(collapsed.maskImage).toContain('data:image/svg+xml')
   expect(collapsed.maskImage).not.toBe(expanded.maskImage)
+
+  await expandLeft.click()
+  await expect(shell).not.toHaveClass(/left-collapsed/)
+  await expect(page.getByRole('button', { name: 'Свернуть левую панель', exact: true })).toHaveAttribute('aria-expanded', 'true')
+
+  const rightToggle = page.getByRole('button', { name: 'Свернуть правую панель', exact: true })
+  await expect(rightToggle).toHaveAttribute('aria-expanded', 'true')
+  await rightToggle.click()
+  await expect(shell).toHaveClass(/right-collapsed/)
+  await expect(page.getByRole('button', { name: 'Развернуть правую панель', exact: true })).toHaveAttribute('aria-expanded', 'false')
 })
 
 test('uses the shared lock glyph for locked guides instead of the emoji placeholder', async ({ page }) => {
