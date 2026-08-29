@@ -1,11 +1,17 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { EditorShell } from './EditorShell'
+import type { ApplicationCommandRegistry } from './applicationCommands'
+
+const commandRegistry: ApplicationCommandRegistry = {
+  getState: () => ({ enabled: true }),
+  execute: async () => ({ status: 'executed' }),
+}
 
 describe('UI v2 editor shell', () => {
   it('renders the application menu above the workbench', () => {
     const markup = renderToStaticMarkup(
-      <EditorShell runCommand={() => true}>
+      <EditorShell commandRegistry={commandRegistry}>
         <main data-testid="workbench-child">Canvas</main>
       </EditorShell>,
     )
@@ -22,7 +28,7 @@ describe('UI v2 editor shell', () => {
 
   it('preserves the App-owned workbench tree without rewriting workspace chrome', () => {
     const markup = renderToStaticMarkup(
-      <EditorShell locale="ru" runCommand={() => true}>
+      <EditorShell locale="ru" commandRegistry={commandRegistry}>
         <div className="app-shell">
           <main className="workspace">
             <button type="button" aria-label="App-owned workspace control">Control</button>
