@@ -4,6 +4,7 @@ import type { Guide } from '../types'
 import { ElementLibrary } from './ElementLibrary'
 import type { FavoriteElementKey } from './favorites'
 import { ToolRail } from './ToolRail'
+import { WorkbenchToolShortcuts } from './WorkbenchToolShortcuts'
 import type { WorkbenchTool } from './workbenchTypes'
 
 export type LeftWorkbenchSurfaceProps = {
@@ -24,10 +25,9 @@ export type LeftWorkbenchSurfaceProps = {
 }
 
 /**
- * Pure UI v2 workbench surface. It has no knowledge of portals, legacy DOM,
- * keyboard synthesis or editor internals; all editor behavior arrives through
- * semantic callbacks from App. It is rendered directly in the left workbench
- * and does not depend on a portal or compatibility bridge.
+ * Pure UI v2 workbench surface. Editor behavior arrives through semantic
+ * callbacks from App; keyboard tool shortcuts are routed through those same
+ * callbacks so ToolRail, CanvasToolbar and keyboard cannot diverge.
  */
 export function LeftWorkbenchSurface({
   locale,
@@ -47,6 +47,11 @@ export function LeftWorkbenchSurface({
 }: LeftWorkbenchSurfaceProps) {
   return (
     <>
+      <WorkbenchToolShortcuts
+        onTogglePan={onTogglePan}
+        onToggleLasso={onToggleLasso}
+        onToggleRuler={onToggleRuler}
+      />
       <ToolRail
         locale={locale}
         tool={tool}
