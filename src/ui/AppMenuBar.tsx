@@ -138,6 +138,7 @@ export function AppMenuBar({
 }) {
   const [legacyLocale, setLegacyLocale] = useState<Locale>(initialLocale)
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null)
+  const [focusedMenu, setFocusedMenu] = useState<MenuKey>('file')
   const rootRef = useRef<HTMLElement>(null)
   const triggerRefs = useRef<Partial<Record<MenuKey, HTMLButtonElement | null>>>({})
   const locale = controlledLocale ?? legacyLocale
@@ -175,6 +176,7 @@ export function AppMenuBar({
   }
 
   const focusTrigger = (key: MenuKey) => {
+    setFocusedMenu(key)
     requestAnimationFrame(() => triggerRefs.current[key]?.focus())
   }
 
@@ -192,6 +194,7 @@ export function AppMenuBar({
   const moveMenu = (key: MenuKey, direction: -1 | 1, open: boolean) => {
     const index = MENU_KEYS.indexOf(key)
     const next = MENU_KEYS[(index + direction + MENU_KEYS.length) % MENU_KEYS.length]
+    setFocusedMenu(next)
     setOpenMenu(open ? next : null)
     if (open) focusMenuItem(next, 0)
     else focusTrigger(next)
@@ -204,8 +207,15 @@ export function AppMenuBar({
     } else if (event.key === 'ArrowLeft') {
       event.preventDefault()
       moveMenu(key, -1, Boolean(openMenu))
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      focusTrigger(MENU_KEYS[0])
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      focusTrigger(MENU_KEYS[MENU_KEYS.length - 1])
     } else if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
+      setFocusedMenu(key)
       setOpenMenu(key)
       focusMenuItem(key, 0)
     } else if (event.key === 'Escape') {
@@ -245,23 +255,37 @@ export function AppMenuBar({
   }
 
   return (
-    <nav className="app-menu-bar" ref={rootRef} aria-label={locale === 'ru' ? 'Меню приложения' : 'Application menu'}>
+    <nav
+      className="app-menu-bar"
+      ref={rootRef}
+      role="menubar"
+      aria-label={locale === 'ru' ? 'Меню приложения' : 'Application menu'}
+    >
       {MENU_KEYS.map((key) => {
         const open = openMenu === key
         const actionableItems = copy.items[key].filter((item) => !item.separator)
         let actionableIndex = -1
         return (
-          <div className="app-menu" data-menu={key} key={key}>
+          <div className="app-menu" data-menu={key} role="none" key={key}>
             <button
               ref={(node) => { triggerRefs.current[key] = node }}
               type="button"
+              role="menuitem"
+              tabIndex={focusedMenu === key ? 0 : -1}
               className={`app-menu__trigger ${open ? 'is-open' : ''}`}
               aria-haspopup="menu"
               aria-expanded={open}
-              onClick={() => setOpenMenu((current) => current === key ? null : key)}
+              onFocus={() => setFocusedMenu(key)}
+              onClick={() => {
+                setFocusedMenu(key)
+                setOpenMenu((current) => current === key ? null : key)
+              }}
               onKeyDown={(event) => onTriggerKeyDown(event, key)}
               onPointerEnter={() => {
-                if (openMenu) setOpenMenu(key)
+                if (!openMenu || openMenu === key) return
+                setFocusedMenu(key)
+                setOpenMenu(key)
+                focusMenuItem(key, 0)
               }}
             >
               {copy.menus[key]}
