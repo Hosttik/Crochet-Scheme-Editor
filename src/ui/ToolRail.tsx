@@ -27,7 +27,6 @@ function RailButton({
       title={accessibleLabel}
       aria-pressed={active}
       onClick={onClick}
-      onKeyDown={(event) => event.stopPropagation()}
     >
       <EditorIcon name={icon} />
       <span className="tool-rail__text">{label}</span>
@@ -120,7 +119,7 @@ function GuideFlyout({
   }
 
   const handleMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    event.stopPropagation()
+    if (!event.metaKey && !event.ctrlKey && !event.altKey) event.stopPropagation()
     const currentIndex = itemRefs.current.findIndex((item) => item === document.activeElement)
     if (event.key === 'ArrowDown') {
       event.preventDefault()
@@ -156,12 +155,13 @@ function GuideFlyout({
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
         onKeyDown={(event) => {
-          event.stopPropagation()
           if (event.key === 'ArrowDown' && !open) {
             event.preventDefault()
+            event.stopPropagation()
             setOpen(true)
           } else if (event.key === 'Escape' && open) {
             event.preventDefault()
+            event.stopPropagation()
             setOpen(false)
           }
         }}
@@ -238,7 +238,7 @@ export function ToolRail({
       }
 
   return (
-    <nav className="tool-rail" aria-label={copy.label} onKeyDown={(event) => event.stopPropagation()}>
+    <nav className="tool-rail" aria-label={copy.label}>
       <RailButton icon="select" label={copy.select} shortcut="Esc" active={tool.type === 'select'} onClick={onSelect} />
       <RailButton icon="hand" label={copy.pan} shortcut="H" active={tool.type === 'pan'} onClick={onTogglePan} />
       <RailButton icon="lasso" label={copy.lasso} shortcut="L" active={tool.type === 'lasso'} onClick={onToggleLasso} />
