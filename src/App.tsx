@@ -115,6 +115,7 @@ import {
   type Locale,
 } from './i18n'
 import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph, symbolSvgMarkup } from './symbols'
+import { CanvasToolbar } from './ui/CanvasToolbar'
 import { EditorShell } from './ui/EditorShell'
 import { FavoriteQuickBar } from './ui/FavoriteQuickBar'
 import { loadFavorites, saveFavorites, type FavoriteElementKey } from './ui/favorites'
@@ -2836,78 +2837,26 @@ function App() {
           onToggleRight={() => setRightCollapsed((value) => !value)}
         />
 
-        <div className="canvas-toolbar">
-          <button aria-label={locale === 'ru' ? 'Уменьшить масштаб' : 'Zoom out'} title="−" onClick={() => zoomCanvas(1 / 1.2)}>−</button>
-          <button className="zoom-readout" title={locale === 'ru' ? '100% (0)' : '100% (0)'} onClick={() => setCanvasZoom(1)}>{Math.round(viewport.zoom * 100)}%</button>
-          <button aria-label={locale === 'ru' ? 'Увеличить масштаб' : 'Zoom in'} title="+" onClick={() => zoomCanvas(1.2)}>+</button>
-          <button
-            className="fit-button"
-            aria-label={locale === 'ru' ? 'Вместить всю схему' : 'Fit all'}
-            title="F"
-            onClick={fitAll}
-            disabled={!visibleElements.length}
-          >{locale === 'ru' ? 'Всё' : 'All'}</button>
-          <button
-            className="fit-button"
-            aria-label={locale === 'ru' ? 'Вместить выделение' : 'Fit selection'}
-            title="Shift+F"
-            onClick={fitSelection}
-            disabled={!selectedIds.length}
-          >{locale === 'ru' ? 'Выбор' : 'Sel'}</button>
-          <button
-            className={`fit-button ${tool.type === 'pan' ? 'active' : ''}`}
-            aria-label={locale === 'ru' ? 'Ладонь / перемещение поля' : 'Hand / pan canvas'}
-            aria-pressed={tool.type === 'pan'}
-            title="H"
-            onClick={() => {
-              setTool((current) => current.type === 'pan' ? { type: 'select' } : { type: 'pan' })
-              setLasso(null)
-              setPreview(null)
-              setSnapTarget(null)
-              setRulerDraft(null)
-            }}
-          >✋</button>
-          <button
-            className={`fit-button ${tool.type === 'lasso' ? 'active' : ''}`}
-            aria-label={locale === 'ru' ? 'Лассо' : 'Lasso'}
-            aria-pressed={tool.type === 'lasso'}
-            title="L"
-            onClick={() => {
-              setTool((current) => current.type === 'lasso' ? { type: 'select' } : { type: 'lasso' })
-              setLasso(null)
-              setPreview(null)
-              setSnapTarget(null)
-              setSelectedGuideId(null)
-              setSelectedRowMarkerId(null)
-            }}
-          >{locale === 'ru' ? 'Лассо' : 'Lasso'}</button>
-          <button
-            className={`fit-button ${tool.type === 'ruler' ? 'active' : ''}`}
-            aria-label={locale === 'ru' ? 'Линейка' : 'Ruler'}
-            aria-pressed={tool.type === 'ruler'}
-            title="R"
-            onClick={toggleRulerTool}
-          >{locale === 'ru' ? 'Линейка' : 'Ruler'}</button>
-          <button
-            className={`snap-toggle ${snapping.enabled ? 'active' : ''}`}
-            aria-pressed={snapping.enabled}
-            title={locale === 'ru' ? 'S — включить/выключить привязку' : 'S — toggle snapping'}
-            onClick={toggleSnapping}
-          >{snapping.enabled ? (locale === 'ru' ? '🔗 Привязка' : '🔗 Snap') : (locale === 'ru' ? 'Свободно' : 'Free')}</button>
-          <select
-            className="canvas-orientation-select"
-            aria-label={locale === 'ru' ? 'Ориентация при привязке' : 'Snap orientation'}
-            title={locale === 'ru' ? 'Автоповорот при привязке к направляющей' : 'Auto-rotate when snapping to a guide'}
-            value={snapping.orientationMode}
-            disabled={!snapping.enabled}
-            onChange={(event) => commitSnapping({ ...snapping, orientationMode: event.target.value as OrientationMode })}
-          >
-            <option value="none">{locale === 'ru' ? 'Не поворачивать' : 'Keep'}</option>
-            <option value="along">{locale === 'ru' ? 'Вдоль' : 'Along'}</option>
-            <option value="perpendicular">{locale === 'ru' ? 'Поперёк' : 'Perpendicular'}</option>
-          </select>
-          <span className="canvas-hint">{t.zoomHint}</span>
-        </div>
+        <CanvasToolbar
+          locale={locale}
+          zoom={viewport.zoom}
+          tool={tool}
+          snappingEnabled={snapping.enabled}
+          orientationMode={snapping.orientationMode}
+          zoomHint={t.zoomHint}
+          canFitAll={visibleElements.length > 0}
+          canFitSelection={selectedIds.length > 0}
+          onZoomOut={() => zoomCanvas(1 / 1.2)}
+          onZoom100={() => setCanvasZoom(1)}
+          onZoomIn={() => zoomCanvas(1.2)}
+          onFitAll={fitAll}
+          onFitSelection={fitSelection}
+          onTogglePan={togglePanWorkbenchTool}
+          onToggleLasso={toggleLassoWorkbenchTool}
+          onToggleRuler={toggleRulerTool}
+          onToggleSnapping={toggleSnapping}
+          onOrientationChange={(orientationMode) => commitSnapping({ ...snapping, orientationMode })}
+        />
 
         <SelectionQuickToolbar
           locale={locale}
