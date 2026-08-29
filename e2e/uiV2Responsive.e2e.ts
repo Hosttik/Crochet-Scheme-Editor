@@ -15,6 +15,22 @@ async function expectInsideViewport(page: Page, locator: Locator) {
   expect(box!.x + box!.width).toBeLessThanOrEqual(viewport!.width + 1)
 }
 
+async function expectMaskedToolbarIcon(locator: Locator) {
+  await expect(locator).toBeVisible()
+  const presentation = await locator.evaluate((element) => {
+    const control = getComputedStyle(element)
+    const icon = getComputedStyle(element, '::before')
+    return {
+      fontSize: control.fontSize,
+      maskImage: icon.maskImage || icon.webkitMaskImage,
+      beforeContent: icon.content,
+    }
+  })
+  expect(presentation.fontSize).toBe('0px')
+  expect(presentation.beforeContent).not.toBe('none')
+  expect(presentation.maskImage).toContain('data:image/svg+xml')
+}
+
 test('keeps the full desktop workbench usable at 1440px', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.addInitScript(() => {
@@ -35,6 +51,13 @@ test('keeps the full desktop workbench usable at 1440px', async ({ page }) => {
   await expectInsideViewport(page, page.locator('.canvas-toolbar'))
   await expectInsideViewport(page, page.locator('.right-sidebar'))
   await expect(page.locator('.topbar .primary-button')).toBeVisible()
+
+  const canvasToolbar = page.locator('.canvas-toolbar')
+  await expectMaskedToolbarIcon(canvasToolbar.getByRole('button', { name: 'Ладонь / перемещение поля', exact: true }))
+  await expectMaskedToolbarIcon(canvasToolbar.getByRole('button', { name: 'Лассо', exact: true }))
+  await expectMaskedToolbarIcon(canvasToolbar.getByRole('button', { name: 'Линейка', exact: true }))
+  await expectMaskedToolbarIcon(canvasToolbar.getByRole('button', { name: 'Вместить всю схему', exact: true }))
+  await expectMaskedToolbarIcon(canvasToolbar.locator('.snap-toggle'))
 })
 
 test('preserves canvas and primary chrome at the 900px narrow-desktop gate', async ({ page }) => {
@@ -60,8 +83,23 @@ test('preserves canvas and primary chrome at the 900px narrow-desktop gate', asy
   expect(workspaceBox!.width).toBeGreaterThanOrEqual(300)
 
   await expectInsideViewport(page, page.locator('.topbar'))
-  await expectInsideViewport(page, page.locator('.canvas-toolbar'))
+  const canvasToolbar = page.locator('.canvas-toolbar')
+  await expectInsideViewport(page, canvasToolbar)
   await expectInsideViewport(page, page.locator('.right-sidebar'))
+
+  // Canvas duplicates yield to the canonical ToolRail at narrow desktop sizes;
+  // zoom, fit and snapping stay immediately reachable without horizontal scroll.
+  await expect(canvasToolbar.getByRole('button', { name: 'Ладонь / перемещение поля', exact: true })).toBeHidden()
+  await expect(canvasToolbar.getByRole('button', { name: 'Лассо', exact: true })).toBeHidden()
+  await expect(canvasToolbar.getByRole('button', { name: 'Линейка', exact: true })).toBeHidden()
+  await expectMaskedToolbarIcon(canvasToolbar.getByRole('button', { name: 'Вместить всю схему', exact: true }))
+  await expectMaskedToolbarIcon(canvasToolbar.locator('.snap-toggle'))
+
+  const toolbarWidth = await canvasToolbar.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }))
+  expect(toolbarWidth.scrollWidth).toBeLessThanOrEqual(toolbarWidth.clientWidth + 1)
 
   // Duplicate file actions collapse out of the narrow command bar, but the
   // canonical application-menu command remains immediately accessible.
