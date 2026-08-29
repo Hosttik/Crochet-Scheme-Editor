@@ -32,7 +32,7 @@ function endpointDistance(points: string) {
   return Math.hypot(last[0] - first[0], last[1] - first[1])
 }
 
-test('grid guides remain selectable several pixels away from the visible stroke', async ({ page }) => {
+test('dense grid guides stay easy to acquire without swallowing nearby canvas clicks', async ({ page }) => {
   await openEditor(page)
 
   const rail = page.getByRole('navigation', { name: 'Инструменты' })
@@ -43,20 +43,26 @@ test('grid guides remain selectable several pixels away from the visible stroke'
   await expect(grid).toHaveClass(/selected/)
 
   const box = await canvasBox(page)
+  const x = box.x + box.width / 2 + 20
+  const centerY = box.y + box.height / 2
 
   // Deselect on an empty area first so the next click proves acquisition.
   await page.mouse.click(box.x + 24, box.y + 80)
   await expect(grid).not.toHaveClass(/selected/)
 
-  // A new grid is centered in the viewport. Its central horizontal guide line
-  // crosses the center; x + 20 avoids the central vertical line. Seven screen
-  // pixels is deliberately outside the visible ~1px stroke but inside the
-  // UI-v2 18px transparent interaction stroke.
-  await page.mouse.click(
-    box.x + box.width / 2 + 20,
-    box.y + box.height / 2 + 7,
-  )
+  // The visible stroke is ~1px. Four screen pixels away should still be a
+  // comfortable target inside the dense-guide 10px interaction stroke.
+  await page.mouse.click(x, centerY + 4)
   await expect(grid).toHaveClass(/selected/)
+
+  await page.mouse.click(box.x + 24, box.y + 80)
+  await expect(grid).not.toHaveClass(/selected/)
+
+  // Seven pixels away used to be captured by the UI-v2 18px target. It must
+  // now stay outside the dense grid interaction footprint so canvas gestures
+  // can start close to a grid without selecting/moving the guide instead.
+  await page.mouse.click(x, centerY + 7)
+  await expect(grid).not.toHaveClass(/selected/)
 })
 
 test('fit-to-project expands a selected line guide to the document bounds', async ({ page }) => {
