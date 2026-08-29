@@ -195,12 +195,21 @@ export function CommandPalette({
   }
 
   const onInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'ArrowDown') {
+    if (event.key === 'Tab') {
+      event.preventDefault()
+      inputRef.current?.focus()
+    } else if (event.key === 'ArrowDown') {
       event.preventDefault()
       if (filtered.length) setActiveIndex((value) => (value + 1) % filtered.length)
     } else if (event.key === 'ArrowUp') {
       event.preventDefault()
       if (filtered.length) setActiveIndex((value) => (value - 1 + filtered.length) % filtered.length)
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      if (filtered.length) setActiveIndex(0)
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      if (filtered.length) setActiveIndex(filtered.length - 1)
     } else if (event.key === 'Enter') {
       event.preventDefault()
       const command = filtered[activeIndex]
