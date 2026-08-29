@@ -1,8 +1,17 @@
 import { useEffect } from 'react'
 
+function elementTarget(target: EventTarget | null) {
+  return target instanceof Element ? target : null
+}
+
 function isEditingTarget(target: EventTarget | null) {
-  return target instanceof Element
-    && Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
+  return Boolean(elementTarget(target)?.closest('input, textarea, select, [contenteditable="true"]'))
+}
+
+function isUiOwnedShortcutScope(target: EventTarget | null) {
+  return Boolean(elementTarget(target)?.closest(
+    '[role="menubar"], [role="menu"], [role="dialog"][aria-modal="true"]',
+  ))
 }
 
 export function WorkbenchToolShortcuts({
@@ -22,6 +31,7 @@ export function WorkbenchToolShortcuts({
         || event.ctrlKey
         || event.altKey
         || isEditingTarget(event.target)
+        || isUiOwnedShortcutScope(event.target)
       ) return
 
       const key = event.key.toLowerCase()
