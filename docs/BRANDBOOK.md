@@ -279,7 +279,11 @@ The toolbar is positioned from the complete selection bounds and must avoid cove
 - repeat/build preview: lower-opacity blue/gray ghost;
 - locked objects remain selectable for inspection but clearly communicate locked state;
 - guide hit targets may be larger than visible strokes;
-- handles use larger invisible pointer targets than their visual dots.
+- handles use larger invisible pointer targets than their visual dots;
+- a placement crosshair directly over a continuous guide path must be able to acquire that path;
+- chain, slip-stitch and magic-ring style center-based symbols align their center to a guide rather than drifting by a bottom-anchor offset;
+- custom mirror-axis point and angle are authoritative for both preview and committed reflection;
+- Repeat defaults should use visual frame-to-frame spacing for a single stitch instead of an unrelated fixed step.
 
 ## 15. Accessibility and input
 
