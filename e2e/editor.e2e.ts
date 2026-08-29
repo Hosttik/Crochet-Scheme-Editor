@@ -36,7 +36,7 @@ test('places a stitch, restores autosave and manages local projects', async ({ p
 
   await page.getByRole('button', { name: 'Свернуть левую панель' }).click()
   await expect(page.locator('.app-shell')).toHaveClass(/left-collapsed/)
-  await page.getByRole('button', { name: 'Свернуть левую панель' }).click()
+  await page.getByRole('button', { name: 'Развернуть левую панель' }).click()
   await expect(page.locator('.app-shell')).not.toHaveClass(/left-collapsed/)
 
   await page.getByRole('button', { name: 'Новая', exact: true }).click()
