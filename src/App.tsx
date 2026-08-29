@@ -120,6 +120,7 @@ import { FavoriteQuickBar } from './ui/FavoriteQuickBar'
 import { loadFavorites, saveFavorites, type FavoriteElementKey } from './ui/favorites'
 import { LeftWorkbenchSurface } from './ui/LeftWorkbenchSurface'
 import { RightPanelTabs, type RightPanelTab } from './ui/RightPanelTabs'
+import { WorkspaceSidebarControls } from './ui/WorkspaceSidebarControls'
 import type { ApplicationCommandId, ApplicationCommandRunner } from './ui/applicationCommands'
 import type { WorkbenchTool } from './ui/workbenchTypes'
 import type {
@@ -2827,16 +2828,13 @@ function App() {
       </aside>
 
       <main className="workspace">
-        <button
-          className="sidebar-toggle left"
-          aria-label={locale === 'ru' ? 'Свернуть левую панель' : 'Toggle left sidebar'}
-          onClick={() => setLeftCollapsed((value) => !value)}
-        >{leftCollapsed ? '›' : '‹'}</button>
-        <button
-          className="sidebar-toggle right"
-          aria-label={locale === 'ru' ? 'Свернуть правую панель' : 'Toggle right sidebar'}
-          onClick={() => setRightCollapsed((value) => !value)}
-        >{rightCollapsed ? '‹' : '›'}</button>
+        <WorkspaceSidebarControls
+          locale={locale}
+          leftCollapsed={leftCollapsed}
+          rightCollapsed={rightCollapsed}
+          onToggleLeft={() => setLeftCollapsed((value) => !value)}
+          onToggleRight={() => setRightCollapsed((value) => !value)}
+        />
 
         <div className="canvas-toolbar">
           <button aria-label={locale === 'ru' ? 'Уменьшить масштаб' : 'Zoom out'} title="−" onClick={() => zoomCanvas(1 / 1.2)}>−</button>
