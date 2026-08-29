@@ -6,7 +6,7 @@ async function openEditor(page: Page) {
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
-test('renders Layers directly in the right inspector and switches Options / Layers tabs', async ({ page }) => {
+test('renders persistent context plus switchable Options / Layers tabs', async ({ page }) => {
   await openEditor(page)
 
   const tabs = page.getByRole('tablist', { name: 'Правая панель' })
@@ -14,6 +14,7 @@ test('renders Layers directly in the right inspector and switches Options / Laye
   const layersTab = tabs.getByRole('tab', { name: 'Слои', exact: true })
   const optionsPanel = page.getByRole('tabpanel', { name: 'Опции', exact: true })
   const layersPanel = page.getByRole('tabpanel', { name: 'Слои', exact: true })
+  const context = page.getByTestId('selection-context-panel')
 
   await expect(tabs).toBeVisible()
   await expect(tabs).toHaveAttribute('aria-orientation', 'horizontal')
@@ -25,7 +26,7 @@ test('renders Layers directly in the right inspector and switches Options / Laye
   await expect(layersTab).toHaveAttribute('tabindex', '-1')
   await expect(optionsPanel).toBeVisible()
   await expect(layersPanel).toBeHidden()
-  await expect(page.getByTestId('selection-context-panel')).toBeVisible()
+  await expect(context).toBeVisible()
 
   await expect(page.locator('.left-sidebar > .layers-section')).toHaveCount(0)
   await expect(page.locator('[data-ui-v2-bridge="right-inspector"]')).toHaveCount(0)
@@ -35,14 +36,14 @@ test('renders Layers directly in the right inspector and switches Options / Laye
   await expect(layersTab).toHaveAttribute('aria-selected', 'true')
   await expect(optionsPanel).toBeHidden()
   await expect(layersPanel).toBeVisible()
-  await expect(page.getByTestId('selection-context-panel')).toBeHidden()
+  await expect(context).toBeVisible()
   await expect(page.locator('.ui-v2-right-layers-host > .layers-section')).toBeVisible()
 
   await options.click()
   await expect(options).toHaveAttribute('aria-selected', 'true')
   await expect(optionsPanel).toBeVisible()
   await expect(layersPanel).toBeHidden()
-  await expect(page.getByTestId('selection-context-panel')).toBeVisible()
+  await expect(context).toBeVisible()
 })
 
 test('supports keyboard navigation across right panel tabs', async ({ page }) => {
@@ -70,7 +71,7 @@ test('supports keyboard navigation across right panel tabs', async ({ page }) =>
   await expect(options).toBeFocused()
 })
 
-test('keeps real layer selection and visibility handlers in the direct right layout', async ({ page }) => {
+test('keeps layer selection, selection properties and productivity controls available together', async ({ page }) => {
   await openEditor(page)
 
   const library = page.getByRole('region', { name: 'Библиотека элементов' })
@@ -91,10 +92,29 @@ test('keeps real layer selection and visibility handlers in the direct right lay
 
   await row.locator('.layer-main-button').click()
   await expect(page.locator('.stitch-element.selected')).toHaveCount(1)
+  await expect(page.getByTestId('selection-context-panel')).toBeVisible()
+  await expect(page.getByTestId('selection-context-panel').locator('.selection-card')).toBeVisible()
+  await expect(page.locator('.productivity-panel')).toBeVisible()
 
   const visibility = row.locator('.layer-icon-button').first()
   const beforeLabel = await visibility.getAttribute('aria-label')
   expect(beforeLabel).not.toBeNull()
   await visibility.click()
   await expect(visibility).not.toHaveAttribute('aria-label', beforeLabel!)
+})
+
+test('keeps guide properties reachable while Layers is active', async ({ page }) => {
+  await openEditor(page)
+
+  const rail = page.getByRole('navigation', { name: 'Инструменты' })
+  await rail.getByRole('button', { name: 'Направляющие', exact: true }).click()
+  await page.getByRole('menu', { name: 'Направляющие', exact: true }).getByRole('menuitem', { name: 'Линия', exact: true }).click()
+
+  const tabs = page.getByRole('tablist', { name: 'Правая панель' })
+  await tabs.getByRole('tab', { name: 'Слои', exact: true }).click()
+
+  const context = page.getByTestId('selection-context-panel')
+  await expect(context).toBeVisible()
+  await expect(context.locator('.guide-editor')).toBeVisible()
+  await expect(context.getByRole('button', { name: 'По размеру проекта', exact: true })).toBeVisible()
 })
