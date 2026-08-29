@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { createGuideFromToolRail } from './helpers/uiV2Guides'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -79,7 +80,7 @@ test('mirror direction and custom axis preview without mutating the document', a
 
 test('selected guide exposes a live numeric value on canvas', async ({ page }) => {
   await openEditor(page)
-  await page.locator('.guide-add-grid button').filter({ hasText: 'Линия' }).click()
+  await createGuideFromToolRail(page, 'Линия')
 
   const value = page.locator('.guide-line .guide-value-label')
   await expect(value).toHaveText('260 px · 0°')

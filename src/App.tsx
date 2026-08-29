@@ -2,26 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { GuideRenderer } from './editor/GuideRenderer'
 import { LegendOverlay } from './editor/LegendOverlay'
-import { LegendPanel } from './editor/LegendPanel'
 import { RowMarkerLayer } from './editor/RowMarkerLayer'
-import { RowMarkersPanel } from './editor/RowMarkersPanel'
 import { LassoOverlay, type LassoMode } from './editor/LassoOverlay'
-import { BackgroundImagePanel } from './editor/BackgroundImagePanel'
 import { BackgroundImageCanvas } from './editor/BackgroundImageCanvas'
-import { PrintPanel } from './editor/PrintPanel'
-import { GuideAttachmentPanel } from './editor/GuideAttachmentPanel'
 import { MirrorAxisOverlay, type MirrorAxisState } from './editor/MirrorAxisOverlay'
-import { GuideRowGeneratorPanel } from './editor/GuideRowGeneratorPanel'
-import { ParametricRowEditorPanel } from './editor/ParametricRowEditorPanel'
-import { PatternRowsPanel } from './editor/PatternRowsPanel'
 import { ProjectManagerPanel } from './editor/ProjectManagerPanel'
 import { ProductivityPanel } from './editor/ProductivityPanel'
-import { SelectionColorControl } from './editor/SelectionColorControl'
 import { SelectionQuickToolbar } from './editor/SelectionQuickToolbar'
 import { LayersPanel } from './editor/LayersPanel'
 import { StitchLayer } from './editor/StitchLayer'
-import { TopologyEditorPanel } from './editor/TopologyEditorPanel'
-import { GaugeRulerPanel } from './editor/GaugeRulerPanel'
 import { RulerLayer } from './editor/RulerLayer'
 import {
   bringForward as bringElementsForward,
@@ -36,12 +25,12 @@ import {
 import { DEFAULT_STITCH_COLOR } from './editor/elementColor'
 import { clampBackgroundOpacity, prepareBackgroundImage } from './editor/backgroundImage'
 import { backgroundImageBounds } from './editor/backgroundGeometry'
-import { CHAIN_BUNDLE_COUNTS, chainBundleLayout, createChainBundle, type ChainBundleCount } from './editor/chainBundle'
+import { chainBundleLayout, createChainBundle, type ChainBundleCount } from './editor/chainBundle'
 import { buildTiledPrintHtml, parseLegendPrintBounds, parseSvgViewBox, type PrintSettings } from './editor/printLayout'
 import { usedLegendItems } from './editor/legend'
 import { deleteRowMarkerAndRenumber, isRowMarkerLocked, nextRowMarkerNumber, normalizedRowMarkerNumber } from './editor/rowMarkers'
 import type { GuideManipulationMode } from './editor/guideManipulation'
-import { fitLineGuideToRect, lineGuideAngle, lineGuideLength, reverseGuide, setLineGuideAngle, setLineGuideLength } from './editor/guideGeometry'
+import { fitLineGuideToRect, reverseGuide } from './editor/guideGeometry'
 import { clamp, screenToDocument } from './editor/geometry'
 import { emptyHistory, pushHistory, redoHistory, undoHistory } from './editor/history'
 import { emptyGaugeSettings, reconcileRulerElementReferences, snapRulerPoint } from './editor/gauge'
@@ -111,14 +100,26 @@ import type { TopologyChangeMarker } from './editor/topology'
 import {
   DEFAULT_LOCALE,
   UI,
-  categoryName,
   symbolName,
   type Locale,
 } from './i18n'
 import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph, symbolSvgMarkup } from './symbols'
+import { CanvasToolbar } from './ui/CanvasToolbar'
+import { EditorShell } from './ui/EditorShell'
+import { EditorStatusbar } from './ui/EditorStatusbar'
+import { EditorTopbar } from './ui/EditorTopbar'
+import { FavoriteQuickBar } from './ui/FavoriteQuickBar'
+import { GuideListPanel } from './ui/GuideListPanel'
+import { loadFavorites, saveFavorites, type FavoriteElementKey } from './ui/favorites'
+import { LeftWorkbenchSurface } from './ui/LeftWorkbenchSurface'
+import { RightOptionsPanels } from './ui/RightOptionsPanels'
+import { RightPanelTabs, type RightPanelTab } from './ui/RightPanelTabs'
+import { SelectionInspector } from './ui/SelectionInspector'
+import { WorkspaceSidebarControls } from './ui/WorkspaceSidebarControls'
+import type { ApplicationCommandId, ApplicationCommandRunner } from './ui/applicationCommands'
+import type { WorkbenchTool } from './ui/workbenchTypes'
 import type {
   AutosaveDelayMs,
-  AnchorName,
   BackgroundImage,
   CrochetProject,
   GaugeProfile,
@@ -127,7 +128,6 @@ import type {
   GuideAttachment,
   GuideAttachmentOrientation,
   MeasurementRuler,
-  OrientationMode,
   ParametricRowBinding,
   Point,
   RowMarker,
@@ -151,7 +151,6 @@ const SYMBOL_SIZES = Object.fromEntries(
   SYMBOLS.map((symbol) => [symbol.id, { width: symbol.width, height: symbol.height }]),
 )
 
-type Tool = { type: 'select' } | { type: 'pan' } | { type: 'lasso' } | { type: 'ruler' } | { type: 'place'; symbolId: string } | { type: 'place-chain-bundle'; count: ChainBundleCount } | { type: 'row-marker' }
 type DocumentSnapshot = {
   elements: StitchElement[]
   guides: Guide[]
@@ -239,56 +238,6 @@ function guideLabel(guide: Guide, locale: Locale) {
   if (guide.type === 'parabola') return locale === 'ru' ? 'Парабола' : 'Parabola'
   if (guide.type === 'grid') return t.rectangularGrid
   return t.radialGrid
-}
-
-function NumberField({
-  label,
-  value,
-  onChange,
-  min,
-  max,
-  step = 1,
-}: {
-  label: string
-  value: number
-  onChange: (value: number) => void
-  min?: number
-  max?: number
-  step?: number
-}) {
-  const [draft, setDraft] = useState(String(Number.isFinite(value) ? value : 0))
-  useEffect(() => setDraft(String(Number.isFinite(value) ? value : 0)), [value])
-
-  const commit = () => {
-    const parsed = Number(draft)
-    if (!Number.isFinite(parsed)) {
-      setDraft(String(value))
-      return
-    }
-    if (parsed !== value) onChange(parsed)
-  }
-
-  return (
-    <label className="number-field">
-      <span>{label}</span>
-      <input
-        type="number"
-        value={draft}
-        min={min}
-        max={max}
-        step={step}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') event.currentTarget.blur()
-          if (event.key === 'Escape') {
-            setDraft(String(value))
-            event.currentTarget.blur()
-          }
-        }}
-      />
-    </label>
-  )
 }
 
 function escapeXml(value: string) {
@@ -430,6 +379,13 @@ function sameOrder(left: StitchElement[], right: StitchElement[]) {
 function App() {
   const svgRef = useRef<SVGSVGElement>(null)
   const loadInputRef = useRef<HTMLInputElement>(null)
+  const printPanelRef = useRef<HTMLDetailsElement>(null)
+  const snappingPanelRef = useRef<HTMLDetailsElement>(null)
+  const gaugePanelRef = useRef<HTMLDetailsElement>(null)
+  const patternRowsPanelRef = useRef<HTMLDetailsElement>(null)
+  const rowMarkersPanelRef = useRef<HTMLDetailsElement>(null)
+  const legendPanelRef = useRef<HTMLDetailsElement>(null)
+  const helpPanelRef = useRef<HTMLDetailsElement>(null)
   const snapLockRef = useRef<string | null>(null)
   const spacePressedRef = useRef(false)
   const interactionMovedRef = useRef(false)
@@ -452,7 +408,6 @@ function App() {
   const [projectTitle, setProjectTitle] = useState(UI[DEFAULT_LOCALE].projectTitle)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightCollapsed, setRightCollapsed] = useState(false)
-  const [symbolQuery, setSymbolQuery] = useState('')
   const [elements, setElements] = useState<StitchElement[]>([])
   const [guides, setGuides] = useState<Guide[]>([])
   const [rowMarkers, setRowMarkers] = useState<RowMarker[]>([])
@@ -463,7 +418,10 @@ function App() {
   const [legendVisible, setLegendVisible] = useState(true)
   const [autosaveDelayMs, setAutosaveDelayMs] = useState<AutosaveDelayMs>(DEFAULT_AUTOSAVE_DELAY_MS)
   const [history, setHistory] = useState<HistoryState>(emptyHistory<DocumentSnapshot>())
-  const [tool, setTool] = useState<Tool>({ type: 'select' })
+  const [tool, setTool] = useState<WorkbenchTool>({ type: 'select' })
+  const [workbenchQuery, setWorkbenchQuery] = useState('')
+  const [favorites, setFavorites] = useState<FavoriteElementKey[]>(loadFavorites)
+  const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('options')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectedGuideId, setSelectedGuideId] = useState<string | null>(null)
   const [selectedRowMarkerId, setSelectedRowMarkerId] = useState<string | null>(null)
@@ -490,6 +448,8 @@ function App() {
     document.documentElement.lang = locale
     if (hydrated) setStatus(UI[locale].ready)
   }, [hydrated, locale])
+
+  useEffect(() => saveFavorites(favorites), [favorites])
 
   useEffect(() => {
     let cancelled = false
@@ -637,28 +597,6 @@ function App() {
   )
   const outputBounds = useMemo(() => parseSvgViewBox(outputSvg), [outputSvg])
   const outputLegendBounds = useMemo(() => parseLegendPrintBounds(outputSvg), [outputSvg])
-  const groupedSymbols = useMemo(() => {
-    const groups = new Map<string, typeof SYMBOLS>()
-    for (const symbol of SYMBOLS) {
-      groups.set(symbol.category, [...(groups.get(symbol.category) ?? []), symbol])
-    }
-    return [...groups.entries()]
-  }, [])
-  const normalizedSymbolQuery = symbolQuery.trim().toLocaleLowerCase(locale === 'ru' ? 'ru-RU' : 'en-US')
-  const filteredChainBundleCounts = useMemo(() => CHAIN_BUNDLE_COUNTS.filter((count) => {
-    if (!normalizedSymbolQuery) return true
-    const label = locale === 'ru' ? `${count} воздушные петли ${count} вп` : `${count} chains ${count} ch`
-    return label.toLocaleLowerCase(locale === 'ru' ? 'ru-RU' : 'en-US').includes(normalizedSymbolQuery)
-  }), [locale, normalizedSymbolQuery])
-  const filteredGroupedSymbols = useMemo(() => groupedSymbols
-    .map(([category, symbols]) => [category, symbols.filter((symbol) => {
-      if (!normalizedSymbolQuery) return true
-      const label = symbolName(symbol.id, symbol.name, locale)
-      const haystack = `${label} ${symbol.abbreviation ?? ''} ${symbol.id} ${categoryName(category, locale)}`
-        .toLocaleLowerCase(locale === 'ru' ? 'ru-RU' : 'en-US')
-      return haystack.includes(normalizedSymbolQuery)
-    })] as const)
-    .filter(([, symbols]) => symbols.length > 0), [groupedSymbols, locale, normalizedSymbolQuery])
   const lockedSelectedCount = useMemo(() => elements.filter(
     (element) => selectedIds.includes(element.id) && isElementLocked(element),
   ).length, [elements, selectedIds])
@@ -2000,6 +1938,17 @@ function App() {
     setSnapTarget(null)
   }, [clearElementSelection])
 
+  const toggleRowMarkerPlacement = useCallback(() => {
+    setTool((current) => current.type === 'row-marker' ? { type: 'select' } : { type: 'row-marker' })
+    clearElementSelection()
+    setSelectedGuideId(null)
+    setSelectedRowMarkerId(null)
+    setSelectedRulerId(null)
+    setRulerDraft(null)
+    setPreview(null)
+    setSnapTarget(null)
+  }, [clearElementSelection])
+
   const handleRowMarkerMoveStart = useCallback(() => {
     rowMarkerManipulationSnapshotRef.current = currentSnapshot()
   }, [currentSnapshot])
@@ -2117,7 +2066,7 @@ function App() {
     setStatus(locale === 'ru' ? 'Связь с направляющей снята' : 'Guide attachment removed')
   }
 
-  const addGuide = (type: Guide['type']) => {
+  const addGuide = useCallback((type: Guide['type']) => {
     const rect = svgRef.current?.getBoundingClientRect()
     const center = toDocumentPoint({
       x: (rect?.width ?? 800) / 2,
@@ -2198,7 +2147,74 @@ function App() {
     setTool({ type: 'select' })
     setPreview(null)
     setStatus(`${guideLabel(guide, locale)} ${t.added}`)
-  }
+  }, [clearElementSelection, commitGuides, guides, locale, t.added, toDocumentPoint])
+
+  const selectWorkbenchTool = useCallback(() => {
+    setTool({ type: 'select' })
+    setLasso(null)
+    setPreview(null)
+    setSnapTarget(null)
+    setRulerDraft(null)
+    setRulerDrag(null)
+  }, [])
+
+  const togglePanWorkbenchTool = useCallback(() => {
+    setTool((current) => current.type === 'pan' ? { type: 'select' } : { type: 'pan' })
+    setLasso(null)
+    setPreview(null)
+    setSnapTarget(null)
+    setRulerDraft(null)
+  }, [])
+
+  const toggleLassoWorkbenchTool = useCallback(() => {
+    setTool((current) => current.type === 'lasso' ? { type: 'select' } : { type: 'lasso' })
+    setLasso(null)
+    setPreview(null)
+    setSnapTarget(null)
+    setSelectedGuideId(null)
+    setSelectedRowMarkerId(null)
+    setSelectedRulerId(null)
+  }, [])
+
+  const selectWorkbenchSymbol = useCallback((symbolId: string) => {
+    if (tool.type === 'place' && tool.symbolId === symbolId) {
+      setTool({ type: 'select' })
+      setPreview(null)
+      setSnapTarget(null)
+      return
+    }
+    setTool({ type: 'place', symbolId })
+    clearElementSelection()
+    setSelectedGuideId(null)
+    setSelectedRowMarkerId(null)
+    setSelectedRulerId(null)
+    setRulerDraft(null)
+    setPreview(null)
+    setSnapTarget(null)
+  }, [clearElementSelection, tool])
+
+  const selectWorkbenchChainBundle = useCallback((count: ChainBundleCount) => {
+    if (tool.type === 'place-chain-bundle' && tool.count === count) {
+      setTool({ type: 'select' })
+      setPreview(null)
+      setSnapTarget(null)
+      return
+    }
+    setTool({ type: 'place-chain-bundle', count })
+    clearElementSelection()
+    setSelectedGuideId(null)
+    setSelectedRowMarkerId(null)
+    setSelectedRulerId(null)
+    setRulerDraft(null)
+    setPreview(null)
+    setSnapTarget(null)
+  }, [clearElementSelection, tool])
+
+  const toggleFavorite = useCallback((key: FavoriteElementKey) => {
+    setFavorites((current) => current.includes(key)
+      ? current.filter((favorite) => favorite !== key)
+      : [...current, key])
+  }, [])
 
   const updateSelectedGuide = (updater: (guide: Guide) => Guide) => {
     if (!selectedGuide) return
@@ -2485,7 +2501,6 @@ function App() {
     })
     setStatus(locale === 'ru' ? 'Макет печати открыт' : 'Print layout opened')
   }
-
   const saveProject = () => {
     const project = buildProject(projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage, gauge, rulers)
     const integrityIssue = projectIntegrityIssue(project)
@@ -2539,11 +2554,93 @@ function App() {
     setStatus(t.svgExported)
   }
 
-  const anchorLabels: Record<AnchorName, string> = {
-    top: t.top,
-    center: t.center,
-    bottom: t.bottom,
+  const openInspectorPanel = (panel: HTMLDetailsElement | null) => {
+    if (!panel) return false
+    setRightCollapsed(false)
+    setRightPanelTab('options')
+    requestAnimationFrame(() => {
+      panel.open = true
+      panel.scrollIntoView({ block: 'nearest' })
+      panel.querySelector<HTMLElement>('summary')?.focus()
+    })
+    return true
   }
+
+  const runApplicationCommand: ApplicationCommandRunner = (command: ApplicationCommandId) => {
+    switch (command) {
+      case 'file.new':
+        void handleNewLocalProject()
+        return true
+      case 'file.import':
+        loadInputRef.current?.click()
+        return Boolean(loadInputRef.current)
+      case 'file.exportProject':
+        saveProject()
+        return true
+      case 'file.exportSvg':
+        exportSvg()
+        return true
+      case 'file.print':
+        return openInspectorPanel(printPanelRef.current)
+      case 'edit.undo':
+        undo()
+        return true
+      case 'edit.redo':
+        redo()
+        return true
+      case 'edit.copy':
+        copySelection()
+        return true
+      case 'edit.paste':
+        pasteSelection()
+        return true
+      case 'edit.duplicate':
+        duplicateSelection()
+        return true
+      case 'edit.delete':
+        deleteSelected()
+        return true
+      case 'edit.selectAll':
+        selectAll()
+        return true
+      case 'view.zoom100':
+        setCanvasZoom(1)
+        return true
+      case 'view.fitAll':
+        fitAll()
+        return true
+      case 'view.fitSelection':
+        fitSelection()
+        return true
+      case 'view.toggleLeft':
+        setLeftCollapsed((value) => !value)
+        return true
+      case 'view.toggleRight':
+        setRightCollapsed((value) => !value)
+        return true
+      case 'settings.snapping':
+        return openInspectorPanel(snappingPanelRef.current)
+      case 'settings.gauge':
+        return openInspectorPanel(gaugePanelRef.current)
+      case 'settings.patternRows':
+        return openInspectorPanel(patternRowsPanelRef.current)
+      case 'settings.rowNumbers':
+        return openInspectorPanel(rowMarkersPanelRef.current)
+      case 'settings.legend':
+        return openInspectorPanel(legendPanelRef.current)
+      case 'help.controls':
+        return openInspectorPanel(helpPanelRef.current)
+      case 'ui.commandPalette':
+        return false
+    }
+  }
+
+  const handleSnappingEnabledChange = useCallback((enabled: boolean) => {
+    commitSnapping({ ...snapping, enabled })
+    setSnapTarget(null)
+    snapLockRef.current = null
+  }, [commitSnapping, snapping])
+
   const marqueeRect: Rect | null = marquee
     ? normalizeRect(marquee.start, marquee.current)
     : null
@@ -2567,110 +2664,53 @@ function App() {
   }
 
   return (
-    <div className={`app-shell ${leftCollapsed ? 'left-collapsed' : ''} ${rightCollapsed ? 'right-collapsed' : ''}`}>
-      <header className="topbar">
-        <div className="brand">
-          <div className="brand-mark">C</div>
-          <div>
-            <strong>{t.brandTitle}</strong>
-            <span>{t.brandSubtitle}</span>
-          </div>
-        </div>
-
-        <div className="topbar-actions">
-          <span className={`autosave-indicator ${autosaveState}`}>{autosaveLabel}</span>
-          <label className="autosave-control">
-            <span>{locale === 'ru' ? 'Автосохранение' : 'Autosave'}</span>
-            <select
-              aria-label={locale === 'ru' ? 'Автосохранение' : 'Autosave'}
-              value={autosaveDelayMs}
-              onChange={(event) => handleAutosaveDelayChange(Number(event.target.value) as AutosaveDelayMs)}
-            >
-              <option value={0}>{locale === 'ru' ? 'Выкл' : 'Off'}</option>
-              <option value={650}>{locale === 'ru' ? 'Быстро · 0,65 с' : 'Fast · 0.65 s'}</option>
-              <option value={5000}>5 s</option>
-              <option value={15000}>15 s</option>
-              <option value={30000}>30 s</option>
-              <option value={60000}>60 s</option>
-            </select>
-          </label>
-          <div className="language-switch" aria-label={t.language}>
-            <button className={`ghost-button ${locale === 'ru' ? 'active-lang' : ''}`} onClick={() => setLocale('ru')}>RU</button>
-            <button className={`ghost-button ${locale === 'en' ? 'active-lang' : ''}`} onClick={() => setLocale('en')}>EN</button>
-          </div>
-          <span className="toolbar-separator" />
-          <button className="ghost-button" onClick={undo} disabled={!history.past.length}>{t.undo}</button>
-          <button className="ghost-button" onClick={redo} disabled={!history.future.length}>{t.redo}</button>
-          <span className="toolbar-separator" />
-          <button className="ghost-button" onClick={saveProject}>{t.saveJson}</button>
-          <button className="ghost-button" onClick={() => loadInputRef.current?.click()}>{t.load}</button>
-          <button className="primary-button" onClick={exportSvg}>{t.exportSvg}</button>
-          <input
-            ref={loadInputRef}
-            type="file"
-            accept="application/json,.json"
-            hidden
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              if (file) void loadProject(file)
-              event.currentTarget.value = ''
-            }}
+    <EditorShell locale={locale} runCommand={runApplicationCommand}>
+      <div className={`app-shell ${leftCollapsed ? 'left-collapsed' : ''} ${rightCollapsed ? 'right-collapsed' : ''}`}>
+      <EditorTopbar
+        locale={locale}
+        autosaveState={autosaveState}
+        autosaveLabel={autosaveLabel}
+        autosaveDelayMs={autosaveDelayMs}
+        canUndo={history.past.length > 0}
+        canRedo={history.future.length > 0}
+        favoriteActions={(
+          <FavoriteQuickBar
+            locale={locale}
+            tool={tool}
+            favorites={favorites}
+            onSelectSymbol={selectWorkbenchSymbol}
+            onSelectChainBundle={selectWorkbenchChainBundle}
+            onCancelPlacement={selectWorkbenchTool}
           />
-        </div>
-      </header>
+        )}
+        loadInputRef={loadInputRef}
+        onAutosaveDelayChange={handleAutosaveDelayChange}
+        onLocaleChange={setLocale}
+        onUndo={undo}
+        onRedo={redo}
+        onSaveProject={saveProject}
+        onOpenProject={() => loadInputRef.current?.click()}
+        onExportSvg={exportSvg}
+        onImportFile={loadProject}
+      />
 
       <aside className="sidebar left-sidebar">
-        <section className="panel-section compact-section">
-          <div className="section-title-row"><h2>{t.tools}</h2></div>
-          <button
-            className={`tool-button ${tool.type === 'select' ? 'active' : ''}`}
-            onClick={() => {
-              setTool({ type: 'select' })
-              setLasso(null)
-              setPreview(null)
-              setSnapTarget(null)
-            }}
-          >
-            <span>↖</span>{t.selectMove}<kbd>Esc</kbd>
-          </button>
-          <button
-            className={`tool-button ${tool.type === 'pan' ? 'active' : ''}`}
-            aria-label={locale === 'ru' ? 'Ладонь / перемещение поля' : 'Hand / pan canvas'}
-            aria-pressed={tool.type === 'pan'}
-            onClick={() => {
-              setTool((current) => current.type === 'pan' ? { type: 'select' } : { type: 'pan' })
-              setLasso(null)
-              setPreview(null)
-              setSnapTarget(null)
-              setRulerDraft(null)
-            }}
-          >
-            <span>✋</span>{locale === 'ru' ? 'Ладонь' : 'Hand'}<kbd>H</kbd>
-          </button>
-          <button
-            className={`tool-button ${tool.type === 'lasso' ? 'active' : ''}`}
-            aria-label={locale === 'ru' ? 'Лассо' : 'Lasso'}
-            onClick={() => {
-              setTool((current) => current.type === 'lasso' ? { type: 'select' } : { type: 'lasso' })
-              setLasso(null)
-              setPreview(null)
-              setSnapTarget(null)
-              setSelectedGuideId(null)
-              setSelectedRowMarkerId(null)
-            }}
-          >
-            <span>⌁</span>{locale === 'ru' ? 'Лассо' : 'Lasso'}<kbd>L</kbd>
-          </button>
-          <button
-            className={`tool-button ${tool.type === 'ruler' ? 'active' : ''}`}
-            aria-label={locale === 'ru' ? 'Линейка' : 'Ruler'}
-            aria-pressed={tool.type === 'ruler'}
-            onClick={toggleRulerTool}
-          >
-            <span>↔</span>{locale === 'ru' ? 'Линейка' : 'Ruler'}<kbd>R</kbd>
-          </button>
-          <small className="muted-text">{locale === 'ru' ? 'H — постоянная ладонь · Space + drag — временная · средняя кнопка мыши тоже двигает поле' : 'H — persistent hand · Space + drag — temporary · middle mouse also pans'}</small>
-        </section>
+        <LeftWorkbenchSurface
+          locale={locale}
+          tool={tool}
+          query={workbenchQuery}
+          favorites={favorites}
+          onSelect={selectWorkbenchTool}
+          onTogglePan={togglePanWorkbenchTool}
+          onToggleLasso={toggleLassoWorkbenchTool}
+          onAddGuide={addGuide}
+          onToggleRuler={toggleRulerTool}
+          onQueryChange={setWorkbenchQuery}
+          onToggleFavorite={toggleFavorite}
+          onSelectSymbol={selectWorkbenchSymbol}
+          onSelectChainBundle={selectWorkbenchChainBundle}
+          onCancelPlacement={selectWorkbenchTool}
+        />
 
         <ProjectManagerPanel
           locale={locale}
@@ -2683,227 +2723,49 @@ function App() {
           onDelete={handleDeleteLocalProject}
         />
 
-        <section className="panel-section guide-section">
-          <div className="section-title-row"><h2>{t.guides}</h2><span className="muted-text">{guides.length}</span></div>
-          <div className="guide-add-grid">
-            <button onClick={() => addGuide('arc')}><strong>⌒</strong><span>{t.arc}</span></button>
-            <button onClick={() => addGuide('line')}><strong>／</strong><span>{locale === 'ru' ? 'Линия' : 'Line'}</span></button>
-            <button onClick={() => addGuide('curve')}><strong>∿</strong><span>{locale === 'ru' ? 'Кривая' : 'Curve'}</span></button>
-            <button onClick={() => addGuide('parabola')}><strong>∩</strong><span>{locale === 'ru' ? 'Парабола' : 'Parabola'}</span></button>
-            <button onClick={() => addGuide('grid')}><strong>▦</strong><span>{t.grid}</span></button>
-            <button onClick={() => addGuide('radial-grid')}><strong>◎</strong><span>{t.radial}</span></button>
-          </div>
-          {guides.length > 0 && (
-            <div className="guide-list">
-              {guides.map((guide, index) => (
-                <button
-                  key={guide.id}
-                  className={selectedGuideId === guide.id ? 'active' : ''}
-                  onClick={() => {
-                    setTool({ type: 'select' })
-                    setSelectedGuideId(guide.id)
-                    clearElementSelection()
-                  }}
-                >
-                  <span className={`visibility-dot ${guide.visible ? '' : 'hidden'}`} />
-                  <span>{index + 1}. {guideLabel(guide, locale)}</span>
-                  {guide.locked && <span aria-label={locale === 'ru' ? 'Заблокирована' : 'Locked'}>🔒</span>}
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="panel-section symbols-section">
-          <div className="section-title-row"><h2>{t.stitches}</h2><span className="muted-text">{SYMBOLS.length + CHAIN_BUNDLE_COUNTS.length}</span></div>
-          <input
-            className="symbol-search"
-            data-testid="symbol-search"
-            type="search"
-            value={symbolQuery}
-            placeholder={locale === 'ru' ? 'Поиск: ВП, столбик…' : 'Search: ch, double…'}
-            aria-label={locale === 'ru' ? 'Поиск элементов' : 'Search stitches'}
-            onChange={(event) => setSymbolQuery(event.target.value)}
-          />
-          {filteredChainBundleCounts.length > 0 && (
-            <div className="symbol-group chain-bundle-presets">
-              <h3>{locale === 'ru' ? 'Цепочки' : 'Chain presets'}</h3>
-              <div className="symbol-grid">
-                {filteredChainBundleCounts.map((count) => {
-                  const active = tool.type === 'place-chain-bundle' && tool.count === count
-                  const label = locale === 'ru' ? `${count} воздушные петли` : `${count} chains`
-                  const abbreviation = locale === 'ru' ? `${count} ВП` : `${count} ch`
-                  const title = `${label} · ${abbreviation}`
-                  return (
-                    <button
-                      className={`symbol-button chain-bundle-button ${active ? 'active' : ''}`}
-                      key={`chain-bundle-${count}`}
-                      title={title}
-                      aria-label={title}
-                      onClick={() => {
-                        if (active) {
-                          setTool({ type: 'select' })
-                          setPreview(null)
-                          setSnapTarget(null)
-                          return
-                        }
-                        setTool({ type: 'place-chain-bundle', count })
-                        clearElementSelection()
-                        setSelectedGuideId(null)
-                        setSelectedRowMarkerId(null)
-                      }}
-                    >
-                      <svg viewBox="-48 -20 96 40" aria-hidden="true">
-                        {chainBundleLayout({ x: 0, y: 0 }, count).map((member, index) => (
-                          <g key={index} transform={`translate(${member.x} ${member.y})`} className="symbol-glyph">
-                            <SymbolGlyph symbolId="chain" />
-                          </g>
-                        ))}
-                      </svg>
-                      <span>{abbreviation}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-          {filteredGroupedSymbols.map(([category, symbols]) => (
-            <div className="symbol-group" key={category}>
-              <h3>{categoryName(category, locale)}</h3>
-              <div className="symbol-grid">
-                {symbols.map((symbol) => {
-                  const active = tool.type === 'place' && tool.symbolId === symbol.id
-                  const label = symbolName(symbol.id, symbol.name, locale)
-                  const title = symbol.abbreviation ? `${label} · ${symbol.abbreviation}` : label
-                  return (
-                    <button
-                      className={`symbol-button ${active ? 'active' : ''}`}
-                      key={symbol.id}
-                      title={title}
-                      aria-label={title}
-                      onClick={() => {
-                        if (active) {
-                          setTool({ type: 'select' })
-                          setPreview(null)
-                          setSnapTarget(null)
-                          return
-                        }
-                        setTool({ type: 'place', symbolId: symbol.id })
-                        clearElementSelection()
-                        setSelectedGuideId(null)
-                      }}
-                    >
-                      <svg viewBox="-24 -38 48 76" aria-hidden="true"><g className="symbol-glyph"><SymbolGlyph symbolId={symbol.id} /></g></svg>
-                      <span>{symbol.abbreviation ?? label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
-          {normalizedSymbolQuery && !filteredChainBundleCounts.length && !filteredGroupedSymbols.length && (
-            <p className="empty-state">{locale === 'ru' ? 'Ничего не найдено.' : 'No stitches found.'}</p>
-          )}
-        </section>
-
-        <LayersPanel
-          elements={elements}
-          selectedIds={selectedIds}
+        <GuideListPanel
           locale={locale}
-          onSelect={handleLayerSelect}
-          onToggleVisible={toggleElementVisible}
-          onToggleLocked={toggleElementLocked}
-          onBringForward={bringSelectionForward}
-          onSendBackward={sendSelectionBackward}
-          onBringToFront={bringSelectionToFront}
-          onSendToBack={sendSelectionToBack}
+          guides={guides}
+          selectedGuideId={selectedGuideId}
+          guideLabel={(guide) => guideLabel(guide, locale)}
+          onSelectGuide={(guideId) => {
+            setTool({ type: 'select' })
+            setSelectedGuideId(guideId)
+            clearElementSelection()
+          }}
         />
+
       </aside>
 
       <main className="workspace">
-        <button
-          className="sidebar-toggle left"
-          aria-label={locale === 'ru' ? 'Свернуть левую панель' : 'Toggle left sidebar'}
-          onClick={() => setLeftCollapsed((value) => !value)}
-        >{leftCollapsed ? '›' : '‹'}</button>
-        <button
-          className="sidebar-toggle right"
-          aria-label={locale === 'ru' ? 'Свернуть правую панель' : 'Toggle right sidebar'}
-          onClick={() => setRightCollapsed((value) => !value)}
-        >{rightCollapsed ? '‹' : '›'}</button>
+        <WorkspaceSidebarControls
+          locale={locale}
+          leftCollapsed={leftCollapsed}
+          rightCollapsed={rightCollapsed}
+          onToggleLeft={() => setLeftCollapsed((value) => !value)}
+          onToggleRight={() => setRightCollapsed((value) => !value)}
+        />
 
-        <div className="canvas-toolbar">
-          <button aria-label={locale === 'ru' ? 'Уменьшить масштаб' : 'Zoom out'} title="−" onClick={() => zoomCanvas(1 / 1.2)}>−</button>
-          <button className="zoom-readout" title={locale === 'ru' ? '100% (0)' : '100% (0)'} onClick={() => setCanvasZoom(1)}>{Math.round(viewport.zoom * 100)}%</button>
-          <button aria-label={locale === 'ru' ? 'Увеличить масштаб' : 'Zoom in'} title="+" onClick={() => zoomCanvas(1.2)}>+</button>
-          <button
-            className="fit-button"
-            aria-label={locale === 'ru' ? 'Вместить всю схему' : 'Fit all'}
-            title="F"
-            onClick={fitAll}
-            disabled={!visibleElements.length}
-          >{locale === 'ru' ? 'Всё' : 'All'}</button>
-          <button
-            className="fit-button"
-            aria-label={locale === 'ru' ? 'Вместить выделение' : 'Fit selection'}
-            title="Shift+F"
-            onClick={fitSelection}
-            disabled={!selectedIds.length}
-          >{locale === 'ru' ? 'Выбор' : 'Sel'}</button>
-          <button
-            className={`fit-button ${tool.type === 'pan' ? 'active' : ''}`}
-            aria-label={locale === 'ru' ? 'Ладонь / перемещение поля' : 'Hand / pan canvas'}
-            aria-pressed={tool.type === 'pan'}
-            title="H"
-            onClick={() => {
-              setTool((current) => current.type === 'pan' ? { type: 'select' } : { type: 'pan' })
-              setLasso(null)
-              setPreview(null)
-              setSnapTarget(null)
-              setRulerDraft(null)
-            }}
-          >✋</button>
-          <button
-            className={`fit-button ${tool.type === 'lasso' ? 'active' : ''}`}
-            aria-label={locale === 'ru' ? 'Лассо' : 'Lasso'}
-            aria-pressed={tool.type === 'lasso'}
-            title="L"
-            onClick={() => {
-              setTool((current) => current.type === 'lasso' ? { type: 'select' } : { type: 'lasso' })
-              setLasso(null)
-              setPreview(null)
-              setSnapTarget(null)
-              setSelectedGuideId(null)
-              setSelectedRowMarkerId(null)
-            }}
-          >{locale === 'ru' ? 'Лассо' : 'Lasso'}</button>
-          <button
-            className={`fit-button ${tool.type === 'ruler' ? 'active' : ''}`}
-            aria-label={locale === 'ru' ? 'Линейка' : 'Ruler'}
-            aria-pressed={tool.type === 'ruler'}
-            title="R"
-            onClick={toggleRulerTool}
-          >{locale === 'ru' ? 'Линейка' : 'Ruler'}</button>
-          <button
-            className={`snap-toggle ${snapping.enabled ? 'active' : ''}`}
-            aria-pressed={snapping.enabled}
-            title={locale === 'ru' ? 'S — включить/выключить привязку' : 'S — toggle snapping'}
-            onClick={toggleSnapping}
-          >{snapping.enabled ? (locale === 'ru' ? '🔗 Привязка' : '🔗 Snap') : (locale === 'ru' ? 'Свободно' : 'Free')}</button>
-          <select
-            className="canvas-orientation-select"
-            aria-label={locale === 'ru' ? 'Ориентация при привязке' : 'Snap orientation'}
-            title={locale === 'ru' ? 'Автоповорот при привязке к направляющей' : 'Auto-rotate when snapping to a guide'}
-            value={snapping.orientationMode}
-            disabled={!snapping.enabled}
-            onChange={(event) => commitSnapping({ ...snapping, orientationMode: event.target.value as OrientationMode })}
-          >
-            <option value="none">{locale === 'ru' ? 'Не поворачивать' : 'Keep'}</option>
-            <option value="along">{locale === 'ru' ? 'Вдоль' : 'Along'}</option>
-            <option value="perpendicular">{locale === 'ru' ? 'Поперёк' : 'Perpendicular'}</option>
-          </select>
-          <span className="canvas-hint">{t.zoomHint}</span>
-        </div>
+        <CanvasToolbar
+          locale={locale}
+          zoom={viewport.zoom}
+          tool={tool}
+          snappingEnabled={snapping.enabled}
+          orientationMode={snapping.orientationMode}
+          zoomHint={t.zoomHint}
+          canFitAll={visibleElements.length > 0}
+          canFitSelection={selectedIds.length > 0}
+          onZoomOut={() => zoomCanvas(1 / 1.2)}
+          onZoom100={() => setCanvasZoom(1)}
+          onZoomIn={() => zoomCanvas(1.2)}
+          onFitAll={fitAll}
+          onFitSelection={fitSelection}
+          onTogglePan={togglePanWorkbenchTool}
+          onToggleLasso={toggleLassoWorkbenchTool}
+          onToggleRuler={toggleRulerTool}
+          onToggleSnapping={toggleSnapping}
+          onOrientationChange={(orientationMode) => commitSnapping({ ...snapping, orientationMode })}
+        />
 
         <SelectionQuickToolbar
           locale={locale}
@@ -3065,212 +2927,61 @@ function App() {
           </g>
         </svg>
 
-        <div className="statusbar">
-          <span>{status}</span>
-          <span>{elements.length} {t.stitchCount} · {guides.length} {t.guideCount} · {rowMarkers.length} {locale === 'ru' ? 'номеров рядов' : 'row numbers'} · {rulers.length} {locale === 'ru' ? 'линеек' : 'rulers'}{selectedIds.length ? ` · ${selectedIds.length} ${t.selectedShort}` : ''}</span>
-        </div>
+        <EditorStatusbar
+          locale={locale}
+          status={status}
+          stitchCount={elements.length}
+          guideCount={guides.length}
+          rowMarkerCount={rowMarkers.length}
+          rulerCount={rulers.length}
+          selectedCount={selectedIds.length}
+        />
       </main>
 
       <aside className="sidebar right-sidebar">
-        <section className="panel-section right-panel-context" data-testid="selection-context-panel">
-          <div className="section-title-row">
-            <h2>{t.selection}</h2>
-            {lockedSelectedCount > 0 && <span className="muted-text">🔒 {lockedSelectedCount}</span>}
-          </div>
+        <div className="ui-v2-right-tabs-host">
+          <RightPanelTabs locale={locale} activeTab={rightPanelTab} onChange={setRightPanelTab} />
+        </div>
 
-          {lockedSelectedCount > 0 && (
-            <p className="locked-selection-note">
-              {locale === 'ru'
-                ? `Заблокировано в выделении: ${lockedSelectedCount}. Их можно выбирать и просматривать, но изменения применяются только к разблокированным.`
-                : `${lockedSelectedCount} selected locked stitch(es). They can be inspected, while edits only affect unlocked stitches.`}
-            </p>
-          )}
-
-          {editableSelectedCount > 0 && (
-            <SelectionColorControl
-              locale={locale}
-              colors={elements
-                .filter((element) => selectedIds.includes(element.id) && !isElementLocked(element))
-                .map((element) => element.color)}
-              onChange={applySelectionColor}
-            />
-          )}
-
-          {selectedParametricRow && selectedParametricGuide ? (
-            <>
-              <ParametricRowEditorPanel
-                binding={selectedParametricRow}
-                guide={selectedParametricGuide}
-                locale={locale}
-                parentStitchCount={selectedParametricParentCount}
-                onChange={handleUpdateParametricRow}
-                onDelete={() => handleDeleteParametricRow(selectedParametricRow.id)}
-              />
-              <TopologyEditorPanel
-                elements={elements}
-                binding={selectedParametricRow}
-                locale={locale}
-                selectedParentId={selectedTopologyParentId}
-                onSelectParentId={setSelectedTopologyParentId}
-                onChange={handleUpdateParametricRow}
-              />
-            </>
-          ) : selectedElement ? (
-            <div className="selection-card compact-selection-card">
-              {!isElementLocked(selectedElement) && (
-                <>
-                  <div className="rotation-controls">
-                    <button onClick={() => rotateSelected(-15)}>−15°</button>
-                    <button onClick={() => rotateSelected(15)}>+15°</button>
-                  </div>
-                  <GuideAttachmentPanel
-                    locale={locale}
-                    element={selectedElement}
-                    guides={guides}
-                    onAttach={attachSelectedToGuide}
-                    onChange={updateSelectedGuideAttachment}
-                    onDetach={detachSelectedFromGuide}
-                  />
-                  <div className="selection-actions">
-                    <button onClick={copySelection}>{t.copy}</button>
-                    <button onClick={duplicateSelection}>{t.duplicate}</button>
-                  </div>
-                </>
-              )}
-              <div className="layer-selection-controls">
-                <button onClick={() => toggleElementVisible(selectedElement.id)}>{isElementVisible(selectedElement) ? t.hideLayer : t.showLayer}</button>
-                <button onClick={() => toggleElementLocked(selectedElement.id)}>{isElementLocked(selectedElement) ? t.unlockLayer : t.lockLayer}</button>
-              </div>
-              {!isElementLocked(selectedElement) && <button className="danger-button" onClick={deleteSelected}>{t.delete}</button>}
-            </div>
-          ) : selectedIds.length > 1 ? (
-            <div className="multi-selection-card">
-              <strong>{t.selectedCount}: {selectedIds.length}</strong>
-              <small>{t.groupMoveHint}</small>
-              {editableSelectedCount > 0 && (
-                <>
-                  <div className="rotation-controls">
-                    <button onClick={() => rotateSelected(-15)}>−15°</button>
-                    <button onClick={() => rotateSelected(15)}>+15°</button>
-                  </div>
-                  <div className="selection-actions">
-                    <button onClick={copySelection}>{t.copy}</button>
-                    <button onClick={duplicateSelection}>{t.duplicate}</button>
-                  </div>
-                  <button className="danger-button" onClick={deleteSelected}>{t.delete}</button>
-                </>
-              )}
-            </div>
-          ) : selectedGuide ? (
-            <div className="guide-editor">
-              <div className="guide-editor-heading"><strong>{guideLabel(selectedGuide, locale)}</strong><span>{selectedGuide.type}</span></div>
-              <label className="toggle-row compact-toggle">
-                <span>{t.visible}</span>
-                <input type="checkbox" checked={selectedGuide.visible} onChange={(event) => updateSelectedGuide((guide) => ({ ...guide, visible: event.target.checked }))} />
-              </label>
-              <label className="toggle-row compact-toggle">
-                <span>{locale === 'ru' ? 'Заблокировать направляющую' : 'Lock guide'}</span>
-                <input type="checkbox" checked={selectedGuide.locked === true} onChange={(event) => updateSelectedGuide((guide) => ({ ...guide, locked: event.target.checked }))} />
-              </label>
-
-              <fieldset className="guide-locked-fields" disabled={selectedGuide.locked === true}>
-              {selectedGuide.type === 'arc' && (
-                <div className="number-field-grid">
-                  <NumberField label={t.centerX} value={selectedGuide.center.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, center: { ...guide.center, x: value } } : guide)} />
-                  <NumberField label={t.centerY} value={selectedGuide.center.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, center: { ...guide.center, y: value } } : guide)} />
-                  <NumberField label={t.radius} value={selectedGuide.radius} min={10} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, radius: Math.max(10, value) } : guide)} />
-                  <NumberField label={t.divisions} value={selectedGuide.divisions} min={1} max={72} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, divisions: Math.round(clamp(value, 1, 72)) } : guide)} />
-                  <NumberField label={t.startAngle} value={selectedGuide.startAngle} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, startAngle: value } : guide)} />
-                  <NumberField label={t.endAngle} value={selectedGuide.endAngle} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'arc' ? { ...guide, endAngle: value } : guide)} />
-                </div>
-              )}
-
-              {selectedGuide.type === 'line' && (
-                <div className="number-field-grid">
-                  <NumberField label={locale === 'ru' ? 'Начало X' : 'Start X'} value={selectedGuide.start.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? { ...guide, start: { ...guide.start, x: value } } : guide)} />
-                  <NumberField label={locale === 'ru' ? 'Начало Y' : 'Start Y'} value={selectedGuide.start.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? { ...guide, start: { ...guide.start, y: value } } : guide)} />
-                  <NumberField label={locale === 'ru' ? 'Конец X' : 'End X'} value={selectedGuide.end.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? { ...guide, end: { ...guide.end, x: value } } : guide)} />
-                  <NumberField label={locale === 'ru' ? 'Конец Y' : 'End Y'} value={selectedGuide.end.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? { ...guide, end: { ...guide.end, y: value } } : guide)} />
-                  <NumberField label={locale === 'ru' ? 'Длина' : 'Length'} value={Math.round(lineGuideLength(selectedGuide) * 100) / 100} min={1} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? setLineGuideLength(guide, value) : guide)} />
-                  <NumberField label={locale === 'ru' ? 'Угол °' : 'Angle °'} value={Math.round(lineGuideAngle(selectedGuide) * 100) / 100} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? setLineGuideAngle(guide, value) : guide)} />
-                  <NumberField label={t.divisions} value={selectedGuide.divisions} min={1} max={100} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'line' ? { ...guide, divisions: Math.round(clamp(value, 1, 100)) } : guide)} />
-                  <button type="button" onClick={fitSelectedLineToProject}>{locale === 'ru' ? 'По размеру проекта' : 'Fit to project'}</button>
-                </div>
-              )}
-
-              {selectedGuide.type === 'curve' && (
-                <div className="number-field-grid">
-                  <NumberField label={locale === 'ru' ? 'Начало X' : 'Start X'} value={selectedGuide.start.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, start: { ...guide.start, x: value } } : guide)} />
-                  <NumberField label={locale === 'ru' ? 'Начало Y' : 'Start Y'} value={selectedGuide.start.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, start: { ...guide.start, y: value } } : guide)} />
-                  <NumberField label="C1 X" value={selectedGuide.control1.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, control1: { ...guide.control1, x: value } } : guide)} />
-                  <NumberField label="C1 Y" value={selectedGuide.control1.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, control1: { ...guide.control1, y: value } } : guide)} />
-                  <NumberField label="C2 X" value={selectedGuide.control2.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, control2: { ...guide.control2, x: value } } : guide)} />
-                  <NumberField label="C2 Y" value={selectedGuide.control2.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, control2: { ...guide.control2, y: value } } : guide)} />
-                  <NumberField label={locale === 'ru' ? 'Конец X' : 'End X'} value={selectedGuide.end.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, end: { ...guide.end, x: value } } : guide)} />
-                  <NumberField label={locale === 'ru' ? 'Конец Y' : 'End Y'} value={selectedGuide.end.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, end: { ...guide.end, y: value } } : guide)} />
-                  <NumberField label={t.divisions} value={selectedGuide.divisions} min={1} max={100} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'curve' ? { ...guide, divisions: Math.round(clamp(value, 1, 100)) } : guide)} />
-                </div>
-              )}
-
-              {selectedGuide.type === 'parabola' && (
-                <div className="number-field-grid">
-                  <NumberField label={locale === 'ru' ? 'Начало X' : 'Start X'} value={selectedGuide.start.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'parabola' ? { ...guide, start: { ...guide.start, x: value } } : guide)} />
-                  <NumberField label={locale === 'ru' ? 'Начало Y' : 'Start Y'} value={selectedGuide.start.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'parabola' ? { ...guide, start: { ...guide.start, y: value } } : guide)} />
-                  <NumberField label={locale === 'ru' ? 'Вершина X' : 'Control X'} value={selectedGuide.control.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'parabola' ? { ...guide, control: { ...guide.control, x: value } } : guide)} />
-                  <NumberField label={locale === 'ru' ? 'Вершина Y' : 'Control Y'} value={selectedGuide.control.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'parabola' ? { ...guide, control: { ...guide.control, y: value } } : guide)} />
-                  <NumberField label={locale === 'ru' ? 'Конец X' : 'End X'} value={selectedGuide.end.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'parabola' ? { ...guide, end: { ...guide.end, x: value } } : guide)} />
-                  <NumberField label={locale === 'ru' ? 'Конец Y' : 'End Y'} value={selectedGuide.end.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'parabola' ? { ...guide, end: { ...guide.end, y: value } } : guide)} />
-                  <NumberField label={t.divisions} value={selectedGuide.divisions} min={1} max={100} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'parabola' ? { ...guide, divisions: Math.round(clamp(value, 1, 100)) } : guide)} />
-                </div>
-              )}
-
-              {selectedGuide.type === 'grid' && (
-                <div className="number-field-grid">
-                  <NumberField label={t.centerX} value={selectedGuide.origin.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, origin: { ...guide.origin, x: value } } : guide)} />
-                  <NumberField label={t.centerY} value={selectedGuide.origin.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, origin: { ...guide.origin, y: value } } : guide)} />
-                  <NumberField label={t.rows} value={selectedGuide.rows} min={1} max={50} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, rows: Math.round(clamp(value, 1, 50)) } : guide)} />
-                  <NumberField label={t.columns} value={selectedGuide.columns} min={1} max={50} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, columns: Math.round(clamp(value, 1, 50)) } : guide)} />
-                  <NumberField label={t.spacingX} value={selectedGuide.spacingX} min={5} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, spacingX: Math.max(5, value) } : guide)} />
-                  <NumberField label={t.spacingY} value={selectedGuide.spacingY} min={5} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, spacingY: Math.max(5, value) } : guide)} />
-                  <NumberField label={t.rotation} value={selectedGuide.rotation} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'grid' ? { ...guide, rotation: value } : guide)} />
-                </div>
-              )}
-
-              {selectedGuide.type === 'radial-grid' && (
-                <div className="number-field-grid">
-                  <NumberField label={t.centerX} value={selectedGuide.center.x} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, center: { ...guide.center, x: value } } : guide)} />
-                  <NumberField label={t.centerY} value={selectedGuide.center.y} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, center: { ...guide.center, y: value } } : guide)} />
-                  <NumberField label={t.rings} value={selectedGuide.ringCount} min={1} max={30} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, ringCount: Math.round(clamp(value, 1, 30)) } : guide)} />
-                  <NumberField label={t.ringSpacing} value={selectedGuide.ringSpacing} min={5} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, ringSpacing: Math.max(5, value) } : guide)} />
-                  <NumberField label={t.sectors} value={selectedGuide.sectorCount} min={2} max={72} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, sectorCount: Math.round(clamp(value, 2, 72)) } : guide)} />
-                  <NumberField label={t.startAngle} value={selectedGuide.startAngle} onChange={(value) => updateSelectedGuide((guide) => guide.type === 'radial-grid' ? { ...guide, startAngle: value } : guide)} />
-                </div>
-              )}
-
-              </fieldset>
-
-              {isPathGuide(selectedGuide) && (
-                <div className="guide-direction-actions">
-                  <button disabled={selectedGuide.locked === true} onClick={() => reverseGuideDirection(selectedGuide)}>{locale === 'ru' ? '↔ Сменить направление' : '↔ Reverse direction'}</button>
-                  <small>{locale === 'ru' ? 'Также: двойной клик по направляющей' : 'Also: double-click the guide'}</small>
-                </div>
-              )}
-
-              {(selectedGuide.type === 'arc' || selectedGuide.type === 'radial-grid') && (
-                <GuideRowGeneratorPanel
-                  guide={selectedGuide}
-                  locale={locale}
-                  onGenerate={handleGenerateGuideRow}
-                />
-              )}
-
-              <p className="guide-note">{t.guideNote}</p>
-              <button className="danger-button" disabled={selectedGuide.locked === true} onClick={deleteSelected}>{t.deleteGuide}</button>
-            </div>
-          ) : (
-            <p className="empty-state">{t.emptySelection}</p>
-          )}
-        </section>
+        <div
+          id="ui-v2-right-options-panel"
+          className="ui-v2-right-options-host"
+          role="tabpanel"
+          aria-labelledby="ui-v2-right-tab-options"
+          hidden={rightPanelTab !== 'options'}
+        >
+        <SelectionInspector
+          locale={locale}
+          elements={elements}
+          guides={guides}
+          selectedIds={selectedIds}
+          selectedElement={selectedElement}
+          selectedGuide={selectedGuide}
+          selectedParametricRow={selectedParametricRow}
+          selectedParametricGuide={selectedParametricGuide}
+          selectedParametricParentCount={selectedParametricParentCount}
+          selectedTopologyParentId={selectedTopologyParentId}
+          lockedSelectedCount={lockedSelectedCount}
+          editableSelectedCount={editableSelectedCount}
+          guideLabel={(guide) => guideLabel(guide, locale)}
+          onSelectionColorChange={applySelectionColor}
+          onParametricRowChange={handleUpdateParametricRow}
+          onParametricRowDelete={handleDeleteParametricRow}
+          onTopologyParentSelect={setSelectedTopologyParentId}
+          onRotate={rotateSelected}
+          onAttachSelectedToGuide={attachSelectedToGuide}
+          onUpdateSelectedGuideAttachment={updateSelectedGuideAttachment}
+          onDetachSelectedFromGuide={detachSelectedFromGuide}
+          onCopy={copySelection}
+          onDuplicate={duplicateSelection}
+          onToggleElementVisible={toggleElementVisible}
+          onToggleElementLocked={toggleElementLocked}
+          onDelete={deleteSelected}
+          onGuideChange={updateSelectedGuide}
+          onFitSelectedLineToProject={fitSelectedLineToProject}
+          onReverseGuide={reverseGuideDirection}
+          onGenerateGuideRow={handleGenerateGuideRow}
+        />
 
         {productivitySelectionIds().length > 0 && (
           <ProductivityPanel
@@ -3296,156 +3007,98 @@ function App() {
           />
         )}
 
-        <details className="right-panel-collapsible" data-testid="background-global-panel">
-          <summary>{locale === 'ru' ? 'Фоновое изображение' : 'Background image'}</summary>
-          <BackgroundImagePanel
-            locale={locale}
-            background={backgroundImage}
-            onUpload={(file) => void handleBackgroundUpload(file)}
-            onChange={updateBackgroundImage}
-            onRemove={removeBackgroundImage}
-          />
-        </details>
+        <RightOptionsPanels
+          locale={locale}
+          gaugePanelRef={gaugePanelRef}
+          printPanelRef={printPanelRef}
+          snappingPanelRef={snappingPanelRef}
+          patternRowsPanelRef={patternRowsPanelRef}
+          rowMarkersPanelRef={rowMarkersPanelRef}
+          legendPanelRef={legendPanelRef}
+          helpPanelRef={helpPanelRef}
+          backgroundPanelProps={{
+            background: backgroundImage,
+            onUpload: (file) => void handleBackgroundUpload(file),
+            onChange: updateBackgroundImage,
+            onRemove: removeBackgroundImage,
+          }}
+          gaugePanelProps={{
+            gauge,
+            rulers,
+            selectedRulerId,
+            placingRuler: tool.type === 'ruler',
+            elements,
+            selectedRowId: selectedParametricRow?.id ?? null,
+            selectedRowIsCircular: selectedParametricGuide?.type === 'arc' || selectedParametricGuide?.type === 'radial-grid',
+            onAddProfile: addGaugeProfile,
+            onUpdateProfile: updateGaugeProfile,
+            onDeleteProfile: deleteGaugeProfile,
+            onActiveProfileChange: setActiveGaugeProfile,
+            onToggleRulerTool: toggleRulerTool,
+            onSelectRuler: selectRuler,
+            onUpdateRuler: updateRuler,
+            onDeleteRuler: deleteRuler,
+          }}
+          printPanelProps={{
+            bounds: outputBounds,
+            legendBounds: outputLegendBounds,
+            onPrint: openTiledPrint,
+          }}
+          patternRowsPanelProps={{
+            elements,
+            selectedRowId: selectedParametricRow?.id ?? null,
+            onSelect: handleSelectPatternRow,
+            onCreateNext: handleCreateNextPatternRow,
+            onCreateSequence: handleCreatePatternSequence,
+          }}
+          rowMarkersPanelProps={{
+            markers: rowMarkers,
+            selectedId: selectedRowMarkerId,
+            nextNumber: nextRowNumber,
+            placing: tool.type === 'row-marker',
+            onStartPlacement: toggleRowMarkerPlacement,
+            onSelect: handleSelectRowMarker,
+            onChange: updateRowMarker,
+            onDelete: deleteRowMarker,
+          }}
+          legendPanelProps={{
+            elements,
+            visible: legendVisible,
+            onVisibleChange: commitLegendVisible,
+          }}
+          snapping={snapping}
+          onSnappingEnabledChange={handleSnappingEnabledChange}
+          onSourceAnchorChange={(sourceAnchor) => commitSnapping({ ...snapping, sourceAnchor })}
+          onOrientationChange={(orientationMode) => commitSnapping({ ...snapping, orientationMode })}
+          onSnapToVerticesChange={(snapToVertices) => commitSnapping({ ...snapping, snapToVertices })}
+          onToleranceChange={(tolerancePx) => commitSnapping({ ...snapping, tolerancePx })}
+        />
+        </div>
 
-        <details className="right-panel-collapsible" data-testid="gauge-global-panel">
-          <summary>{locale === 'ru' ? 'Плотность и размер' : 'Gauge & size'}</summary>
-          <GaugeRulerPanel
-            locale={locale}
-            gauge={gauge}
-            rulers={rulers}
-            selectedRulerId={selectedRulerId}
-            placingRuler={tool.type === 'ruler'}
+        <div
+          id="ui-v2-right-layers-panel"
+          className="ui-v2-right-layers-host"
+          role="tabpanel"
+          aria-labelledby="ui-v2-right-tab-layers"
+          tabIndex={0}
+          hidden={rightPanelTab !== 'layers'}
+        >
+          <LayersPanel
             elements={elements}
-            selectedRowId={selectedParametricRow?.id ?? null}
-            selectedRowIsCircular={selectedParametricGuide?.type === 'arc' || selectedParametricGuide?.type === 'radial-grid'}
-            onAddProfile={addGaugeProfile}
-            onUpdateProfile={updateGaugeProfile}
-            onDeleteProfile={deleteGaugeProfile}
-            onActiveProfileChange={setActiveGaugeProfile}
-            onToggleRulerTool={toggleRulerTool}
-            onSelectRuler={selectRuler}
-            onUpdateRuler={updateRuler}
-            onDeleteRuler={deleteRuler}
-          />
-        </details>
-
-        <details className="right-panel-collapsible" data-testid="print-global-panel">
-          <summary>{locale === 'ru' ? 'Печать по страницам' : 'Tiled print'}</summary>
-          <PrintPanel locale={locale} bounds={outputBounds} legendBounds={outputLegendBounds} onPrint={openTiledPrint} />
-        </details>
-
-        <details className="right-panel-collapsible" data-testid="snapping-global-panel">
-          <summary>{t.snapping}</summary>
-          <section className="panel-section">
-            <label className="toggle-row">
-              <span><strong>{t.allowSnapping}</strong><small>{t.snappingHint}</small></span>
-              <input
-                type="checkbox"
-                checked={snapping.enabled}
-                onChange={(event) => {
-                  commitSnapping({ ...snapping, enabled: event.target.checked })
-                  setSnapTarget(null)
-                  snapLockRef.current = null
-                }}
-              />
-            </label>
-
-            <fieldset disabled={!snapping.enabled}>
-              <legend>{t.snapPoint}</legend>
-              <div className="segmented-control">
-                {(['top', 'center', 'bottom'] as AnchorName[]).map((anchor) => (
-                  <button key={anchor} className={snapping.sourceAnchor === anchor ? 'active' : ''} onClick={() => commitSnapping({ ...snapping, sourceAnchor: anchor })}>
-                    {anchorLabels[anchor]}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-
-            <fieldset disabled={!snapping.enabled}>
-              <legend>{t.orientation}</legend>
-              <select value={snapping.orientationMode} onChange={(event) => commitSnapping({ ...snapping, orientationMode: event.target.value as OrientationMode })}>
-                <option value="none">{t.keepCurrent}</option>
-                <option value="along">{t.alongTarget}</option>
-                <option value="perpendicular">{t.perpendicular}</option>
-              </select>
-            </fieldset>
-
-            <label className="toggle-row compact-toggle">
-              <span>{t.snapToVertices}</span>
-              <input type="checkbox" checked={snapping.snapToVertices} disabled={!snapping.enabled} onChange={(event) => commitSnapping({ ...snapping, snapToVertices: event.target.checked })} />
-            </label>
-            <label className="range-row">
-              <span>{t.snapRadius} <strong>{snapping.tolerancePx}px</strong></span>
-              <input type="range" min="6" max="24" value={snapping.tolerancePx} disabled={!snapping.enabled} onChange={(event) => commitSnapping({ ...snapping, tolerancePx: Number(event.target.value) })} />
-            </label>
-          </section>
-        </details>
-
-        <details className="right-panel-collapsible" data-testid="pattern-rows-global-panel">
-          <summary>{locale === 'ru' ? 'Ряды узора' : 'Pattern rows'}</summary>
-          <section className="panel-section">
-            <PatternRowsPanel
-              elements={elements}
-              locale={locale}
-              selectedRowId={selectedParametricRow?.id ?? null}
-              onSelect={handleSelectPatternRow}
-              onCreateNext={handleCreateNextPatternRow}
-              onCreateSequence={handleCreatePatternSequence}
-            />
-          </section>
-        </details>
-
-        <details className="right-panel-collapsible" data-testid="row-markers-global-panel">
-          <summary>{locale === 'ru' ? 'Номера рядов' : 'Row numbers'}</summary>
-          <section className="panel-section">
-            <RowMarkersPanel
-              locale={locale}
-              markers={rowMarkers}
-              selectedId={selectedRowMarkerId}
-              nextNumber={nextRowNumber}
-              placing={tool.type === 'row-marker'}
-              onStartPlacement={() => {
-                setTool((current) => current.type === 'row-marker' ? { type: 'select' } : { type: 'row-marker' })
-                clearElementSelection()
-                setSelectedGuideId(null)
-                setSelectedRowMarkerId(null)
-                setSelectedRulerId(null)
-                setRulerDraft(null)
-                setPreview(null)
-                setSnapTarget(null)
-              }}
-              onSelect={handleSelectRowMarker}
-              onChange={updateRowMarker}
-              onDelete={deleteRowMarker}
-            />
-          </section>
-        </details>
-
-        <details className="right-panel-collapsible" data-testid="legend-global-panel">
-          <summary>{locale === 'ru' ? 'Легенда и холст' : 'Legend & canvas'}</summary>
-          <LegendPanel
+            selectedIds={selectedIds}
             locale={locale}
-            elements={elements}
-            visible={legendVisible}
-            onVisibleChange={commitLegendVisible}
+            onSelect={handleLayerSelect}
+            onToggleVisible={toggleElementVisible}
+            onToggleLocked={toggleElementLocked}
+            onBringForward={bringSelectionForward}
+            onSendBackward={sendSelectionBackward}
+            onBringToFront={bringSelectionToFront}
+            onSendToBack={sendSelectionToBack}
           />
-        </details>
-
-        <details className="right-panel-collapsible help-section" data-testid="help-global-panel">
-          <summary>{t.controls}</summary>
-          <section className="panel-section">
-            <ul>
-              <li>{t.help1}</li>
-              <li>{t.help2}</li>
-              <li>{t.help3}</li>
-              <li>{t.help4}</li>
-              <li>{t.help5}</li>
-              <li>{t.help6}</li>
-            </ul>
-          </section>
-        </details>
+        </div>
       </aside>
-    </div>
+      </div>
+    </EditorShell>
   )
 }
 

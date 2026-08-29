@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { createGuideFromToolRail } from './helpers/uiV2Guides'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -49,7 +50,7 @@ async function uploadReference(page: Page) {
 
 test('reversing a guide keeps attached stitch position stable and remains one undoable document edit', async ({ page }) => {
   await openEditor(page)
-  await page.locator('.guide-add-grid button').filter({ hasText: 'Линия' }).click()
+  await createGuideFromToolRail(page, 'Линия')
   await placeAt(page, 'Столбик без накида', 0.54, 0.42)
 
   const stitch = page.locator('.stitch-element').first()
@@ -96,7 +97,7 @@ test('rotated tracing underlay participates in project-span fitting and its edit
   const height = Number(await page.getByLabel('Высота фона').inputValue())
   const rotatedWidth = (width + height) / Math.sqrt(2)
 
-  await page.locator('.guide-add-grid button').filter({ hasText: 'Линия' }).click()
+  await createGuideFromToolRail(page, 'Линия')
   await page.getByRole('button', { name: 'По размеру проекта' }).click()
   await expect.poll(async () => Number(await page.getByLabel('Длина').inputValue()))
     .toBeCloseTo(rotatedWidth + 64, 0)

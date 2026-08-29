@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { createGuideFromToolRail } from './helpers/uiV2Guides'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -58,9 +59,10 @@ test('shows contextual quick actions and semantic group layers', async ({ page }
   await toolbar.getByRole('button', { name: 'Группировать' }).click()
   await expect(toolbar.getByRole('button', { name: 'Разгруппировать' })).toBeVisible()
 
-  const layers = page.locator('.layers-section')
-  await expect(layers).not.toHaveAttribute('open', '')
-  await layers.locator('summary.layers-summary').click()
+  const tabs = page.getByRole('tablist', { name: 'Правая панель' })
+  await tabs.getByRole('tab', { name: 'Слои', exact: true }).click()
+  const layers = page.locator('.ui-v2-right-layers-host .layers-section')
+  await expect(layers).toBeVisible()
   await expect(page.locator('.layer-cluster summary').filter({ hasText: 'Группа / мотив' })).toBeVisible()
 
   await toolbar.getByRole('button', { name: /Отразить слева/ }).click()
@@ -119,7 +121,7 @@ test('keeps the quick toolbar clear of the rotation handle and shows a live used
 test('keeps common row controls visible and hides expert settings until requested', async ({ page }) => {
   await openEditor(page)
   await openGlobalPanel(page, 'pattern-rows-global-panel')
-  await page.getByRole('button', { name: /Радиальная/ }).click()
+  await createGuideFromToolRail(page, 'Радиальная сетка')
   await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
   await expect(page.locator('.pattern-row-number').filter({ hasText: /^Ряд 1$/ })).toBeVisible()
 

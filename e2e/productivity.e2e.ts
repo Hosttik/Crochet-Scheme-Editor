@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+import { createGuideFromToolRail } from './helpers/uiV2Guides'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -105,7 +106,7 @@ test('previews temporary multi selection and a colored group as one ghost motif'
 
 test('interaction pass makes selection, pan, zoom, snap and numeric editing direct', async ({ page }) => {
   await openEditor(page)
-  await expect(page.locator('.layers-section')).not.toHaveAttribute('open', '')
+  await expect(page.getByRole('tabpanel', { name: 'Слои', exact: true })).toBeHidden()
 
   await placeAt(page, 'Столбик без накида', 0.44, 0.46)
   const stitch = page.locator('.stitch-element').first()
@@ -196,7 +197,7 @@ test('interaction pass makes selection, pan, zoom, snap and numeric editing dire
 
 test('creates circular and along-guide repeats without losing the motif selection', async ({ page }) => {
   await openEditor(page)
-  await page.locator('.guide-add-grid button').filter({ hasText: 'Радиальная' }).click()
+  await createGuideFromToolRail(page, 'Радиальная сетка')
   await expect(page.locator('.guide-radial-grid')).toHaveCount(1)
 
   await placeAt(page, 'Столбик без накида', 0.72, 0.50)

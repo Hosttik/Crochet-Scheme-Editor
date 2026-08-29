@@ -1,0 +1,40 @@
+:root {
+  --ui-bg-app: #eef2f7;
+  --ui-bg-canvas: #f5f7fa;
+  --ui-surface: #ffffff;
+  --ui-surface-subtle: #f8fafc;
+  --ui-surface-hover: #f3f6fa;
+  --ui-border: #d9e0e8;
+  --ui-border-strong: #c7d0dc;
+  --ui-text: #171b24;
+  --ui-text-muted: #667085;
+  --ui-text-faint: #98a2b3;
+  --ui-accent: #3478f6;
+  --ui-accent-hover: #2468df;
+  --ui-accent-soft: #edf4ff;
+  --ui-danger: #d92d20;
+  --ui-danger-soft: #fff1f0;
+  --ui-success: #12a150;
+  --ui-warning: #d97706;
+
+  --ui-radius-xs: 4px;
+  --ui-radius-sm: 6px;
+  --ui-radius-md: 8px;
+  --ui-radius-lg: 10px;
+
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-6: 24px;
+  --ui-space-8: 32px;
+
+  --ui-control-compact: 28px;
+  --ui-control-height: 32px;
+  --ui-tool-rail: 44px;
+  --ui-left-panel: 276px;
+  --ui-right-panel: 324px;
+
+  --ui-shadow-floating: 0 8px 24px rgba(15, 23, 42, 0.10), 0 1px 2px rgba(15, 23, 42, 0.06);
+  --ui-focus-ring: 0 0 0 2px rgba(52, 120, 246, 0.22);
+}

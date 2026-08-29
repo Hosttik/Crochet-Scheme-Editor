@@ -1,0 +1,355 @@
+/*
+ * UI v2 workbench structure.
+ *
+ * App.tsx owns the left ToolRail / ElementLibrary, the right Options /
+ * Layers layout, and the application command runner directly. Structural DOM
+ * reparenting and synthetic command routing are no longer used.
+ */
+
+.app-shell {
+  --left-panel-width: var(--ui-left-panel);
+  --right-panel-width: var(--ui-right-panel);
+  grid-template-columns: var(--left-panel-width) minmax(0, 1fr) var(--right-panel-width);
+}
+
+.app-shell.left-collapsed { --left-panel-width: 0px; }
+.app-shell.right-collapsed { --right-panel-width: 0px; }
+
+.left-sidebar {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--ui-tool-rail) minmax(0, 1fr);
+  grid-auto-flow: row;
+  align-content: start;
+  padding: 0;
+  background:
+    linear-gradient(to right, var(--ui-surface-subtle) 0 var(--ui-tool-rail), var(--ui-surface) var(--ui-tool-rail));
+}
+
+.left-sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--ui-tool-rail) - 1px);
+  width: 1px;
+  background: var(--ui-border);
+  pointer-events: none;
+  z-index: 3;
+}
+
+
+/* The ToolRail is the sole guide-creation surface. Keep the guide-management
+ * list visible only after the document actually contains a guide. */
+.left-sidebar > .guide-section:not(:has(.guide-list)) {
+  display: none;
+}
+
+.left-sidebar > .tool-rail {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+}
+
+.left-sidebar > .element-library {
+  grid-column: 2;
+  grid-row: 3;
+  min-width: 0;
+}
+
+.left-sidebar > .project-manager-panel {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.left-sidebar > .guide-section {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  padding-block: 8px;
+}
+
+.left-sidebar > .guide-section .section-title-row {
+  margin-bottom: 5px;
+}
+
+.left-sidebar > .guide-section .guide-list {
+  margin-top: 0;
+}
+
+/* Keep panel content dense enough that the rail does not steal canvas space. */
+.left-sidebar > .panel-section {
+  padding-inline: 10px;
+}
+
+.sidebar-toggle.left {
+  left: 4px;
+}
+
+/* Selection geometry belongs to the same interaction language as the rest of
+ * UI v2; the legacy green was easy to confuse with success state. */
+.marquee-selection {
+  fill: rgba(52, 120, 246, .07);
+  stroke: var(--ui-accent);
+}
+
+.group-selection-box {
+  fill: rgba(52, 120, 246, .035);
+  stroke: var(--ui-accent);
+}
+
+.stitch-rotation-link {
+  stroke: var(--ui-accent);
+}
+
+.stitch-rotation-handle,
+.stitch-geometry-handle:not(.spread) {
+  fill: #fff;
+  stroke: var(--ui-accent);
+}
+
+/* Right inspector: one compact, predictable property surface. */
+.right-sidebar {
+  background: var(--ui-surface);
+}
+
+.right-sidebar .right-panel-context {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.right-panel-context > .section-title-row {
+  min-height: 28px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.right-panel-context > .section-title-row h2 {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.right-panel-context .locked-selection-note {
+  margin: 0 0 10px;
+  padding: 8px 9px;
+  border: 1px solid #fed7aa;
+  border-radius: var(--ui-radius-sm);
+  background: #fff7ed;
+  color: #9a4d0a;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.right-panel-context .selection-card,
+.right-panel-context .multi-selection-card,
+.right-panel-context .guide-editor {
+  display: grid;
+  gap: 8px;
+}
+
+.right-panel-context .rotation-controls,
+.right-panel-context .selection-actions,
+.right-panel-context .layer-selection-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.right-panel-context .rotation-controls button,
+.right-panel-context .selection-actions button,
+.right-panel-context .layer-selection-controls button,
+.right-panel-context .guide-editor button:not(.danger-button) {
+  min-height: var(--ui-control-height);
+  padding: 0 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  font-size: 10px;
+}
+
+.right-panel-context .rotation-controls button:hover:not(:disabled),
+.right-panel-context .selection-actions button:hover:not(:disabled),
+.right-panel-context .layer-selection-controls button:hover:not(:disabled),
+.right-panel-context .guide-editor button:not(.danger-button):hover:not(:disabled) {
+  border-color: var(--ui-border-strong);
+  background: var(--ui-surface-hover);
+}
+
+.right-panel-context .guide-editor-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.right-panel-context .guide-editor-heading strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.right-panel-context .guide-editor-heading span {
+  flex: 0 0 auto;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: var(--ui-surface-subtle);
+  color: var(--ui-text-faint);
+  font-size: 9px;
+}
+
+.right-panel-context .guide-locked-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.right-panel-context .guide-locked-fields:disabled {
+  opacity: .55;
+}
+
+.right-panel-context .number-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.right-panel-context .number-field-grid > button {
+  grid-column: 1 / -1;
+}
+
+.right-panel-context .multi-selection-card > strong {
+  color: var(--ui-text);
+  font-size: 11px;
+}
+
+.right-panel-context .multi-selection-card > small {
+  color: var(--ui-text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.right-panel-context .danger-button {
+  width: 100%;
+}
+
+/* Global inspector groups read as an accordion rather than a stack of old
+ * bordered panels. */
+.right-sidebar .right-panel-collapsible {
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-surface);
+}
+
+.right-sidebar .right-panel-collapsible > summary {
+  position: relative;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 30px 0 12px;
+  list-style: none;
+  cursor: pointer;
+  color: var(--ui-text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.right-sidebar .right-panel-collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+
+.right-sidebar .right-panel-collapsible > summary::after {
+  content: '';
+  position: absolute;
+  right: 13px;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  transform-origin: center;
+  transition: transform 120ms ease;
+}
+
+.right-sidebar .right-panel-collapsible[open] > summary {
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-surface-subtle);
+  color: var(--ui-text);
+}
+
+.right-sidebar .right-panel-collapsible[open] > summary::after {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.right-sidebar .right-panel-collapsible > .panel-section {
+  padding: 10px 12px 12px;
+}
+
+/* Keep product identity visible at the 900px usability regression width. */
+@media (min-width: 761px) {
+  .brand > div:not(.brand-mark) {
+    display: block;
+  }
+
+  .brand {
+    min-width: 120px;
+  }
+
+  .brand strong {
+    max-width: 125px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 1280px) {
+  .app-shell {
+    --left-panel-width: 252px;
+    --right-panel-width: 300px;
+  }
+
+  .app-shell.left-collapsed { --left-panel-width: 0px; }
+  .app-shell.right-collapsed { --right-panel-width: 0px; }
+}
+
+@media (max-width: 1080px) {
+  .app-shell {
+    --left-panel-width: 228px;
+    --right-panel-width: 280px;
+  }
+
+  .app-shell.left-collapsed { --left-panel-width: 0px; }
+  .app-shell.right-collapsed { --right-panel-width: 0px; }
+
+  .left-sidebar {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .left-sidebar::after {
+    left: 39px;
+  }
+
+  .right-panel-context .number-field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* File commands already have a complete home in the application menu. At
+   * narrow desktop widths keep Undo/Redo in the command bar and drop the
+   * duplicate export/import actions instead of letting them render offscreen.
+   * The nth-of-type selector is intentionally transitional until App.tsx owns
+   * a dedicated CommandBar component with semantic action groups. */
+  .topbar {
+    gap: 8px;
+    padding-inline: 8px;
+  }
+
+  .topbar-actions > button:nth-of-type(n + 3),
+  .topbar-actions > .toolbar-separator:last-of-type {
+    display: none;
+  }
+}

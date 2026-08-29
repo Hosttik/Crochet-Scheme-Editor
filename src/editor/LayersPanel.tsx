@@ -1,6 +1,8 @@
 import { SYMBOL_BY_ID, SymbolGlyph } from '../symbols'
 import { UI, symbolName, type Locale } from '../i18n'
 import type { StitchElement } from '../types'
+import { EditorIcon } from '../ui/icons'
+import { IconButton } from '../ui/primitives'
 import { isElementLocked, isElementVisible } from './document'
 import { resolvedStitchGeometry, stitchVisualSize } from './stitchGeometry'
 
@@ -76,22 +78,18 @@ export function LayersPanel({
         key={element.id}
         className={`layer-row ${compact ? 'compact' : ''} ${selected.has(element.id) ? 'selected' : ''} ${locked ? 'locked' : ''} ${visible ? '' : 'hidden'}`}
       >
-        <button
+        <IconButton
           className="layer-icon-button"
-          title={visible ? t.hideLayer : t.showLayer}
-          aria-label={visible ? t.hideLayer : t.showLayer}
+          icon={visible ? 'eye' : 'eyeOff'}
+          label={visible ? t.hideLayer : t.showLayer}
           onClick={() => onToggleVisible(element.id)}
-        >
-          {visible ? '◉' : '○'}
-        </button>
-        <button
+        />
+        <IconButton
           className="layer-icon-button"
-          title={locked ? t.unlockLayer : t.lockLayer}
-          aria-label={locked ? t.unlockLayer : t.lockLayer}
+          icon={locked ? 'lock' : 'unlock'}
+          label={locked ? t.unlockLayer : t.lockLayer}
           onClick={() => onToggleLocked(element.id)}
-        >
-          {locked ? '🔒' : '🔓'}
-        </button>
+        />
         <button
           className="layer-main-button"
           title={selectTitle}
@@ -126,7 +124,9 @@ export function LayersPanel({
         open={hasSelection || undefined}
       >
         <summary>
-          <span className="layer-cluster-icon">{cluster.kind === 'row' ? '◎' : '◇'}</span>
+          <span className="layer-cluster-icon" aria-hidden="true">
+            <EditorIcon name={cluster.kind === 'row' ? 'row' : 'group'} size={15} />
+          </span>
           <strong>{cluster.label}</strong>
           <small>{cluster.elements.length}</small>
         </summary>
@@ -138,7 +138,7 @@ export function LayersPanel({
   }
 
   return (
-    <details className="panel-section layers-section">
+    <details className="panel-section layers-section" open>
       <summary className="layers-summary">
         <span>{t.layers}</span>
         <span className="muted-text">{elements.length}</span>
@@ -146,10 +146,10 @@ export function LayersPanel({
 
       <div className="layers-content">
         <div className="layer-order-controls" aria-label={t.layerOrder}>
-          <button title={t.toFront} aria-label={t.toFront} disabled={!canReorder} onClick={onBringToFront}>⇈</button>
-          <button title={t.forward} aria-label={t.forward} disabled={!canReorder} onClick={onBringForward}>↑</button>
-          <button title={t.backward} aria-label={t.backward} disabled={!canReorder} onClick={onSendBackward}>↓</button>
-          <button title={t.toBack} aria-label={t.toBack} disabled={!canReorder} onClick={onSendToBack}>⇊</button>
+          <IconButton icon="bringToFront" label={t.toFront} disabled={!canReorder} onClick={onBringToFront} />
+          <IconButton icon="bringForward" label={t.forward} disabled={!canReorder} onClick={onBringForward} />
+          <IconButton icon="sendBackward" label={t.backward} disabled={!canReorder} onClick={onSendBackward} />
+          <IconButton icon="sendToBack" label={t.toBack} disabled={!canReorder} onClick={onSendToBack} />
         </div>
 
         {!elements.length ? (

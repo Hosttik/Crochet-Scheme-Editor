@@ -1,0 +1,136 @@
+.tool-rail {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  grid-column: 1;
+  grid-row: 1 / span 4;
+  align-self: start;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-height: 100%;
+  padding: 8px 4px;
+  background: var(--ui-surface-subtle);
+}
+
+.tool-rail .ui-v2-tool-rail-button {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  display: grid;
+  grid-template-columns: 1fr;
+  place-items: center;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-sm);
+  background: transparent;
+  font-size: inherit;
+}
+
+.tool-rail .ui-v2-tool-rail-button:hover:not(:disabled) {
+  border-color: var(--ui-border);
+  background: var(--ui-surface-hover);
+}
+
+.tool-rail .ui-v2-tool-rail-button.active {
+  border-color: #bfd3fb;
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent-hover);
+}
+
+.tool-rail__text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tool-rail__separator {
+  width: 24px;
+  height: 1px;
+  margin: 2px 0;
+  background: var(--ui-border);
+}
+
+.tool-rail__flyout-root {
+  position: relative;
+}
+
+.tool-rail__flyout-caret {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 0;
+  border-left: 4px solid currentColor;
+  opacity: 0.5;
+}
+
+.guide-flyout {
+  position: absolute;
+  top: -4px;
+  left: calc(100% + 8px);
+  z-index: 40;
+  display: grid;
+  width: 188px;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow-floating);
+}
+
+.guide-flyout__item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  min-height: 32px;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px 2px 5px;
+  border: 0;
+  border-radius: var(--ui-radius-sm);
+  background: transparent;
+  color: var(--ui-text);
+  font-size: 11px;
+  text-align: left;
+}
+
+.guide-flyout__item:hover,
+.guide-flyout__item:focus-visible {
+  background: var(--ui-surface-hover);
+}
+
+.guide-flyout__preview {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--ui-text-muted);
+}
+
+@media (max-width: 1080px) {
+  .tool-rail .ui-v2-tool-rail-button {
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+  }
+
+  .guide-flyout {
+    left: calc(100% + 6px);
+    width: 176px;
+  }
+}

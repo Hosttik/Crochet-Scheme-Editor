@@ -25,8 +25,29 @@
   gap: 6px;
 }
 
+.productivity-actions > button,
+.productivity-mode-tabs > button,
+.mirror-direction-grid > button,
+.mirror-preview-actions > button {
+  min-width: 0;
+}
+
+.productivity-actions > button {
+  padding-inline: 4px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.productivity-panel > .productivity-actions > button {
+  white-space: nowrap;
+}
+
 .productivity-mode-tabs {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.repeat-controls > .productivity-mode-tabs {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 1.4fr);
 }
 
 .productivity-mode-tabs button {
@@ -92,4 +113,9 @@
   gap: 6px;
 }
 .mirror-preview-actions button { min-width: 0; padding-inline: 5px; font-size: 10px; }
-.repeat-transaction-actions { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+.repeat-transaction-actions {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+}
+.repeat-transaction-actions > button {
+  white-space: normal;
+}
