@@ -16,7 +16,7 @@ function containUiKeyboardEvent(event: ReactKeyboardEvent<HTMLDivElement>) {
   if (!target) return
 
   const editingTarget = target.closest('input, textarea, select, [contenteditable="true"]')
-  if (event.defaultPrevented || editingTarget) event.stopPropagation()
+  if (event.defaultPrevented || (editingTarget && event.key === 'Escape')) event.stopPropagation()
 }
 
 export function EditorShell({ children, locale, runCommand }: EditorShellProps) {
