@@ -49,6 +49,7 @@ export function RightPanelTabs({
             className={selected ? 'is-active' : ''}
             onClick={() => onChange(tab.id)}
             onKeyDown={(event) => {
+              event.stopPropagation()
               if (event.key === 'ArrowRight') moveFocus(event, 1)
               if (event.key === 'ArrowLeft') moveFocus(event, -1)
               if (event.key === 'Home') {
