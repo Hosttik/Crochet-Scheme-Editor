@@ -1,17 +1,18 @@
 .ui-v2-right-tabs-host {
-  position: sticky;
-  top: 0;
-  z-index: 6;
   flex: 0 0 auto;
-  border-bottom: 1px solid var(--ui-border);
   background: var(--ui-surface);
 }
 
 .right-panel-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 6;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
   padding: 6px 8px 5px;
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-surface);
 }
 
 .right-panel-tabs > button {
@@ -50,6 +51,11 @@
   height: 2px;
   border-radius: 2px 2px 0 0;
   background: var(--ui-accent);
+}
+
+.ui-v2-right-context-slot {
+  min-width: 0;
+  background: var(--ui-surface);
 }
 
 .ui-v2-right-options-host,
