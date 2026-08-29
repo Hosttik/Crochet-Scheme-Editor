@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { ApplicationCommandId, ApplicationCommandRegistry } from './applicationCommands'
 
 function elementTarget(target: EventTarget | null) {
@@ -41,6 +41,9 @@ export function ApplicationCommandShortcuts({
 }: {
   commandRegistry: ApplicationCommandRegistry
 }) {
+  const registryRef = useRef(commandRegistry)
+  registryRef.current = commandRegistry
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return
@@ -64,12 +67,12 @@ export function ApplicationCommandShortcuts({
 
       event.preventDefault()
       event.stopPropagation()
-      void commandRegistry.execute(command)
+      void registryRef.current.execute(command)
     }
 
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [commandRegistry])
+  }, [])
 
   return null
 }
