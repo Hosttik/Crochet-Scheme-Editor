@@ -125,7 +125,11 @@ export function ElementLibrary({
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(loadCollapsedCategories)
 
   useEffect(() => {
-    window.localStorage.setItem(COLLAPSED_CATEGORIES_STORAGE_KEY, JSON.stringify([...collapsedCategories]))
+    try {
+      window.localStorage.setItem(COLLAPSED_CATEGORIES_STORAGE_KEY, JSON.stringify([...collapsedCategories]))
+    } catch {
+      // Library layout preferences are non-critical; editor behavior must remain usable without localStorage.
+    }
   }, [collapsedCategories])
 
   const groupedSymbols = useMemo(() => {
@@ -175,16 +179,16 @@ export function ElementLibrary({
       const label = locale === 'ru' ? `${item.count} воздушные петли` : `${item.count} chains`
       const abbreviation = locale === 'ru' ? `${item.count} ВП` : `${item.count} ch`
       const title = `${label} · ${abbreviation}`
-      const active = tool.type === 'place-chain-bundle' && tool.count === item.count
+      const placementActive = tool.type === 'place-chain-bundle' && tool.count === item.count
       return (
         <div className="favorite-card" key={item.key}>
           <button
             type="button"
-            className={`favorite-item-button ${active ? 'active' : ''}`}
+            className={`favorite-item-button ${placementActive ? 'active' : ''}`}
             title={title}
             aria-label={title}
-            aria-pressed={active}
-            onClick={() => active ? onCancelPlacement() : onSelectChainBundle(item.count)}
+            aria-pressed={placementActive}
+            onClick={() => placementActive ? onCancelPlacement() : onSelectChainBundle(item.count)}
           >
             <svg viewBox="-48 -20 96 40" aria-hidden="true">
               {chainBundleLayout({ x: 0, y: 0 }, item.count).map((member, index) => (
@@ -197,7 +201,7 @@ export function ElementLibrary({
           </button>
           <FavoriteToggle
             locale={locale}
-            active
+            active={favoriteSet.has(item.key)}
             label={label}
             onToggle={() => onToggleFavorite(item.key)}
           />
@@ -209,16 +213,16 @@ export function ElementLibrary({
     if (!symbol) return null
     const label = symbolName(symbol.id, symbol.name, locale)
     const title = symbol.abbreviation ? `${label} · ${symbol.abbreviation}` : label
-    const active = tool.type === 'place' && tool.symbolId === symbol.id
+    const placementActive = tool.type === 'place' && tool.symbolId === symbol.id
     return (
       <div className="favorite-card" key={item.key}>
         <button
           type="button"
-          className={`favorite-item-button ${active ? 'active' : ''}`}
+          className={`favorite-item-button ${placementActive ? 'active' : ''}`}
           title={title}
           aria-label={title}
-          aria-pressed={active}
-          onClick={() => active ? onCancelPlacement() : onSelectSymbol(symbol.id)}
+          aria-pressed={placementActive}
+          onClick={() => placementActive ? onCancelPlacement() : onSelectSymbol(symbol.id)}
         >
           <svg viewBox="-24 -38 48 76" aria-hidden="true">
             <g className="symbol-glyph"><SymbolGlyph symbolId={symbol.id} /></g>
@@ -227,7 +231,7 @@ export function ElementLibrary({
         </button>
         <FavoriteToggle
           locale={locale}
-          active
+          active={favoriteSet.has(item.key)}
           label={label}
           onToggle={() => onToggleFavorite(item.key)}
         />
