@@ -34,7 +34,7 @@ export function RightPanelTabs({
   }
 
   return (
-    <div className="right-panel-tabs" role="tablist" aria-label={copy.label}>
+    <div className="right-panel-tabs" role="tablist" aria-label={copy.label} aria-orientation="horizontal">
       {tabs.map((tab) => {
         const selected = activeTab === tab.id
         return (
