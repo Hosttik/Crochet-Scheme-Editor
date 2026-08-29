@@ -33,8 +33,10 @@
 }
 
 .productivity-actions > button {
-  padding-inline: 6px;
-  overflow-wrap: anywhere;
+  padding-inline: 4px;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .productivity-mode-tabs {
