@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Locale } from '../i18n'
-import type { ApplicationCommandId, ApplicationCommandRunner } from './applicationCommands'
+import type { ApplicationCommandId, ApplicationCommandRegistry } from './applicationCommands'
 import { openCommandPalette } from './CommandPalette'
 
 const LOCALE_STORAGE_KEY = 'crochet-scheme-editor-locale'
@@ -134,10 +134,10 @@ function ariaKeyShortcuts(command?: ApplicationCommandId) {
 }
 
 export function AppMenuBar({
-  runCommand,
+  commandRegistry,
   locale: controlledLocale,
 }: {
-  runCommand: ApplicationCommandRunner
+  commandRegistry: ApplicationCommandRegistry
   locale?: Locale
 }) {
   const [legacyLocale, setLegacyLocale] = useState<Locale>(initialLocale)
@@ -169,9 +169,16 @@ export function AppMenuBar({
   }, [localeControlled])
 
   const activate = (command?: ApplicationCommandId) => {
-    if (command === 'ui.commandPalette') openCommandPalette()
-    else if (command) runCommand(command)
+    if (!command) return
+    if (command === 'ui.commandPalette') {
+      setOpenMenu(null)
+      openCommandPalette()
+      return
+    }
+    const state = commandRegistry.getState(command)
+    if (!state.enabled) return
     setOpenMenu(null)
+    void commandRegistry.execute(command)
   }
 
   const focusTrigger = (key: MenuKey) => {
@@ -305,15 +312,21 @@ export function AppMenuBar({
                   }
                   actionableIndex += 1
                   const currentIndex = actionableIndex
+                  const state = item.command ? commandRegistry.getState(item.command) : { enabled: true }
+                  const disabled = !state.enabled
                   return (
                     <button
                       type="button"
                       role="menuitem"
                       tabIndex={-1}
-                      className="app-menu__item"
+                      className={`app-menu__item ${disabled ? 'is-disabled' : ''}`}
+                      aria-disabled={disabled || undefined}
                       aria-keyshortcuts={ariaKeyShortcuts(item.command)}
+                      title={disabled ? state.disabledReason : undefined}
                       key={`${item.command}-${item.label}`}
-                      onClick={() => activate(item.command)}
+                      onClick={() => {
+                        if (!disabled) activate(item.command)
+                      }}
                       onKeyDown={(event) => onItemKeyDown(event, key, currentIndex, actionableItems.length)}
                     >
                       <span>{item.label}</span>
