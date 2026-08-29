@@ -120,6 +120,7 @@ import { EditorShell } from './ui/EditorShell'
 import { EditorStatusbar } from './ui/EditorStatusbar'
 import { EditorTopbar } from './ui/EditorTopbar'
 import { FavoriteQuickBar } from './ui/FavoriteQuickBar'
+import { GuideListPanel } from './ui/GuideListPanel'
 import { loadFavorites, saveFavorites, type FavoriteElementKey } from './ui/favorites'
 import { LeftWorkbenchSurface } from './ui/LeftWorkbenchSurface'
 import { RightPanelTabs, type RightPanelTab } from './ui/RightPanelTabs'
@@ -2772,28 +2773,17 @@ function App() {
           onDelete={handleDeleteLocalProject}
         />
 
-        <section className="panel-section guide-section">
-          <div className="section-title-row"><h2>{t.guides}</h2><span className="muted-text">{guides.length}</span></div>
-          {guides.length > 0 && (
-            <div className="guide-list">
-              {guides.map((guide, index) => (
-                <button
-                  key={guide.id}
-                  className={selectedGuideId === guide.id ? 'active' : ''}
-                  onClick={() => {
-                    setTool({ type: 'select' })
-                    setSelectedGuideId(guide.id)
-                    clearElementSelection()
-                  }}
-                >
-                  <span className={`visibility-dot ${guide.visible ? '' : 'hidden'}`} />
-                  <span>{index + 1}. {guideLabel(guide, locale)}</span>
-                  {guide.locked && <span aria-label={locale === 'ru' ? 'Заблокирована' : 'Locked'}>🔒</span>}
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
+        <GuideListPanel
+          locale={locale}
+          guides={guides}
+          selectedGuideId={selectedGuideId}
+          guideLabel={(guide) => guideLabel(guide, locale)}
+          onSelectGuide={(guideId) => {
+            setTool({ type: 'select' })
+            setSelectedGuideId(guideId)
+            clearElementSelection()
+          }}
+        />
 
       </aside>
 
