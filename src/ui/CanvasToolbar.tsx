@@ -124,6 +124,7 @@ export function CanvasToolbar({
       <div className="canvas-toolbar-group canvas-toolbar-snap" aria-label={locale === 'ru' ? 'Привязка' : 'Snapping'}>
         <button
           className={`snap-toggle ${snappingEnabled ? 'active' : ''}`}
+          aria-label={locale === 'ru' ? 'Привязка к направляющим' : 'Guide snapping'}
           aria-pressed={snappingEnabled}
           title={locale === 'ru' ? 'S — включить/выключить привязку' : 'S — toggle snapping'}
           onClick={onToggleSnapping}
