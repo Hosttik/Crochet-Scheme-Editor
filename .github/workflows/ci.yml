@@ -41,4 +41,16 @@ jobs:
       - name: Build preview
         run: npx vite build
       - name: Run Playwright E2E
-        run: npm run test:e2e
+        run: |
+          set -o pipefail
+          npm run test:e2e -- --reporter=line,html 2>&1 | tee playwright-output.log
+      - name: Upload Playwright diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-diagnostics
+          path: |
+            playwright-output.log
+            playwright-report
+            test-results
+          if-no-files-found: ignore
