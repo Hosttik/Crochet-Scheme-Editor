@@ -46,7 +46,7 @@ const COPY: Record<Locale, {
         { label: 'Показать / скрыть свойства', command: 'view.toggleRight' },
       ],
       settings: [
-        { label: 'Привязка', command: 'settings.snapping', shortcut: 'S' },
+        { label: 'Привязка', command: 'settings.snapping' },
         { label: 'Плотность и размер', command: 'settings.gauge' },
         { label: 'Ряды узора', command: 'settings.patternRows' },
         { label: 'Номера рядов', command: 'settings.rowNumbers' },
@@ -91,7 +91,7 @@ const COPY: Record<Locale, {
         { label: 'Show / hide properties', command: 'view.toggleRight' },
       ],
       settings: [
-        { label: 'Snapping', command: 'settings.snapping', shortcut: 'S' },
+        { label: 'Snapping', command: 'settings.snapping' },
         { label: 'Gauge & size', command: 'settings.gauge' },
         { label: 'Pattern rows', command: 'settings.patternRows' },
         { label: 'Row numbers', command: 'settings.rowNumbers' },
@@ -127,7 +127,6 @@ function ariaKeyShortcuts(command?: ApplicationCommandId) {
     case 'view.zoom100': return '0'
     case 'view.fitAll': return 'F'
     case 'view.fitSelection': return 'Shift+F'
-    case 'settings.snapping': return 'S'
     case 'ui.commandPalette': return 'Control+K Meta+K'
     default: return undefined
   }

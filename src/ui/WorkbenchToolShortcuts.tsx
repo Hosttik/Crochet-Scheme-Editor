@@ -47,19 +47,15 @@ export function WorkbenchToolShortcuts({
       // events untouched so text input keeps its normal behavior.
       if (isEditingTarget(event.target)) return
 
-      // Menus/dialogs own plain-letter keyboard input while focused. Consume
-      // the tool shortcut here so the legacy App window listener cannot see it
-      // and activate a canvas tool behind the UI surface.
+      // Menus/dialogs own plain-letter keyboard input while focused. Keep
+      // canvas tool shortcuts isolated from those UI surfaces.
       if (isUiOwnedShortcutScope(event.target)) {
         event.stopPropagation()
         return
       }
 
-      // App owns the state transition; this layer only routes the same keyboard
-      // commands used by expert workflows into the semantic callbacks already
-      // shared by ToolRail and CanvasToolbar. Stopping at document prevents the
-      // legacy App-level fallback listener on window from executing a second,
-      // divergent transition.
+      // App owns the state transition; this layer routes expert-workflow
+      // shortcuts into the semantic callbacks shared by ToolRail and CanvasToolbar.
       event.preventDefault()
       event.stopPropagation()
       action()

@@ -408,7 +408,6 @@ function App() {
   const clipboardRef = useRef<StitchElement[]>([])
   const pasteSerialRef = useRef(1)
   const duplicateSeriesRef = useRef<{ previous: StitchElement[]; currentIds: string[] } | null>(null)
-  const duplicateKeyDownRef = useRef(false)
   const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const autosaveTimerRef = useRef<number | null>(null)
   const autosaveRevisionRef = useRef(0)
@@ -1357,11 +1356,6 @@ function App() {
         event.preventDefault()
       }
 
-      if (!editing && (event.key === 'Delete' || event.key === 'Backspace')) {
-        event.preventDefault()
-        deleteSelected()
-      }
-
       if (!editing && !event.metaKey && !event.ctrlKey && !event.altKey) {
         const nudge = event.shiftKey ? 10 : 1
         if (event.key === 'ArrowLeft') {
@@ -1382,58 +1376,9 @@ function App() {
         } else if (event.key === '-') {
           event.preventDefault()
           zoomCanvas(1 / 1.2)
-        } else if (event.key === '0') {
-          event.preventDefault()
-          setCanvasZoom(1)
-        } else if (event.key.toLowerCase() === 'f') {
-          event.preventDefault()
-          if (event.shiftKey) fitSelection()
-          else fitAll()
         } else if (event.key.toLowerCase() === 's') {
           event.preventDefault()
           toggleSnapping()
-        } else if (event.key.toLowerCase() === 'r') {
-          event.preventDefault()
-          toggleRulerTool()
-        } else if (event.key.toLowerCase() === 'l') {
-          event.preventDefault()
-          setTool((current) => current.type === 'lasso' ? { type: 'select' } : { type: 'lasso' })
-          setLasso(null)
-          setPreview(null)
-          setSnapTarget(null)
-          setSelectedGuideId(null)
-          setSelectedRowMarkerId(null)
-        } else if (event.key.toLowerCase() === 'h') {
-          event.preventDefault()
-          setTool((current) => current.type === 'pan' ? { type: 'select' } : { type: 'pan' })
-          setLasso(null)
-          setPreview(null)
-          setSnapTarget(null)
-          setRulerDraft(null)
-        }
-      }
-
-      if (!editing && (event.metaKey || event.ctrlKey)) {
-        const key = event.key.toLowerCase()
-        if (key === 'z') {
-          event.preventDefault()
-          if (event.shiftKey) redo()
-          else undo()
-        } else if (key === 'c') {
-          event.preventDefault()
-          copySelection()
-        } else if (key === 'v') {
-          event.preventDefault()
-          pasteSelection()
-        } else if (key === 'd') {
-          event.preventDefault()
-          if (!event.repeat && !duplicateKeyDownRef.current) {
-            duplicateKeyDownRef.current = true
-            duplicateSelection()
-          }
-        } else if (key === 'a') {
-          event.preventDefault()
-          selectAll()
         }
       }
 
@@ -1460,9 +1405,6 @@ function App() {
         spacePressedRef.current = false
         svgRef.current?.classList.remove('space-pan')
       }
-      if (event.key.toLowerCase() === 'd' || event.key === 'Control' || event.key === 'Meta') {
-        duplicateKeyDownRef.current = false
-      }
     }
 
     window.addEventListener('keydown', onKeyDown)
@@ -1472,22 +1414,11 @@ function App() {
       window.removeEventListener('keyup', onKeyUp)
     }
   }, [
-    copySelection,
-    deleteSelected,
     drag,
-    duplicateSelection,
-    fitAll,
-    fitSelection,
     nudgeSelection,
-    pasteSelection,
-    redo,
     rotate,
     rulerDrag,
-    selectAll,
-    setCanvasZoom,
-    toggleRulerTool,
     toggleSnapping,
-    undo,
     zoomCanvas,
   ])
 
