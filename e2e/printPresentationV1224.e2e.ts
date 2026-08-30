@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
-  await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
@@ -28,8 +28,8 @@ async function openGlobalPanel(page: Page, testId: string) {
 
 test('shows the package version in app chrome', async ({ page }) => {
   await openEditor(page)
-  const version = await page.locator('.brand').evaluate((element) => getComputedStyle(element, '::after').content.replaceAll('"', ''))
-  expect(version).toBe('v1.26.0')
+  await page.locator('.topbar-autosave-menu > summary').click()
+  await expect(page.locator('.topbar-version')).toHaveText('v1.26.1')
 })
 
 test('persists white canvas and grid visibility preferences', async ({ page }) => {
@@ -42,14 +42,22 @@ test('persists white canvas and grid visibility preferences', async ({ page }) =
   await page.getByTestId('canvas-grid-toggle').uncheck()
   await expect(page.getByTestId('canvas-white-toggle')).toBeChecked()
   await expect(page.getByTestId('canvas-grid-toggle')).not.toBeChecked()
+  await expect(page.getByRole('button', { name: 'Сетка', exact: true })).toHaveAttribute('aria-pressed', 'false')
   expect(await paper.evaluate((element) => getComputedStyle(element).fill)).toBe('rgb(255, 255, 255)')
   expect(await grid.evaluate((element) => getComputedStyle(element).display)).toBe('none')
+
+  await page.getByRole('button', { name: 'Сетка', exact: true }).click()
+  await expect(page.getByTestId('canvas-grid-toggle')).toBeChecked()
+  await expect(grid).toBeVisible()
+  await page.getByRole('button', { name: 'Сетка', exact: true }).click()
+  await expect(page.getByTestId('canvas-grid-toggle')).not.toBeChecked()
 
   await page.reload()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
   await openGlobalPanel(page, 'legend-global-panel')
   await expect(page.getByTestId('canvas-white-toggle')).toBeChecked()
   await expect(page.getByTestId('canvas-grid-toggle')).not.toBeChecked()
+  await expect(page.getByRole('button', { name: 'Сетка', exact: true })).toHaveAttribute('aria-pressed', 'false')
 })
 
 test('legend frame grows with labels and rows keep visible spacing', async ({ page }) => {
