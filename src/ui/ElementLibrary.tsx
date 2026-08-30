@@ -8,6 +8,7 @@ import {
   resolveFavorites,
   symbolFavoriteKey,
   type FavoriteElementKey,
+  type ResolvedFavorite,
 } from './favorites'
 import { SearchField } from './primitives'
 import type { WorkbenchTool } from './workbenchTypes'
