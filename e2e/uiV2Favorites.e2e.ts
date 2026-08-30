@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
-  await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
@@ -25,7 +25,7 @@ test('persists crochet favorites and exposes them as real quick placement action
   await expect(quickBar.getByRole('button', { name: 'Воздушная петля · ch', exact: true })).toBeVisible()
 
   await page.reload()
-  await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(library.getByTestId('favorites-section')).toBeVisible()
   await expect(page.getByTestId('favorite-quick-bar')).toBeVisible()
 
@@ -44,6 +44,6 @@ test('persists crochet favorites and exposes them as real quick placement action
   await expect(page.getByTestId('favorite-quick-bar')).toHaveCount(0)
 
   await page.reload()
-  await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.getByRole('region', { name: 'Библиотека элементов' }).getByTestId('favorites-section')).toHaveCount(0)
 })
