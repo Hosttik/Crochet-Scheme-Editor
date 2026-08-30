@@ -6,13 +6,27 @@ async function openEditor(page: Page) {
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
+async function expectSelectionMode(page: Page, mode: 'marquee' | 'lasso') {
+  const rail = page.getByRole('navigation', { name: 'Инструменты' })
+  const trigger = rail.getByRole('button', { name: 'Выделение', exact: true })
+  await trigger.click()
+  const menu = page.getByRole('menu', { name: 'Выделение', exact: true })
+  const item = menu.getByRole('menuitemradio', {
+    name: mode === 'lasso' ? 'Лассо' : 'Прямоугольное выделение',
+    exact: true,
+  })
+  await expect(item).toHaveAttribute('aria-checked', 'true')
+  await page.keyboard.press('Escape')
+  await expect(menu).toHaveCount(0)
+}
+
 test('H L R use the same toggle transitions as ToolRail controls', async ({ page }) => {
   await openEditor(page)
 
   const canvas = page.locator('svg.editor-canvas')
   const rail = page.getByRole('navigation', { name: 'Инструменты' })
   const hand = rail.getByRole('button', { name: /Ладонь \/ перемещение поля/ })
-  const lasso = rail.getByRole('button', { name: /Лассо/ })
+  const selection = rail.getByRole('button', { name: 'Выделение', exact: true })
   const ruler = rail.getByRole('button', { name: /Линейка/ })
 
   await page.keyboard.press('h')
@@ -24,10 +38,10 @@ test('H L R use the same toggle transitions as ToolRail controls', async ({ page
 
   await page.keyboard.press('l')
   await expect(canvas).toHaveClass(/lassoing/)
-  await expect(lasso).toHaveAttribute('aria-pressed', 'true')
+  await expectSelectionMode(page, 'lasso')
   await page.keyboard.press('l')
   await expect(canvas).toHaveClass(/selecting/)
-  await expect(lasso).toHaveAttribute('aria-pressed', 'false')
+  await expectSelectionMode(page, 'marquee')
 
   await page.keyboard.press('r')
   await expect(canvas).toHaveClass(/measuring/)
@@ -38,18 +52,20 @@ test('H L R use the same toggle transitions as ToolRail controls', async ({ page
 
   await hand.click()
   await expect(canvas).toHaveClass(/pan-tool/)
-  await lasso.click()
+  await selection.click()
+  await page.getByRole('menu', { name: 'Выделение', exact: true })
+    .getByRole('menuitemradio', { name: 'Лассо', exact: true })
+    .click()
   await expect(canvas).toHaveClass(/lassoing/)
   await ruler.click()
   await expect(canvas).toHaveClass(/measuring/)
 })
 
-test('switching from ruler to lasso through L follows the ToolRail lasso transition', async ({ page }) => {
+test('switching from ruler to lasso through L follows the ToolRail selection transition', async ({ page }) => {
   await openEditor(page)
 
   const canvas = page.locator('svg.editor-canvas')
   const rail = page.getByRole('navigation', { name: 'Инструменты' })
-  const lasso = rail.getByRole('button', { name: /Лассо/ })
   const ruler = rail.getByRole('button', { name: /Линейка/ })
 
   await ruler.click()
@@ -57,7 +73,7 @@ test('switching from ruler to lasso through L follows the ToolRail lasso transit
   await page.keyboard.press('l')
 
   await expect(canvas).toHaveClass(/lassoing/)
-  await expect(lasso).toHaveAttribute('aria-pressed', 'true')
+  await expectSelectionMode(page, 'lasso')
   await expect(ruler).toHaveAttribute('aria-pressed', 'false')
 })
 

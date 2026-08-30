@@ -1,3 +1,44 @@
+.element-library {
+  min-height: 0;
+  overflow-x: hidden;
+}
+
+.element-library.is-collapsed {
+  display: none;
+}
+
+.element-library__title-row {
+  min-height: 30px;
+  align-items: center;
+}
+
+.element-library__title-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.element-library__collapse {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ui-text-muted);
+}
+
+.element-library__collapse:hover {
+  background: var(--ui-surface-hover);
+  color: var(--ui-text);
+}
+
+.element-library__collapse svg {
+  transform: rotate(90deg);
+}
+
 .element-library__search {
   margin-bottom: var(--ui-space-2);
 }
@@ -53,12 +94,35 @@
 
 /*
  * Library glyphs are intentionally lighter than canvas geometry. This keeps the
- * dense 3/4-column picker readable without changing the authored stitch itself.
+ * dense 3/4-column crochet picker readable without mutating authored symbols.
  */
 .element-library .symbol-glyph path,
 .element-library .symbol-glyph circle,
 .element-library .symbol-glyph ellipse {
   stroke-width: 1.35;
+}
+
+.element-library .symbol-button {
+  height: 52px;
+  border-radius: 5px;
+}
+
+.element-library .symbol-button > svg {
+  max-height: 31px;
+}
+
+.element-library .symbol-button span {
+  font-size: 7.5px;
+  line-height: 11px;
+}
+
+/* Keep the favorite action in the corner without covering the primary symbol hit target. */
+.element-library .favorite-toggle {
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
 }
 
 .library-category.favorites-group {

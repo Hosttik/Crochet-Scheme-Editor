@@ -81,7 +81,7 @@ test('900px File menu remains the full import/export surface alongside compact f
   await expect(page.locator('.stitch-element')).toHaveCount(0)
 })
 
-test('900px ToolRail replacements operate hidden Hand Lasso and Ruler tools', async ({ page }) => {
+test('900px ToolRail replacements operate hidden Hand Selection and Ruler tools', async ({ page }) => {
   await openEditor(page, 900, 700)
 
   const canvas = page.locator('svg.editor-canvas')
@@ -94,7 +94,9 @@ test('900px ToolRail replacements operate hidden Hand Lasso and Ruler tools', as
   await rail.getByRole('button', { name: /Ладонь \/ перемещение поля/ }).click()
   await expect(canvas).toHaveClass(/pan-tool/)
 
-  await rail.getByRole('button', { name: /Лассо/ }).click()
+  await rail.getByRole('button', { name: 'Выделение', exact: true }).click()
+  const selectionMenu = page.getByRole('menu', { name: 'Выделение', exact: true })
+  await selectionMenu.getByRole('menuitemradio', { name: 'Лассо', exact: true }).click()
   await expect(canvas).toHaveClass(/lassoing/)
 
   await rail.getByRole('button', { name: /Линейка/ }).click()
