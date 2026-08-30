@@ -1,10 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+import { downloadFromFileMenu } from './helpers/uiV2FileMenu'
 
 // Regression gate for v1.24 direct stitch geometry editing.
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
-  await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
@@ -33,9 +34,8 @@ async function dragHandle(page: Page, testId: string, dx: number, dy: number) {
 }
 
 async function saveProjectJson(page: Page) {
-  const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Экспорт проекта', exact: true }).click()
-  const path = await (await downloadPromise).path()
+  const download = await downloadFromFileMenu(page, 'Экспорт проекта…')
+  const path = await download.path()
   expect(path).not.toBeNull()
   return JSON.parse(await readFile(path!, 'utf8'))
 }

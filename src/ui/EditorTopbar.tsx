@@ -1,4 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
+import packageJson from '../../package.json'
+import {
+  CANVAS_GRID_CHANGE_EVENT,
+  getCanvasGridVisibility,
+  setCanvasGridVisibility,
+} from '../editor/canvasDisplayPreferences'
 import type { AutosaveDelayMs } from '../types'
 import type { Locale } from '../i18n'
 import { dispatchApplicationCommand } from './applicationCommands'
@@ -9,12 +15,43 @@ import { EXPAND_ELEMENT_LIBRARY_EVENT } from './workbenchEvents'
 export type TopbarAutosaveState = 'loading' | 'saving' | 'saved' | 'error' | 'off'
 
 const OPEN_GUIDES_FLYOUT_EVENT = 'crochet-ui-v2:open-guides-flyout'
+const ZOOM_PRESETS = [50, 75, 100, 125, 150, 200] as const
 
-function visibleZoomPercent() {
+function visibleZoom() {
   const content = document.querySelector<SVGGElement>('svg.editor-canvas > g[transform*="scale("]')
   const match = content?.getAttribute('transform')?.match(/scale\(([-+\d.]+)\)/)
   const zoom = Number(match?.[1])
-  return Number.isFinite(zoom) && zoom > 0 ? Math.round(zoom * 100) : 100
+  return Number.isFinite(zoom) && zoom > 0 ? zoom : 1
+}
+
+function visibleZoomPercent() {
+  return Math.round(visibleZoom() * 100)
+}
+
+function requestCanvasZoomPercent(targetPercent: number) {
+  const targetZoom = targetPercent / 100
+  if (!Number.isFinite(targetZoom) || targetZoom <= 0) return
+
+  if (targetPercent === 100) {
+    dispatchApplicationCommand('view.zoom100')
+    return
+  }
+
+  const canvas = document.querySelector<SVGSVGElement>('svg.editor-canvas')
+  const currentZoom = visibleZoom()
+  if (!canvas || !Number.isFinite(currentZoom) || currentZoom <= 0) return
+
+  const factor = targetZoom / currentZoom
+  if (!Number.isFinite(factor) || factor <= 0 || Math.abs(factor - 1) < 0.000001) return
+
+  const rect = canvas.getBoundingClientRect()
+  canvas.dispatchEvent(new WheelEvent('wheel', {
+    bubbles: true,
+    cancelable: true,
+    clientX: rect.left + rect.width / 2,
+    clientY: rect.top + rect.height / 2,
+    deltaY: -Math.log(factor) / 0.001,
+  }))
 }
 
 function CommandButton({
@@ -80,6 +117,7 @@ export function EditorTopbar({
 }) {
   const copy = locale === 'ru'
     ? {
+        appTitle: 'Редактор схем вязания',
         new: 'Новый',
         open: 'Открыть',
         save: 'Сохранить',
@@ -95,8 +133,10 @@ export function EditorTopbar({
         autosaveSettings: 'Параметры автосохранения',
         language: 'Язык интерфейса',
         exportSvg: 'Экспорт SVG',
+        version: 'Версия',
       }
     : {
+        appTitle: 'Crochet chart editor',
         new: 'New',
         open: 'Open',
         save: 'Save',
@@ -112,11 +152,10 @@ export function EditorTopbar({
         autosaveSettings: 'Autosave settings',
         language: 'Interface language',
         exportSvg: 'Export SVG',
+        version: 'Version',
       }
 
-  const [gridVisible, setGridVisible] = useState(() => (
-    typeof document === 'undefined' || document.documentElement.dataset.canvasGrid !== 'off'
-  ))
+  const [gridVisible, setGridVisible] = useState(getCanvasGridVisibility)
   const [zoomPercent, setZoomPercent] = useState(() => (
     typeof document === 'undefined' ? 100 : visibleZoomPercent()
   ))
@@ -149,6 +188,15 @@ export function EditorTopbar({
   }, [])
 
   useEffect(() => {
+    const syncGridVisibility = (event: Event) => {
+      const next = (event as CustomEvent<boolean>).detail
+      if (typeof next === 'boolean') setGridVisible(next)
+    }
+    window.addEventListener(CANVAS_GRID_CHANGE_EVENT, syncGridVisibility)
+    return () => window.removeEventListener(CANVAS_GRID_CHANGE_EVENT, syncGridVisibility)
+  }, [])
+
+  useEffect(() => {
     const host = favoritesHostRef.current
     if (!host) return
     const update = () => {
@@ -164,7 +212,7 @@ export function EditorTopbar({
   }, [favoriteActions])
 
   const zoomOptions = useMemo(() => {
-    const values = new Set([100, zoomPercent])
+    const values = new Set<number>([...ZOOM_PRESETS, zoomPercent])
     return [...values].sort((a, b) => a - b)
   }, [zoomPercent])
 
@@ -178,9 +226,7 @@ export function EditorTopbar({
     : autosaveLabel
 
   const toggleGrid = () => {
-    const next = !gridVisible
-    setGridVisible(next)
-    document.documentElement.dataset.canvasGrid = next ? 'on' : 'off'
+    setCanvasGridVisibility(!gridVisible)
   }
 
   const expandLibrary = () => {
@@ -200,6 +246,8 @@ export function EditorTopbar({
 
   return (
     <header className="topbar topbar-v2" data-testid="editor-topbar">
+      <span className="topbar-sr-only">{copy.appTitle}</span>
+
       <div className="topbar-command-group topbar-file-group" aria-label={locale === 'ru' ? 'Файл' : 'File'}>
         <CommandButton icon="newFile" label={copy.new} onClick={() => dispatchApplicationCommand('file.new')} />
         <CommandButton icon="open" label={copy.open} onClick={onOpenProject} />
@@ -220,10 +268,7 @@ export function EditorTopbar({
         <select
           aria-label={copy.zoom}
           value={zoomPercent}
-          onChange={(event) => {
-            const target = Number(event.target.value)
-            if (target === 100) dispatchApplicationCommand('view.zoom100')
-          }}
+          onChange={(event) => requestCanvasZoomPercent(Number(event.target.value))}
         >
           {zoomOptions.map((value) => <option key={value} value={value}>{value}%</option>)}
         </select>
@@ -305,6 +350,7 @@ export function EditorTopbar({
             <EditorIcon name="export" size={15} />
             <span>{copy.exportSvg}</span>
           </button>
+          <div className="topbar-version" aria-label={copy.version}>v{packageJson.version}</div>
         </div>
       </details>
 

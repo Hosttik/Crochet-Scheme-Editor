@@ -1,10 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createGuideFromToolRail } from './helpers/uiV2Guides'
+import { downloadFromFileMenu } from './helpers/uiV2FileMenu'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
-  await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
@@ -90,9 +91,8 @@ test('keeps a stitch attached to a line through guide edits, autosave and detach
   await expect(restoredAttachment).toContainText('Закреплено')
   await expect(restoredAttachment.getByLabel('Ориентация')).toHaveValue('normal')
 
-  const jsonDownload = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Экспорт проекта' }).click()
-  const jsonPath = await (await jsonDownload).path()
+  const jsonDownload = await downloadFromFileMenu(page, 'Экспорт проекта…')
+  const jsonPath = await jsonDownload.path()
   expect(jsonPath).not.toBeNull()
   const project = JSON.parse(await readFile(jsonPath!, 'utf8'))
   expect(project.schemaVersion).toBe(22)

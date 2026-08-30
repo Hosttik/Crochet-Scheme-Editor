@@ -12,9 +12,22 @@ async function placeSingleCrochet(page: Page) {
   await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5)
 }
 
+async function openTopbarSettings(page: Page) {
+  const menu = page.locator('.topbar-autosave-menu')
+  if (!(await menu.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await menu.locator('summary').click()
+  }
+  return menu
+}
+
+async function autosaveControl(page: Page) {
+  const menu = await openTopbarSettings(page)
+  return menu.getByRole('combobox', { name: 'Автосохранение', exact: true })
+}
+
 test('flushes long-delay edits when the page is being hidden', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
-  await page.getByLabel('Автосохранение').selectOption('60000')
+  await (await autosaveControl(page)).selectOption('60000')
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 
   await placeSingleCrochet(page)
@@ -24,7 +37,7 @@ test('flushes long-delay edits when the page is being hidden', async ({ page }) 
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 
   await page.reload()
-  await expect(page.getByLabel('Автосохранение')).toHaveValue('60000')
+  await expect(await autosaveControl(page)).toHaveValue('60000')
   await expect(page.locator('.stitch-element')).toHaveCount(1)
 })
 
@@ -55,7 +68,8 @@ test('reports row-number deletion correctly in English', async ({ page }) => {
   await page.mouse.click(box.x + box.width * 0.55, box.y + box.height * 0.5)
   await expect(page.locator('.row-marker')).toHaveCount(1)
 
-  await page.getByRole('button', { name: 'EN', exact: true }).click()
+  const settings = await openTopbarSettings(page)
+  await settings.getByRole('button', { name: 'EN', exact: true }).click()
   await page.keyboard.press('Delete')
 
   await expect(page.locator('.row-marker')).toHaveCount(0)
