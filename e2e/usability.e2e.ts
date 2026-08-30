@@ -121,7 +121,7 @@ test('keeps the quick toolbar clear of the rotation handle and shows a live used
   const legendPanel = page.getByTestId('legend-panel')
   await expect(legendPanel.getByText('Использованные символы')).toBeVisible()
   await expect(legendPanel.locator('.legend-used-row')).toHaveCount(1)
-  await expect(page.locator('.legend-used-count')).toHaveText('1')
+  await expect(legendPanel.locator('.legend-used-count')).toHaveText('1')
   await expect(page.locator('.legend-overlay')).toBeVisible()
 
   const canvas = await canvasBox(page)
