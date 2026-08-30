@@ -29,8 +29,8 @@ test('canonical tool and application shortcut routers keep the editor behavior i
 
   const rail = page.getByRole('navigation', { name: 'Инструменты' })
   const hand = rail.getByRole('button', { name: /Ладонь/ })
-  const lasso = rail.getByRole('button', { name: 'Лассо', exact: true })
-  const ruler = rail.getByRole('button', { name: 'Линейка', exact: true })
+  const lasso = rail.getByRole('button', { name: /Лассо/ })
+  const ruler = rail.getByRole('button', { name: /Линейка/ })
 
   await page.keyboard.press('h')
   await expect(hand).toHaveAttribute('aria-pressed', 'true')
@@ -50,7 +50,14 @@ test('canonical tool and application shortcut routers keep the editor behavior i
   await page.keyboard.press('Control+d')
   await expect(page.locator('.stitch-element')).toHaveCount(2)
   await page.keyboard.press('Control+z')
-  await expect(page.locator('.stitch-element')).toHaveCount(1)
+  const remaining = page.locator('.stitch-element').first()
+  await expect(remaining).toHaveCount(1)
+
+  // Undo intentionally clears editor selection. Re-select the surviving stitch
+  // so this assertion exercises the canonical Delete shortcut rather than
+  // conflating keyboard routing with history-selection semantics.
+  await remaining.click()
+  await expect(remaining).toHaveClass(/selected/)
   await page.keyboard.press('Delete')
   await expect(page.locator('.stitch-element')).toHaveCount(0)
 })
