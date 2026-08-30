@@ -72,7 +72,7 @@ test('panel 2 follows the reference command hierarchy and keeps its controls liv
   const autosave = topbar.locator('.topbar-autosave-menu')
   await expect(autosave.locator('summary')).toBeVisible()
   await autosave.locator('summary').click()
-  await expect(page.getByLabel('Автосохранение')).toBeVisible()
+  await expect(page.getByLabel('Автосохранение', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'RU', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'EN', exact: true })).toBeVisible()
 
