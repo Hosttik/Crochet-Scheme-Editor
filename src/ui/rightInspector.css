@@ -567,3 +567,19 @@
     padding-inline: 10px;
   }
 }
+
+@media (max-height: 700px) {
+  .ui-v2-right-tabs-host {
+    max-height: 46%;
+  }
+
+  .right-panel-context {
+    padding-block: 8px 9px;
+  }
+
+  .right-panel-context .compact-selection-card,
+  .right-panel-context .multi-selection-card,
+  .right-panel-context .guide-editor {
+    gap: 7px;
+  }
+}
