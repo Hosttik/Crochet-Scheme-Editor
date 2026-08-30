@@ -1,0 +1,31 @@
+/* Panel 3 reference pass: keep the tool rail permanently available while the
+ * document/library pane can be collapsed to return horizontal space to canvas. */
+.app-shell:has(.element-library.is-collapsed):not(.left-collapsed) {
+  --left-panel-width: var(--ui-tool-rail);
+}
+
+.left-sidebar:has(.element-library.is-collapsed) {
+  grid-template-columns: var(--ui-tool-rail) 0;
+}
+
+.left-sidebar:has(.element-library.is-collapsed)::after {
+  left: calc(var(--ui-tool-rail) - 1px);
+}
+
+.left-sidebar:has(.element-library.is-collapsed) > :not(.tool-rail):not(.element-library) {
+  display: none;
+}
+
+@media (max-width: 1080px) {
+  .app-shell:has(.element-library.is-collapsed):not(.left-collapsed) {
+    --left-panel-width: 40px;
+  }
+
+  .left-sidebar:has(.element-library.is-collapsed) {
+    grid-template-columns: 40px 0;
+  }
+
+  .left-sidebar:has(.element-library.is-collapsed)::after {
+    left: 39px;
+  }
+}
