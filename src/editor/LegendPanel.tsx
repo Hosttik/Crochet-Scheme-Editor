@@ -3,19 +3,16 @@ import type { Locale } from '../i18n'
 import { symbolName } from '../i18n'
 import { SymbolGlyph } from '../symbols'
 import type { StitchElement } from '../types'
+import {
+  CANVAS_GRID_CHANGE_EVENT,
+  getCanvasGridVisibility,
+  setCanvasGridVisibility,
+  storedBooleanPreference,
+} from './canvasDisplayPreferences'
 import { usedLegendItems } from './legend'
 import './legendPanel.css'
 
 const CANVAS_PAPER_KEY = 'crochet-scheme-editor-canvas-paper'
-const CANVAS_GRID_KEY = 'crochet-scheme-editor-canvas-grid'
-
-function storedBoolean(key: string, fallback: boolean) {
-  if (typeof window === 'undefined') return fallback
-  const value = window.localStorage.getItem(key)
-  if (value === 'true') return true
-  if (value === 'false') return false
-  return fallback
-}
 
 export function LegendPanel({
   locale,
@@ -32,8 +29,8 @@ export function LegendPanel({
   const visibleElements = elements.filter((element) => element.visible !== false)
   const items = usedLegendItems(visibleElements)
   const counts = new Map<string, number>()
-  const [whiteCanvas, setWhiteCanvas] = useState(() => storedBoolean(CANVAS_PAPER_KEY, false))
-  const [gridVisible, setGridVisible] = useState(() => storedBoolean(CANVAS_GRID_KEY, true))
+  const [whiteCanvas, setWhiteCanvas] = useState(() => storedBooleanPreference(CANVAS_PAPER_KEY, false))
+  const [gridVisible, setGridVisible] = useState(getCanvasGridVisibility)
   for (const element of visibleElements) counts.set(element.symbolId, (counts.get(element.symbolId) ?? 0) + 1)
 
   useEffect(() => {
@@ -42,9 +39,17 @@ export function LegendPanel({
   }, [whiteCanvas])
 
   useEffect(() => {
-    document.documentElement.dataset.canvasGrid = gridVisible ? 'on' : 'off'
-    window.localStorage.setItem(CANVAS_GRID_KEY, String(gridVisible))
+    setCanvasGridVisibility(gridVisible)
   }, [gridVisible])
+
+  useEffect(() => {
+    const syncGridVisibility = (event: Event) => {
+      const next = (event as CustomEvent<boolean>).detail
+      if (typeof next === 'boolean') setGridVisible(next)
+    }
+    window.addEventListener(CANVAS_GRID_CHANGE_EVENT, syncGridVisibility)
+    return () => window.removeEventListener(CANVAS_GRID_CHANGE_EVENT, syncGridVisibility)
+  }, [])
 
   return (
     <section className="panel-section legend-panel" data-testid="legend-panel">
