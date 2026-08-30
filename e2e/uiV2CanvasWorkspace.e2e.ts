@@ -19,37 +19,33 @@ async function placeSingleCrochetStitch(page: Page) {
   await expect(page.locator('.stitch-element')).toHaveCount(1)
 }
 
-test('keeps canvas navigation compact, semantic and directly usable', async ({ page }) => {
+test('docks essential canvas controls and hides duplicate tool access points', async ({ page }) => {
   await openEditor(page)
 
   const toolbar = page.getByRole('toolbar', { name: 'Навигация и режимы поля' })
   await expect(toolbar).toBeVisible()
 
-  const hand = toolbar.getByRole('button', { name: 'Ладонь / перемещение поля', exact: true })
-  const lasso = toolbar.getByRole('button', { name: 'Лассо', exact: true })
-  const ruler = toolbar.getByRole('button', { name: 'Линейка', exact: true })
-  await expect(hand).toBeVisible()
-  await expect(lasso).toBeVisible()
-  await expect(ruler).toBeVisible()
-
-  const handBox = await hand.boundingBox()
-  const lassoBox = await lasso.boundingBox()
-  expect(handBox).not.toBeNull()
-  expect(lassoBox).not.toBeNull()
-  expect(handBox!.width).toBeLessThanOrEqual(40)
-  expect(lassoBox!.width).toBeLessThanOrEqual(40)
-
-  await hand.click()
-  await expect(hand).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.locator('svg.editor-canvas')).toHaveClass(/pan-tool/)
+  await expect(toolbar.getByRole('button', { name: 'Уменьшить масштаб', exact: true })).toBeVisible()
+  await expect(toolbar.getByRole('button', { name: 'Увеличить масштаб', exact: true })).toBeVisible()
+  await expect(toolbar.getByRole('button', { name: 'Ладонь / перемещение поля', exact: true })).toBeHidden()
+  await expect(toolbar.getByRole('button', { name: 'Лассо', exact: true })).toBeHidden()
+  await expect(toolbar.getByRole('button', { name: 'Линейка', exact: true })).toBeHidden()
+  await expect(toolbar.getByRole('button', { name: 'Вместить всю схему', exact: true })).toBeHidden()
+  await expect(toolbar.getByLabel('Ориентация при привязке')).toBeHidden()
 
   const snap = toolbar.getByRole('button', { name: 'Привязка к направляющим', exact: true })
+  await expect(snap).toBeVisible()
   await expect(snap).toHaveAttribute('aria-pressed', 'true')
   await snap.click()
   await expect(snap).toHaveAttribute('aria-pressed', 'false')
-  await expect(toolbar.getByLabel('Ориентация при привязке')).toBeDisabled()
   await snap.click()
-  await expect(toolbar.getByLabel('Ориентация при привязке')).toBeEnabled()
+  await expect(snap).toHaveAttribute('aria-pressed', 'true')
+
+  const toolbarRect = await toolbar.boundingBox()
+  const statusRect = await page.getByTestId('canvas-statusbar').boundingBox()
+  expect(toolbarRect).not.toBeNull()
+  expect(statusRect).not.toBeNull()
+  expect(Math.abs((toolbarRect!.y + toolbarRect!.height) - (statusRect!.y + statusRect!.height))).toBeLessThanOrEqual(1)
 })
 
 test('uses a dedicated footer surface without changing canvas interaction geometry', async ({ page }) => {
@@ -74,11 +70,16 @@ test('uses a dedicated footer surface without changing canvas interaction geomet
   await expect(statusbar).toContainText('Выбрано: 1')
 })
 
-test('keeps selection actions close to the stitch without turning them into a large overlay', async ({ page }) => {
+test('keeps editing actions out of the way while constructing and restores them in Select', async ({ page }) => {
   await openEditor(page)
   await placeSingleCrochetStitch(page)
 
   const quick = page.getByRole('toolbar', { name: 'Быстрые действия с выделением' })
+  await expect(page.locator('svg.editor-canvas')).toHaveClass(/placing/)
+  await expect(quick).toBeHidden()
+
+  await page.keyboard.press('Escape')
+  await expect(page.locator('svg.editor-canvas')).toHaveClass(/selecting/)
   await expect(quick).toBeVisible()
   const quickRect = await quick.boundingBox()
   expect(quickRect).not.toBeNull()
@@ -89,7 +90,7 @@ test('keeps selection actions close to the stitch without turning them into a la
   await expect(page.getByTestId('canvas-statusbar')).toContainText('Выбрано: 1')
 })
 
-test('keeps the canvas controls contained on a compact desktop viewport', async ({ page }) => {
+test('keeps the docked canvas controls contained on a compact desktop viewport', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 720 })
   await openEditor(page)
 
