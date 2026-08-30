@@ -4,8 +4,15 @@ test('persists a background underlay and previews tiled print pages', async ({ p
   await page.goto('/Crochet-Scheme-Editor/')
 
   const readDownload = async (buttonName: string) => {
+    const button = page.getByRole('button', { name: buttonName })
+    if (!(await button.isVisible()) && buttonName === 'Экспорт SVG') {
+      const menu = page.locator('.topbar-autosave-menu')
+      if (!(await menu.evaluate((element) => (element as HTMLDetailsElement).open))) {
+        await menu.locator('summary').click()
+      }
+    }
     const downloadPromise = page.waitForEvent('download')
-    await page.getByRole('button', { name: buttonName }).click()
+    await button.click()
     const download = await downloadPromise
     const stream = await download.createReadStream()
     let text = ''
