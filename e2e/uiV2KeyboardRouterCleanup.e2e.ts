@@ -29,8 +29,8 @@ test('canonical tool and application shortcut routers keep the editor behavior i
 
   const rail = page.getByRole('navigation', { name: 'Инструменты' })
   const hand = rail.getByRole('button', { name: /Ладонь/ })
-  const lasso = rail.getByRole('button', { name: 'Лассо', exact: true })
-  const ruler = rail.getByRole('button', { name: 'Линейка', exact: true })
+  const lasso = rail.getByRole('button', { name: /Лассо/ })
+  const ruler = rail.getByRole('button', { name: /Линейка/ })
 
   await page.keyboard.press('h')
   await expect(hand).toHaveAttribute('aria-pressed', 'true')
