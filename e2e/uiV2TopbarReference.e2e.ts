@@ -22,18 +22,35 @@ test('panel 2 follows the reference command hierarchy and keeps its controls liv
   for (const label of ['Новый', 'Открыть', 'Сохранить', 'Отменить', 'Повторить']) {
     await expect(topbar.getByRole('button', { name: label, exact: true })).toBeVisible()
   }
-  await expect(topbar.getByLabel('Масштаб')).toBeVisible()
+
+  const zoom = topbar.getByLabel('Масштаб')
+  await expect(zoom).toBeVisible()
+  await expect(zoom.locator('option')).toHaveCount(6)
+  await expect(zoom).toHaveValue('100')
+  await zoom.selectOption('125')
+  await expect(zoom).toHaveValue('125')
+  await expect(page.locator('svg.editor-canvas > g[transform*="scale("]')).toHaveAttribute('transform', /scale\(1\.25\)/)
+  await zoom.selectOption('75')
+  await expect(zoom).toHaveValue('75')
+  await expect(page.locator('svg.editor-canvas > g[transform*="scale("]')).toHaveAttribute('transform', /scale\(0\.75\)/)
+  await zoom.selectOption('100')
+  await expect(zoom).toHaveValue('100')
+
   await expect(topbar.getByRole('button', { name: 'Сетка', exact: true })).toBeVisible()
   await expect(topbar.getByRole('button', { name: 'Направляющие', exact: true })).toBeVisible()
   await expect(topbar.getByRole('button', { name: 'Поиск по функциям', exact: true })).toContainText('Ctrl + F')
 
   const grid = topbar.getByRole('button', { name: 'Сетка', exact: true })
+  const canvasGrid = page.locator('svg.editor-canvas rect[fill="url(#grid)"]')
   await expect(grid).toHaveAttribute('aria-pressed', 'true')
+  await expect(canvasGrid).toBeVisible()
   await grid.click()
   await expect(grid).toHaveAttribute('aria-pressed', 'false')
   await expect(page.locator('html')).toHaveAttribute('data-canvas-grid', 'off')
+  await expect(canvasGrid).toBeHidden()
   await grid.click()
   await expect(grid).toHaveAttribute('aria-pressed', 'true')
+  await expect(canvasGrid).toBeVisible()
 
   await topbar.getByRole('button', { name: 'Направляющие', exact: true }).click()
   await expect(page.getByRole('menu', { name: 'Направляющие', exact: true })).toBeVisible()
