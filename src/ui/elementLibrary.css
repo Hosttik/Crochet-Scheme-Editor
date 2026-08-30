@@ -99,7 +99,7 @@
 .element-library .symbol-glyph path,
 .element-library .symbol-glyph circle,
 .element-library .symbol-glyph ellipse {
-  stroke-width: 1.25;
+  stroke-width: 1.35;
 }
 
 .element-library .symbol-button {
@@ -114,6 +114,15 @@
 .element-library .symbol-button span {
   font-size: 7.5px;
   line-height: 11px;
+}
+
+/* Keep the favorite action in the corner without covering the primary symbol hit target. */
+.element-library .favorite-toggle {
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
 }
 
 .library-category.favorites-group {
