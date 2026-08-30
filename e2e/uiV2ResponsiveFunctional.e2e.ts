@@ -31,7 +31,7 @@ async function placeSingle(page: Page) {
   await expect(page.locator('.stitch-element')).toHaveCount(1)
 }
 
-test('responsive command bar preserves canonical file actions while collapsing secondary chrome', async ({ page }) => {
+test('responsive command bar preserves canonical file actions without duplicate canvas tools', async ({ page }) => {
   await openEditor(page, 1081)
 
   const fileGroup = page.locator('.topbar-file-group')
@@ -41,7 +41,8 @@ test('responsive command bar preserves canonical file actions while collapsing s
 
   await expect(fileGroup).toBeVisible()
   await expect(save).toBeVisible()
-  await expect(canvasHand).toBeVisible()
+  await expect(canvasHand).toBeHidden()
+  await expect(canvasToolbar.getByRole('button', { name: 'Привязка к направляющим', exact: true })).toBeVisible()
 
   for (const width of [1080, 1024, 900]) {
     await page.setViewportSize({ width, height: 800 })
