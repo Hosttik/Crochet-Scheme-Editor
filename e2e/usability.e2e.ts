@@ -26,25 +26,37 @@ async function openGlobalPanel(page: Page, testId: string) {
   }
 }
 
-test('grabs an existing stitch directly from placement mode without creating another stitch', async ({ page }) => {
+test('keeps placement active and builds consecutive stitches through existing hit targets', async ({ page }) => {
   await openEditor(page)
-  await placeAt(page, 'Столбик без накида', 0.42, 0.45)
+  await createGuideFromToolRail(page, 'Линия')
+
+  const guide = page.locator('.guide-line .guide-stroke')
+  const guideBox = await guide.boundingBox()
+  expect(guideBox).not.toBeNull()
+
+  await page.getByRole('region', { name: 'Библиотека элементов' })
+    .getByRole('button', { name: 'Воздушная петля · ch', exact: true })
+    .click()
+
   const canvas = page.locator('svg.editor-canvas')
   await expect(canvas).toHaveClass(/placing/)
-  await expect(page.locator('.stitch-element')).toHaveCount(1)
 
-  const stitch = page.locator('.stitch-element').first()
-  const before = await stitch.getAttribute('transform')
-  const box = await stitch.boundingBox()
-  expect(box).not.toBeNull()
-  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
-  await page.mouse.down()
-  await page.mouse.move(box!.x + box!.width / 2 + 52, box!.y + box!.height / 2 + 26, { steps: 5 })
-  await page.mouse.up()
+  const startX = guideBox!.x + guideBox!.width / 2 - 14
+  const guideY = guideBox!.y + guideBox!.height / 2
+  for (const [index, offset] of [0, 14, 28].entries()) {
+    await page.mouse.click(startX + offset, guideY)
+    await expect(page.locator('.stitch-element')).toHaveCount(index + 1)
+    await expect(canvas).toHaveClass(/placing/)
+  }
 
-  await expect(page.locator('.stitch-element')).toHaveCount(1)
-  await expect(canvas).toHaveClass(/selecting/)
-  await expect(stitch).not.toHaveAttribute('transform', before ?? '')
+  const centers = await page.locator('.stitch-element .symbol-glyph ellipse').evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const box = node.getBoundingClientRect()
+      return box.y + box.height / 2
+    }),
+  )
+  expect(centers).toHaveLength(3)
+  centers.forEach((centerY) => expect(centerY).toBeCloseTo(guideY, 1))
 })
 
 test('shows contextual quick actions and semantic group layers', async ({ page }) => {
@@ -91,6 +103,7 @@ test('previews repeat live and creates a circular array without a guide', async 
 test('keeps the quick toolbar clear of the rotation handle and shows a live used-symbol legend', async ({ page }) => {
   await openEditor(page)
   await placeAt(page, 'Столбик без накида', 0.48, 0.48)
+  await page.keyboard.press('Escape')
 
   const toolbarBox = await page.locator('.selection-quick-toolbar').boundingBox()
   const rotationBox = await page.locator('.stitch-rotation-handle').boundingBox()
@@ -108,7 +121,7 @@ test('keeps the quick toolbar clear of the rotation handle and shows a live used
   const legendPanel = page.getByTestId('legend-panel')
   await expect(legendPanel.getByText('Использованные символы')).toBeVisible()
   await expect(legendPanel.locator('.legend-used-row')).toHaveCount(1)
-  await expect(legendPanel.locator('.legend-used-count')).toHaveText('1')
+  await expect(page.locator('.legend-used-count')).toHaveText('1')
   await expect(page.locator('.legend-overlay')).toBeVisible()
 
   const canvas = await canvasBox(page)
