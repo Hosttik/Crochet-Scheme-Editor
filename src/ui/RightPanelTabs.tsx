@@ -73,8 +73,10 @@ export function RightPanelTabs({
           )
         })}
       </div>
-      <div id="ui-v2-right-context-selection" className="ui-v2-right-context-slot" data-context-slot="selection" />
-      <div id="ui-v2-right-context-productivity" className="ui-v2-right-context-slot" data-context-slot="productivity" />
+      <div className="right-panel-contexts" data-testid="right-panel-contexts">
+        <div id="ui-v2-right-context-selection" className="ui-v2-right-context-slot" data-context-slot="selection" />
+        <div id="ui-v2-right-context-productivity" className="ui-v2-right-context-slot" data-context-slot="productivity" />
+      </div>
     </>
   )
 }
