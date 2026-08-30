@@ -170,6 +170,23 @@ test('gives transform controls priority over utility and destructive actions', a
   expect(presentation.dangerHeight).toBeGreaterThanOrEqual(30)
 })
 
+test('keeps context and active panel usable on a short viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 640 })
+  await openEditor(page)
+  await placeElement(page, 'Воздушная петля · ch')
+
+  const contextHost = page.locator('.ui-v2-right-tabs-host')
+  const optionsPanel = page.getByRole('tabpanel', { name: 'Опции', exact: true })
+  const context = page.getByTestId('selection-context-panel')
+  const hostBox = await contextHost.boundingBox()
+  const sidebarBox = await page.locator('.right-sidebar').boundingBox()
+  expect(hostBox).not.toBeNull()
+  expect(sidebarBox).not.toBeNull()
+  expect(hostBox!.height).toBeLessThan(sidebarBox!.height * .5)
+  await expect(context.locator('.rotation-controls')).toBeVisible()
+  await expect(optionsPanel.getByTestId('snapping-global-panel')).toBeVisible()
+})
+
 test('keeps layer selection, selection properties and productivity controls available together', async ({ page }) => {
   await openEditor(page)
 
