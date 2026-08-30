@@ -16,11 +16,11 @@ function RailButton({
 }: {
   icon: EditorIconName
   label: string
-  shortcut: string
+  shortcut?: string
   active: boolean
   onClick: () => void
 }) {
-  const accessibleLabel = `${label} · ${shortcut}`
+  const accessibleLabel = shortcut ? `${label} · ${shortcut}` : label
   return (
     <button
       type="button"
@@ -33,6 +33,151 @@ function RailButton({
       <EditorIcon name={icon} />
       <span className="tool-rail__text">{label}</span>
     </button>
+  )
+}
+
+function SelectionFlyout({
+  locale,
+  tool,
+  onSelect,
+  onToggleLasso,
+}: {
+  locale: Locale
+  tool: WorkbenchTool
+  onSelect: () => void
+  onToggleLasso: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const menuId = useId()
+
+  const copy = locale === 'ru'
+    ? {
+        selection: 'Выделение',
+        marquee: 'Прямоугольное выделение',
+        lasso: 'Лассо',
+      }
+    : {
+        selection: 'Selection',
+        marquee: 'Rectangular selection',
+        lasso: 'Lasso',
+      }
+
+  const items: Array<{ id: 'marquee' | 'lasso'; label: string; icon: EditorIconName }> = [
+    { id: 'marquee', label: copy.marquee, icon: 'marquee' },
+    { id: 'lasso', label: copy.lasso, icon: 'lasso' },
+  ]
+
+  useEffect(() => {
+    if (!open) return
+    const focusTimer = window.setTimeout(() => itemRefs.current[tool.type === 'lasso' ? 1 : 0]?.focus(), 0)
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    return () => {
+      window.clearTimeout(focusTimer)
+      window.removeEventListener('pointerdown', onPointerDown)
+    }
+  }, [open, tool.type])
+
+  const focusItem = (index: number) => {
+    const normalized = (index + items.length) % items.length
+    itemRefs.current[normalized]?.focus()
+  }
+
+  const handleMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!event.metaKey && !event.ctrlKey && !event.altKey) event.stopPropagation()
+    const currentIndex = itemRefs.current.findIndex((item) => item === document.activeElement)
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      focusItem(currentIndex < 0 ? 0 : currentIndex + 1)
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      focusItem(currentIndex < 0 ? items.length - 1 : currentIndex - 1)
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      focusItem(0)
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      focusItem(items.length - 1)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      setOpen(false)
+      triggerRef.current?.focus()
+    } else if (event.key === 'Tab') {
+      setOpen(false)
+    }
+  }
+
+  const choose = (id: 'marquee' | 'lasso') => {
+    if (id === 'marquee') onSelect()
+    else if (tool.type !== 'lasso') onToggleLasso()
+    setOpen(false)
+    triggerRef.current?.focus()
+  }
+
+  return (
+    <div className="tool-rail__flyout-root" ref={rootRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`ui-icon-button tool-button ui-v2-tool-rail-button ${tool.type === 'lasso' || open ? 'active is-active' : ''}`}
+        aria-label={copy.selection}
+        title={copy.selection}
+        aria-haspopup="menu"
+        aria-controls={open ? menuId : undefined}
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowDown' && !open) {
+            event.preventDefault()
+            event.stopPropagation()
+            setOpen(true)
+          } else if (event.key === 'Escape' && open) {
+            event.preventDefault()
+            event.stopPropagation()
+            setOpen(false)
+          }
+        }}
+      >
+        <EditorIcon name={tool.type === 'lasso' ? 'lasso' : 'marquee'} />
+        <span className="tool-rail__text">{copy.selection}</span>
+        <span className="tool-rail__flyout-caret" aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div
+          id={menuId}
+          className="tool-rail-flyout selection-flyout"
+          role="menu"
+          aria-label={copy.selection}
+          onKeyDown={handleMenuKeyDown}
+        >
+          {items.map((item, index) => {
+            const active = item.id === 'lasso' ? tool.type === 'lasso' : tool.type === 'select'
+            return (
+              <button
+                key={item.id}
+                ref={(node) => { itemRefs.current[index] = node }}
+                type="button"
+                role="menuitemradio"
+                aria-checked={active}
+                tabIndex={-1}
+                className={`tool-rail-flyout__item ${active ? 'is-active' : ''}`}
+                onClick={() => choose(item.id)}
+              >
+                <EditorIcon name={item.icon} size={17} />
+                <span>{item.label}</span>
+                <span className="tool-rail-flyout__check" aria-hidden="true">{active ? '✓' : ''}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -215,44 +360,64 @@ function GuideFlyout({
 export function ToolRail({
   locale,
   tool,
+  libraryCollapsed,
   onSelect,
   onTogglePan,
   onToggleLasso,
   onAddGuide,
   onToggleRuler,
+  onToggleLibrary,
 }: {
   locale: Locale
   tool: WorkbenchTool
+  libraryCollapsed: boolean
   onSelect: () => void
   onTogglePan: () => void
   onToggleLasso: () => void
   onAddGuide: (type: Guide['type']) => void
   onToggleRuler: () => void
+  onToggleLibrary: () => void
 }) {
   const copy = locale === 'ru'
     ? {
         label: 'Инструменты',
         select: 'Выбор / перемещение',
         pan: 'Ладонь / перемещение поля',
-        lasso: 'Лассо',
         ruler: 'Линейка',
+        collapseLibrary: 'Свернуть панель элементов',
+        expandLibrary: 'Развернуть панель элементов',
       }
     : {
         label: 'Tools',
         select: 'Select / move',
         pan: 'Hand / pan canvas',
-        lasso: 'Lasso',
         ruler: 'Ruler',
+        collapseLibrary: 'Collapse element panel',
+        expandLibrary: 'Expand element panel',
       }
+
+  const libraryToggleLabel = libraryCollapsed ? copy.expandLibrary : copy.collapseLibrary
 
   return (
     <nav className="tool-rail" aria-label={copy.label}>
       <RailButton icon="select" label={copy.select} shortcut="Esc" active={tool.type === 'select'} onClick={onSelect} />
       <RailButton icon="hand" label={copy.pan} shortcut="H" active={tool.type === 'pan'} onClick={onTogglePan} />
-      <RailButton icon="lasso" label={copy.lasso} shortcut="L" active={tool.type === 'lasso'} onClick={onToggleLasso} />
+      <SelectionFlyout locale={locale} tool={tool} onSelect={onSelect} onToggleLasso={onToggleLasso} />
       <div className="tool-rail__separator" aria-hidden="true" />
       <GuideFlyout locale={locale} onAddGuide={onAddGuide} />
       <RailButton icon="ruler" label={copy.ruler} shortcut="R" active={tool.type === 'ruler'} onClick={onToggleRuler} />
+      <span className="tool-rail__spacer" aria-hidden="true" />
+      <button
+        type="button"
+        className={`ui-icon-button tool-button ui-v2-tool-rail-button tool-rail__library-toggle ${libraryCollapsed ? 'is-collapsed' : ''}`}
+        aria-label={libraryToggleLabel}
+        title={libraryToggleLabel}
+        aria-pressed={!libraryCollapsed}
+        onClick={onToggleLibrary}
+      >
+        <EditorIcon name="chevronDown" />
+        <span className="tool-rail__text">{libraryToggleLabel}</span>
+      </button>
     </nav>
   )
 }
