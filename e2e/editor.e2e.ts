@@ -16,7 +16,6 @@ test('places a stitch, restores autosave and manages local projects', async ({ p
   await page.goto('/Crochet-Scheme-Editor/')
 
   await expect(page.getByTestId('editor-topbar')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Вместить всю схему' })).toBeDisabled()
 
   await page.getByRole('button', { name: 'Столбик без накида · sc', exact: true }).click()
   const canvas = page.locator('svg.editor-canvas')
@@ -27,8 +26,14 @@ test('places a stitch, restores autosave and manages local projects', async ({ p
   const statusbar = page.getByTestId('canvas-statusbar')
   await expect(statusbar).toContainText('1 элементов')
   await expect(statusbar).toContainText('Выбрано: 1')
-  await expect(page.getByRole('button', { name: 'Вместить всю схему' })).toBeEnabled()
-  await page.getByRole('button', { name: 'Вместить всю схему' }).click()
+
+  // Fit is a keyboard/application command now rather than duplicate floating
+  // chrome in the canvas. Exit construction mode and verify the viewport moves.
+  await page.keyboard.press('Escape')
+  const viewportGroup = canvas.locator(':scope > g[transform*="scale("]').first()
+  const beforeFit = await viewportGroup.getAttribute('transform')
+  await page.keyboard.press('f')
+  await expect.poll(async () => viewportGroup.getAttribute('transform')).not.toBe(beforeFit)
 
   await page.waitForTimeout(900)
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
