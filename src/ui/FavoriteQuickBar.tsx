@@ -1,25 +1,12 @@
-import { CHAIN_BUNDLE_COUNTS, chainBundleLayout, type ChainBundleCount } from '../editor/chainBundle'
+import { chainBundleLayout, type ChainBundleCount } from '../editor/chainBundle'
 import { symbolName, type Locale } from '../i18n'
 import { SYMBOL_BY_ID, SymbolGlyph } from '../symbols'
 import { EditorIcon } from './icons'
-import type { FavoriteElementKey } from './favorites'
+import { resolveFavorites, type FavoriteElementKey } from './favorites'
 import type { WorkbenchTool } from './workbenchTypes'
 import './favorites.css'
 
 const MAX_QUICK_FAVORITES = 6
-
-type QuickFavorite =
-  | { key: FavoriteElementKey; kind: 'symbol'; symbolId: string }
-  | { key: FavoriteElementKey; kind: 'chain'; count: ChainBundleCount }
-
-function resolveFavorite(key: FavoriteElementKey): QuickFavorite | null {
-  if (key.startsWith('symbol:')) {
-    const symbolId = key.slice('symbol:'.length)
-    return SYMBOL_BY_ID.has(symbolId) ? { key, kind: 'symbol', symbolId } : null
-  }
-  const count = Number(key.slice('chain:'.length)) as ChainBundleCount
-  return CHAIN_BUNDLE_COUNTS.includes(count) ? { key, kind: 'chain', count } : null
-}
 
 export function FavoriteQuickBar({
   locale,
@@ -36,7 +23,7 @@ export function FavoriteQuickBar({
   onSelectChainBundle: (count: ChainBundleCount) => void
   onCancelPlacement: () => void
 }) {
-  const resolved = favorites.map(resolveFavorite).filter((item): item is QuickFavorite => item !== null)
+  const resolved = resolveFavorites(favorites)
   if (!resolved.length) return null
 
   const visible = resolved.slice(0, MAX_QUICK_FAVORITES)
