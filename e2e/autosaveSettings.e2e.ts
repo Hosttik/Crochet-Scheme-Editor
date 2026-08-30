@@ -8,18 +8,27 @@ async function placeSingleCrochet(page: Page) {
   await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5)
 }
 
+async function autosaveControl(page: Page) {
+  const menu = page.locator('.topbar-autosave-menu')
+  if (!(await menu.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await menu.locator('summary').click()
+  }
+  return page.getByLabel('Автосохранение')
+}
+
 test('persists autosave intervals immediately, supports off and resumes the fast delay', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
-  const control = page.getByLabel('Автосохранение')
+  let control = await autosaveControl(page)
   await expect(control).toHaveValue('650')
 
   // The setting itself must survive a reload without waiting for the selected 60 s interval.
   await control.selectOption('60000')
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
   await page.reload()
-  await expect(page.getByLabel('Автосохранение')).toHaveValue('60000')
+  control = await autosaveControl(page)
+  await expect(control).toHaveValue('60000')
 
-  await page.getByLabel('Автосохранение').selectOption('0')
+  await control.selectOption('0')
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранение выключено')
   await page.waitForTimeout(250)
 
@@ -27,14 +36,16 @@ test('persists autosave intervals immediately, supports off and resumes the fast
   await expect(page.locator('.stitch-element')).toHaveCount(1)
   await page.waitForTimeout(900)
   await page.reload()
-  await expect(page.getByLabel('Автосохранение')).toHaveValue('0')
+  control = await autosaveControl(page)
+  await expect(control).toHaveValue('0')
   await expect(page.locator('.stitch-element')).toHaveCount(0)
 
-  await page.getByLabel('Автосохранение').selectOption('650')
+  await control.selectOption('650')
   await placeSingleCrochet(page)
   await page.waitForTimeout(900)
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
   await page.reload()
-  await expect(page.getByLabel('Автосохранение')).toHaveValue('650')
+  control = await autosaveControl(page)
+  await expect(control).toHaveValue('650')
   await expect(page.locator('.stitch-element')).toHaveCount(1)
 })
