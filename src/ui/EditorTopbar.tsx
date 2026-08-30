@@ -8,12 +8,43 @@ import { EditorIcon } from './icons'
 export type TopbarAutosaveState = 'loading' | 'saving' | 'saved' | 'error' | 'off'
 
 const OPEN_GUIDES_FLYOUT_EVENT = 'crochet-ui-v2:open-guides-flyout'
+const ZOOM_PRESETS = [50, 75, 100, 125, 150, 200] as const
 
-function visibleZoomPercent() {
+function visibleZoom() {
   const content = document.querySelector<SVGGElement>('svg.editor-canvas > g[transform*="scale("]')
   const match = content?.getAttribute('transform')?.match(/scale\(([-+\d.]+)\)/)
   const zoom = Number(match?.[1])
-  return Number.isFinite(zoom) && zoom > 0 ? Math.round(zoom * 100) : 100
+  return Number.isFinite(zoom) && zoom > 0 ? zoom : 1
+}
+
+function visibleZoomPercent() {
+  return Math.round(visibleZoom() * 100)
+}
+
+function requestCanvasZoomPercent(targetPercent: number) {
+  const targetZoom = targetPercent / 100
+  if (!Number.isFinite(targetZoom) || targetZoom <= 0) return
+
+  if (targetPercent === 100) {
+    dispatchApplicationCommand('view.zoom100')
+    return
+  }
+
+  const canvas = document.querySelector<SVGSVGElement>('svg.editor-canvas')
+  const currentZoom = visibleZoom()
+  if (!canvas || !Number.isFinite(currentZoom) || currentZoom <= 0) return
+
+  const factor = targetZoom / currentZoom
+  if (!Number.isFinite(factor) || factor <= 0 || Math.abs(factor - 1) < 0.000001) return
+
+  const rect = canvas.getBoundingClientRect()
+  canvas.dispatchEvent(new WheelEvent('wheel', {
+    bubbles: true,
+    cancelable: true,
+    clientX: rect.left + rect.width / 2,
+    clientY: rect.top + rect.height / 2,
+    deltaY: -Math.log(factor) / 0.001,
+  }))
 }
 
 function CommandButton({
@@ -163,7 +194,7 @@ export function EditorTopbar({
   }, [favoriteActions])
 
   const zoomOptions = useMemo(() => {
-    const values = new Set([100, zoomPercent])
+    const values = new Set<number>([...ZOOM_PRESETS, zoomPercent])
     return [...values].sort((a, b) => a - b)
   }, [zoomPercent])
 
@@ -212,10 +243,7 @@ export function EditorTopbar({
         <select
           aria-label={copy.zoom}
           value={zoomPercent}
-          onChange={(event) => {
-            const target = Number(event.target.value)
-            if (target === 100) dispatchApplicationCommand('view.zoom100')
-          }}
+          onChange={(event) => requestCanvasZoomPercent(Number(event.target.value))}
         >
           {zoomOptions.map((value) => <option key={value} value={value}>{value}%</option>)}
         </select>
