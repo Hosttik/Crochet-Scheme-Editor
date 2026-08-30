@@ -5,6 +5,8 @@ import { EditorIcon, type EditorIconName } from './icons'
 import type { WorkbenchTool } from './workbenchTypes'
 import './toolRail.css'
 
+const OPEN_GUIDES_FLYOUT_EVENT = 'crochet-ui-v2:open-guides-flyout'
+
 function RailButton({
   icon,
   label,
@@ -70,6 +72,12 @@ function GuideFlyout({
   const triggerRef = useRef<HTMLButtonElement>(null)
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([])
   const menuId = useId()
+
+  useEffect(() => {
+    const openFromCommandBar = () => setOpen(true)
+    window.addEventListener(OPEN_GUIDES_FLYOUT_EVENT, openFromCommandBar)
+    return () => window.removeEventListener(OPEN_GUIDES_FLYOUT_EVENT, openFromCommandBar)
+  }, [])
 
   useEffect(() => {
     if (!open) return
