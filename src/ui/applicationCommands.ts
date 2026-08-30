@@ -48,6 +48,12 @@ export type ApplicationCommandRunner = (command: ApplicationCommandId) => boolea
 
 export const COMMAND_ENABLED: ApplicationCommandState = { enabled: true }
 
+export const APPLICATION_COMMAND_EVENT = 'crochet-ui-v2:application-command'
+
+export function dispatchApplicationCommand(command: ApplicationCommandId) {
+  window.dispatchEvent(new CustomEvent<ApplicationCommandId>(APPLICATION_COMMAND_EVENT, { detail: command }))
+}
+
 export function commandDisabled(reason?: string): ApplicationCommandResult {
   return reason ? { status: 'disabled', reason } : { status: 'disabled' }
 }
