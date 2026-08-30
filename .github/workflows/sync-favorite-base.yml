@@ -1,0 +1,27 @@
+name: Sync favorite refactor base
+
+on:
+  push:
+    branches:
+      - refactor/ui-v2-favorite-resolution
+
+permissions:
+  contents: write
+
+jobs:
+  sync-base:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: refactor/ui-v2-favorite-resolution
+          fetch-depth: 0
+      - name: Merge latest keyboard cleanup base
+        shell: bash
+        run: |
+          git fetch origin fix/ui-v2-keyboard-router-cleanup
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge --no-edit origin/fix/ui-v2-keyboard-router-cleanup
+          git push origin HEAD:refactor/ui-v2-favorite-resolution
