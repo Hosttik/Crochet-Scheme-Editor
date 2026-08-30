@@ -1,0 +1,193 @@
+/* Panel 5 authoring pass.
+ *
+ * Placement is intentionally construction-first: while a stitch tool is active,
+ * existing stitches must not steal pointer events from the canvas. The compact
+ * canvas controls are docked into the status surface so the drawing area stays
+ * visually clear, matching the approved workspace reference more closely.
+ */
+
+/* Continuous placement ---------------------------------------------------- */
+.editor-canvas.placing .stitch-element,
+.editor-canvas.placing .stitch-element * {
+  pointer-events: none !important;
+  cursor: crosshair !important;
+}
+
+.editor-canvas.placing :is(
+  .selection-box,
+  .anchor-dot,
+  .stitch-handle-hit-target,
+  .stitch-geometry-handle,
+  .stitch-rotation-link,
+  .stitch-rotation-handle
+) {
+  display: none !important;
+}
+
+.editor-canvas.placing .stitch-element.selected .symbol-glyph {
+  color: #202622;
+}
+
+.workspace:has(.editor-canvas.placing) .selection-quick-toolbar {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.editor-canvas.placing .preview-stitch {
+  opacity: .74;
+}
+
+/* Make guide acquisition obvious without visually thickening every guide. */
+.snap-indicator.guide-target {
+  filter: drop-shadow(0 1px 3px color-mix(in srgb, var(--ui-accent) 24%, transparent));
+}
+
+.snap-indicator.guide-target circle:first-child {
+  fill: color-mix(in srgb, var(--ui-accent) 11%, transparent);
+  stroke: var(--ui-accent);
+  stroke-width: 2;
+}
+
+.snap-indicator.guide-target circle:last-child {
+  fill: var(--ui-accent);
+}
+
+/* Workspace controls ------------------------------------------------------ */
+.workspace .canvas-toolbar {
+  top: auto !important;
+  right: auto !important;
+  bottom: 0;
+  left: 8px !important;
+  transform: none !important;
+  z-index: 14;
+  width: auto;
+  max-width: 228px !important;
+  min-height: 30px;
+  height: 30px;
+  padding: 0;
+  gap: 0;
+  overflow: visible !important;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+/* Zoom is already present in the topbar but is useful as a compact bottom
+ * control too. Fit remains available through F / Shift+F, while Hand/Lasso/
+ * Ruler remain in the canonical left tool rail. */
+.workspace .canvas-toolbar-fit,
+.workspace .canvas-toolbar-modes,
+.workspace .canvas-toolbar .canvas-orientation-select,
+.workspace .canvas-toolbar .canvas-hint,
+.workspace .canvas-toolbar-separator {
+  display: none !important;
+}
+
+/* canvasToolbarV2.css predates the real EditorIcon component and still injects
+ * mask pseudo-icons. Suppress that legacy layer so controls render one icon. */
+.workspace .canvas-toolbar button::before {
+  content: none !important;
+  display: none !important;
+}
+
+.workspace .canvas-toolbar-group {
+  height: 30px;
+}
+
+.workspace .canvas-toolbar-zoom {
+  gap: 0;
+}
+
+.workspace .canvas-toolbar-snap {
+  margin-left: 8px;
+  padding-left: 9px;
+  border-left: 1px solid var(--ui-border);
+}
+
+.workspace .canvas-toolbar button,
+.workspace .canvas-toolbar button:not(.zoom-readout) {
+  height: 28px;
+  min-width: 28px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ui-text-muted);
+  font-size: 10px;
+}
+
+.workspace .canvas-toolbar .zoom-readout {
+  min-width: 48px;
+  padding-inline: 4px;
+  color: var(--ui-text);
+  font-size: 9.5px;
+}
+
+.workspace .canvas-toolbar .snap-toggle {
+  width: auto !important;
+  min-width: 78px !important;
+  padding: 0 6px !important;
+  display: inline-flex !important;
+  place-items: unset !important;
+  justify-content: flex-start !important;
+  gap: 5px;
+  font-size: 9.5px !important;
+  font-weight: 600;
+}
+
+.workspace .canvas-toolbar .snap-toggle kbd {
+  display: none;
+}
+
+.workspace .canvas-toolbar .canvas-snap-dot {
+  display: block;
+}
+
+.workspace .canvas-toolbar .snap-toggle.active {
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent-hover);
+}
+
+/* Reserve the left side of the shared status surface for zoom + snapping. */
+.workspace .statusbar {
+  padding-left: 236px;
+}
+
+@media (max-width: 920px) {
+  .workspace .canvas-toolbar {
+    left: 6px !important;
+    max-width: 214px !important;
+  }
+
+  .workspace .statusbar {
+    padding-left: 220px;
+  }
+
+  .statusbar-document-meta {
+    display: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace .canvas-toolbar .zoom-readout {
+    min-width: 42px;
+  }
+
+  .workspace .canvas-toolbar .snap-toggle {
+    min-width: 70px !important;
+  }
+
+  .workspace .statusbar {
+    padding-left: 204px;
+  }
+
+  .workspace .statusbar-state {
+    display: none !important;
+  }
+}
