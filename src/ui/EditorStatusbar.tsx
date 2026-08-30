@@ -30,7 +30,7 @@ export function EditorStatusbar({
       <span className="statusbar-document-meta">
         <span>{stitchCount} {t.stitchCount}</span>
         <span>{guideCount} {t.guideCount}</span>
-        <span>{rowMarkerCount} {locale === 'ru' ? 'рядов' : 'rows'}</span>
+        <span>{rowMarkerCount} {locale === 'ru' ? 'номеров рядов' : 'row numbers'}</span>
         <span>{rulerCount} {locale === 'ru' ? 'линеек' : 'rulers'}</span>
       </span>
       <span className={`statusbar-selection ${selectedCount ? 'has-selection' : ''}`}>
