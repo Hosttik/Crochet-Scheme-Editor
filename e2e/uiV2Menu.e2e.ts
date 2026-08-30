@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
-  await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
@@ -147,6 +147,7 @@ test('command search is reachable from Help and executes real editor commands', 
 test('application menu follows the editor language switch', async ({ page }) => {
   await openEditor(page)
 
+  await page.locator('.topbar-autosave-menu > summary').click()
   await page.getByRole('button', { name: 'EN', exact: true }).click()
   await expect(page.getByRole('menubar', { name: 'Application menu' })).toBeVisible()
   await expect(page.getByRole('menuitem', { name: 'File', exact: true })).toBeVisible()
