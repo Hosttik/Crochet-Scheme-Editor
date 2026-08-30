@@ -515,7 +515,7 @@
     padding: 0;
   }
 
-  .topbar-favorites-trigger .editor-icon:last-child {
+  .topbar-favorites-trigger > svg:last-child {
     display: none;
   }
 
