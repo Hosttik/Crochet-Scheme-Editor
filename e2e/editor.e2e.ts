@@ -24,7 +24,9 @@ test('places a stitch, restores autosave and manages local projects', async ({ p
   expect(box).not.toBeNull()
   await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2)
 
-  await expect(page.locator('.statusbar span').last()).toContainText('1 элементов')
+  const statusbar = page.getByTestId('canvas-statusbar')
+  await expect(statusbar).toContainText('1 элементов')
+  await expect(statusbar).toContainText('Выбрано: 1')
   await expect(page.getByRole('button', { name: 'Вместить всю схему' })).toBeEnabled()
   await page.getByRole('button', { name: 'Вместить всю схему' }).click()
 
@@ -32,7 +34,7 @@ test('places a stitch, restores autosave and manages local projects', async ({ p
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 
   await page.reload()
-  await expect(page.locator('.statusbar span').last()).toContainText('1 элементов')
+  await expect(page.getByTestId('canvas-statusbar')).toContainText('1 элементов')
 
   await page.getByRole('button', { name: 'Свернуть левую панель' }).click()
   await expect(page.locator('.app-shell')).toHaveClass(/left-collapsed/)
@@ -40,7 +42,7 @@ test('places a stitch, restores autosave and manages local projects', async ({ p
   await expect(page.locator('.app-shell')).not.toHaveClass(/left-collapsed/)
 
   await page.getByRole('button', { name: 'Новая', exact: true }).click()
-  await expect(page.locator('.statusbar span').last()).toContainText('0 элементов')
+  await expect(page.getByTestId('canvas-statusbar')).toContainText('0 элементов')
   await expect(page.locator('.project-select option')).toHaveCount(2)
 })
 

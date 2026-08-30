@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { EditorStatusbar } from './EditorStatusbar'
 
 describe('editor status bar', () => {
-  it('renders App-owned status and document counts without owning editor state', () => {
+  it('renders App-owned status, document counts and explicit selection state', () => {
     const markup = renderToStaticMarkup(
       <EditorStatusbar
         locale="ru"
@@ -16,12 +16,13 @@ describe('editor status bar', () => {
       />,
     )
 
-    expect(markup).toContain('class="statusbar"')
-    expect(markup).toContain('>Готово</span>')
+    expect(markup).toContain('data-testid="canvas-statusbar"')
+    expect(markup).toContain('<strong>Готово</strong>')
     expect(markup).toContain('12 ')
     expect(markup).toContain('3 ')
     expect(markup).toContain('4 номеров рядов')
     expect(markup).toContain('2 линеек')
-    expect(markup).toContain('5 ')
+    expect(markup).toContain('statusbar-selection has-selection')
+    expect(markup).toContain('Выбрано: <strong>5</strong>')
   })
 })

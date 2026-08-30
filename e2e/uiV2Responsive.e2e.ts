@@ -24,20 +24,13 @@ async function expectNoHorizontalOverflow(locator: Locator) {
   expect(width.scrollWidth).toBeLessThanOrEqual(width.clientWidth + 1)
 }
 
-async function expectMaskedToolbarIcon(locator: Locator) {
+async function expectInlineToolbarIcon(locator: Locator) {
   await expect(locator).toBeVisible()
-  const presentation = await locator.evaluate((element) => {
-    const control = getComputedStyle(element)
-    const icon = getComputedStyle(element, '::before')
-    return {
-      fontSize: control.fontSize,
-      maskImage: icon.maskImage || icon.webkitMaskImage,
-      beforeContent: icon.content,
-    }
-  })
-  expect(presentation.fontSize).toBe('0px')
-  expect(presentation.beforeContent).not.toBe('none')
-  expect(presentation.maskImage).toContain('data:image/svg+xml')
+  await expect(locator.locator('svg').first()).toBeVisible()
+  const box = await locator.boundingBox()
+  expect(box).not.toBeNull()
+  expect(box!.width).toBeLessThanOrEqual(40)
+  expect(box!.height).toBeLessThanOrEqual(34)
 }
 
 test('keeps the full desktop workbench usable at 1440px', async ({ page }) => {
@@ -70,11 +63,11 @@ test('keeps the full desktop workbench usable at 1440px', async ({ page }) => {
 
   const canvasToolbar = page.locator('.canvas-toolbar')
   await expectNoHorizontalOverflow(canvasToolbar)
-  await expectMaskedToolbarIcon(canvasToolbar.getByRole('button', { name: 'Ладонь / перемещение поля', exact: true }))
-  await expectMaskedToolbarIcon(canvasToolbar.getByRole('button', { name: 'Лассо', exact: true }))
-  await expectMaskedToolbarIcon(canvasToolbar.getByRole('button', { name: 'Линейка', exact: true }))
-  await expectMaskedToolbarIcon(canvasToolbar.getByRole('button', { name: 'Вместить всю схему', exact: true }))
-  await expectMaskedToolbarIcon(canvasToolbar.locator('.snap-toggle'))
+  await expectInlineToolbarIcon(canvasToolbar.getByRole('button', { name: 'Ладонь / перемещение поля', exact: true }))
+  await expectInlineToolbarIcon(canvasToolbar.getByRole('button', { name: 'Лассо', exact: true }))
+  await expectInlineToolbarIcon(canvasToolbar.getByRole('button', { name: 'Линейка', exact: true }))
+  await expect(canvasToolbar.getByRole('button', { name: 'Вместить всю схему', exact: true })).toBeVisible()
+  await expect(canvasToolbar.getByRole('button', { name: 'Привязка к направляющим', exact: true })).toBeVisible()
 })
 
 test('preserves canvas and primary chrome at the 900px narrow-desktop gate', async ({ page }) => {
@@ -114,8 +107,8 @@ test('preserves canvas and primary chrome at the 900px narrow-desktop gate', asy
   await expect(canvasToolbar.getByRole('button', { name: 'Ладонь / перемещение поля', exact: true })).toBeHidden()
   await expect(canvasToolbar.getByRole('button', { name: 'Лассо', exact: true })).toBeHidden()
   await expect(canvasToolbar.getByRole('button', { name: 'Линейка', exact: true })).toBeHidden()
-  await expectMaskedToolbarIcon(canvasToolbar.getByRole('button', { name: 'Вместить всю схему', exact: true }))
-  await expectMaskedToolbarIcon(canvasToolbar.locator('.snap-toggle'))
+  await expect(canvasToolbar.getByRole('button', { name: 'Вместить всю схему', exact: true })).toBeVisible()
+  await expect(canvasToolbar.getByRole('button', { name: 'Привязка к направляющим', exact: true })).toBeVisible()
   await expectNoHorizontalOverflow(canvasToolbar)
 
   const toolbarGeometry = await canvasToolbar.boundingBox()
