@@ -25,10 +25,11 @@
 }
 
 .editor-canvas.placing .stitch-element.selected .symbol-glyph {
-  color: #202622;
+  color: var(--ui-text);
 }
 
 .workspace:has(.editor-canvas.placing) .selection-quick-toolbar {
+  visibility: hidden;
   opacity: 0;
   pointer-events: none;
 }
