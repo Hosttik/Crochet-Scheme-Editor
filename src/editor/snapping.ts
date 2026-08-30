@@ -174,7 +174,10 @@ export function solveSnap(
   const placementReference = { x: proposed.x, y: proposed.y }
   const detectionPoint = (candidate: SnapCandidate) =>
     candidate.targetType === 'guide' ? placementReference : sourcePosition
-  const locked = lockedKey
+
+  // Placement previews are independent authoring decisions. Do not let the
+  // previous insertion's hysteresis lock bias the next cursor position.
+  const locked = proposed.id !== '__preview__' && lockedKey
     ? candidates.find((candidate) => candidate.key === lockedKey)
     : undefined
 
