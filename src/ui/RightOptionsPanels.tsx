@@ -67,23 +67,13 @@ export function RightOptionsPanels({
     center: t.center,
     bottom: t.bottom,
   }
+  const groupLabels = locale === 'ru'
+    ? { construction: 'Построение схемы', document: 'Документ и вывод' }
+    : { construction: 'Chart construction', document: 'Document & output' }
 
   return (
     <>
-      <details className="right-panel-collapsible" data-testid="background-global-panel">
-        <summary>{locale === 'ru' ? 'Фоновое изображение' : 'Background image'}</summary>
-        <BackgroundImagePanel locale={locale} {...backgroundPanelProps} />
-      </details>
-
-      <details ref={gaugePanelRef} className="right-panel-collapsible" data-testid="gauge-global-panel">
-        <summary>{locale === 'ru' ? 'Плотность и размер' : 'Gauge & size'}</summary>
-        <GaugeRulerPanel locale={locale} {...gaugePanelProps} />
-      </details>
-
-      <details ref={printPanelRef} className="right-panel-collapsible" data-testid="print-global-panel">
-        <summary>{locale === 'ru' ? 'Печать по страницам' : 'Tiled print'}</summary>
-        <PrintPanel locale={locale} {...printPanelProps} />
-      </details>
+      <div className="right-options-group-label">{groupLabels.construction}</div>
 
       <details ref={snappingPanelRef} className="right-panel-collapsible" data-testid="snapping-global-panel">
         <summary>{t.snapping}</summary>
@@ -140,6 +130,11 @@ export function RightOptionsPanels({
         </section>
       </details>
 
+      <details ref={gaugePanelRef} className="right-panel-collapsible" data-testid="gauge-global-panel">
+        <summary>{locale === 'ru' ? 'Плотность и размер' : 'Gauge & size'}</summary>
+        <GaugeRulerPanel locale={locale} {...gaugePanelProps} />
+      </details>
+
       <details ref={patternRowsPanelRef} className="right-panel-collapsible" data-testid="pattern-rows-global-panel">
         <summary>{locale === 'ru' ? 'Ряды узора' : 'Pattern rows'}</summary>
         <section className="panel-section">
@@ -154,9 +149,21 @@ export function RightOptionsPanels({
         </section>
       </details>
 
+      <div className="right-options-group-label">{groupLabels.document}</div>
+
+      <details className="right-panel-collapsible" data-testid="background-global-panel">
+        <summary>{locale === 'ru' ? 'Фоновое изображение' : 'Background image'}</summary>
+        <BackgroundImagePanel locale={locale} {...backgroundPanelProps} />
+      </details>
+
       <details ref={legendPanelRef} className="right-panel-collapsible" data-testid="legend-global-panel">
         <summary>{locale === 'ru' ? 'Легенда и холст' : 'Legend & canvas'}</summary>
         <LegendPanel locale={locale} {...legendPanelProps} />
+      </details>
+
+      <details ref={printPanelRef} className="right-panel-collapsible" data-testid="print-global-panel">
+        <summary>{locale === 'ru' ? 'Печать по страницам' : 'Tiled print'}</summary>
+        <PrintPanel locale={locale} {...printPanelProps} />
       </details>
 
       <details ref={helpPanelRef} className="right-panel-collapsible help-section" data-testid="help-global-panel">
