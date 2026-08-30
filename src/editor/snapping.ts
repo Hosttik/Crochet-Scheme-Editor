@@ -13,6 +13,7 @@ import { isPathGuide, nearestPathParameter, pathPoseAt } from './pathGuides'
 import { stitchLocalAnchor } from './stitchGeometry'
 
 export const RELEASE_TOLERANCE_PX = 18
+export const GUIDE_ACQUIRE_TOLERANCE_PX = 18
 
 const CENTER_ON_GUIDE_SYMBOL_IDS = new Set(['chain', 'slip', 'magic-ring'])
 
@@ -151,10 +152,13 @@ export function solveSnap(
     x: proposed.x,
     y: proposed.y,
   })
-  const candidates = [
-    ...elementCandidates,
+  const guideCandidates = [
     ...discreteGuideCandidates,
     ...continuousGuideCandidates,
+  ]
+  const candidates = [
+    ...elementCandidates,
+    ...guideCandidates,
   ]
 
   if (!candidates.length) {
@@ -170,7 +174,10 @@ export function solveSnap(
   const placementReference = { x: proposed.x, y: proposed.y }
   const detectionPoint = (candidate: SnapCandidate) =>
     candidate.targetType === 'guide' ? placementReference : sourcePosition
-  const locked = lockedKey
+
+  // Placement previews are independent authoring decisions. Do not let the
+  // previous insertion's hysteresis lock bias the next cursor position.
+  const locked = proposed.id !== '__preview__' && lockedKey
     ? candidates.find((candidate) => candidate.key === lockedKey)
     : undefined
 
@@ -182,14 +189,25 @@ export function solveSnap(
   ) {
     winner = locked
   } else {
-    let bestDistance = Number.POSITIVE_INFINITY
-    for (const candidate of candidates) {
-      const distancePx = distance(detectionPoint(candidate), candidate.point) * viewport.zoom
-      if (distancePx <= settings.tolerancePx && distancePx < bestDistance) {
-        bestDistance = distancePx
-        winner = candidate
+    const nearestWithin = (pool: SnapCandidate[], tolerancePx: number) => {
+      let best: SnapCandidate | undefined
+      let bestDistance = Number.POSITIVE_INFINITY
+      for (const candidate of pool) {
+        const distancePx = distance(detectionPoint(candidate), candidate.point) * viewport.zoom
+        if (distancePx <= tolerancePx && distancePx < bestDistance) {
+          bestDistance = distancePx
+          best = candidate
+        }
       }
+      return best
     }
+
+    // Authoring crochet rows is guide-first: once the pointer is inside a guide's
+    // acquisition corridor, an existing stitch anchor must not steal the snap.
+    winner = nearestWithin(
+      guideCandidates,
+      Math.max(settings.tolerancePx, GUIDE_ACQUIRE_TOLERANCE_PX),
+    ) ?? nearestWithin(elementCandidates, settings.tolerancePx)
   }
 
   if (!winner) {

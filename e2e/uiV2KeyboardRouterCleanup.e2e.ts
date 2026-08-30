@@ -50,6 +50,7 @@ test('canonical tool and application shortcut routers keep the editor behavior i
   expect(box).not.toBeNull()
   await page.mouse.click(box!.x + box!.width * 0.5, box!.y + box!.height * 0.5)
   await expect(page.locator('.stitch-element')).toHaveCount(1)
+  await page.keyboard.press('Escape')
 
   await page.keyboard.press('Control+d')
   await expect(page.locator('.stitch-element')).toHaveCount(2)

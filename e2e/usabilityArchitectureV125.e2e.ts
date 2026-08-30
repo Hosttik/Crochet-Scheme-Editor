@@ -16,6 +16,7 @@ async function placeAt(page: Page, title: string, rx: number, ry: number) {
   await page.locator(`.symbols-section .symbol-button[title^="${title} ·"]`).click()
   const box = await canvasBox(page)
   await page.mouse.click(box.x + box.width * rx, box.y + box.height * ry)
+  await page.keyboard.press('Escape')
 }
 
 async function openGlobalPanel(page: Page, testId: string) {
@@ -155,5 +156,5 @@ test('keeps responsive chrome contained and exposes clear project actions', asyn
 
   const settings = page.locator('.topbar-autosave-menu')
   await settings.locator('summary').click()
-  await expect(settings.locator('.topbar-version')).toHaveText('v1.26.4')
+  await expect(settings.locator('.topbar-version')).toHaveText('v1.26.5')
 })

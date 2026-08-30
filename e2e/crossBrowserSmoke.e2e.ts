@@ -21,6 +21,7 @@ test('core editor interactions survive browser engine differences', async ({ pag
 
   const stitch = page.locator('.stitch-element').first()
   await expect(stitch).toHaveCount(1)
+  await page.keyboard.press('Escape')
   await stitch.click()
   await expect(stitch).toHaveClass(/selected/)
 

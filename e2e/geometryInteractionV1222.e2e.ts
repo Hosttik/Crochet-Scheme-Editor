@@ -16,6 +16,7 @@ async function placeAt(page: Page, title: string, rx: number, ry: number) {
   await page.locator(`.symbols-section .symbol-button[title^="${title} · "]`).click()
   const box = await canvasBox(page)
   await page.mouse.click(box.x + box.width * rx, box.y + box.height * ry)
+  await page.keyboard.press('Escape')
 }
 
 function intersects(
@@ -56,6 +57,7 @@ test('temporary multi-selection has one frame and a live repeat preview', async 
   await expect(page.locator('.group-selection-box')).toHaveCount(1)
   await expect(page.locator('.stitch-element.selected .selection-box')).toHaveCount(0)
 
+  await page.keyboard.press('Escape')
   await page.locator('.selection-quick-toolbar').getByRole('button', { name: 'Разгруппировать' }).click()
   await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
   await expect(page.locator('.productivity-repeat-preview-stitch')).not.toHaveCount(0)

@@ -192,6 +192,30 @@ describe('solveSnap', () => {
     expect(anchorWorldPosition(snappedElement, 'bottom').y).toBeCloseTo(100, 2)
   })
 
+  it('uses a wider acquisition corridor for guides than for stitch anchors', () => {
+    const moving = proposed({ x: 73, y: 117 })
+    const result = solveSnap(moving, [], [line], settings, viewport, null)
+
+    expect(result.candidate?.targetType).toBe('guide')
+    expect(result.candidate?.targetId).toBe('line-1')
+  })
+
+  it('prefers a guide inside its acquisition corridor over a competing stitch anchor', () => {
+    const moving = proposed({ x: 100, y: 84 })
+    const result = solveSnap(moving, [target], [line], settings, viewport, null)
+
+    expect(result.candidate?.targetType).toBe('guide')
+    expect(result.candidate?.targetId).toBe('line-1')
+  })
+
+  it('does not reuse a stale snap lock for a placement preview', () => {
+    const moving = proposed({ id: '__preview__', x: 100, y: 84 })
+    const result = solveSnap(moving, [target], [line], settings, viewport, 'target:center')
+
+    expect(result.candidate?.targetType).toBe('guide')
+    expect(result.candidate?.targetId).toBe('line-1')
+  })
+
   it.each(['chain', 'slip', 'magic-ring'])('centers %s on a guide instead of shifting it by the bottom anchor', (symbolId) => {
     const moving = proposed({ symbolId, x: 73, y: 100 })
     const result = solveSnap(moving, [], [line], settings, viewport, null)
