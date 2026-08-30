@@ -51,9 +51,12 @@ test('free-form lasso replaces, adds and subtracts semantic selections', async (
   await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
   await page.locator('.productivity-panel').getByRole('button', { name: 'Группировать', exact: true }).click()
 
-  const lassoButton = page.locator('.left-sidebar .tool-button').filter({ hasText: 'Лассо' })
-  await lassoButton.click()
-  await expect(lassoButton).toHaveClass(/active/)
+  const rail = page.getByRole('navigation', { name: 'Инструменты' })
+  const selectionTrigger = rail.getByRole('button', { name: 'Выделение', exact: true })
+  await selectionTrigger.click()
+  const selectionMenu = page.getByRole('menu', { name: 'Выделение', exact: true })
+  await selectionMenu.getByRole('menuitemradio', { name: 'Лассо', exact: true }).click()
+  await expect(selectionTrigger).toHaveClass(/active/)
   await expect(page.locator('svg.editor-canvas')).toHaveClass(/lassoing/)
 
   await drawLassoAroundCenter(page, stitches.nth(0))
