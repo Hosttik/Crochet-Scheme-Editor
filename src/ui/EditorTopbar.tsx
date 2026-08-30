@@ -4,6 +4,7 @@ import type { Locale } from '../i18n'
 import { dispatchApplicationCommand } from './applicationCommands'
 import { openCommandPalette } from './CommandPalette'
 import { EditorIcon } from './icons'
+import { EXPAND_ELEMENT_LIBRARY_EVENT } from './workbenchEvents'
 
 export type TopbarAutosaveState = 'loading' | 'saving' | 'saved' | 'error' | 'off'
 
@@ -182,11 +183,18 @@ export function EditorTopbar({
     document.documentElement.dataset.canvasGrid = next ? 'on' : 'off'
   }
 
+  const expandLibrary = () => {
+    window.dispatchEvent(new CustomEvent(EXPAND_ELEMENT_LIBRARY_EVENT))
+  }
+
   const focusLibrary = () => {
     const shell = document.querySelector('.app-shell')
     if (shell?.classList.contains('left-collapsed')) dispatchApplicationCommand('view.toggleLeft')
+    expandLibrary()
     requestAnimationFrame(() => {
-      document.querySelector<HTMLInputElement>('.element-library input[type="search"]')?.focus()
+      requestAnimationFrame(() => {
+        document.querySelector<HTMLInputElement>('.element-library input[type="search"]')?.focus()
+      })
     })
   }
 
@@ -308,7 +316,10 @@ export function EditorTopbar({
         onClick={() => {
           const shell = document.querySelector('.app-shell')
           if (shell?.classList.contains('left-collapsed')) dispatchApplicationCommand('view.toggleLeft')
-          requestAnimationFrame(() => document.querySelector('.favorites-group')?.scrollIntoView({ block: 'nearest' }))
+          expandLibrary()
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => document.querySelector('.favorites-group')?.scrollIntoView({ block: 'nearest' }))
+          })
         }}
       >
         <EditorIcon name="star" size={14} fill="currentColor" />
