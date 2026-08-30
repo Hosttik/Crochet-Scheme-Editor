@@ -16,6 +16,7 @@ import './ui/workbench-v2.css'
 import './ui/workbench-structure.css'
 import './ui/canvasToolbarV2.css'
 import './ui/chromePolish.css'
+import './ui/editorTopbar.css'
 
 const rootElement = document.getElementById('root')!
 rootElement.style.setProperty('--app-version-label', `"v${packageJson.version}"`)
