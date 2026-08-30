@@ -1,8 +1,12 @@
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
+import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 import { DEFAULT_LOCALE, type Locale } from '../i18n'
 import { AppMenuBar } from './AppMenuBar'
 import { ApplicationCommandShortcuts } from './ApplicationCommandShortcuts'
-import type { ApplicationCommandRegistry } from './applicationCommands'
+import {
+  APPLICATION_COMMAND_EVENT,
+  type ApplicationCommandId,
+  type ApplicationCommandRegistry,
+} from './applicationCommands'
 import { CommandPalette } from './CommandPalette'
 import './editor-shell.css'
 
@@ -22,6 +26,19 @@ function containUiKeyboardEvent(event: ReactKeyboardEvent<HTMLDivElement>) {
 
 export function EditorShell({ children, locale, commandRegistry }: EditorShellProps) {
   const resolvedLocale = locale ?? DEFAULT_LOCALE
+  const registryRef = useRef(commandRegistry)
+  registryRef.current = commandRegistry
+
+  useEffect(() => {
+    const runCommand = (event: Event) => {
+      const command = (event as CustomEvent<ApplicationCommandId>).detail
+      if (!command) return
+      void registryRef.current.execute(command)
+    }
+
+    window.addEventListener(APPLICATION_COMMAND_EVENT, runCommand)
+    return () => window.removeEventListener(APPLICATION_COMMAND_EVENT, runCommand)
+  }, [])
 
   return (
     <div className="editor-root-v2" onKeyDown={containUiKeyboardEvent}>
