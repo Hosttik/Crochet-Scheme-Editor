@@ -13,7 +13,7 @@ async function autosaveControl(page: Page) {
   if (!(await menu.evaluate((element) => (element as HTMLDetailsElement).open))) {
     await menu.locator('summary').click()
   }
-  return page.getByLabel('Автосохранение')
+  return menu.getByRole('combobox', { name: 'Автосохранение', exact: true })
 }
 
 test('persists autosave intervals immediately, supports off and resumes the fast delay', async ({ page }) => {
