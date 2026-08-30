@@ -536,17 +536,13 @@
 }
 
 .right-options-group-label {
-  position: sticky;
-  top: 0;
-  z-index: 3;
   padding: 7px 12px 6px;
   border-bottom: 1px solid var(--ui-border);
-  background: color-mix(in srgb, var(--ui-surface) 96%, transparent);
+  background: var(--ui-surface-subtle);
   color: var(--ui-text-faint);
   font-size: 9px;
   font-weight: 650;
   letter-spacing: .035em;
-  backdrop-filter: blur(8px);
 }
 
 @media (max-width: 1080px) {
