@@ -128,6 +128,16 @@ export function EditorTopbar({
   }, [autosaveState])
 
   useEffect(() => {
+    const onCommandSearchShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== 'f') return
+      event.preventDefault()
+      openCommandPalette()
+    }
+    window.addEventListener('keydown', onCommandSearchShortcut)
+    return () => window.removeEventListener('keydown', onCommandSearchShortcut)
+  }, [])
+
+  useEffect(() => {
     const canvasContent = document.querySelector<SVGGElement>('svg.editor-canvas > g[transform*="scale("]')
     if (!canvasContent) return
     const update = () => setZoomPercent(visibleZoomPercent())
