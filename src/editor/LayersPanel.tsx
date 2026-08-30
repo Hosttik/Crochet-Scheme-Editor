@@ -183,7 +183,6 @@ export function LayersPanel({
       <div className="layers-content">
         <div className="layers-sticky-tools">
           <label className="layers-search-field">
-            <span className="sr-only">{copy.search}</span>
             <input
               type="search"
               value={query}
