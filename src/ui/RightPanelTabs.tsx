@@ -25,6 +25,7 @@ export function RightPanelTabs({
 
   const moveFocus = (event: KeyboardEvent<HTMLButtonElement>, direction: -1 | 1) => {
     event.preventDefault()
+    event.stopPropagation()
     const index = tabs.findIndex((tab) => tab.id === activeTab)
     const next = tabs[(index + direction + tabs.length) % tabs.length]
     onChange(next.id)
@@ -53,11 +54,13 @@ export function RightPanelTabs({
               if (event.key === 'ArrowLeft') moveFocus(event, -1)
               if (event.key === 'Home') {
                 event.preventDefault()
+                event.stopPropagation()
                 onChange('options')
                 requestAnimationFrame(() => document.getElementById('ui-v2-right-tab-options')?.focus())
               }
               if (event.key === 'End') {
                 event.preventDefault()
+                event.stopPropagation()
                 onChange('layers')
                 requestAnimationFrame(() => document.getElementById('ui-v2-right-tab-layers')?.focus())
               }

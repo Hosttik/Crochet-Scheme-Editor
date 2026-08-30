@@ -80,7 +80,11 @@ function commandOptionId(id: ApplicationCommandId) {
 
 function initialLocale(): Locale {
   if (typeof window === 'undefined') return 'ru'
-  return window.localStorage.getItem(LOCALE_STORAGE_KEY) === 'en' ? 'en' : 'ru'
+  try {
+    return window.localStorage.getItem(LOCALE_STORAGE_KEY) === 'en' ? 'en' : 'ru'
+  } catch {
+    return 'ru'
+  }
 }
 
 export function CommandPalette({
@@ -150,9 +154,6 @@ export function CommandPalette({
         event.preventDefault()
         if (open) close()
         else show()
-      } else if (open && event.key === 'Escape') {
-        event.preventDefault()
-        close()
       }
     }
     const onLanguageClick = (event: MouseEvent) => {
@@ -195,7 +196,11 @@ export function CommandPalette({
   }
 
   const onInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Tab') {
+    event.stopPropagation()
+    if (event.key === 'Escape' || ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k')) {
+      event.preventDefault()
+      close()
+    } else if (event.key === 'Tab') {
       event.preventDefault()
       inputRef.current?.focus()
     } else if (event.key === 'ArrowDown') {
@@ -223,6 +228,7 @@ export function CommandPalette({
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) close()
       }}
+      onKeyDown={(event) => event.stopPropagation()}
     >
       <section
         className="command-palette"

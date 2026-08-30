@@ -76,10 +76,10 @@ export function EditorTopbar({
         <span className="toolbar-separator" />
         <button className="ghost-button" onClick={onUndo} disabled={!canUndo}>{t.undo}</button>
         <button className="ghost-button" onClick={onRedo} disabled={!canRedo}>{t.redo}</button>
-        <span className="toolbar-separator" />
-        <button className="ghost-button" onClick={onSaveProject}>{t.saveJson}</button>
-        <button className="ghost-button" onClick={onOpenProject}>{t.load}</button>
-        <button className="primary-button" onClick={onExportSvg}>{t.exportSvg}</button>
+        <span className="toolbar-separator topbar-file-separator" />
+        <button className="ghost-button topbar-file-action" onClick={onSaveProject}>{t.saveJson}</button>
+        <button className="ghost-button topbar-file-action" onClick={onOpenProject}>{t.load}</button>
+        <button className="primary-button topbar-file-action" onClick={onExportSvg}>{t.exportSvg}</button>
         <input
           ref={loadInputRef}
           type="file"

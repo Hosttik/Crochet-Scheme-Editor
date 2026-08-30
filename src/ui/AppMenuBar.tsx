@@ -108,7 +108,11 @@ const COPY: Record<Locale, {
 
 function initialLocale(): Locale {
   if (typeof window === 'undefined') return 'ru'
-  return window.localStorage.getItem(LOCALE_STORAGE_KEY) === 'en' ? 'en' : 'ru'
+  try {
+    return window.localStorage.getItem(LOCALE_STORAGE_KEY) === 'en' ? 'en' : 'ru'
+  } catch {
+    return 'ru'
+  }
 }
 
 function ariaKeyShortcuts(command?: ApplicationCommandId) {
@@ -149,9 +153,6 @@ export function AppMenuBar({
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpenMenu(null)
     }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpenMenu(null)
-    }
     const onClick = (event: MouseEvent) => {
       if (localeControlled) return
       const button = (event.target as Element | null)?.closest<HTMLButtonElement>('.language-switch button')
@@ -160,11 +161,9 @@ export function AppMenuBar({
       if (button.textContent?.trim() === 'RU') setLegacyLocale('ru')
     }
     window.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('keydown', onKeyDown)
     document.addEventListener('click', onClick, true)
     return () => {
       window.removeEventListener('pointerdown', onPointerDown)
-      window.removeEventListener('keydown', onKeyDown)
       document.removeEventListener('click', onClick, true)
     }
   }, [localeControlled])
@@ -203,22 +202,29 @@ export function AppMenuBar({
   const onTriggerKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, key: MenuKey) => {
     if (event.key === 'ArrowRight') {
       event.preventDefault()
+      event.stopPropagation()
       moveMenu(key, 1, Boolean(openMenu))
     } else if (event.key === 'ArrowLeft') {
       event.preventDefault()
+      event.stopPropagation()
       moveMenu(key, -1, Boolean(openMenu))
     } else if (event.key === 'Home') {
       event.preventDefault()
+      event.stopPropagation()
       focusTrigger(MENU_KEYS[0])
     } else if (event.key === 'End') {
       event.preventDefault()
+      event.stopPropagation()
       focusTrigger(MENU_KEYS[MENU_KEYS.length - 1])
     } else if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
+      event.stopPropagation()
       setFocusedMenu(key)
       setOpenMenu(key)
       focusMenuItem(key, 0)
-    } else if (event.key === 'Escape') {
+    } else if (event.key === 'Escape' && openMenu) {
+      event.preventDefault()
+      event.stopPropagation()
       setOpenMenu(null)
     }
   }
@@ -229,6 +235,7 @@ export function AppMenuBar({
     itemIndex: number,
     itemCount: number,
   ) => {
+    if (!event.metaKey && !event.ctrlKey && !event.altKey) event.stopPropagation()
     if (event.key === 'ArrowDown') {
       event.preventDefault()
       focusMenuItem(key, (itemIndex + 1) % itemCount)

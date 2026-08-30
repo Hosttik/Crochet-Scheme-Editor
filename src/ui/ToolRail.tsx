@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Locale } from '../i18n'
 import type { Guide } from '../types'
 import { EditorIcon, type EditorIconName } from './icons'
@@ -77,19 +77,10 @@ function GuideFlyout({
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
     }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        setOpen(false)
-        triggerRef.current?.focus()
-      }
-    }
     window.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('keydown', onKeyDown)
     return () => {
       window.clearTimeout(focusTimer)
       window.removeEventListener('pointerdown', onPointerDown)
-      window.removeEventListener('keydown', onKeyDown)
     }
   }, [open])
 
@@ -127,7 +118,8 @@ function GuideFlyout({
     itemRefs.current[normalized]?.focus()
   }
 
-  const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!event.metaKey && !event.ctrlKey && !event.altKey) event.stopPropagation()
     const currentIndex = itemRefs.current.findIndex((item) => item === document.activeElement)
     if (event.key === 'ArrowDown') {
       event.preventDefault()
@@ -141,6 +133,10 @@ function GuideFlyout({
     } else if (event.key === 'End') {
       event.preventDefault()
       focusItem(items.length - 1)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      setOpen(false)
+      triggerRef.current?.focus()
     } else if (event.key === 'Tab') {
       setOpen(false)
     }
@@ -161,7 +157,12 @@ function GuideFlyout({
         onKeyDown={(event) => {
           if (event.key === 'ArrowDown' && !open) {
             event.preventDefault()
+            event.stopPropagation()
             setOpen(true)
+          } else if (event.key === 'Escape' && open) {
+            event.preventDefault()
+            event.stopPropagation()
+            setOpen(false)
           }
         }}
       >
