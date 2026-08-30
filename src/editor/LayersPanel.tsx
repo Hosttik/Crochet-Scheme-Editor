@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { SYMBOL_BY_ID, SymbolGlyph } from '../symbols'
 import { UI, symbolName, type Locale } from '../i18n'
 import type { StitchElement } from '../types'
@@ -33,6 +34,11 @@ function clusterElements(elements: StitchElement[], locale: Locale): LayerCluste
   return order.map((key) => clusters.get(key)!)
 }
 
+function elementLabel(element: StitchElement, locale: Locale) {
+  const definition = SYMBOL_BY_ID.get(element.symbolId)
+  return symbolName(element.symbolId, definition?.name ?? element.symbolId, locale)
+}
+
 export function LayersPanel({
   elements,
   selectedIds,
@@ -57,15 +63,44 @@ export function LayersPanel({
   onSendToBack: () => void
 }) {
   const t = UI[locale]
+  const [query, setQuery] = useState('')
   const selected = new Set(selectedIds)
   const canReorder = elements.some((element) => selected.has(element.id) && !isElementLocked(element))
-  const clusters = clusterElements(elements, locale)
+  const clusters = useMemo(() => clusterElements(elements, locale), [elements, locale])
+  const normalizedQuery = query.trim().toLocaleLowerCase(locale === 'ru' ? 'ru-RU' : 'en-US')
+  const filteredClusters = useMemo(() => {
+    if (!normalizedQuery) return clusters
+    return clusters.flatMap((cluster) => {
+      const clusterMatches = cluster.label.toLocaleLowerCase(locale === 'ru' ? 'ru-RU' : 'en-US').includes(normalizedQuery)
+      const matchingElements = clusterMatches
+        ? cluster.elements
+        : cluster.elements.filter((element) =>
+            elementLabel(element, locale)
+              .toLocaleLowerCase(locale === 'ru' ? 'ru-RU' : 'en-US')
+              .includes(normalizedQuery),
+          )
+      return matchingElements.length ? [{ ...cluster, elements: matchingElements }] : []
+    })
+  }, [clusters, locale, normalizedQuery])
+  const filteredCount = filteredClusters.reduce((count, cluster) => count + cluster.elements.length, 0)
+  const copy = locale === 'ru'
+    ? {
+        search: 'Поиск слоев',
+        noMatches: 'Нет слоев, подходящих под поиск',
+        found: 'Показано',
+        selected: 'Выбрано',
+      }
+    : {
+        search: 'Search layers',
+        noMatches: 'No layers match the search',
+        found: 'Showing',
+        selected: 'Selected',
+      }
 
   const renderElement = (element: StitchElement, compact = false) => {
     const visible = isElementVisible(element)
     const locked = isElementLocked(element)
-    const definition = SYMBOL_BY_ID.get(element.symbolId)
-    const label = symbolName(element.symbolId, definition?.name ?? element.symbolId, locale)
+    const label = elementLabel(element, locale)
     const zIndex = elements.indexOf(element) + 1
     const geometry = resolvedStitchGeometry(element)
     const visualSize = stitchVisualSize(element)
@@ -94,7 +129,8 @@ export function LayersPanel({
           className="layer-main-button"
           title={selectTitle}
           aria-label={selectTitle}
-          onClick={(event) => onSelect(element.id, event.shiftKey)}
+          aria-pressed={selected.has(element.id)}
+          onClick={(event) => onSelect(element.id, event.shiftKey || event.metaKey || event.ctrlKey)}
         >
           <svg viewBox="-24 -34 48 68" aria-hidden="true">
             <g
@@ -121,7 +157,7 @@ export function LayersPanel({
       <details
         key={cluster.key}
         className={`layer-cluster ${hasSelection ? 'selected' : ''}`}
-        open={hasSelection || undefined}
+        open={hasSelection || Boolean(normalizedQuery) || undefined}
       >
         <summary>
           <span className="layer-cluster-icon" aria-hidden="true">
@@ -145,18 +181,36 @@ export function LayersPanel({
       </summary>
 
       <div className="layers-content">
-        <div className="layer-order-controls" aria-label={t.layerOrder}>
-          <IconButton icon="bringToFront" label={t.toFront} disabled={!canReorder} onClick={onBringToFront} />
-          <IconButton icon="bringForward" label={t.forward} disabled={!canReorder} onClick={onBringForward} />
-          <IconButton icon="sendBackward" label={t.backward} disabled={!canReorder} onClick={onSendBackward} />
-          <IconButton icon="sendToBack" label={t.toBack} disabled={!canReorder} onClick={onSendToBack} />
+        <div className="layers-sticky-tools">
+          <label className="layers-search-field">
+            <span className="sr-only">{copy.search}</span>
+            <input
+              type="search"
+              value={query}
+              placeholder={copy.search}
+              aria-label={copy.search}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <div className="layers-meta" aria-live="polite">
+            <span>{copy.found}: {filteredCount}/{elements.length}</span>
+            {selectedIds.length > 0 && <span>{copy.selected}: {selectedIds.length}</span>}
+          </div>
+          <div className="layer-order-controls" aria-label={t.layerOrder}>
+            <IconButton icon="bringToFront" label={t.toFront} disabled={!canReorder} onClick={onBringToFront} />
+            <IconButton icon="bringForward" label={t.forward} disabled={!canReorder} onClick={onBringForward} />
+            <IconButton icon="sendBackward" label={t.backward} disabled={!canReorder} onClick={onSendBackward} />
+            <IconButton icon="sendToBack" label={t.toBack} disabled={!canReorder} onClick={onSendToBack} />
+          </div>
         </div>
 
         {!elements.length ? (
           <p className="empty-state">{t.noLayers}</p>
+        ) : !filteredCount ? (
+          <p className="empty-state">{copy.noMatches}</p>
         ) : (
           <div className="layers-list semantic-layers-list">
-            {clusters.map(renderCluster)}
+            {filteredClusters.map(renderCluster)}
           </div>
         )}
       </div>
