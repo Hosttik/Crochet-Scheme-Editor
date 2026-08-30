@@ -268,7 +268,7 @@
 
 @media (max-width: 1180px) {
   .workspace .canvas-toolbar {
-    max-width: calc(100% - 72px);
+    max-width: calc(100% - 32px);
   }
 
   .workspace .canvas-toolbar .canvas-hint {
@@ -281,24 +281,47 @@
   }
 }
 
-@media (max-width: 920px) {
-  .workspace .canvas-toolbar {
-    right: 44px;
-    left: 44px;
-    max-width: none;
-    transform: none;
-    justify-content: center;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-  }
-
-  .workspace .canvas-toolbar::-webkit-scrollbar {
+@media (max-width: 1080px) {
+  .canvas-toolbar-modes {
     display: none;
   }
 
+  .canvas-toolbar-modes + .canvas-toolbar-separator {
+    display: none;
+  }
+
+  .workspace .canvas-toolbar button {
+    min-width: 28px;
+    padding-inline: 5px;
+  }
+
+  .workspace .canvas-toolbar .zoom-readout {
+    min-width: 46px;
+  }
+
+  .canvas-toolbar-fit .fit-button {
+    padding-inline: 6px;
+  }
+
+  .workspace .canvas-toolbar .snap-toggle {
+    min-width: 72px;
+  }
+
   .workspace .canvas-toolbar .canvas-orientation-select {
-    min-width: 88px;
+    min-width: 82px;
+    padding-left: 6px;
+    padding-right: 20px;
+  }
+}
+
+@media (max-width: 920px) {
+  .workspace .canvas-toolbar {
+    right: 8px;
+    left: 8px;
+    max-width: none;
+    transform: none;
+    justify-content: center;
+    overflow: hidden;
   }
 
   .workspace .statusbar {
@@ -313,6 +336,13 @@
 @media (max-width: 720px) {
   .workspace .canvas-toolbar {
     justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .workspace .canvas-toolbar::-webkit-scrollbar {
+    display: none;
   }
 
   .canvas-toolbar-fit .fit-button {
