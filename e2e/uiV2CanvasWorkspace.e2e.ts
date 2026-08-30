@@ -43,7 +43,7 @@ test('keeps canvas navigation compact, semantic and directly usable', async ({ p
   await expect(hand).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('svg.editor-canvas')).toHaveClass(/pan-tool/)
 
-  const snap = toolbar.getByRole('button', { name: /Привязка/ })
+  const snap = toolbar.getByRole('button', { name: 'Привязка к направляющим', exact: true })
   await expect(snap).toHaveAttribute('aria-pressed', 'true')
   await snap.click()
   await expect(snap).toHaveAttribute('aria-pressed', 'false')
@@ -52,16 +52,22 @@ test('keeps canvas navigation compact, semantic and directly usable', async ({ p
   await expect(toolbar.getByLabel('Ориентация при привязке')).toBeEnabled()
 })
 
-test('reserves a real footer strip instead of covering the editable canvas', async ({ page }) => {
+test('uses a dedicated footer surface without changing canvas interaction geometry', async ({ page }) => {
   await openEditor(page)
 
-  const canvas = page.locator('svg.editor-canvas')
+  const workspaceRect = await page.locator('.workspace').boundingBox()
+  const canvasRect = await page.locator('svg.editor-canvas').boundingBox()
   const statusbar = page.getByTestId('canvas-statusbar')
-  const canvasRect = await canvas.boundingBox()
   const statusRect = await statusbar.boundingBox()
+  expect(workspaceRect).not.toBeNull()
   expect(canvasRect).not.toBeNull()
   expect(statusRect).not.toBeNull()
-  expect(canvasRect!.y + canvasRect!.height).toBeLessThanOrEqual(statusRect!.y + 1)
+
+  expect(Math.abs((canvasRect!.y + canvasRect!.height) - (workspaceRect!.y + workspaceRect!.height))).toBeLessThanOrEqual(1)
+  expect(Math.abs((statusRect!.y + statusRect!.height) - (workspaceRect!.y + workspaceRect!.height))).toBeLessThanOrEqual(1)
+  expect(Math.abs(statusRect!.width - workspaceRect!.width)).toBeLessThanOrEqual(1)
+  expect(statusRect!.height).toBeGreaterThanOrEqual(28)
+  expect(statusRect!.height).toBeLessThanOrEqual(32)
   await expect(statusbar).toContainText('Выбрано: 0')
 
   await placeSingleCrochetStitch(page)
