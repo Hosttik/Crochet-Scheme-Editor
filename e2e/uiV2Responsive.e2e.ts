@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
-  await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
@@ -59,7 +59,9 @@ test('keeps the full desktop workbench usable at 1440px', async ({ page }) => {
   await expectInsideViewport(page, page.locator('.topbar'))
   await expectInsideViewport(page, page.locator('.canvas-toolbar'))
   await expectInsideViewport(page, page.locator('.right-sidebar'))
-  await expect(page.locator('.topbar .primary-button')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Сохранить', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Поиск по функциям', exact: true })).toBeVisible()
+  await expect(page.locator('.topbar-add-favorite')).toBeVisible()
 
   await expectNoHorizontalOverflow(page.locator('.editor-root-v2'))
   await expectNoHorizontalOverflow(page.locator('.topbar'))
@@ -87,7 +89,7 @@ test('preserves canvas and primary chrome at the 900px narrow-desktop gate', asy
   await openEditor(page)
 
   await expect(page.locator('.ui-v2-favorites-host')).toBeHidden()
-  await expect(page.locator('.brand strong')).toContainText('Редактор схем вязания')
+  await expect(page.getByRole('button', { name: 'Новый', exact: true })).toBeVisible()
   await expect(page.getByRole('menubar', { name: 'Меню приложения' })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Инструменты' })).toBeVisible()
   await expect(page.getByRole('tablist', { name: 'Правая панель' })).toBeVisible()
@@ -120,9 +122,9 @@ test('preserves canvas and primary chrome at the 900px narrow-desktop gate', asy
   expect(toolbarGeometry).not.toBeNull()
   expect(toolbarGeometry!.height).toBeLessThanOrEqual(40)
 
-  // Duplicate file actions collapse out of the narrow command bar, but the
-  // canonical application-menu command remains immediately accessible.
-  await expect(page.locator('.topbar .primary-button')).toBeHidden()
+  // At the narrow gate the command bar collapses labels and quick favorites,
+  // while the full File menu remains available.
+  await expect(page.locator('.topbar-file-group')).toBeVisible()
   await page.getByRole('menuitem', { name: 'Файл', exact: true }).click()
   await expect(page.getByRole('menuitem', { name: 'Экспорт SVG…', exact: true })).toBeVisible()
 })

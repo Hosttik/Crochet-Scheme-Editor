@@ -3,7 +3,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 async function openEditor(page: Page, width: number) {
   await page.setViewportSize({ width, height: 900 })
   await page.goto('/Crochet-Scheme-Editor/')
-  await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
 }
 
 async function expectNoHorizontalOverflow(locator: Locator) {

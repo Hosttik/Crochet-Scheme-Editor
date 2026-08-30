@@ -6,9 +6,11 @@ export type EditorIconName =
   | 'marquee'
   | 'lasso'
   | 'guide'
+  | 'grid'
   | 'ruler'
   | 'undo'
   | 'redo'
+  | 'newFile'
   | 'save'
   | 'open'
   | 'export'
@@ -47,9 +49,11 @@ const paths: Record<EditorIconName, ReactNode> = {
   marquee: <rect x="4" y="4" width="16" height="16" rx="2" strokeDasharray="3 3" />,
   lasso: <path d="M19 9c0 3.3-3.6 6-8 6s-8-2.7-8-6 3.6-6 8-6 8 2.7 8 6zm-5 5c0 4.5 6 2.5 6 5 0 1.1-1.1 2-2.5 2" />,
   guide: <><path d="M4 18L18 4" /><circle cx="7" cy="15" r="2" /><circle cx="15" cy="7" r="2" /></>,
+  grid: <><rect x="4" y="4" width="16" height="16" rx="1.5" /><path d="M9.3 4v16M14.7 4v16M4 9.3h16M4 14.7h16" /></>,
   ruler: <><path d="M4 17L17 4l3 3L7 20l-3-3z" /><path d="M12 7l2 2M9 10l2 2M6 13l2 2" /></>,
   undo: <><path d="M9 7H4v-5" /><path d="M4 7c2.2-2.5 5-3.7 8-3.2 4.5.7 7.7 5 6.5 9.5-1.2 4.3-5.9 6.8-10 5" /></>,
   redo: <><path d="M15 7h5V2" /><path d="M20 7c-2.2-2.5-5-3.7-8-3.2-4.5.7-7.7 5-6.5 9.5 1.2 4.3 5.9 6.8 10 5" /></>,
+  newFile: <><path d="M6 3h8l4 4v14H6V3z" /><path d="M14 3v5h5M9 14h6M12 11v6" /></>,
   save: <><path d="M5 3h12l2 2v16H5V3z" /><path d="M8 3v6h8V3M8 21v-7h8v7" /></>,
   open: <><path d="M3 7h7l2 2h9v10H3V7z" /><path d="M3 19l4-7h14" /></>,
   export: <><path d="M12 3v12" /><path d="M8 7l4-4 4 4M5 12H3v9h18v-9h-2" /></>,

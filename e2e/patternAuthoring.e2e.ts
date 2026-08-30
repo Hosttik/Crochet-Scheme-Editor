@@ -1,10 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createGuideFromToolRail } from './helpers/uiV2Guides'
+import { downloadFromFileMenu } from './helpers/uiV2FileMenu'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
-  await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
@@ -116,9 +117,8 @@ test('authors locked guides, gap-free row numbers and an exported automatic lege
   await page.locator('.guide-list button').filter({ hasText: 'Линия' }).click()
   await guideEditor.getByLabel('Заблокировать направляющую').check()
 
-  const jsonDownloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Экспорт проекта' }).click()
-  const jsonPath = await (await jsonDownloadPromise).path()
+  const jsonDownload = await downloadFromFileMenu(page, 'Экспорт проекта…')
+  const jsonPath = await jsonDownload.path()
   expect(jsonPath).not.toBeNull()
   const project = JSON.parse(await readFile(jsonPath!, 'utf8'))
   expect(project.schemaVersion).toBe(22)
@@ -128,9 +128,8 @@ test('authors locked guides, gap-free row numbers and an exported automatic lege
   expect(project.rowMarkers.some((marker: { locked?: boolean }) => marker.locked === true)).toBe(true)
   expect(project.settings.legend).toEqual({ visible: true })
 
-  const svgDownloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Экспорт SVG' }).click()
-  const svgPath = await (await svgDownloadPromise).path()
+  const svgDownload = await downloadFromFileMenu(page, 'Экспорт SVG…')
+  const svgPath = await svgDownload.path()
   expect(svgPath).not.toBeNull()
   const svg = await readFile(svgPath!, 'utf8')
   expect(svg).toContain('class="crochet-legend"')

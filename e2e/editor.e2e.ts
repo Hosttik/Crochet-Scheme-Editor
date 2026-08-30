@@ -15,7 +15,7 @@ async function openPatternRows(page: Page) {
 test('places a stitch, restores autosave and manages local projects', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
 
-  await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Вместить всю схему' })).toBeDisabled()
 
   await page.getByRole('button', { name: 'Столбик без накида · sc', exact: true }).click()

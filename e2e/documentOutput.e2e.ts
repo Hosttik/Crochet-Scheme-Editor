@@ -1,11 +1,19 @@
 import { expect, test } from '@playwright/test'
+import { downloadTextFromFileMenu } from './helpers/uiV2FileMenu'
 
 test('persists a background underlay and previews tiled print pages', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
 
-  const readDownload = async (buttonName: string) => {
+  const readTopbarDownload = async (buttonName: string) => {
+    const button = page.getByRole('button', { name: buttonName })
+    if (!(await button.isVisible()) && buttonName === 'Экспорт SVG') {
+      const menu = page.locator('.topbar-autosave-menu')
+      if (!(await menu.evaluate((element) => (element as HTMLDetailsElement).open))) {
+        await menu.locator('summary').click()
+      }
+    }
     const downloadPromise = page.waitForEvent('download')
-    await page.getByRole('button', { name: buttonName }).click()
+    await button.click()
     const download = await downloadPromise
     const stream = await download.createReadStream()
     let text = ''
@@ -30,7 +38,7 @@ test('persists a background underlay and previews tiled print pages', async ({ p
 
   await expect(page.locator('image.background-canvas-image')).toHaveCount(1)
 
-  const editorOnlySvg = await readDownload('Экспорт SVG')
+  const editorOnlySvg = await readTopbarDownload('Экспорт SVG')
   expect(editorOnlySvg).not.toContain('<image')
 
   await page.getByTestId('background-export').check()
@@ -60,7 +68,7 @@ test('persists a background underlay and previews tiled print pages', async ({ p
   await openGlobalPanel('print-global-panel')
   await expect(page.getByTestId('print-page-count')).not.toHaveText('1')
 
-  const json = await readDownload('Экспорт проекта')
+  const json = await downloadTextFromFileMenu(page, 'Экспорт проекта…')
   const project = JSON.parse(json)
   expect(project.schemaVersion).toBe(22)
   expect(project.backgroundImage.sourceName).toBe('reference.svg')
@@ -68,7 +76,7 @@ test('persists a background underlay and previews tiled print pages', async ({ p
   expect(project.backgroundImage.locked).toBe(true)
   expect(project.backgroundImage.includeInExport).toBe(true)
 
-  const exportedSvg = await readDownload('Экспорт SVG')
+  const exportedSvg = await readTopbarDownload('Экспорт SVG')
   expect(exportedSvg).toContain('<image')
   expect(exportedSvg).toContain('data:image/svg+xml')
   expect(exportedSvg).toContain('opacity="0.3"')

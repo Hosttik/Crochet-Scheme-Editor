@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
-  await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
@@ -136,7 +136,7 @@ test('keeps responsive chrome contained and exposes clear project actions', asyn
   await openEditor(page)
 
   await expect(page.getByText('P0', { exact: true })).toHaveCount(0)
-  await expect(page.locator('.topbar .primary-button')).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Сохранить', exact: true })).toBeVisible()
   await page.getByRole('menuitem', { name: 'Файл', exact: true }).click()
   await expect(page.getByRole('menuitem', { name: 'Экспорт проекта…', exact: true })).toBeVisible()
   await expect(page.getByRole('menuitem', { name: 'Импорт проекта…', exact: true })).toBeVisible()
@@ -153,6 +153,7 @@ test('keeps responsive chrome contained and exposes clear project actions', asyn
   expect(toolbar!.x + toolbar!.width).toBeLessThanOrEqual(workspace!.x + workspace!.width + 1)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(900)
 
-  const version = await page.locator('.brand').evaluate((element) => getComputedStyle(element, '::after').content.replaceAll('"', ''))
-  expect(version).toBe('v1.26.0')
+  const settings = page.locator('.topbar-autosave-menu')
+  await settings.locator('summary').click()
+  await expect(settings.locator('.topbar-version')).toHaveText('v1.26.1')
 })

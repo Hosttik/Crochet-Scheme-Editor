@@ -3,7 +3,7 @@ import { expect, test, type Download, type Page } from '@playwright/test'
 async function openEditor(page: Page, width: number, height = 800) {
   await page.setViewportSize({ width, height })
   await page.goto('/Crochet-Scheme-Editor/')
-  await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
@@ -31,28 +31,31 @@ async function placeSingle(page: Page) {
   await expect(page.locator('.stitch-element')).toHaveCount(1)
 }
 
-test('1080px breakpoint hides only duplicate controls and keeps canonical replacements', async ({ page }) => {
+test('responsive command bar preserves canonical file actions while collapsing secondary chrome', async ({ page }) => {
   await openEditor(page, 1081)
 
-  const topbarFileActions = page.locator('.topbar-file-action')
+  const fileGroup = page.locator('.topbar-file-group')
+  const save = page.getByRole('button', { name: 'Сохранить', exact: true })
   const canvasToolbar = page.locator('.canvas-toolbar')
   const canvasHand = canvasToolbar.getByRole('button', { name: 'Ладонь / перемещение поля', exact: true })
 
-  await expect(topbarFileActions.first()).toBeVisible()
+  await expect(fileGroup).toBeVisible()
+  await expect(save).toBeVisible()
   await expect(canvasHand).toBeVisible()
 
   for (const width of [1080, 1024, 900]) {
     await page.setViewportSize({ width, height: 800 })
-    await expect(topbarFileActions.first()).toBeHidden()
+    await expect(fileGroup).toBeVisible()
+    await expect(save).toBeVisible()
     await expect(canvasHand).toBeHidden()
     await expect(page.getByRole('menubar', { name: 'Меню приложения' })).toBeVisible()
     await expect(page.getByRole('navigation', { name: 'Инструменты' })).toBeVisible()
   }
 })
 
-test('900px File menu fully replaces hidden project import/export controls', async ({ page }) => {
+test('900px File menu remains the full import/export surface alongside compact file buttons', async ({ page }) => {
   await openEditor(page, 900, 700)
-  await expect(page.locator('.topbar-file-action').first()).toBeHidden()
+  await expect(page.locator('.topbar-file-group')).toBeVisible()
 
   const emptyProjectJson = await downloadFromFileMenu(page, 'Экспорт проекта…')
   const emptyProject = JSON.parse(emptyProjectJson)

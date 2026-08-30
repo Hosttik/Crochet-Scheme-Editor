@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 async function openEditor(page: Parameters<typeof test>[0]['page']) {
   await page.goto('/Crochet-Scheme-Editor/')
-  await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
@@ -40,6 +40,7 @@ test('uses the extracted tool rail and crochet element library', async ({ page }
 test('keeps semantic element commands working after a locale switch', async ({ page }) => {
   await openEditor(page)
 
+  await page.locator('.topbar-autosave-menu > summary').click()
   await page.locator('.language-switch button').filter({ hasText: 'EN' }).click()
   const library = page.getByRole('region', { name: 'Element library' })
   await expect(library).toBeVisible()

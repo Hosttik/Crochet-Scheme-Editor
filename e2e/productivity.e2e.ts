@@ -1,10 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createGuideFromToolRail } from './helpers/uiV2Guides'
+import { downloadFromFileMenu } from './helpers/uiV2FileMenu'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
-  await expect(page.getByText('Редактор схем вязания', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
 }
 
@@ -117,7 +118,6 @@ test('interaction pass makes selection, pan, zoom, snap and numeric editing dire
   expect(stitchBox).not.toBeNull()
   await page.mouse.click(stitchBox!.x + 3, stitchBox!.y + 3)
   await expect(stitch).toHaveClass(/selected/)
-
   await page.keyboard.press('ArrowRight')
   await page.keyboard.press('ArrowDown')
   await page.keyboard.press('Shift+ArrowRight')
@@ -276,17 +276,15 @@ test('persists a stitch color through autosave, JSON and SVG export', async ({ p
   await page.reload()
   await expect(page.locator('.stitch-element .symbol-glyph')).toHaveCSS('color', 'rgb(194, 65, 59)')
 
-  const jsonDownload = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Экспорт проекта' }).click()
-  const jsonPath = await (await jsonDownload).path()
+  const jsonDownload = await downloadFromFileMenu(page, 'Экспорт проекта…')
+  const jsonPath = await jsonDownload.path()
   expect(jsonPath).not.toBeNull()
   const project = JSON.parse(await readFile(jsonPath!, 'utf8'))
   expect(project.schemaVersion).toBe(22)
   expect(project.elements[0].color).toBe('#c2413b')
 
-  const svgDownload = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Экспорт SVG' }).click()
-  const svgPath = await (await svgDownload).path()
+  const svgDownload = await downloadFromFileMenu(page, 'Экспорт SVG…')
+  const svgPath = await svgDownload.path()
   expect(svgPath).not.toBeNull()
   const svg = await readFile(svgPath!, 'utf8')
   expect(svg).toContain('color:#c2413b')
@@ -305,9 +303,8 @@ test('persists group ids in schema v18 and updates a renamed project immediately
   const activeOption = page.locator('.project-select option:checked')
   await expect(activeOption).toHaveText('Быстрый мотив')
 
-  const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Экспорт проекта' }).click()
-  const path = await (await downloadPromise).path()
+  const download = await downloadFromFileMenu(page, 'Экспорт проекта…')
+  const path = await download.path()
   expect(path).not.toBeNull()
   const project = JSON.parse(await readFile(path!, 'utf8'))
   expect(project.schemaVersion).toBe(22)
