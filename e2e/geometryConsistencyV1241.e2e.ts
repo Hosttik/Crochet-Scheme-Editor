@@ -16,6 +16,7 @@ async function placeAt(page: Page, title: string, rx: number, ry: number) {
   await page.locator(`.symbols-section .symbol-button[title^="${title} ·"]`).click()
   const box = await canvasBox(page)
   await page.mouse.click(box.x + box.width * rx, box.y + box.height * ry)
+  await page.keyboard.press('Escape')
 }
 
 async function dragHandle(page: Page, testId: string, dx: number, dy: number) {
