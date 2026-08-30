@@ -2,11 +2,6 @@
   --canvas-statusbar-height: 30px;
 }
 
-.workspace .editor-canvas {
-  bottom: var(--canvas-statusbar-height);
-  height: auto;
-}
-
 .workspace .canvas-toolbar {
   top: 10px;
   max-width: calc(100% - 88px);
