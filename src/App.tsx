@@ -116,7 +116,15 @@ import { RightOptionsPanels } from './ui/RightOptionsPanels'
 import { RightPanelTabs, type RightPanelTab } from './ui/RightPanelTabs'
 import { SelectionInspector } from './ui/SelectionInspector'
 import { WorkspaceSidebarControls } from './ui/WorkspaceSidebarControls'
-import type { ApplicationCommandId, ApplicationCommandRunner } from './ui/applicationCommands'
+import {
+  COMMAND_ENABLED,
+  commandDisabled,
+  commandExecuted,
+  commandFailed,
+  type ApplicationCommandId,
+  type ApplicationCommandRegistry,
+  type ApplicationCommandState,
+} from './ui/applicationCommands'
 import type { WorkbenchTool } from './ui/workbenchTypes'
 import type {
   AutosaveDelayMs,
@@ -447,6 +455,7 @@ function App() {
   const [status, setStatus] = useState<string>(UI[DEFAULT_LOCALE].ready)
   const [hydrated, setHydrated] = useState(false)
   const [autosaveState, setAutosaveState] = useState<AutosaveState>('loading')
+  const [clipboardCount, setClipboardCount] = useState(0)
 
   useEffect(() => {
     try {
@@ -893,6 +902,7 @@ function App() {
     clipboardRef.current = elements
       .filter((element) => copyIds.has(element.id))
       .map((element) => ({ ...element }))
+    setClipboardCount(clipboardRef.current.length)
     pasteSerialRef.current = 1
     setStatus(`${t.copied}: ${clipboardRef.current.length}`)
   }, [elements, t.copied, unlockedSelectedIds])
@@ -2611,73 +2621,166 @@ function App() {
     return true
   }
 
-  const runApplicationCommand: ApplicationCommandRunner = (command: ApplicationCommandId) => {
+  const getApplicationCommandState = (command: ApplicationCommandId): ApplicationCommandState => {
+    const unavailable = (ru: string, en: string): ApplicationCommandState => ({
+      enabled: false,
+      disabledReason: locale === 'ru' ? ru : en,
+    })
+    const hasVisibleSelection = selectedIds.some((id) =>
+      visibleElements.some((element) => element.id === id),
+    )
+    const canDelete = unlockedSelectionIds.length > 0
+      || Boolean(selectedRulerId)
+      || Boolean(selectedRowMarker && !isRowMarkerLocked(selectedRowMarker))
+      || Boolean(selectedGuide && selectedGuide.locked !== true)
+
     switch (command) {
       case 'file.new':
-        void handleNewLocalProject()
-        return true
-      case 'file.import':
-        loadInputRef.current?.click()
-        return Boolean(loadInputRef.current)
-      case 'file.exportProject':
-        saveProject()
-        return true
       case 'file.exportSvg':
-        exportSvg()
-        return true
-      case 'file.print':
-        return openInspectorPanel(printPanelRef.current)
-      case 'edit.undo':
-        undo()
-        return true
-      case 'edit.redo':
-        redo()
-        return true
-      case 'edit.copy':
-        copySelection()
-        return true
-      case 'edit.paste':
-        pasteSelection()
-        return true
-      case 'edit.duplicate':
-        duplicateSelection()
-        return true
-      case 'edit.delete':
-        deleteSelected()
-        return true
-      case 'edit.selectAll':
-        selectAll()
-        return true
       case 'view.zoom100':
-        setCanvasZoom(1)
-        return true
-      case 'view.fitAll':
-        fitAll()
-        return true
-      case 'view.fitSelection':
-        fitSelection()
-        return true
       case 'view.toggleLeft':
-        setLeftCollapsed((value) => !value)
-        return true
       case 'view.toggleRight':
-        setRightCollapsed((value) => !value)
-        return true
-      case 'settings.snapping':
-        return openInspectorPanel(snappingPanelRef.current)
-      case 'settings.gauge':
-        return openInspectorPanel(gaugePanelRef.current)
-      case 'settings.patternRows':
-        return openInspectorPanel(patternRowsPanelRef.current)
-      case 'settings.rowNumbers':
-        return openInspectorPanel(rowMarkersPanelRef.current)
-      case 'settings.legend':
-        return openInspectorPanel(legendPanelRef.current)
-      case 'help.controls':
-        return openInspectorPanel(helpPanelRef.current)
       case 'ui.commandPalette':
-        return false
+        return COMMAND_ENABLED
+      case 'file.import':
+        return loadInputRef.current
+          ? COMMAND_ENABLED
+          : unavailable('Импорт пока недоступен', 'Import is not available yet')
+      case 'file.exportProject': {
+        const issue = projectIntegrityIssue(buildProject(
+          projectTitle, elements, guides, snapping, rowMarkers, legendVisible, autosaveDelayMs, backgroundImage, gauge, rulers,
+        ))
+        return issue
+          ? unavailable(`Нельзя экспортировать: ${issue}`, `Cannot export: ${issue}`)
+          : COMMAND_ENABLED
+      }
+      case 'file.print':
+        return printPanelRef.current
+          ? COMMAND_ENABLED
+          : unavailable('Печать пока недоступна', 'Print is not available yet')
+      case 'edit.undo':
+        return history.past.length > 0 ? COMMAND_ENABLED : unavailable('Нечего отменять', 'Nothing to undo')
+      case 'edit.redo':
+        return history.future.length > 0 ? COMMAND_ENABLED : unavailable('Нечего повторять', 'Nothing to redo')
+      case 'edit.copy':
+        return unlockedSelectionIds.length > 0 ? COMMAND_ENABLED : unavailable('Нет доступного выделения', 'No editable selection')
+      case 'edit.paste':
+        return clipboardCount > 0 ? COMMAND_ENABLED : unavailable('Буфер обмена редактора пуст', 'Editor clipboard is empty')
+      case 'edit.duplicate':
+        return unlockedSelectionIds.length > 0 ? COMMAND_ENABLED : unavailable('Нет доступного выделения', 'No editable selection')
+      case 'edit.delete':
+        return canDelete ? COMMAND_ENABLED : unavailable('Нечего удалять', 'Nothing deletable is selected')
+      case 'edit.selectAll':
+        return visibleElements.length > 0 ? COMMAND_ENABLED : unavailable('Схема пуста', 'The pattern is empty')
+      case 'view.fitAll':
+        return visibleElements.length > 0 ? COMMAND_ENABLED : unavailable('Схема пуста', 'The pattern is empty')
+      case 'view.fitSelection':
+        return hasVisibleSelection ? COMMAND_ENABLED : unavailable('Нет видимого выделения', 'No visible selection')
+      case 'settings.snapping':
+        return snappingPanelRef.current ? COMMAND_ENABLED : unavailable('Панель недоступна', 'Panel is unavailable')
+      case 'settings.gauge':
+        return gaugePanelRef.current ? COMMAND_ENABLED : unavailable('Панель недоступна', 'Panel is unavailable')
+      case 'settings.patternRows':
+        return patternRowsPanelRef.current ? COMMAND_ENABLED : unavailable('Панель недоступна', 'Panel is unavailable')
+      case 'settings.rowNumbers':
+        return rowMarkersPanelRef.current ? COMMAND_ENABLED : unavailable('Панель недоступна', 'Panel is unavailable')
+      case 'settings.legend':
+        return legendPanelRef.current ? COMMAND_ENABLED : unavailable('Панель недоступна', 'Panel is unavailable')
+      case 'help.controls':
+        return helpPanelRef.current ? COMMAND_ENABLED : unavailable('Панель недоступна', 'Panel is unavailable')
     }
+  }
+
+  const executeApplicationCommand = async (command: ApplicationCommandId) => {
+    const commandState = getApplicationCommandState(command)
+    if (!commandState.enabled) return commandDisabled(commandState.disabledReason)
+
+    try {
+      switch (command) {
+        case 'file.new':
+          await handleNewLocalProject()
+          break
+        case 'file.import':
+          loadInputRef.current?.click()
+          break
+        case 'file.exportProject':
+          saveProject()
+          break
+        case 'file.exportSvg':
+          exportSvg()
+          break
+        case 'file.print':
+          if (!openInspectorPanel(printPanelRef.current)) throw new Error(locale === 'ru' ? 'Не удалось открыть печать' : 'Could not open print settings')
+          break
+        case 'edit.undo':
+          undo()
+          break
+        case 'edit.redo':
+          redo()
+          break
+        case 'edit.copy':
+          copySelection()
+          break
+        case 'edit.paste':
+          pasteSelection()
+          break
+        case 'edit.duplicate':
+          duplicateSelection()
+          break
+        case 'edit.delete':
+          deleteSelected()
+          break
+        case 'edit.selectAll':
+          selectAll()
+          break
+        case 'view.zoom100':
+          setCanvasZoom(1)
+          break
+        case 'view.fitAll':
+          fitAll()
+          break
+        case 'view.fitSelection':
+          fitSelection()
+          break
+        case 'view.toggleLeft':
+          setLeftCollapsed((value) => !value)
+          break
+        case 'view.toggleRight':
+          setRightCollapsed((value) => !value)
+          break
+        case 'settings.snapping':
+          if (!openInspectorPanel(snappingPanelRef.current)) throw new Error(locale === 'ru' ? 'Не удалось открыть параметры привязки' : 'Could not open snapping settings')
+          break
+        case 'settings.gauge':
+          if (!openInspectorPanel(gaugePanelRef.current)) throw new Error(locale === 'ru' ? 'Не удалось открыть параметры плотности' : 'Could not open gauge settings')
+          break
+        case 'settings.patternRows':
+          if (!openInspectorPanel(patternRowsPanelRef.current)) throw new Error(locale === 'ru' ? 'Не удалось открыть ряды узора' : 'Could not open pattern rows')
+          break
+        case 'settings.rowNumbers':
+          if (!openInspectorPanel(rowMarkersPanelRef.current)) throw new Error(locale === 'ru' ? 'Не удалось открыть номера рядов' : 'Could not open row numbers')
+          break
+        case 'settings.legend':
+          if (!openInspectorPanel(legendPanelRef.current)) throw new Error(locale === 'ru' ? 'Не удалось открыть легенду' : 'Could not open legend settings')
+          break
+        case 'help.controls':
+          if (!openInspectorPanel(helpPanelRef.current)) throw new Error(locale === 'ru' ? 'Не удалось открыть справку' : 'Could not open help')
+          break
+        case 'ui.commandPalette':
+          break
+      }
+      return commandExecuted()
+    } catch (error) {
+      const fallback = locale === 'ru' ? 'Не удалось выполнить команду' : 'Could not run command'
+      const message = error instanceof Error ? error.message : fallback
+      setStatus(message)
+      return commandFailed(message)
+    }
+  }
+
+  const applicationCommandRegistry: ApplicationCommandRegistry = {
+    getState: getApplicationCommandState,
+    execute: executeApplicationCommand,
   }
 
   const handleSnappingEnabledChange = useCallback((enabled: boolean) => {
@@ -2709,7 +2812,7 @@ function App() {
   }
 
   return (
-    <EditorShell locale={locale} runCommand={runApplicationCommand}>
+    <EditorShell locale={locale} commandRegistry={applicationCommandRegistry}>
       <div className={`app-shell ${leftCollapsed ? 'left-collapsed' : ''} ${rightCollapsed ? 'right-collapsed' : ''}`}>
       <EditorTopbar
         locale={locale}

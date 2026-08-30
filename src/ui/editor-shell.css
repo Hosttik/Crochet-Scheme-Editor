@@ -89,10 +89,20 @@
   font-size: 11px;
 }
 
-.app-menu__item:hover:not(:disabled),
-.app-menu__item:focus-visible {
+.app-menu__item:hover:not(.is-disabled),
+.app-menu__item:focus-visible:not(.is-disabled) {
   background: var(--ui-accent-soft);
   color: var(--ui-accent-hover);
+}
+
+.app-menu__item.is-disabled {
+  color: var(--ui-text-faint);
+  cursor: default;
+  opacity: .58;
+}
+
+.app-menu__item.is-disabled kbd {
+  color: var(--ui-text-faint);
 }
 
 .app-menu__item kbd {

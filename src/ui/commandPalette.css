@@ -66,13 +66,19 @@
   text-align: left;
 }
 
-.command-palette__item:hover,
-.command-palette__item.is-active {
+.command-palette__item:hover:not(.is-disabled),
+.command-palette__item.is-active:not(.is-disabled) {
   background: var(--ui-accent-soft);
 }
 
-.command-palette__item.is-active .command-palette__label {
+.command-palette__item.is-active:not(.is-disabled) .command-palette__label {
   color: var(--ui-accent-hover);
+}
+
+.command-palette__item.is-disabled {
+  color: var(--ui-text-faint);
+  cursor: default;
+  opacity: .58;
 }
 
 .command-palette__group {
