@@ -1,0 +1,71 @@
+name: Apply favorite resolver cleanup patch
+
+on:
+  push:
+    branches:
+      - refactor/ui-v2-favorite-resolution
+
+permissions:
+  contents: write
+
+jobs:
+  patch-element-library:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: refactor/ui-v2-favorite-resolution
+      - name: Reuse shared favorite resolver
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs')
+          const path = 'src/ui/ElementLibrary.tsx'
+          let source = fs.readFileSync(path, 'utf8')
+
+          function replaceOnce(needle, replacement, label) {
+            const first = source.indexOf(needle)
+            if (first < 0) throw new Error(`Missing patch anchor: ${label}`)
+            if (source.indexOf(needle, first + needle.length) >= 0) throw new Error(`Ambiguous patch anchor: ${label}`)
+            source = source.slice(0, first) + replacement + source.slice(first + needle.length)
+          }
+
+          replaceOnce(
+            `import {\n  chainFavoriteKey,\n  symbolFavoriteKey,\n  type FavoriteElementKey,\n} from './favorites'`,
+            `import {\n  chainFavoriteKey,\n  resolveFavorites,\n  symbolFavoriteKey,\n  type FavoriteElementKey,\n} from './favorites'`,
+            'favorites import',
+          )
+
+          replaceOnce(
+            `\ntype ResolvedFavorite =\n  | { key: FavoriteElementKey; kind: 'symbol'; symbolId: string }\n  | { key: FavoriteElementKey; kind: 'chain'; count: ChainBundleCount }\n`,
+            '',
+            'local resolved favorite type',
+          )
+
+          replaceOnce(
+            `\nfunction resolveFavorite(key: FavoriteElementKey): ResolvedFavorite | null {\n  if (key.startsWith('symbol:')) {\n    const symbolId = key.slice('symbol:'.length)\n    return SYMBOL_BY_ID.has(symbolId) ? { key, kind: 'symbol', symbolId } : null\n  }\n  const count = Number(key.slice('chain:'.length)) as ChainBundleCount\n  return CHAIN_BUNDLE_COUNTS.includes(count) ? { key, kind: 'chain', count } : null\n}\n`,
+            '',
+            'local favorite resolver',
+          )
+
+          replaceOnce(
+            `  const resolvedFavorites = useMemo(\n    () => favorites.map(resolveFavorite).filter((item): item is ResolvedFavorite => item !== null),\n    [favorites],\n  )`,
+            `  const resolvedFavorites = useMemo(() => resolveFavorites(favorites), [favorites])`,
+            'resolved favorites memo',
+          )
+
+          fs.writeFileSync(path, source)
+          NODE
+      - name: Commit ElementLibrary refactor
+        shell: bash
+        run: |
+          if git diff --quiet -- src/ui/ElementLibrary.tsx; then
+            echo 'No ElementLibrary changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/ui/ElementLibrary.tsx
+          git commit -m 'Reuse shared favorite resolver in element library'
+          git push origin HEAD:refactor/ui-v2-favorite-resolution
