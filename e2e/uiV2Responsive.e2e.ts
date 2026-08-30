@@ -24,15 +24,6 @@ async function expectNoHorizontalOverflow(locator: Locator) {
   expect(width.scrollWidth).toBeLessThanOrEqual(width.clientWidth + 1)
 }
 
-async function expectInlineToolbarIcon(locator: Locator) {
-  await expect(locator).toBeVisible()
-  await expect(locator.locator('svg').first()).toBeVisible()
-  const box = await locator.boundingBox()
-  expect(box).not.toBeNull()
-  expect(box!.width).toBeLessThanOrEqual(40)
-  expect(box!.height).toBeLessThanOrEqual(34)
-}
-
 test('keeps the full desktop workbench usable at 1440px', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.addInitScript(() => {
@@ -63,10 +54,12 @@ test('keeps the full desktop workbench usable at 1440px', async ({ page }) => {
 
   const canvasToolbar = page.locator('.canvas-toolbar')
   await expectNoHorizontalOverflow(canvasToolbar)
-  await expectInlineToolbarIcon(canvasToolbar.getByRole('button', { name: 'Ладонь / перемещение поля', exact: true }))
-  await expectInlineToolbarIcon(canvasToolbar.getByRole('button', { name: 'Лассо', exact: true }))
-  await expectInlineToolbarIcon(canvasToolbar.getByRole('button', { name: 'Линейка', exact: true }))
-  await expect(canvasToolbar.getByRole('button', { name: 'Вместить всю схему', exact: true })).toBeVisible()
+  await expect(canvasToolbar.getByRole('button', { name: 'Уменьшить масштаб', exact: true })).toBeVisible()
+  await expect(canvasToolbar.getByRole('button', { name: 'Увеличить масштаб', exact: true })).toBeVisible()
+  await expect(canvasToolbar.getByRole('button', { name: 'Ладонь / перемещение поля', exact: true })).toBeHidden()
+  await expect(canvasToolbar.getByRole('button', { name: 'Лассо', exact: true })).toBeHidden()
+  await expect(canvasToolbar.getByRole('button', { name: 'Линейка', exact: true })).toBeHidden()
+  await expect(canvasToolbar.getByRole('button', { name: 'Вместить всю схему', exact: true })).toBeHidden()
   await expect(canvasToolbar.getByRole('button', { name: 'Привязка к направляющим', exact: true })).toBeVisible()
 })
 
@@ -102,18 +95,18 @@ test('preserves canvas and primary chrome at the 900px narrow-desktop gate', asy
   await expectNoHorizontalOverflow(page.locator('.left-sidebar'))
   await expectNoHorizontalOverflow(page.locator('.right-sidebar'))
 
-  // Canvas duplicates yield to the canonical ToolRail at narrow desktop sizes;
-  // zoom, fit and snapping stay immediately reachable without horizontal scroll.
+  // The bottom canvas surface keeps only zoom + snapping. Duplicate tools stay
+  // in the ToolRail and Fit remains available through keyboard commands.
   await expect(canvasToolbar.getByRole('button', { name: 'Ладонь / перемещение поля', exact: true })).toBeHidden()
   await expect(canvasToolbar.getByRole('button', { name: 'Лассо', exact: true })).toBeHidden()
   await expect(canvasToolbar.getByRole('button', { name: 'Линейка', exact: true })).toBeHidden()
-  await expect(canvasToolbar.getByRole('button', { name: 'Вместить всю схему', exact: true })).toBeVisible()
+  await expect(canvasToolbar.getByRole('button', { name: 'Вместить всю схему', exact: true })).toBeHidden()
   await expect(canvasToolbar.getByRole('button', { name: 'Привязка к направляющим', exact: true })).toBeVisible()
   await expectNoHorizontalOverflow(canvasToolbar)
 
   const toolbarGeometry = await canvasToolbar.boundingBox()
   expect(toolbarGeometry).not.toBeNull()
-  expect(toolbarGeometry!.height).toBeLessThanOrEqual(40)
+  expect(toolbarGeometry!.height).toBeLessThanOrEqual(32)
 
   // At the narrow gate the command bar collapses labels and quick favorites,
   // while the full File menu remains available.
