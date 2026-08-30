@@ -5,17 +5,15 @@ import { SYMBOLS, SYMBOL_BY_ID, SymbolGlyph } from '../symbols'
 import { EditorIcon } from './icons'
 import {
   chainFavoriteKey,
+  resolveFavorites,
   symbolFavoriteKey,
   type FavoriteElementKey,
+  type ResolvedFavorite,
 } from './favorites'
 import { SearchField } from './primitives'
 import type { WorkbenchTool } from './workbenchTypes'
 import './favorites.css'
 import './elementLibrary.css'
-
-type ResolvedFavorite =
-  | { key: FavoriteElementKey; kind: 'symbol'; symbolId: string }
-  | { key: FavoriteElementKey; kind: 'chain'; count: ChainBundleCount }
 
 const COLLAPSED_CATEGORIES_STORAGE_KEY = 'crochet-ui-v2-library-collapsed'
 
@@ -27,15 +25,6 @@ function loadCollapsedCategories() {
   } catch {
     return new Set<string>()
   }
-}
-
-function resolveFavorite(key: FavoriteElementKey): ResolvedFavorite | null {
-  if (key.startsWith('symbol:')) {
-    const symbolId = key.slice('symbol:'.length)
-    return SYMBOL_BY_ID.has(symbolId) ? { key, kind: 'symbol', symbolId } : null
-  }
-  const count = Number(key.slice('chain:'.length)) as ChainBundleCount
-  return CHAIN_BUNDLE_COUNTS.includes(count) ? { key, kind: 'chain', count } : null
 }
 
 function FavoriteToggle({
@@ -143,10 +132,7 @@ export function ElementLibrary({
   const localeTag = locale === 'ru' ? 'ru-RU' : 'en-US'
   const normalizedQuery = query.trim().toLocaleLowerCase(localeTag)
   const favoriteSet = useMemo(() => new Set(favorites), [favorites])
-  const resolvedFavorites = useMemo(
-    () => favorites.map(resolveFavorite).filter((item): item is ResolvedFavorite => item !== null),
-    [favorites],
-  )
+  const resolvedFavorites = useMemo(() => resolveFavorites(favorites), [favorites])
 
   const filteredChainBundleCounts = useMemo(() => CHAIN_BUNDLE_COUNTS.filter((count) => {
     if (!normalizedQuery) return true
