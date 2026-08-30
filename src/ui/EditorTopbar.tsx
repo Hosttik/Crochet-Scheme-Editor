@@ -1,4 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
+import packageJson from '../../package.json'
+import {
+  CANVAS_GRID_CHANGE_EVENT,
+  getCanvasGridVisibility,
+  setCanvasGridVisibility,
+} from '../editor/canvasDisplayPreferences'
 import type { AutosaveDelayMs } from '../types'
 import type { Locale } from '../i18n'
 import { dispatchApplicationCommand } from './applicationCommands'
@@ -110,6 +116,7 @@ export function EditorTopbar({
 }) {
   const copy = locale === 'ru'
     ? {
+        appTitle: 'Редактор схем вязания',
         new: 'Новый',
         open: 'Открыть',
         save: 'Сохранить',
@@ -125,8 +132,10 @@ export function EditorTopbar({
         autosaveSettings: 'Параметры автосохранения',
         language: 'Язык интерфейса',
         exportSvg: 'Экспорт SVG',
+        version: 'Версия',
       }
     : {
+        appTitle: 'Crochet chart editor',
         new: 'New',
         open: 'Open',
         save: 'Save',
@@ -142,11 +151,10 @@ export function EditorTopbar({
         autosaveSettings: 'Autosave settings',
         language: 'Interface language',
         exportSvg: 'Export SVG',
+        version: 'Version',
       }
 
-  const [gridVisible, setGridVisible] = useState(() => (
-    typeof document === 'undefined' || document.documentElement.dataset.canvasGrid !== 'off'
-  ))
+  const [gridVisible, setGridVisible] = useState(getCanvasGridVisibility)
   const [zoomPercent, setZoomPercent] = useState(() => (
     typeof document === 'undefined' ? 100 : visibleZoomPercent()
   ))
@@ -179,6 +187,15 @@ export function EditorTopbar({
   }, [])
 
   useEffect(() => {
+    const syncGridVisibility = (event: Event) => {
+      const next = (event as CustomEvent<boolean>).detail
+      if (typeof next === 'boolean') setGridVisible(next)
+    }
+    window.addEventListener(CANVAS_GRID_CHANGE_EVENT, syncGridVisibility)
+    return () => window.removeEventListener(CANVAS_GRID_CHANGE_EVENT, syncGridVisibility)
+  }, [])
+
+  useEffect(() => {
     const host = favoritesHostRef.current
     if (!host) return
     const update = () => {
@@ -208,9 +225,7 @@ export function EditorTopbar({
     : autosaveLabel
 
   const toggleGrid = () => {
-    const next = !gridVisible
-    setGridVisible(next)
-    document.documentElement.dataset.canvasGrid = next ? 'on' : 'off'
+    setCanvasGridVisibility(!gridVisible)
   }
 
   const focusLibrary = () => {
@@ -223,6 +238,8 @@ export function EditorTopbar({
 
   return (
     <header className="topbar topbar-v2" data-testid="editor-topbar">
+      <span className="topbar-sr-only">{copy.appTitle}</span>
+
       <div className="topbar-command-group topbar-file-group" aria-label={locale === 'ru' ? 'Файл' : 'File'}>
         <CommandButton icon="newFile" label={copy.new} onClick={() => dispatchApplicationCommand('file.new')} />
         <CommandButton icon="open" label={copy.open} onClick={onOpenProject} />
@@ -325,6 +342,7 @@ export function EditorTopbar({
             <EditorIcon name="export" size={15} />
             <span>{copy.exportSvg}</span>
           </button>
+          <div className="topbar-version" aria-label={copy.version}>v{packageJson.version}</div>
         </div>
       </details>
 
