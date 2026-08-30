@@ -95,21 +95,25 @@ export function ElementLibrary({
   tool,
   query,
   favorites,
+  collapsed = false,
   onQueryChange,
   onToggleFavorite,
   onSelectSymbol,
   onSelectChainBundle,
   onCancelPlacement,
+  onCollapse,
 }: {
   locale: Locale
   tool: WorkbenchTool
   query: string
   favorites: readonly FavoriteElementKey[]
+  collapsed?: boolean
   onQueryChange: (query: string) => void
   onToggleFavorite: (key: FavoriteElementKey) => void
   onSelectSymbol: (symbolId: string) => void
   onSelectChainBundle: (count: ChainBundleCount) => void
   onCancelPlacement: () => void
+  onCollapse?: () => void
 }) {
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(loadCollapsedCategories)
 
@@ -225,11 +229,34 @@ export function ElementLibrary({
     )
   }
 
+  if (collapsed) {
+    return (
+      <section
+        className="panel-section symbols-section element-library is-collapsed"
+        aria-hidden="true"
+        data-testid="element-library-collapsed"
+      />
+    )
+  }
+
   return (
     <section className="panel-section symbols-section element-library" aria-label={locale === 'ru' ? 'Библиотека элементов' : 'Element library'}>
-      <div className="section-title-row">
+      <div className="section-title-row element-library__title-row">
         <h2>{locale === 'ru' ? 'Элементы' : 'Stitches'}</h2>
-        <span className="muted-text">{SYMBOLS.length + CHAIN_BUNDLE_COUNTS.length}</span>
+        <div className="element-library__title-actions">
+          <span className="muted-text">{SYMBOLS.length + CHAIN_BUNDLE_COUNTS.length}</span>
+          {onCollapse && (
+            <button
+              type="button"
+              className="element-library__collapse"
+              aria-label={locale === 'ru' ? 'Свернуть панель элементов' : 'Collapse element panel'}
+              title={locale === 'ru' ? 'Свернуть панель элементов' : 'Collapse element panel'}
+              onClick={onCollapse}
+            >
+              <EditorIcon name="chevronDown" size={14} />
+            </button>
+          )}
+        </div>
       </div>
       <SearchField
         wrapperClassName="element-library__search"
