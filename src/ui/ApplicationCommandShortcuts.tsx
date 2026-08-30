@@ -50,8 +50,8 @@ export function ApplicationCommandShortcuts({
       const command = commandForKeyboardEvent(event)
       if (!command) return
 
-      // Keep normal text editing/browser behavior, but do not let the legacy
-      // App-level window listener execute an editor command behind that UI.
+      // Keep normal text editing/browser behavior and isolate application
+      // commands from UI surfaces that own the same keyboard event.
       if (isEditingTarget(event.target) || isUiOwnedShortcutScope(event.target)) {
         event.stopPropagation()
         return
