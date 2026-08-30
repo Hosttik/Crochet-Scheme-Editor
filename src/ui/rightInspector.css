@@ -551,7 +551,7 @@
 
 @media (max-width: 1080px) {
   .ui-v2-right-tabs-host {
-    max-height: 48%;
+    max-height: min(54%, 390px);
   }
 
   .right-panel-tabs {
