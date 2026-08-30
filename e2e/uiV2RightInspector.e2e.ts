@@ -137,6 +137,39 @@ test('filters layers without changing the document and keeps layer tools visible
   await expect(rows).toHaveCount(2)
 })
 
+test('gives transform controls priority over utility and destructive actions', async ({ page }) => {
+  await openEditor(page)
+  await placeElement(page, 'Воздушная петля · ch')
+
+  const context = page.getByTestId('selection-context-panel')
+  const rotation = context.locator('.rotation-controls')
+  const utilities = context.locator('.layer-selection-controls')
+  const danger = context.locator('.danger-button')
+
+  await expect(rotation).toBeVisible()
+  await expect(utilities).toBeVisible()
+  await expect(danger).toBeVisible()
+
+  const presentation = await context.evaluate((node) => {
+    const rotation = node.querySelector<HTMLElement>('.rotation-controls')!
+    const utilities = node.querySelector<HTMLElement>('.layer-selection-controls')!
+    const danger = node.querySelector<HTMLElement>('.danger-button')!
+    const rotateButton = rotation.querySelector<HTMLElement>('button')!
+    return {
+      rotationBackground: getComputedStyle(rotation).backgroundColor,
+      utilitiesBackground: getComputedStyle(utilities).backgroundColor,
+      dangerBackground: getComputedStyle(danger).backgroundColor,
+      rotateHeight: rotateButton.getBoundingClientRect().height,
+      dangerHeight: danger.getBoundingClientRect().height,
+    }
+  })
+  expect(presentation.rotationBackground).not.toBe('rgba(0, 0, 0, 0)')
+  expect(presentation.utilitiesBackground).not.toBe('rgba(0, 0, 0, 0)')
+  expect(presentation.dangerBackground).toBe('rgba(0, 0, 0, 0)')
+  expect(presentation.rotateHeight).toBeGreaterThanOrEqual(30)
+  expect(presentation.dangerHeight).toBeGreaterThanOrEqual(30)
+})
+
 test('keeps layer selection, selection properties and productivity controls available together', async ({ page }) => {
   await openEditor(page)
 
