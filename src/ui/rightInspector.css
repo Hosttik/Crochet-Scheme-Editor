@@ -1,4 +1,4 @@
-.right-sidebar {
+.sidebar.right-sidebar {
   overflow: hidden;
 }
 
@@ -84,6 +84,10 @@
   display: none;
 }
 
+.ui-v2-right-context-slot + .ui-v2-right-context-slot:not(:empty) {
+  border-top: 1px solid var(--ui-border);
+}
+
 .ui-v2-right-options-host,
 .ui-v2-right-layers-host {
   min-width: 0;
@@ -108,6 +112,186 @@
   z-index: 1;
   outline: 0;
   box-shadow: inset var(--ui-focus-ring);
+}
+
+/* Context inspector: frequent editing actions stay visually primary, while
+   document utilities and destructive actions recede into secondary groups. */
+.right-panel-context {
+  padding: 10px 12px 12px;
+  border-bottom: 0;
+  background: var(--ui-surface);
+  box-shadow: none;
+}
+
+.right-panel-context > .section-title-row {
+  min-height: 25px;
+  margin: 0 0 9px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.right-panel-context > .section-title-row h2 {
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.right-panel-context .compact-selection-card,
+.right-panel-context .multi-selection-card,
+.right-panel-context .guide-editor {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+
+.right-panel-context .rotation-controls {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid #bfd3fb;
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-accent-soft);
+}
+
+.right-panel-context .rotation-controls button {
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid #a9c5fb;
+  border-radius: var(--ui-radius-xs);
+  background: var(--ui-surface);
+  color: var(--ui-accent-hover);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.right-panel-context .rotation-controls button:hover:not(:disabled) {
+  background: #f7faff;
+  border-color: var(--ui-accent);
+}
+
+.right-panel-context .selection-actions,
+.right-panel-context .layer-selection-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.right-panel-context .selection-actions button,
+.right-panel-context .layer-selection-controls button {
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 7px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-xs);
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.right-panel-context .selection-actions button:hover:not(:disabled),
+.right-panel-context .layer-selection-controls button:hover:not(:disabled) {
+  border-color: var(--ui-border-strong);
+  background: var(--ui-surface-hover);
+}
+
+.right-panel-context .layer-selection-controls {
+  padding: 6px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface-subtle);
+}
+
+.right-panel-context .layer-selection-controls button {
+  background: var(--ui-surface);
+}
+
+.right-panel-context .danger-button {
+  min-height: 30px;
+  margin-top: 1px;
+  border-color: #f0c4c0;
+  background: transparent;
+  color: var(--ui-danger);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.right-panel-context .danger-button:hover:not(:disabled) {
+  border-color: #e9aaa4;
+  background: var(--ui-danger-soft);
+}
+
+.right-panel-context .locked-selection-note {
+  margin: 0 0 9px;
+  padding: 7px 8px;
+  border-color: var(--ui-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface-subtle);
+  color: var(--ui-text-muted);
+  font-size: 9.5px;
+  line-height: 1.4;
+}
+
+.right-panel-context .guide-editor-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface-subtle);
+}
+
+.right-panel-context .guide-editor-heading strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+}
+
+.right-panel-context .guide-editor-heading span {
+  flex: 0 0 auto;
+  color: var(--ui-text-faint);
+  font-size: 9px;
+}
+
+.right-panel-context .guide-editor .compact-toggle {
+  min-height: 28px;
+  margin: 0;
+  padding: 0 2px;
+}
+
+.right-panel-context .guide-locked-fields {
+  margin: 0;
+}
+
+.right-panel-context .number-field-grid {
+  gap: 6px;
+}
+
+.right-panel-context .number-field {
+  min-width: 0;
+}
+
+.right-panel-context .number-field span {
+  color: var(--ui-text-muted);
+  font-size: 9px;
+}
+
+.right-panel-context .number-field input {
+  min-width: 0;
+  height: 30px;
+  padding-inline: 7px;
+  font-size: 10px;
+}
+
+.right-panel-context .guide-editor button:not(.danger-button) {
+  min-height: 30px;
 }
 
 .ui-v2-right-layers-host > .layers-section {
@@ -377,5 +561,9 @@
   .right-panel-tabs > button {
     gap: 4px;
     padding-inline: 6px;
+  }
+
+  .right-panel-context {
+    padding-inline: 10px;
   }
 }
