@@ -82,7 +82,7 @@ function createProps(locale: 'ru' | 'en' = 'en'): RightOptionsPanelsProps {
 }
 
 describe('right options panels', () => {
-  it('preserves all global options panel contracts in English', () => {
+  it('preserves all global options panel contracts and prioritizes construction controls', () => {
     const markup = renderToStaticMarkup(<RightOptionsPanels {...createProps()} />)
 
     for (const testId of [
@@ -98,6 +98,8 @@ describe('right options panels', () => {
       expect(markup).toContain(`data-testid="${testId}"`)
     }
 
+    expect(markup).toContain('Chart construction')
+    expect(markup).toContain('Document &amp; output')
     expect(markup).toContain('<summary>Background image</summary>')
     expect(markup).toContain('<summary>Gauge &amp; size</summary>')
     expect(markup).toContain('<summary>Tiled print</summary>')
@@ -105,11 +107,17 @@ describe('right options panels', () => {
     expect(markup).toContain('<summary>Row numbers</summary>')
     expect(markup).toContain('<summary>Legend &amp; canvas</summary>')
     expect(markup).toContain('12px')
+
+    expect(markup.indexOf('data-testid="snapping-global-panel"')).toBeLessThan(markup.indexOf('data-testid="gauge-global-panel"'))
+    expect(markup.indexOf('data-testid="gauge-global-panel"')).toBeLessThan(markup.indexOf('data-testid="background-global-panel"'))
+    expect(markup.indexOf('data-testid="background-global-panel"')).toBeLessThan(markup.indexOf('data-testid="print-global-panel"'))
   })
 
-  it('keeps the global panel summaries localized in Russian', () => {
+  it('keeps the global panel summaries and workflow groups localized in Russian', () => {
     const markup = renderToStaticMarkup(<RightOptionsPanels {...createProps('ru')} />)
 
+    expect(markup).toContain('Построение схемы')
+    expect(markup).toContain('Документ и вывод')
     expect(markup).toContain('<summary>Фоновое изображение</summary>')
     expect(markup).toContain('<summary>Плотность и размер</summary>')
     expect(markup).toContain('<summary>Печать по страницам</summary>')

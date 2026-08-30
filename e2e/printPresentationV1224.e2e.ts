@@ -29,7 +29,7 @@ async function openGlobalPanel(page: Page, testId: string) {
 test('shows the package version in app chrome', async ({ page }) => {
   await openEditor(page)
   await page.locator('.topbar-autosave-menu > summary').click()
-  await expect(page.locator('.topbar-version')).toHaveText('v1.26.2')
+  await expect(page.locator('.topbar-version')).toHaveText('v1.26.3')
 })
 
 test('persists white canvas and grid visibility preferences', async ({ page }) => {
