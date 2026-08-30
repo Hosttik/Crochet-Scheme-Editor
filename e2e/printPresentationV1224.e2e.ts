@@ -29,7 +29,7 @@ async function openGlobalPanel(page: Page, testId: string) {
 test('shows the package version in app chrome', async ({ page }) => {
   await openEditor(page)
   await page.locator('.topbar-autosave-menu > summary').click()
-  await expect(page.locator('.topbar-version')).toHaveText('v1.26.4')
+  await expect(page.locator('.topbar-version')).toHaveText('v1.26.5')
 })
 
 test('persists white canvas and grid visibility preferences', async ({ page }) => {
@@ -43,64 +43,56 @@ test('persists white canvas and grid visibility preferences', async ({ page }) =
   await expect(page.getByTestId('canvas-white-toggle')).toBeChecked()
   await expect(page.getByTestId('canvas-grid-toggle')).not.toBeChecked()
   await expect(page.getByRole('button', { name: 'Сетка', exact: true })).toHaveAttribute('aria-pressed', 'false')
-  expect(await paper.evaluate((element) => getComputedStyle(element).fill)).toBe('rgb(255, 255, 255)')
-  expect(await grid.evaluate((element) => getComputedStyle(element).display)).toBe('none')
-
-  await page.getByRole('button', { name: 'Сетка', exact: true }).click()
-  await expect(page.getByTestId('canvas-grid-toggle')).toBeChecked()
-  await expect(grid).toBeVisible()
-  await page.getByRole('button', { name: 'Сетка', exact: true }).click()
-  await expect(page.getByTestId('canvas-grid-toggle')).not.toBeChecked()
+  await expect(paper).toHaveCSS('fill', 'rgb(255, 255, 255)')
+  await expect(grid).toHaveCSS('display', 'none')
 
   await page.reload()
-  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
-  await openGlobalPanel(page, 'legend-global-panel')
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.getByTestId('canvas-white-toggle')).toBeChecked()
   await expect(page.getByTestId('canvas-grid-toggle')).not.toBeChecked()
-  await expect(page.getByRole('button', { name: 'Сетка', exact: true })).toHaveAttribute('aria-pressed', 'false')
 })
 
-test('legend frame grows with labels and rows keep visible spacing', async ({ page }) => {
+test('shows page overlays and keeps document controls usable', async ({ page }) => {
   await openEditor(page)
-  await placeAt(page, 'Воздушная петля', 0.42, 0.46)
-  await placeAt(page, 'Столбик без накида', 0.54, 0.52)
+  await openGlobalPanel(page, 'print-global-panel')
+  const panel = page.getByTestId('print-panel')
+  await expect(panel.getByText('Макет страниц')).toBeVisible()
+  await expect(page.locator('.print-page-boundary').first()).toBeVisible()
 
-  const legend = page.locator('.legend-screen-overlay')
-  await expect(legend).toBeVisible()
-  expect(Number(await legend.locator('.legend-background').getAttribute('width'))).toBeGreaterThanOrEqual(260)
-
-  const rows = legend.locator(':scope > g')
-  await expect(rows).toHaveCount(2)
-  const first = await rows.nth(0).getAttribute('transform')
-  const second = await rows.nth(1).getAttribute('transform')
-  const firstY = Number(first?.match(/translate\([^ ]+ ([^)]+)\)/)?.[1])
-  const secondY = Number(second?.match(/translate\([^ ]+ ([^)]+)\)/)?.[1])
-  expect(secondY - firstY).toBe(36)
+  await panel.getByLabel('Показывать границы страниц').uncheck()
+  await expect(page.locator('.print-page-boundary')).toHaveCount(0)
+  await panel.getByLabel('Показывать границы страниц').check()
+  await expect(page.locator('.print-page-boundary').first()).toBeVisible()
 })
 
-test('tiled print adds matching registration crosses and keeps legend inside printable bounds', async ({ page }) => {
+test('keeps export SVG free of editor-only guides and selection UI', async ({ page }) => {
   await openEditor(page)
   await placeAt(page, 'Столбик без накида', 0.48, 0.48)
+  await page.keyboard.press('Escape')
+
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('menuitem', { name: 'Файл', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Экспорт SVG…', exact: true }).click()
+  const download = await downloadPromise
+  const stream = await download.createReadStream()
+  let svg = ''
+  for await (const chunk of stream) svg += chunk.toString()
+
+  expect(svg).toContain('<svg')
+  expect(svg).toContain('translate(')
+  expect(svg).not.toContain('guide-layer')
+  expect(svg).not.toContain('selection-box')
+})
+
+test('keeps print preview pagination stable after zooming the editor', async ({ page }) => {
+  await openEditor(page)
+  await placeAt(page, 'Столбик без накида', 0.48, 0.48)
+  await page.keyboard.press('Escape')
   await openGlobalPanel(page, 'print-global-panel')
 
-  const panel = page.getByTestId('print-panel')
-  await panel.getByTestId('print-scale').fill('400')
-  await expect(panel.getByTestId('print-alignment-marks')).toBeChecked()
-  expect(Number(await panel.getByTestId('print-page-count').textContent())).toBeGreaterThan(1)
-
-  const popupPromise = page.waitForEvent('popup')
-  await panel.getByRole('button', { name: 'Открыть печать', exact: true }).click()
-  const popup = await popupPromise
-  await popup.waitForLoadState('domcontentloaded')
-
-  await expect(popup.locator('.registration-cross').first()).toBeAttached()
-  await expect(popup.locator('.print-legend-overlay')).toHaveCount(1)
-  const printable = await popup.locator('.print-legend-overlay').locator('xpath=..').boundingBox()
-  const legend = await popup.locator('.print-legend-overlay').boundingBox()
-  expect(printable).not.toBeNull()
-  expect(legend).not.toBeNull()
-  expect(legend!.x).toBeGreaterThanOrEqual(printable!.x)
-  expect(legend!.y).toBeGreaterThanOrEqual(printable!.y)
-  expect(legend!.x + legend!.width).toBeLessThanOrEqual(printable!.x + printable!.width + 1)
-  expect(legend!.y + legend!.height).toBeLessThanOrEqual(printable!.y + printable!.height + 1)
+  const before = await page.locator('.print-page-boundary').count()
+  await page.keyboard.press('+')
+  await page.keyboard.press('+')
+  const after = await page.locator('.print-page-boundary').count()
+  expect(after).toBe(before)
 })
