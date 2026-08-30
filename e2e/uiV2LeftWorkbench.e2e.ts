@@ -19,22 +19,66 @@ test('uses the extracted tool rail and crochet element library', async ({ page }
   await expect(page.locator('[data-ui-v2-legacy-library="true"]')).toHaveCount(0)
   await expect(page.locator('.ui-v2-legacy-guide-add')).toHaveCount(0)
 
-  // Existing regression selectors must now resolve to the extracted controls only.
-  await expect(page.locator('.left-sidebar .tool-button').filter({ hasText: 'Лассо' })).toHaveCount(1)
-  await expect(page.locator('.symbols-section .symbol-button[aria-label="Воздушная петля · ch"]')).toHaveCount(1)
+  // Panel 3 is crochet-specific: no invented generic shape library is introduced.
+  await expect(library.getByRole('button', { name: 'Воздушная петля · ch', exact: true })).toHaveCount(1)
+  await expect(library.getByText('Базовые фигуры', { exact: true })).toHaveCount(0)
 
   await rail.getByRole('button', { name: /Ладонь \/ перемещение поля/ }).click()
   await expect(page.locator('.editor-canvas')).toHaveClass(/pan-tool/)
   await expect(rail.getByRole('button', { name: /Ладонь \/ перемещение поля/ })).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.locator('.left-sidebar .tool-button').filter({ hasText: 'Лассо' })).toHaveCount(1)
 
   await rail.getByRole('button', { name: /Выбор \/ перемещение/ }).click()
   await expect(page.locator('.editor-canvas')).not.toHaveClass(/pan-tool/)
+
+  const selectionTrigger = rail.getByRole('button', { name: 'Выделение', exact: true })
+  await selectionTrigger.click()
+  const selectionMenu = page.getByRole('menu', { name: 'Выделение', exact: true })
+  const marquee = selectionMenu.getByRole('menuitemradio', { name: 'Прямоугольное выделение', exact: true })
+  const lasso = selectionMenu.getByRole('menuitemradio', { name: 'Лассо', exact: true })
+  await expect(selectionMenu).toBeVisible()
+  await expect(marquee).toHaveAttribute('aria-checked', 'true')
+  await lasso.click()
+  await expect(selectionMenu).toHaveCount(0)
+
+  await selectionTrigger.click()
+  await expect(selectionMenu).toBeVisible()
+  await expect(lasso).toHaveAttribute('aria-checked', 'true')
+  await marquee.click()
+  await expect(selectionMenu).toHaveCount(0)
 
   const chain = library.getByRole('button', { name: 'Воздушная петля · ch', exact: true })
   await chain.click()
   await expect(page.locator('.editor-canvas')).toHaveClass(/placing/)
   await expect(chain).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('collapses only the panel content while keeping the tool rail available', async ({ page }) => {
+  await openEditor(page)
+
+  const shell = page.locator('.app-shell')
+  const rail = page.getByRole('navigation', { name: 'Инструменты' })
+  const library = page.getByRole('region', { name: 'Библиотека элементов' })
+  const beforeColumns = await shell.evaluate((node) => getComputedStyle(node).gridTemplateColumns)
+
+  await library.getByRole('button', { name: 'Свернуть панель элементов', exact: true }).click()
+  await expect(page.getByTestId('element-library-collapsed')).toBeAttached()
+  await expect(rail).toBeVisible()
+  await expect(rail.getByRole('button', { name: 'Развернуть панель элементов', exact: true })).toBeVisible()
+  await expect.poll(() => shell.evaluate((node) => getComputedStyle(node).gridTemplateColumns)).not.toBe(beforeColumns)
+
+  await page.reload()
+  await expect(page.getByTestId('element-library-collapsed')).toBeAttached()
+  const persistedRail = page.getByRole('navigation', { name: 'Инструменты' })
+  await persistedRail.getByRole('button', { name: 'Развернуть панель элементов', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Библиотека элементов' })).toBeVisible()
+
+  await page.getByRole('region', { name: 'Библиотека элементов' })
+    .getByRole('button', { name: 'Свернуть панель элементов', exact: true })
+    .click()
+  await page.getByRole('button', { name: 'Добавить элемент из библиотеки', exact: true }).click()
+  const search = page.getByRole('searchbox', { name: 'Поиск элементов' })
+  await expect(search).toBeVisible()
+  await expect(search).toBeFocused()
 })
 
 test('keeps semantic element commands working after a locale switch', async ({ page }) => {
