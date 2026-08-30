@@ -19,7 +19,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
-  padding: 7px 8px 6px;
+  padding: 6px 8px 5px;
   border-bottom: 1px solid var(--ui-border);
   background: var(--ui-surface);
 }
@@ -28,7 +28,7 @@
   position: relative;
   display: inline-flex;
   min-width: 0;
-  min-height: 34px;
+  min-height: 32px;
   align-items: center;
   justify-content: center;
   gap: 6px;
@@ -57,7 +57,7 @@
   content: '';
   position: absolute;
   right: 12px;
-  bottom: -7px;
+  bottom: -6px;
   left: 12px;
   height: 2px;
   border-radius: 2px 2px 0 0;
