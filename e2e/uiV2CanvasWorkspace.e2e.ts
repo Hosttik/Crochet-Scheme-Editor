@@ -19,11 +19,15 @@ async function placeSingleCrochetStitch(page: Page) {
   await expect(page.locator('.stitch-element')).toHaveCount(1)
 }
 
-test('docks essential canvas controls and hides duplicate tool access points', async ({ page }) => {
+test('docks essential canvas controls as one aligned footer row and hides duplicate tools', async ({ page }) => {
   await openEditor(page)
 
+  const statusbar = page.getByTestId('canvas-statusbar')
+  const controls = statusbar.locator('.statusbar-canvas-controls')
   const toolbar = page.getByRole('toolbar', { name: 'Навигация и режимы поля' })
   await expect(toolbar).toBeVisible()
+  await expect(controls.getByTestId('canvas-toolbar')).toBeVisible()
+  expect(await toolbar.evaluate((element) => element.parentElement?.classList.contains('statusbar-canvas-controls'))).toBe(true)
 
   await expect(toolbar.getByRole('button', { name: 'Уменьшить масштаб', exact: true })).toBeVisible()
   await expect(toolbar.getByRole('button', { name: 'Увеличить масштаб', exact: true })).toBeVisible()
@@ -35,17 +39,20 @@ test('docks essential canvas controls and hides duplicate tool access points', a
 
   const snap = toolbar.getByRole('button', { name: 'Привязка к направляющим', exact: true })
   await expect(snap).toBeVisible()
+  await expect(snap).toContainText('Привязка:')
+  await expect(snap).toContainText('Вкл.')
   await expect(snap).toHaveAttribute('aria-pressed', 'true')
   await snap.click()
   await expect(snap).toHaveAttribute('aria-pressed', 'false')
+  await expect(snap).toContainText('Выкл.')
   await snap.click()
   await expect(snap).toHaveAttribute('aria-pressed', 'true')
 
   const toolbarRect = await toolbar.boundingBox()
-  const statusRect = await page.getByTestId('canvas-statusbar').boundingBox()
+  const statusRect = await statusbar.boundingBox()
   expect(toolbarRect).not.toBeNull()
   expect(statusRect).not.toBeNull()
-  expect(Math.abs((toolbarRect!.y + toolbarRect!.height) - (statusRect!.y + statusRect!.height))).toBeLessThanOrEqual(1)
+  expect(Math.abs((toolbarRect!.y + toolbarRect!.height / 2) - (statusRect!.y + statusRect!.height / 2))).toBeLessThanOrEqual(1)
 })
 
 test('uses a dedicated footer surface without changing canvas interaction geometry', async ({ page }) => {
