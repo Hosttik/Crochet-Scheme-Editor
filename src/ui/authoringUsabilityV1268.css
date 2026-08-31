@@ -1,0 +1,52 @@
+/* v1.26.8 authoring usability pass.
+ * Keep this layer focused on interaction affordances that depend on tool state.
+ */
+
+/* Continuous guides accept a stitch anywhere along their path. Their magnetic
+ * rail therefore communicates the whole acquisition corridor; division dots
+ * would incorrectly imply that only discrete positions are valid. */
+.guide-line .guide-snap-point,
+.guide-arc .guide-snap-point,
+.guide-curve .guide-snap-point,
+.guide-parabola .guide-snap-point {
+  display: none;
+}
+
+/* 24px acquisition radius ~= 48px full corridor. Keep it deliberately faint:
+ * users should understand the target without the guide becoming a thick object. */
+.guide-snap-zone {
+  stroke-width: 44px;
+}
+
+.workspace:has(.snap-toggle.active) .guide-snap-zone {
+  opacity: .045;
+}
+
+.workspace:has(.snap-toggle.active) .guide-layer:hover .guide-snap-zone,
+.workspace:has(.snap-toggle.active) .guide-layer.selected .guide-snap-zone {
+  opacity: .08;
+}
+
+.workspace:has(.editor-canvas.placing):has(.snap-toggle.active) .guide-snap-zone {
+  stroke-width: 48px;
+  opacity: .075;
+}
+
+.workspace:has(.editor-canvas.placing):has(.snap-toggle.active) .guide-layer:hover .guide-snap-zone,
+.workspace:has(.editor-canvas.placing):has(.snap-toggle.active) .guide-layer.selected .guide-snap-zone {
+  opacity: .12;
+}
+
+/* Discrete guide systems (rectangular/radial grids) keep actual snap points. */
+.guide-grid .guide-snap-point,
+.guide-radial-grid .guide-snap-point {
+  stroke-width: 1.35;
+}
+
+.snapping-corridor-note {
+  display: block;
+  margin-top: 2px;
+  color: var(--ui-text-faint);
+  font-size: 9px;
+  line-height: 1.45;
+}
