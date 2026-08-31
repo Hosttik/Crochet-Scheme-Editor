@@ -59,14 +59,16 @@
 
 .workspace .statusbar {
   height: var(--canvas-statusbar-height);
-  padding: 0 10px;
+  padding: 0 12px;
   display: grid;
-  grid-template-columns: minmax(130px, 1fr) auto minmax(96px, 1fr);
+  grid-template-columns: minmax(150px, 1fr) auto minmax(112px, 1fr);
   grid-template-areas: 'state controls selection';
   align-items: center;
-  column-gap: 14px;
+  column-gap: 18px;
   border-top: 1px solid var(--ui-border);
   background: var(--ui-surface);
+  color: var(--ui-text-muted);
+  font-size: 10px;
   backdrop-filter: none;
 }
 
@@ -83,11 +85,52 @@
 .workspace .statusbar-state {
   grid-area: state;
   justify-self: start;
+  gap: 7px;
+  color: var(--ui-text-muted);
+}
+
+.workspace .statusbar-state strong {
+  font-size: 10px;
+  font-weight: 550;
+  letter-spacing: .005em;
+}
+
+.workspace .statusbar-state-dot {
+  width: 6px;
+  height: 6px;
+  box-shadow: 0 0 0 3px rgba(64, 164, 106, .1);
 }
 
 .workspace .statusbar-selection {
   grid-area: selection;
   justify-self: end;
+  gap: 7px;
+  color: var(--ui-text-muted);
+  font-size: 10px;
+}
+
+.workspace .statusbar-selection strong {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--ui-surface-subtle);
+  color: var(--ui-text-muted);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.workspace .statusbar-selection.has-selection {
+  color: var(--ui-accent-hover);
+}
+
+.workspace .statusbar-selection.has-selection strong {
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent-hover);
 }
 
 /* Document statistics remain available to the component but are deliberately
@@ -97,8 +140,8 @@
   display: none !important;
 }
 
-/* The toolbar is now portaled into .statusbar-canvas-controls. Override the
- * legacy floating-toolbar geometry instead of compensating with statusbar padding. */
+/* The toolbar is portaled into .statusbar-canvas-controls. It is intentionally
+ * presented as footer chrome, not as a floating toolbar. */
 .workspace .statusbar-canvas-controls .canvas-toolbar {
   position: static !important;
   inset: auto !important;
@@ -147,18 +190,27 @@
   gap: 2px;
 }
 
-.workspace .canvas-toolbar-label {
-  margin-right: 2px;
-  color: var(--ui-text-muted);
-  font-size: 9.5px;
-  font-weight: 500;
+/* Labels are plain footer text. Explicit resets prevent generic control styles
+ * from turning them into bordered pills. */
+.workspace .canvas-toolbar .canvas-toolbar-label,
+.workspace .canvas-toolbar .canvas-snap-label {
+  height: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ui-text-faint);
+  font-size: 10px !important;
+  font-weight: 550 !important;
+  line-height: 1 !important;
   white-space: nowrap;
 }
 
-.workspace .canvas-toolbar-snap {
-  margin-left: 10px;
-  padding-left: 10px;
-  border-left: 1px solid var(--ui-border);
+.workspace .canvas-toolbar .canvas-toolbar-label {
+  margin-right: 7px !important;
 }
 
 .workspace .canvas-toolbar button,
@@ -174,8 +226,9 @@
   border-radius: 5px;
   background: transparent;
   color: var(--ui-text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 1;
+  box-shadow: none;
 }
 
 .workspace .canvas-toolbar button:hover:not(:disabled) {
@@ -183,72 +236,125 @@
   color: var(--ui-text);
 }
 
-.workspace .canvas-toolbar .zoom-readout {
-  min-width: 44px;
-  padding-inline: 3px;
+.workspace .canvas-toolbar button:focus-visible {
+  outline: 0;
+  box-shadow: var(--ui-focus-ring);
+}
+
+.workspace .canvas-toolbar .canvas-icon-button {
+  color: var(--ui-text-faint);
+}
+
+.workspace .canvas-toolbar .canvas-icon-button:hover:not(:disabled) {
   color: var(--ui-text);
-  font-size: 9.5px;
-  font-weight: 600;
+}
+
+.workspace .canvas-toolbar .zoom-readout {
+  min-width: 48px;
+  padding-inline: 4px;
+  color: var(--ui-text);
+  font-size: 10.5px;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
+}
+
+.workspace .canvas-toolbar-snap {
+  margin-left: 13px;
+  padding-left: 14px;
+  border-left: 1px solid var(--ui-border);
 }
 
 .workspace .canvas-toolbar .snap-toggle {
   width: auto !important;
   min-width: 0 !important;
-  padding: 0 5px !important;
+  height: 24px;
+  padding: 0 2px !important;
   display: inline-flex !important;
   place-items: unset !important;
   justify-content: flex-start !important;
-  gap: 4px;
+  gap: 7px;
+  border: 0 !important;
+  border-radius: 5px;
+  background: transparent !important;
   color: var(--ui-text-muted);
-  font-size: 9.5px !important;
-  font-weight: 500;
+  font-size: 10px !important;
+  font-weight: 550;
+  box-shadow: none !important;
+}
+
+.workspace .canvas-toolbar .snap-toggle:hover:not(:disabled) {
+  background: var(--ui-surface-hover) !important;
 }
 
 .workspace .canvas-toolbar .snap-toggle kbd {
   display: none;
 }
 
+/* A real compact switch instead of the old status dot. */
 .workspace .canvas-toolbar .canvas-snap-dot {
-  width: 5px;
-  height: 5px;
-  display: block;
-  box-shadow: none;
+  position: relative;
+  width: 26px !important;
+  height: 14px !important;
+  min-width: 26px !important;
+  flex: 0 0 26px;
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: var(--ui-border-strong) !important;
+  box-shadow: none !important;
+  transition: background-color 120ms ease;
+}
+
+.workspace .canvas-toolbar .canvas-snap-dot::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .2);
+  transition: transform 120ms ease;
+}
+
+.workspace .canvas-toolbar .snap-toggle.active .canvas-snap-dot {
+  background: var(--ui-accent) !important;
+}
+
+.workspace .canvas-toolbar .snap-toggle.active .canvas-snap-dot::after {
+  transform: translateX(12px);
 }
 
 .workspace .canvas-toolbar .canvas-snap-state {
-  color: var(--ui-text);
-  font-size: inherit;
-  font-weight: 650;
-}
-
-.workspace .canvas-toolbar .snap-toggle.active {
-  background: transparent;
+  min-width: 28px;
   color: var(--ui-text-muted);
-  box-shadow: none;
-}
-
-.workspace .canvas-toolbar .snap-toggle.active:hover {
-  background: var(--ui-surface-hover);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+  text-align: left;
 }
 
 .workspace .canvas-toolbar .snap-toggle.active .canvas-snap-state {
   color: var(--ui-accent-hover);
 }
 
-.workspace .statusbar-selection strong {
-  min-width: 20px;
-  padding: 2px 6px;
-}
-
 @media (max-width: 1080px) {
   .workspace .statusbar {
     grid-template-columns: minmax(92px, 1fr) auto minmax(82px, 1fr);
-    column-gap: 8px;
+    column-gap: 10px;
   }
 
-  .workspace .canvas-toolbar-label {
+  .workspace .canvas-toolbar .canvas-toolbar-label,
+  .workspace .canvas-toolbar .canvas-snap-label {
     display: none;
+  }
+
+  .workspace .canvas-toolbar-snap {
+    margin-left: 9px;
+    padding-left: 10px;
   }
 }
 
@@ -270,8 +376,8 @@
   }
 
   .workspace .canvas-toolbar-snap {
-    margin-left: 6px;
-    padding-left: 7px;
+    margin-left: 7px;
+    padding-left: 8px;
   }
 }
 
@@ -281,14 +387,14 @@
   }
 
   .workspace .canvas-toolbar .zoom-readout {
-    min-width: 40px;
+    min-width: 42px;
   }
 
-  .workspace .canvas-toolbar .snap-toggle > span:not(.canvas-snap-dot) {
+  .workspace .canvas-toolbar .canvas-snap-state {
     display: none;
   }
 
   .workspace .canvas-toolbar .snap-toggle {
-    padding-inline: 4px !important;
+    padding-inline: 3px !important;
   }
 }
