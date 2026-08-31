@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { SYMBOL_BY_ID, SymbolGlyph } from '../symbols'
 import { UI, symbolName, type Locale } from '../i18n'
-import type { StitchElement } from '../types'
+import type { MeasurementRuler, StitchElement } from '../types'
 import { EditorIcon } from '../ui/icons'
 import { IconButton } from '../ui/primitives'
 import { isElementLocked, isElementVisible } from './document'
@@ -42,10 +42,16 @@ function elementLabel(element: StitchElement, locale: Locale) {
 export function LayersPanel({
   elements,
   selectedIds,
+  rulers = [],
+  selectedRulerId = null,
   locale,
   onSelect,
   onToggleVisible,
   onToggleLocked,
+  onSelectRuler,
+  onToggleRulerVisible,
+  onToggleRulerLocked,
+  onDeleteRuler,
   onBringForward,
   onSendBackward,
   onBringToFront,
@@ -53,10 +59,16 @@ export function LayersPanel({
 }: {
   elements: StitchElement[]
   selectedIds: string[]
+  rulers?: MeasurementRuler[]
+  selectedRulerId?: string | null
   locale: Locale
   onSelect: (id: string, additive: boolean) => void
   onToggleVisible: (id: string) => void
   onToggleLocked: (id: string) => void
+  onSelectRuler?: (id: string) => void
+  onToggleRulerVisible?: (id: string) => void
+  onToggleRulerLocked?: (id: string) => void
+  onDeleteRuler?: (id: string) => void
   onBringForward: () => void
   onSendBackward: () => void
   onBringToFront: () => void
@@ -82,19 +94,37 @@ export function LayersPanel({
       return matchingElements.length ? [{ ...cluster, elements: matchingElements }] : []
     })
   }, [clusters, locale, normalizedQuery])
-  const filteredCount = filteredClusters.reduce((count, cluster) => count + cluster.elements.length, 0)
+  const filteredRulers = useMemo(() => {
+    if (!normalizedQuery) return rulers
+    const searchLocale = locale === 'ru' ? 'ru-RU' : 'en-US'
+    const aliases = locale === 'ru' ? ['линейка', 'измерение'] : ['ruler', 'measurement']
+    return rulers.filter((_, index) => {
+      const label = `${locale === 'ru' ? 'Линейка' : 'Ruler'} ${index + 1}`.toLocaleLowerCase(searchLocale)
+      return label.includes(normalizedQuery) || aliases.some((alias) => alias.includes(normalizedQuery))
+    })
+  }, [locale, normalizedQuery, rulers])
+  const filteredElementCount = filteredClusters.reduce((count, cluster) => count + cluster.elements.length, 0)
+  const filteredCount = filteredElementCount + filteredRulers.length
+  const totalCount = elements.length + rulers.length
+  const selectedLayerCount = selectedIds.length + (selectedRulerId ? 1 : 0)
   const copy = locale === 'ru'
     ? {
         search: 'Поиск слоев',
         noMatches: 'Нет слоев, подходящих под поиск',
         found: 'Показано',
         selected: 'Выбрано',
+        rulers: 'Линейки',
+        ruler: 'Линейка',
+        deleteRuler: 'Удалить линейку',
       }
     : {
         search: 'Search layers',
         noMatches: 'No layers match the search',
         found: 'Showing',
         selected: 'Selected',
+        rulers: 'Rulers',
+        ruler: 'Ruler',
+        deleteRuler: 'Delete ruler',
       }
 
   const renderElement = (element: StitchElement, compact = false) => {
@@ -173,11 +203,61 @@ export function LayersPanel({
     )
   }
 
+  const renderRuler = (ruler: MeasurementRuler, index: number) => {
+    const visible = ruler.visible !== false
+    const locked = ruler.locked === true
+    const active = selectedRulerId === ruler.id
+    const label = `${copy.ruler} ${rulers.indexOf(ruler) + 1}`
+    return (
+      <div
+        key={ruler.id}
+        className={`layer-row ruler-layer-row ${active ? 'selected' : ''} ${locked ? 'locked' : ''} ${visible ? '' : 'hidden'}`}
+        data-testid={`ruler-layer-${ruler.id}`}
+      >
+        <IconButton
+          className="layer-icon-button"
+          icon={visible ? 'eye' : 'eyeOff'}
+          label={visible ? t.hideLayer : t.showLayer}
+          onClick={() => onToggleRulerVisible?.(ruler.id)}
+        />
+        <IconButton
+          className="layer-icon-button"
+          icon={locked ? 'lock' : 'unlock'}
+          label={locked ? t.unlockLayer : t.lockLayer}
+          onClick={() => onToggleRulerLocked?.(ruler.id)}
+        />
+        <button
+          className="layer-main-button ruler-layer-main"
+          title={label}
+          aria-label={label}
+          aria-pressed={active}
+          onClick={() => onSelectRuler?.(ruler.id)}
+        >
+          <span className="ruler-layer-preview" aria-hidden="true">
+            <EditorIcon name="ruler" size={18} />
+          </span>
+          <span>
+            <strong>{label}</strong>
+            <small>#{index + 1}{locked ? ` · ${locale === 'ru' ? 'заблокирована' : 'locked'}` : ''}</small>
+          </span>
+        </button>
+        <IconButton
+          className="layer-icon-button ruler-layer-delete"
+          icon="trash"
+          label={copy.deleteRuler}
+          disabled={locked}
+          data-testid={`ruler-layer-delete-${ruler.id}`}
+          onClick={() => onDeleteRuler?.(ruler.id)}
+        />
+      </div>
+    )
+  }
+
   return (
     <details className="panel-section layers-section" open>
       <summary className="layers-summary">
         <span>{t.layers}</span>
-        <span className="muted-text">{elements.length}</span>
+        <span className="muted-text">{totalCount}</span>
       </summary>
 
       <div className="layers-content">
@@ -192,8 +272,8 @@ export function LayersPanel({
             />
           </label>
           <div className="layers-meta" aria-live="polite">
-            <span>{copy.found}: {filteredCount}/{elements.length}</span>
-            {selectedIds.length > 0 && <span>{copy.selected}: {selectedIds.length}</span>}
+            <span>{copy.found}: {filteredCount}/{totalCount}</span>
+            {selectedLayerCount > 0 && <span>{copy.selected}: {selectedLayerCount}</span>}
           </div>
           <div className="layer-order-controls" aria-label={t.layerOrder}>
             <IconButton icon="bringToFront" label={t.toFront} disabled={!canReorder} onClick={onBringToFront} />
@@ -203,12 +283,27 @@ export function LayersPanel({
           </div>
         </div>
 
-        {!elements.length ? (
+        {!totalCount ? (
           <p className="empty-state">{t.noLayers}</p>
         ) : !filteredCount ? (
           <p className="empty-state">{copy.noMatches}</p>
         ) : (
           <div className="layers-list semantic-layers-list">
+            {filteredRulers.length > 0 && (
+              <details
+                className={`layer-cluster ruler-layer-cluster ${selectedRulerId ? 'selected' : ''}`}
+                open={Boolean(selectedRulerId) || Boolean(normalizedQuery) || undefined}
+              >
+                <summary>
+                  <span className="layer-cluster-icon" aria-hidden="true"><EditorIcon name="ruler" size={15} /></span>
+                  <strong>{copy.rulers}</strong>
+                  <small>{filteredRulers.length}</small>
+                </summary>
+                <div className="layer-cluster-items">
+                  {filteredRulers.map(renderRuler)}
+                </div>
+              </details>
+            )}
             {filteredClusters.map(renderCluster)}
           </div>
         )}
