@@ -31,29 +31,25 @@
   color: var(--ui-text-muted);
 }
 
-/* Symbol quick actions use their own outer SVG with intrinsic catalog sizes.
- * Override that exact surface, rather than every nested SVG, so the glyph gets
- * a genuinely smaller footprint without distorting internal symbol geometry. */
-.favorite-quick-button > .symbol-glyph {
+/* FavoriteQuickBar renders catalog symbols as an outer SVG and a .symbol-glyph
+ * <g> inside it. Size the outer viewport and soften the inner drawing. */
+.favorite-quick-button > svg {
   width: 20px !important;
   height: 20px !important;
   max-width: 20px;
   max-height: 20px;
-  color: var(--ui-text-muted);
-  opacity: .72;
   overflow: visible;
 }
 
-.favorite-quick-button > .editor-icon,
-.favorite-quick-button > svg:not(.symbol-glyph) {
-  width: 18px !important;
-  height: 18px !important;
+.favorite-quick-button .symbol-glyph {
+  color: var(--ui-text-muted);
+  opacity: .72 !important;
 }
 
 .favorite-quick-button:hover:not(:disabled) .symbol-glyph,
 .favorite-quick-button.active .symbol-glyph {
   color: var(--ui-text);
-  opacity: .94;
+  opacity: .94 !important;
 }
 
 .favorite-quick-button.active {
@@ -130,6 +126,13 @@
 .left-panel-disclosure {
   padding: 0 !important;
   overflow: clip;
+}
+
+/* Legacy workbench CSS hid the entire guide section while it was empty. That
+ * conflicts with a persistent collapsible section: keep the header reachable
+ * even when the count is zero. */
+.left-sidebar > .guide-section.left-panel-disclosure {
+  display: block !important;
 }
 
 .left-panel-disclosure > summary {
