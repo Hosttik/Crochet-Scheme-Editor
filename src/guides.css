@@ -53,6 +53,40 @@
   stroke-width: 1.5;
   opacity: 1;
 }
+
+/* Continuous path guides can accept a stitch anywhere along the path. Render a
+ * faint magnetic corridor when snapping is enabled so the user can see that the
+ * whole line/curve is a target, not only its control points. */
+.guide-snap-zone {
+  stroke: #3987c9;
+  stroke-width: 18;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms ease;
+}
+
+.workspace:has(.snap-toggle.active) .guide-snap-zone {
+  opacity: .07;
+}
+
+.workspace:has(.snap-toggle.active) .guide-layer:hover .guide-snap-zone,
+.workspace:has(.snap-toggle.active) .guide-layer.selected .guide-snap-zone {
+  opacity: .14;
+}
+
+.workspace:has(.editor-canvas.placing):has(.snap-toggle.active) .guide-snap-zone {
+  stroke-width: 20;
+  opacity: .13;
+}
+
+.workspace:has(.editor-canvas.placing):has(.snap-toggle.active) .guide-layer:hover .guide-snap-zone,
+.workspace:has(.editor-canvas.placing):has(.snap-toggle.active) .guide-layer.selected .guide-snap-zone {
+  opacity: .2;
+}
+
 /* Interaction geometry stays wider than the visible guide, but dense grid and
  * radial-grid guides contain many overlapping primitives. Giving every one of
  * those primitives the old 18px stroke effectively turned large canvas areas
@@ -74,8 +108,35 @@
   fill: #fff;
   stroke: #2e738f;
   stroke-width: 1.15;
+  opacity: 0;
   pointer-events: none;
+  transition: opacity 100ms ease, fill 100ms ease;
 }
+
+.guide-layer.selected .guide-snap-point {
+  opacity: .52;
+}
+
+.workspace:has(.snap-toggle.active) .guide-snap-point {
+  opacity: .3;
+}
+
+.workspace:has(.snap-toggle.active) .guide-layer:hover .guide-snap-point,
+.workspace:has(.snap-toggle.active) .guide-layer.selected .guide-snap-point {
+  fill: #eef7ff;
+  opacity: .68;
+}
+
+.workspace:has(.editor-canvas.placing):has(.snap-toggle.active) .guide-snap-point {
+  fill: #f7fbff;
+  opacity: .58;
+}
+
+.workspace:has(.editor-canvas.placing):has(.snap-toggle.active) .guide-layer:hover .guide-snap-point,
+.workspace:has(.editor-canvas.placing):has(.snap-toggle.active) .guide-layer.selected .guide-snap-point {
+  opacity: .9;
+}
+
 .snap-indicator.guide-target circle:first-child { stroke: #2e738f; fill: rgba(46, 115, 143, .08); }
 .snap-indicator.guide-target circle:last-child { fill: #2e738f; }
 
