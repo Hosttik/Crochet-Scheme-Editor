@@ -113,6 +113,11 @@ export function StitchLayer({
     selectedIds.length > 1
       ? selectionAabb(previewElements, selectedIds, SYMBOL_SIZES)
       : null
+  const groupDragReference = groupBounds
+    ? selectedElements.find((element) => element.id === primaryId && !isElementLocked(element) && !element.parametricRow)
+      ?? selectedElements.find((element) => !isElementLocked(element) && !element.parametricRow)
+      ?? null
+    : null
 
   useEffect(() => {
     if (!geometryDrag) return
@@ -217,9 +222,19 @@ export function StitchLayer({
           y={groupBounds.top}
           width={groupBounds.right - groupBounds.left}
           height={groupBounds.bottom - groupBounds.top}
-          className="group-selection-box"
+          className={`group-selection-box ${groupDragReference ? 'draggable' : ''}`}
+          data-testid="group-selection-box"
           vectorEffect="non-scaling-stroke"
-          pointerEvents="none"
+          pointerEvents={groupDragReference ? 'all' : 'none'}
+          onPointerDown={groupDragReference
+            ? (event) => {
+                if (event.shiftKey) return
+                onElementPointerDown(
+                  event as unknown as ReactPointerEvent<SVGGElement>,
+                  groupDragReference,
+                )
+              }
+            : undefined}
         />
       )}
 
