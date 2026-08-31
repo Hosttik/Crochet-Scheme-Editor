@@ -22,6 +22,7 @@ import './ui/leftWorkbenchReference.css'
 import './ui/canvasAuthoringV2.css'
 import './ui/authoringUsabilityV1268.css'
 import './ui/compactChromeV12610.css'
+import './ui/interactionPolishV12611.css'
 
 const rootElement = document.getElementById('root')!
 rootElement.style.setProperty('--app-version-label', `"v${packageJson.version}"`)

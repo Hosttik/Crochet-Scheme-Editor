@@ -1,0 +1,65 @@
+/* v1.26.11 interaction polish -------------------------------------------------
+ * Final overrides for guide affordances and topbar density.
+ */
+
+/* Keep the real 24px acquisition corridor in snapping.ts, but show only a slim
+ * hint around the guide. The visual rail is an affordance, not the hit area. */
+.guide-snap-zone {
+  stroke-width: 18px !important;
+}
+
+.workspace:has(.editor-canvas.placing):has(.snap-toggle.active) .guide-snap-zone {
+  stroke-width: 22px !important;
+  opacity: .055;
+}
+
+.workspace:has(.editor-canvas.placing):has(.snap-toggle.active) .guide-layer:hover .guide-snap-zone,
+.workspace:has(.editor-canvas.placing):has(.snap-toggle.active) .guide-layer.selected .guide-snap-zone {
+  opacity: .08;
+}
+
+/* Favorites remain available in the element library where they have context.
+ * The topbar should contain document/view chrome only. */
+.topbar-v2 > .topbar-favorites-trigger,
+.topbar-v2 > .ui-v2-favorites-host,
+.topbar-v2 > .topbar-add-favorite {
+  display: none !important;
+}
+
+/* At compact desktop widths editorTopbar.css hides the autosave label and keeps
+ * only the status dot. The legacy global .autosave-indicator still carried a
+ * 92px minimum pill, so it reserved empty width even with no visible text. */
+@media (max-width: 1180px) {
+  .topbar-v2 .autosave-indicator {
+    min-width: 0;
+    max-width: 0;
+    width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: hidden;
+  }
+}
+
+/* Use the icon-only command state efficiently at the 900px regression gate.
+ * Interactive targets keep their vertical hit area; only low-priority chrome
+ * and horizontal spacing are reduced. */
+@media (max-width: 920px) {
+  .topbar-v2 .topbar-command-button {
+    width: 38px;
+  }
+
+  .topbar-v2 .topbar-divider,
+  .topbar-v2 .topbar-divider--compact {
+    margin-inline: 4px;
+  }
+
+  .topbar-v2 .topbar-flex-spacer {
+    min-width: 8px;
+    padding-right: 0;
+  }
+
+  .topbar-v2 .topbar-flex-spacer::after {
+    display: none;
+  }
+}

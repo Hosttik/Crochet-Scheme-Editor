@@ -31,14 +31,23 @@ function intersects(
   )
 }
 
-test('compact chain selection keeps the quick toolbar clear of the rotation handle', async ({ page }) => {
+test('chain selection exposes the same direct actions as a regular stitch', async ({ page }) => {
   await openEditor(page)
   await placeAt(page, 'Воздушная петля', 0.5, 0.5)
 
   const toolbar = page.locator('.selection-quick-toolbar')
   const rotationHandle = page.locator('.stitch-rotation-handle')
-  await expect(toolbar).toHaveClass(/below/)
+  const uniformResize = page.getByTestId('stitch-resize-uniform')
+  const heightResize = page.getByTestId('stitch-resize-height')
+
+  await expect(toolbar).toBeVisible()
+  await expect(toolbar).not.toHaveClass(/below/)
   await expect(rotationHandle).toBeVisible()
+  await expect(uniformResize).toBeVisible()
+  await expect(heightResize).toBeVisible()
+  await expect(toolbar.getByRole('button', { name: 'Дублировать' })).toBeVisible()
+  await expect(toolbar.getByRole('button', { name: 'Повернуть −15°' })).toBeVisible()
+  await expect(toolbar.getByRole('button', { name: 'Удалить' })).toBeVisible()
 
   const toolbarBox = await toolbar.boundingBox()
   const handleBox = await rotationHandle.boundingBox()

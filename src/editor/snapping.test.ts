@@ -163,7 +163,10 @@ describe('solveSnap', () => {
   })
 
   it('snaps to the guide under the placement crosshair and uses its tangent for orientation', () => {
-    const moving = proposed({ x: 150, y: 100 })
+    // Use a regular tall stitch here so this test remains about tangent/orientation
+    // and source-anchor mechanics. Compact/single guide centering has its own
+    // explicit regression below.
+    const moving = proposed({ symbolId: 'double', x: 150, y: 100 })
     const result = solveSnap(
       moving,
       [],
@@ -182,7 +185,7 @@ describe('solveSnap', () => {
   })
 
   it('snaps to any point on a continuous path instead of only its configured divisions', () => {
-    const moving = proposed({ x: 73, y: 100 })
+    const moving = proposed({ symbolId: 'double', x: 73, y: 100 })
     const result = solveSnap(moving, [], [line], settings, viewport, null)
 
     expect(result.candidate?.targetId).toBe('line-1')
@@ -223,7 +226,7 @@ describe('solveSnap', () => {
     expect(result.candidate?.targetId).toBe('line-1')
   })
 
-  it.each(['chain', 'slip', 'magic-ring'])('centers %s on a guide instead of shifting it by the bottom anchor', (symbolId) => {
+  it.each(['chain', 'slip', 'magic-ring', 'single'])('centers %s on a guide instead of shifting it by the bottom anchor', (symbolId) => {
     const moving = proposed({ symbolId, x: 73, y: 100 })
     const result = solveSnap(moving, [], [line], settings, viewport, null)
 

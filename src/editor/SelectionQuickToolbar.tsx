@@ -79,7 +79,6 @@ export function SelectionQuickToolbar({
   const selectionTop = viewport.panY + bounds.top * viewport.zoom
   const selectionBottom = viewport.panY + bounds.bottom * viewport.zoom
   let highestInteractiveY = selectionTop
-  let preferBelowForCompactRotationHandle = false
 
   if (selectedIds.length === 1) {
     const element = elements.find((item) => item.id === selectedIds[0])
@@ -93,12 +92,16 @@ export function SelectionQuickToolbar({
       const handleDocumentY = element.y + handleLocalY * Math.cos(radians)
       const handleScreenY = viewport.panY + handleDocumentY * viewport.zoom
       highestInteractiveY = Math.min(highestInteractiveY, handleScreenY - 8)
-      preferBelowForCompactRotationHandle = visualHeight <= 24
     }
   }
 
+  // All stitches use the same placement rule. The previous compact-stitch
+  // special case forced chain actions below the selection and could push the
+  // toolbar out of the usable canvas near the footer. The real interaction
+  // bounds already include the rotation handle, so prefer above consistently
+  // and fall back below only when there is genuinely no room at the top.
   const aboveAnchor = highestInteractiveY - 10
-  const below = preferBelowForCompactRotationHandle || aboveAnchor < 52
+  const below = aboveAnchor < 52
   const top = below ? selectionBottom + 14 : aboveAnchor
 
   return (
