@@ -2,6 +2,17 @@ import { UI, type Locale } from '../i18n'
 import type { Guide } from '../types'
 import { EditorIcon } from './icons'
 
+const GUIDE_PANEL_OPEN_STORAGE_KEY = 'crochet-ui-v2-guide-panel-open'
+
+function guidePanelDefaultOpen() {
+  if (typeof window === 'undefined') return true
+  try {
+    return window.localStorage.getItem(GUIDE_PANEL_OPEN_STORAGE_KEY) !== 'false'
+  } catch {
+    return true
+  }
+}
+
 type GuideListPanelProps = {
   locale: Locale
   guides: Guide[]
@@ -20,30 +31,45 @@ export function GuideListPanel({
   const t = UI[locale]
 
   return (
-    <section className="panel-section guide-section">
-      <div className="section-title-row">
-        <h2>{t.guides}</h2>
-        <span className="muted-text">{guides.length}</span>
+    <details
+      className="panel-section guide-section left-panel-disclosure"
+      data-testid="guides-panel"
+      defaultOpen={guidePanelDefaultOpen()}
+      onToggle={(event) => {
+        try {
+          window.localStorage.setItem(GUIDE_PANEL_OPEN_STORAGE_KEY, String(event.currentTarget.open))
+        } catch {
+          // Layout preference is non-critical.
+        }
+      }}
+    >
+      <summary>
+        <EditorIcon name="chevronDown" size={13} className="left-panel-disclosure__chevron" />
+        <span className="left-panel-disclosure__title">{t.guides}</span>
+        <span className="left-panel-disclosure__count">{guides.length}</span>
+      </summary>
+
+      <div className="left-panel-disclosure__body">
+        {guides.length > 0 && (
+          <div className="guide-list">
+            {guides.map((guide, index) => (
+              <button
+                key={guide.id}
+                className={selectedGuideId === guide.id ? 'active' : ''}
+                onClick={() => onSelectGuide(guide.id)}
+              >
+                <span className={`visibility-dot ${guide.visible ? '' : 'hidden'}`} />
+                <span>{index + 1}. {guideLabel(guide)}</span>
+                {guide.locked && (
+                  <span aria-label={locale === 'ru' ? 'Заблокирована' : 'Locked'}>
+                    <EditorIcon name="lock" size={14} className="lock-indicator-icon" />
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      {guides.length > 0 && (
-        <div className="guide-list">
-          {guides.map((guide, index) => (
-            <button
-              key={guide.id}
-              className={selectedGuideId === guide.id ? 'active' : ''}
-              onClick={() => onSelectGuide(guide.id)}
-            >
-              <span className={`visibility-dot ${guide.visible ? '' : 'hidden'}`} />
-              <span>{index + 1}. {guideLabel(guide)}</span>
-              {guide.locked && (
-                <span aria-label={locale === 'ru' ? 'Заблокирована' : 'Locked'}>
-                  <EditorIcon name="lock" size={14} className="lock-indicator-icon" />
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-    </section>
+    </details>
   )
 }
