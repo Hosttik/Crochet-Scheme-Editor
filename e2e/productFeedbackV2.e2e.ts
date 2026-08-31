@@ -49,7 +49,7 @@ test('uses thinner crochet strokes in the element library without changing canva
   expect(canvasStroke).toBeGreaterThan(libraryStroke)
 })
 
-test('keeps the quick toolbar away from the rotation handle for a compact chain stitch', async ({ page }) => {
+test('keeps the normalized quick toolbar away from the rotation handle for a compact chain stitch', async ({ page }) => {
   await openEditor(page)
   await placeAt(page, 'Воздушная петля · ch', 0.5, 0.5)
   await page.keyboard.press('Escape')
@@ -57,7 +57,7 @@ test('keeps the quick toolbar away from the rotation handle for a compact chain 
   const toolbar = page.locator('.selection-quick-toolbar')
   const rotationHandle = page.locator('.stitch-rotation-handle')
   await expect(toolbar).toBeVisible()
-  await expect(toolbar).toHaveClass(/below/)
+  await expect(toolbar).not.toHaveClass(/below/)
   await expect(rotationHandle).toBeVisible()
 
   const toolbarBox = await toolbar.boundingBox()
