@@ -156,5 +156,5 @@ test('keeps responsive chrome contained and exposes clear project actions', asyn
 
   const settings = page.locator('.topbar-autosave-menu')
   await settings.locator('summary').click()
-  await expect(settings.locator('.topbar-version')).toHaveText('v1.26.5')
+  await expect(settings.locator('.topbar-version')).toHaveText('v1.26.6')
 })
