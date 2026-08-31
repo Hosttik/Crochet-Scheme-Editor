@@ -13,7 +13,7 @@
 
 /* Favorites should read like quick glyph shortcuts, not bold dark stamps. */
 .favorite-quick-bar {
-  gap: 3px;
+  gap: 4px;
   padding: 2px 4px;
   background: color-mix(in srgb, var(--ui-surface-subtle) 72%, transparent);
 }
@@ -31,20 +31,29 @@
   color: var(--ui-text-muted);
 }
 
-.favorite-quick-button svg {
-  width: 20px;
-  height: 20px;
+/* Symbol quick actions use their own outer SVG with intrinsic catalog sizes.
+ * Override that exact surface, rather than every nested SVG, so the glyph gets
+ * a genuinely smaller footprint without distorting internal symbol geometry. */
+.favorite-quick-button > .symbol-glyph {
+  width: 20px !important;
+  height: 20px !important;
+  max-width: 20px;
+  max-height: 20px;
+  color: var(--ui-text-muted);
+  opacity: .72;
+  overflow: visible;
 }
 
-.favorite-quick-button .symbol-glyph {
-  color: var(--ui-text-muted);
-  opacity: .76;
+.favorite-quick-button > .editor-icon,
+.favorite-quick-button > svg:not(.symbol-glyph) {
+  width: 18px !important;
+  height: 18px !important;
 }
 
 .favorite-quick-button:hover:not(:disabled) .symbol-glyph,
 .favorite-quick-button.active .symbol-glyph {
   color: var(--ui-text);
-  opacity: .96;
+  opacity: .94;
 }
 
 .favorite-quick-button.active {
