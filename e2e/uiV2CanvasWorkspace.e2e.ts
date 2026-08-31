@@ -44,7 +44,7 @@ test('docks essential canvas controls as one aligned footer row and hides duplic
   await expect(snap).toHaveAttribute('aria-pressed', 'true')
   await snap.click()
   await expect(snap).toHaveAttribute('aria-pressed', 'false')
-  await expect(snap).toContainText('Выкл.')
+  await expect(snap).toContainText('Свободно')
   await snap.click()
   await expect(snap).toHaveAttribute('aria-pressed', 'true')
 
