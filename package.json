@@ -1,7 +1,7 @@
 {
   "name": "crochet-scheme-editor",
   "private": true,
-  "version": "1.26.5",
+  "version": "1.26.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -19,7 +19,6 @@
     "@playwright/test": "^1.55.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
-    "@vitejs/plugin-react": "^6.1.0",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vitest": "^4.1.11"
