@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from 'react'
 import type { GaugeProfile, GaugeSettings, MeasurementRuler, StitchElement } from '../types'
 import { symbolName } from '../i18n'
 import { STITCH_SYMBOLS } from '../symbols'
@@ -11,11 +12,17 @@ import {
   rulerEstimate,
   stitchWidthCm,
 } from './gauge'
+import { clearRulerLayers, publishRulerLayers } from './rulerLayersStore'
 
 function format(value: number, locale: 'ru' | 'en') {
   return new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : 'en-US', {
     maximumFractionDigits: 2,
   }).format(value)
+}
+
+function isEditingTarget(target: EventTarget | null) {
+  const element = target instanceof HTMLElement ? target : null
+  return Boolean(element && (element.matches('input, textarea, select') || element.isContentEditable))
 }
 
 export function GaugeRulerPanel({
@@ -67,6 +74,34 @@ export function GaugeRulerPanel({
   const measurementToolLabel = placingRuler
     ? (ru ? 'Отменить измерение' : 'Cancel measurement')
     : (ru ? 'Новая область измерения' : 'New measurement region')
+  const layerActions = useMemo(() => ({
+    select: onSelectRuler,
+    update: onUpdateRuler,
+    delete: (id: string) => {
+      const ruler = rulers.find((item) => item.id === id)
+      if (!ruler || ruler.locked === true) return
+      onDeleteRuler(id)
+    },
+  }), [onDeleteRuler, onSelectRuler, onUpdateRuler, rulers])
+
+  useEffect(() => {
+    publishRulerLayers({ rulers, selectedRulerId, actions: layerActions })
+    return () => clearRulerLayers(layerActions)
+  }, [layerActions, rulers, selectedRulerId])
+
+  // ApplicationCommandShortcuts owns Delete/Backspace at document level. A
+  // locked measurement must be protected before that command reaches App.
+  useEffect(() => {
+    if (!selectedRulerLocked) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.key !== 'Delete' && event.key !== 'Backspace') || isEditingTarget(event.target)) return
+      event.preventDefault()
+      event.stopPropagation()
+      event.stopImmediatePropagation()
+    }
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
+  }, [selectedRulerLocked])
 
   return (
     <section className="panel-section gauge-panel">
