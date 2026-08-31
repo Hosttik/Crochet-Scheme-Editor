@@ -75,15 +75,14 @@ test('collapses only the panel content while keeping the tool rail available', a
   await page.getByRole('region', { name: 'Библиотека элементов' })
     .getByRole('button', { name: 'Свернуть панель элементов', exact: true })
     .click()
-  // Wait for the collapsed surface to replace the library before using its
-  // quick-add action. Without this state boundary the locator can race React's
-  // layout update under a loaded CI worker.
-  const collapsed = page.getByTestId('element-library-collapsed')
-  await expect(collapsed).toBeAttached()
-  await collapsed.getByRole('button', { name: 'Добавить элемент из библиотеки', exact: true }).click()
-  const search = page.getByRole('searchbox', { name: 'Поиск элементов' })
-  await expect(search).toBeVisible()
-  await expect(search).toBeFocused()
+  await expect(page.getByTestId('element-library-collapsed')).toBeAttached()
+
+  // Once the topbar Favorites/+ surface is gone, ToolRail is deliberately the
+  // single persistent entry point for reopening the element library.
+  const expandLibrary = persistedRail.getByRole('button', { name: 'Развернуть панель элементов', exact: true })
+  await expect(expandLibrary).toBeVisible()
+  await expandLibrary.click()
+  await expect(page.getByRole('region', { name: 'Библиотека элементов' })).toBeVisible()
 })
 
 test('keeps semantic element commands working after a locale switch', async ({ page }) => {
