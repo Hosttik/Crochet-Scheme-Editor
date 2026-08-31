@@ -1,0 +1,84 @@
+--- a/e2e/geometryInteractionV1222.e2e.ts
++++ b/e2e/geometryInteractionV1222.e2e.ts
+@@ -56,19 +56,73 @@
+   expect(intersects(toolbarBox!, handleBox!)).toBe(false)
+ })
+ 
+-test('temporary multi-selection has one frame and a live repeat preview', async ({ page }) => {
++test('chain bundle selection behaves like one editable object', async ({ page }) => {
+   await openEditor(page)
+   const box = await canvasBox(page)
+-  await page.locator('.chain-bundle-button[aria-label^="2 воздушные петли"]').click()
++  await page.locator('.chain-bundle-button[aria-label^="3 воздушные петли"]').click()
+   await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5)
++  await page.keyboard.press('Escape')
++  await expect(page.locator('svg.editor-canvas')).toHaveClass(/selecting/)
+ 
+-  await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
++  await expect(page.locator('.stitch-element.selected')).toHaveCount(3)
+   await expect(page.locator('.group-selection-box')).toHaveCount(1)
+   await expect(page.locator('.stitch-element.selected .selection-box')).toHaveCount(0)
++  await expect(page.getByTestId('chain-group-transform-handles')).toBeVisible()
++  await expect(page.getByTestId('group-rotation-hit-target')).toBeVisible()
++  await expect(page.getByTestId('group-resize-uniform')).toBeVisible()
++  await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(0)
+ 
+-  await page.keyboard.press('Escape')
+-  await page.locator('.selection-quick-toolbar').getByRole('button', { name: 'Разгруппировать' }).click()
+-  await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
+-  await expect(page.locator('.productivity-repeat-preview-stitch')).not.toHaveCount(0)
+-  await expect(page.locator('.productivity-hint')).toContainText('ghost-preview показывает весь временный мотив')
++  const frame = page.locator('.group-selection-box')
++  const beforeScale = await frame.boundingBox()
++  expect(beforeScale).not.toBeNull()
++  const scaleHandle = await page.getByTestId('group-resize-uniform').boundingBox()
++  expect(scaleHandle).not.toBeNull()
++  const pivot = {
++    x: beforeScale!.x + beforeScale!.width / 2,
++    y: beforeScale!.y + beforeScale!.height / 2,
++  }
++  const scaleStart = {
++    x: scaleHandle!.x + scaleHandle!.width / 2,
++    y: scaleHandle!.y + scaleHandle!.height / 2,
++  }
++  await page.mouse.move(scaleStart.x, scaleStart.y)
++  await page.mouse.down()
++  await page.mouse.move(
++    pivot.x + (scaleStart.x - pivot.x) * 1.5,
++    pivot.y + (scaleStart.y - pivot.y) * 1.5,
++    { steps: 8 },
++  )
++  await page.mouse.up()
++
++  const afterScale = await frame.boundingBox()
++  expect(afterScale).not.toBeNull()
++  expect(afterScale!.width).toBeGreaterThan(beforeScale!.width * 1.2)
++  const scales = await page.locator('.stitch-element.selected').evaluateAll((nodes) =>
++    nodes.map((node) => Number(node.getAttribute('data-scale-x'))),
++  )
++  scales.forEach((scale) => expect(scale).toBeGreaterThan(1.2))
++  await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(0)
++
++  const scaledFrame = await frame.boundingBox()
++  expect(scaledFrame).not.toBeNull()
++  const rotateHandle = await page.getByTestId('group-rotation-hit-target').boundingBox()
++  expect(rotateHandle).not.toBeNull()
++  const rotatePivot = {
++    x: scaledFrame!.x + scaledFrame!.width / 2,
++    y: scaledFrame!.y + scaledFrame!.height / 2,
++  }
++  const rotateStart = {
++    x: rotateHandle!.x + rotateHandle!.width / 2,
++    y: rotateHandle!.y + rotateHandle!.height / 2,
++  }
++  await page.mouse.move(rotateStart.x, rotateStart.y)
++  await page.mouse.down()
++  await page.mouse.move(rotatePivot.x + 90, rotatePivot.y, { steps: 10 })
++  await page.mouse.up()
++
++  const rotated = await frame.boundingBox()
++  expect(rotated).not.toBeNull()
++  expect(rotated!.height).toBeGreaterThan(rotated!.width)
++  await expect(page.locator('.stitch-element.selected')).toHaveCount(3)
++  await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(0)
+ })
