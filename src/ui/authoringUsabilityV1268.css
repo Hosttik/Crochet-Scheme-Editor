@@ -43,6 +43,13 @@
   stroke-width: 1.35;
 }
 
+/* Mirror-axis handles are editing chrome. If an axis is left visible while the
+ * user starts constructing, it must not consume a placement pointer event. */
+.editor-canvas.placing .mirror-axis-overlay,
+.editor-canvas.placing .mirror-axis-overlay * {
+  pointer-events: none !important;
+}
+
 .snapping-corridor-note {
   display: block;
   margin-top: 2px;
