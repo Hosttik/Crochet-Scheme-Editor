@@ -162,5 +162,6 @@ export function CanvasToolbar({
     </div>
   )
 
+  if (typeof document === 'undefined') return toolbar
   return footerHost ? createPortal(toolbar, footerHost) : null
 }
