@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { UI, type Locale } from '../i18n'
 import type { Guide } from '../types'
 import { EditorIcon } from './icons'
@@ -29,15 +30,18 @@ export function GuideListPanel({
   onSelectGuide,
 }: GuideListPanelProps) {
   const t = UI[locale]
+  const [panelOpen, setPanelOpen] = useState(guidePanelDefaultOpen)
 
   return (
     <details
       className="panel-section guide-section left-panel-disclosure"
       data-testid="guides-panel"
-      defaultOpen={guidePanelDefaultOpen()}
+      open={panelOpen}
       onToggle={(event) => {
+        const nextOpen = event.currentTarget.open
+        setPanelOpen(nextOpen)
         try {
-          window.localStorage.setItem(GUIDE_PANEL_OPEN_STORAGE_KEY, String(event.currentTarget.open))
+          window.localStorage.setItem(GUIDE_PANEL_OPEN_STORAGE_KEY, String(nextOpen))
         } catch {
           // Layout preference is non-critical.
         }
