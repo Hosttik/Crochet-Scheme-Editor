@@ -17,6 +17,7 @@ import './ui/workbench-structure.css'
 import './ui/canvasToolbarV2.css'
 import './ui/chromePolish.css'
 import './ui/editorTopbar.css'
+import './ui/appVersionBadge.css'
 import './ui/leftWorkbenchReference.css'
 import './ui/canvasAuthoringV2.css'
 

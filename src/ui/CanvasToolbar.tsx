@@ -62,7 +62,7 @@ export function CanvasToolbar({
       data-testid="canvas-toolbar"
     >
       <div className="canvas-toolbar-group canvas-toolbar-zoom" aria-label={locale === 'ru' ? 'Масштаб' : 'Zoom'}>
-        <span className="canvas-toolbar-label">{locale === 'ru' ? 'Масштаб:' : 'Zoom:'}</span>
+        <span className="canvas-toolbar-label">{locale === 'ru' ? 'Масштаб' : 'Zoom'}</span>
         <button
           className="canvas-icon-button"
           aria-label={locale === 'ru' ? 'Уменьшить масштаб' : 'Zoom out'}
@@ -138,7 +138,7 @@ export function CanvasToolbar({
           onClick={onToggleSnapping}
         >
           <span className="canvas-snap-dot" aria-hidden="true" />
-          <span>{locale === 'ru' ? 'Привязка:' : 'Snap:'}</span>
+          <span className="canvas-snap-label">{locale === 'ru' ? 'Привязка' : 'Snap'}</span>
           <strong className="canvas-snap-state">
             {snappingEnabled ? (locale === 'ru' ? 'Вкл.' : 'On') : (locale === 'ru' ? 'Свободно' : 'Free')}
           </strong>

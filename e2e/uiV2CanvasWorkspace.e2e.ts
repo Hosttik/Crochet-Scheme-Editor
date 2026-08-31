@@ -37,11 +37,34 @@ test('docks essential canvas controls as one aligned footer row and hides duplic
   await expect(toolbar.getByRole('button', { name: 'Вместить всю схему', exact: true })).toBeHidden()
   await expect(toolbar.getByLabel('Ориентация при привязке')).toBeHidden()
 
+  const zoomLabel = toolbar.locator('.canvas-toolbar-label')
+  const snapLabel = toolbar.locator('.canvas-snap-label')
+  await expect(zoomLabel).toHaveText('Масштаб')
+  await expect(snapLabel).toHaveText('Привязка')
+  for (const label of [zoomLabel, snapLabel]) {
+    const style = await label.evaluate((element) => {
+      const computed = getComputedStyle(element)
+      return {
+        borderTopWidth: computed.borderTopWidth,
+        borderRadius: computed.borderRadius,
+        boxShadow: computed.boxShadow,
+      }
+    })
+    expect(style.borderTopWidth).toBe('0px')
+    expect(style.borderRadius).toBe('0px')
+    expect(style.boxShadow).toBe('none')
+  }
+
   const snap = toolbar.getByRole('button', { name: 'Привязка к направляющим', exact: true })
   await expect(snap).toBeVisible()
-  await expect(snap).toContainText('Привязка:')
+  await expect(snap).toContainText('Привязка')
   await expect(snap).toContainText('Вкл.')
   await expect(snap).toHaveAttribute('aria-pressed', 'true')
+
+  const switchRect = await snap.locator('.canvas-snap-dot').boundingBox()
+  expect(switchRect).not.toBeNull()
+  expect(switchRect!.width).toBeGreaterThan(switchRect!.height)
+
   await snap.click()
   await expect(snap).toHaveAttribute('aria-pressed', 'false')
   await expect(snap).toContainText('Свободно')
