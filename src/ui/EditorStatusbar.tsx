@@ -22,8 +22,13 @@ export function EditorStatusbar({
   const t = UI[locale]
 
   return (
-    <div className="statusbar" role="status" aria-live="polite" data-testid="canvas-statusbar">
-      <span className="statusbar-state" title={status}>
+    <div className="statusbar" data-testid="canvas-statusbar">
+      <div
+        id="canvas-statusbar-controls"
+        className="statusbar-canvas-controls"
+        aria-label={locale === 'ru' ? 'Управление рабочим полем' : 'Canvas controls'}
+      />
+      <span className="statusbar-state" title={status} role="status" aria-live="polite">
         <i className="statusbar-state-dot" aria-hidden="true" />
         <strong>{status}</strong>
       </span>
