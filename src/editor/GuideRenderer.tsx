@@ -53,7 +53,7 @@ export function GuideRenderer({
   if (!guide.visible) return null
 
   const locked = guide.locked === true
-  const snapPoints = selected ? guideSnapPoints(guide) : []
+  const snapPoints = guideSnapPoints(guide)
   const center = guideCenter(guide)
   const resizeHandle = selected ? guideResizeHandle(guide) : null
   const rotationHandle = selected ? gridRotationHandle(guide) : null
@@ -169,6 +169,14 @@ export function GuideRenderer({
       <>
         <polyline
           points={serialized}
+          className="guide-snap-zone"
+          data-testid="guide-snap-zone"
+          fill="none"
+          vectorEffect="non-scaling-stroke"
+          pointerEvents="none"
+        />
+        <polyline
+          points={serialized}
           className="guide-hit-area"
           fill="none"
           vectorEffect="non-scaling-stroke"
@@ -233,6 +241,7 @@ export function GuideRenderer({
   return (
     <g
       className={`guide-layer guide-${guide.type} ${selected ? 'selected' : ''} ${locked ? 'locked' : ''}`}
+      data-guide-id={guide.id}
       onPointerDown={(event) => startInteraction(event, 'move')}
       onDoubleClick={(event) => {
         if (locked || !isPathGuide(guide)) return
@@ -354,7 +363,10 @@ export function GuideRenderer({
           cy={snapPoint.point.y}
           r={3 / zoom}
           className="guide-snap-point"
+          data-testid="guide-snap-point"
           vectorEffect="non-scaling-stroke"
+          pointerEvents="none"
+          aria-hidden="true"
         />
       ))}
 

@@ -192,12 +192,19 @@ describe('solveSnap', () => {
     expect(anchorWorldPosition(snappedElement, 'bottom').y).toBeCloseTo(100, 2)
   })
 
-  it('uses a wider acquisition corridor for guides than for stitch anchors', () => {
-    const moving = proposed({ x: 73, y: 117 })
+  it('uses a forgiving 24px acquisition corridor for guides', () => {
+    const moving = proposed({ x: 73, y: 123 })
     const result = solveSnap(moving, [], [line], settings, viewport, null)
 
     expect(result.candidate?.targetType).toBe('guide')
     expect(result.candidate?.targetId).toBe('line-1')
+  })
+
+  it('does not acquire a guide outside the guide corridor', () => {
+    const moving = proposed({ x: 73, y: 125 })
+    const result = solveSnap(moving, [], [line], settings, viewport, null)
+
+    expect(result.candidate).toBeNull()
   })
 
   it('prefers a guide inside its acquisition corridor over a competing stitch anchor', () => {
@@ -227,7 +234,7 @@ describe('solveSnap', () => {
     expect(anchorWorldPosition(snappedElement, 'center').y).toBeCloseTo(100, 2)
   })
 
-  it('keeps a locked candidate inside the wider release threshold', () => {
+  it('keeps a locked stitch candidate inside the element release threshold', () => {
     const result = solveSnap(
       proposed({ y: 100 }),
       [target],
@@ -240,7 +247,7 @@ describe('solveSnap', () => {
     expect(result.candidate?.key).toBe('target:center')
   })
 
-  it('releases a locked candidate after leaving the hysteresis radius', () => {
+  it('releases a locked stitch candidate after leaving the element hysteresis radius', () => {
     const result = solveSnap(
       proposed({ y: 103 }),
       [target],
@@ -252,5 +259,33 @@ describe('solveSnap', () => {
 
     expect(result.candidate).toBeNull()
     expect(result.y).toBe(103)
+  })
+
+  it('keeps a locked guide through a wider release corridor', () => {
+    const result = solveSnap(
+      proposed({ x: 80, y: 129 }),
+      [],
+      [line],
+      settings,
+      viewport,
+      'line-1:line:nearest',
+    )
+
+    expect(result.candidate?.targetType).toBe('guide')
+    expect(result.candidate?.targetId).toBe('line-1')
+  })
+
+  it('releases a locked guide once it leaves the guide release corridor', () => {
+    const result = solveSnap(
+      proposed({ x: 80, y: 131 }),
+      [],
+      [line],
+      settings,
+      viewport,
+      'line-1:line:nearest',
+    )
+
+    expect(result.candidate).toBeNull()
+    expect(result.y).toBe(131)
   })
 })

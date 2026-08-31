@@ -20,6 +20,7 @@ import './ui/editorTopbar.css'
 import './ui/appVersionBadge.css'
 import './ui/leftWorkbenchReference.css'
 import './ui/canvasAuthoringV2.css'
+import './ui/authoringUsabilityV1268.css'
 
 const rootElement = document.getElementById('root')!
 rootElement.style.setProperty('--app-version-label', `"v${packageJson.version}"`)

@@ -121,12 +121,18 @@ export function RightOptionsPanels({
             <input
               type="range"
               min="6"
-              max="24"
+              max="32"
+              step="2"
               value={snapping.tolerancePx}
               disabled={!snapping.enabled}
               onChange={(event) => onToleranceChange(Number(event.target.value))}
             />
           </label>
+          <small className="snapping-corridor-note">
+            {locale === 'ru'
+              ? 'Направляющие имеют расширенную магнитную зону — их не нужно ловить пиксель в пиксель.'
+              : 'Guides use a wider magnetic corridor, so you do not need pixel-perfect aiming.'}
+          </small>
         </section>
       </details>
 

@@ -1,13 +1,19 @@
 /* Panel 5 authoring pass.
  *
  * Placement is intentionally construction-first: while a stitch tool is active,
- * existing stitches must not steal pointer events from the canvas. Canvas controls
- * live inside the shared workspace footer so the bottom chrome is one aligned row.
+ * existing editor objects must not steal pointer events from the canvas. Canvas
+ * controls live inside the shared workspace footer as one aligned status row.
  */
 
 /* Continuous placement ---------------------------------------------------- */
 .editor-canvas.placing .stitch-element,
-.editor-canvas.placing .stitch-element * {
+.editor-canvas.placing .stitch-element *,
+.editor-canvas.placing .guide-layer,
+.editor-canvas.placing .guide-layer *,
+.editor-canvas.placing .row-marker,
+.editor-canvas.placing .row-marker *,
+.editor-canvas.placing .measurement-ruler,
+.editor-canvas.placing .measurement-ruler * {
   pointer-events: none !important;
   cursor: crosshair !important;
 }
@@ -18,7 +24,10 @@
   .stitch-handle-hit-target,
   .stitch-geometry-handle,
   .stitch-rotation-link,
-  .stitch-rotation-handle
+  .stitch-rotation-handle,
+  .guide-manipulation-ui,
+  .guide-value-label,
+  .guide-lock-indicator
 ) {
   display: none !important;
 }
@@ -27,25 +36,26 @@
   color: var(--ui-text);
 }
 
-.workspace:has(.editor-canvas.placing) .selection-quick-toolbar {
+.workspace:has(.editor-canvas.placing) .selection-quick-toolbar,
+.workspace:has(.editor-canvas.lassoing) .selection-quick-toolbar {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
 }
 
 .editor-canvas.placing .preview-stitch {
-  opacity: .74;
+  opacity: .78;
 }
 
 /* Make guide acquisition obvious without visually thickening every guide. */
 .snap-indicator.guide-target {
-  filter: drop-shadow(0 1px 3px color-mix(in srgb, var(--ui-accent) 24%, transparent));
+  filter: drop-shadow(0 1px 3px color-mix(in srgb, var(--ui-accent) 28%, transparent));
 }
 
 .snap-indicator.guide-target circle:first-child {
-  fill: color-mix(in srgb, var(--ui-accent) 11%, transparent);
+  fill: color-mix(in srgb, var(--ui-accent) 12%, transparent);
   stroke: var(--ui-accent);
-  stroke-width: 2;
+  stroke-width: 2.25;
 }
 
 .snap-indicator.guide-target circle:last-child {
@@ -55,6 +65,7 @@
 /* Workspace footer -------------------------------------------------------- */
 .workspace {
   --canvas-statusbar-height: 32px;
+  --canvas-footer-control-height: 24px;
 }
 
 .workspace .statusbar {
@@ -69,15 +80,22 @@
   background: var(--ui-surface);
   color: var(--ui-text-muted);
   font-size: 10px;
+  line-height: 1;
   backdrop-filter: none;
+}
+
+.workspace .statusbar-canvas-controls,
+.workspace .statusbar-state,
+.workspace .statusbar-selection {
+  min-width: 0;
+  height: 100%;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
 }
 
 .workspace .statusbar-canvas-controls {
   grid-area: controls;
-  min-width: 0;
-  height: 100%;
-  display: flex;
-  align-items: center;
   justify-content: center;
   pointer-events: auto;
 }
@@ -90,23 +108,33 @@
 }
 
 .workspace .statusbar-state strong {
+  height: var(--canvas-footer-control-height);
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
   font-size: 10px;
   font-weight: 550;
+  line-height: 1;
   letter-spacing: .005em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workspace .statusbar-state-dot {
   width: 6px;
   height: 6px;
+  flex: 0 0 6px;
   box-shadow: 0 0 0 3px rgba(64, 164, 106, .1);
 }
 
 .workspace .statusbar-selection {
   grid-area: selection;
   justify-self: end;
+  justify-content: flex-end;
   gap: 7px;
   color: var(--ui-text-muted);
   font-size: 10px;
+  white-space: nowrap;
 }
 
 .workspace .statusbar-selection strong {
@@ -184,20 +212,23 @@
 
 .workspace .canvas-toolbar-group {
   min-width: 0;
-  height: 100%;
+  height: var(--canvas-footer-control-height);
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  line-height: 1;
 }
 
-/* Labels are plain footer text. Explicit resets prevent generic control styles
- * from turning them into bordered pills. */
+/* Labels are plain footer text. Give them the same control-height box as the
+ * adjacent buttons so optical centering does not depend on font ascenders. */
 .workspace .canvas-toolbar .canvas-toolbar-label,
 .workspace .canvas-toolbar .canvas-snap-label {
-  height: auto !important;
   min-width: 0 !important;
+  height: var(--canvas-footer-control-height) !important;
   margin: 0 !important;
   padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center;
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
@@ -215,8 +246,8 @@
 
 .workspace .canvas-toolbar button,
 .workspace .canvas-toolbar button:not(.zoom-readout) {
-  height: 24px;
-  min-width: 24px;
+  height: var(--canvas-footer-control-height);
+  min-width: var(--canvas-footer-control-height);
   padding: 0 4px;
   display: inline-flex;
   align-items: center;
@@ -229,6 +260,11 @@
   font-size: 10px;
   line-height: 1;
   box-shadow: none;
+}
+
+.workspace .canvas-toolbar button svg {
+  display: block;
+  flex: 0 0 auto;
 }
 
 .workspace .canvas-toolbar button:hover:not(:disabled) {
@@ -259,17 +295,31 @@
 }
 
 .workspace .canvas-toolbar-snap {
-  margin-left: 13px;
-  padding-left: 14px;
-  border-left: 1px solid var(--ui-border);
+  position: relative;
+  margin-left: 14px;
+  padding-left: 15px;
+  border-left: 0;
+}
+
+.workspace .canvas-toolbar-snap::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 1px;
+  height: 18px;
+  transform: translateY(-50%);
+  background: var(--ui-border);
+  pointer-events: none;
 }
 
 .workspace .canvas-toolbar .snap-toggle {
   width: auto !important;
   min-width: 0 !important;
-  height: 24px;
+  height: var(--canvas-footer-control-height);
   padding: 0 2px !important;
   display: inline-flex !important;
+  align-items: center !important;
   place-items: unset !important;
   justify-content: flex-start !important;
   gap: 7px;
@@ -279,6 +329,7 @@
   color: var(--ui-text-muted);
   font-size: 10px !important;
   font-weight: 550;
+  line-height: 1 !important;
   box-shadow: none !important;
 }
 
@@ -330,6 +381,9 @@
 
 .workspace .canvas-toolbar .canvas-snap-state {
   min-width: 28px;
+  height: var(--canvas-footer-control-height);
+  display: inline-flex;
+  align-items: center;
   color: var(--ui-text-muted);
   font-size: 10px;
   font-weight: 650;
@@ -349,7 +403,7 @@
 
   .workspace .canvas-toolbar .canvas-toolbar-label,
   .workspace .canvas-toolbar .canvas-snap-label {
-    display: none;
+    display: none !important;
   }
 
   .workspace .canvas-toolbar-snap {

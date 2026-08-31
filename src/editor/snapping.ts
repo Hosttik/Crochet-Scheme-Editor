@@ -13,7 +13,8 @@ import { isPathGuide, nearestPathParameter, pathPoseAt } from './pathGuides'
 import { stitchLocalAnchor } from './stitchGeometry'
 
 export const RELEASE_TOLERANCE_PX = 18
-export const GUIDE_ACQUIRE_TOLERANCE_PX = 18
+export const GUIDE_ACQUIRE_TOLERANCE_PX = 24
+export const GUIDE_RELEASE_TOLERANCE_PX = 30
 
 const CENTER_ON_GUIDE_SYMBOL_IDS = new Set(['chain', 'slip', 'magic-ring'])
 
@@ -183,12 +184,16 @@ export function solveSnap(
 
   let winner: SnapCandidate | undefined
 
-  if (
-    locked &&
-    distance(detectionPoint(locked), locked.point) * viewport.zoom <= RELEASE_TOLERANCE_PX
-  ) {
-    winner = locked
-  } else {
+  if (locked) {
+    const releaseTolerancePx = locked.targetType === 'guide'
+      ? Math.max(GUIDE_RELEASE_TOLERANCE_PX, settings.tolerancePx + 6)
+      : RELEASE_TOLERANCE_PX
+    if (distance(detectionPoint(locked), locked.point) * viewport.zoom <= releaseTolerancePx) {
+      winner = locked
+    }
+  }
+
+  if (!winner) {
     const nearestWithin = (pool: SnapCandidate[], tolerancePx: number) => {
       let best: SnapCandidate | undefined
       let bestDistance = Number.POSITIVE_INFINITY
@@ -202,8 +207,8 @@ export function solveSnap(
       return best
     }
 
-    // Authoring crochet rows is guide-first: once the pointer is inside a guide's
-    // acquisition corridor, an existing stitch anchor must not steal the snap.
+    // Crochet authoring is guide-first. A 24px screen-space corridor is forgiving
+    // enough to hit with a mouse/trackpad while still requiring clear intent.
     winner = nearestWithin(
       guideCandidates,
       Math.max(settings.tolerancePx, GUIDE_ACQUIRE_TOLERANCE_PX),

@@ -74,6 +74,40 @@ export function LeftWorkbenchSurface({
     return () => window.removeEventListener(EXPAND_ELEMENT_LIBRARY_EVENT, expandLibrary)
   }, [])
 
+  // Lasso is a selection gesture, not a mode the user should have to escape
+  // manually. Once a canvas lasso finishes, return to Select/Move on the next
+  // animation frame so the freshly selected stitches can be dragged immediately.
+  useEffect(() => {
+    if (tool.type !== 'lasso') return
+
+    let activePointerId: number | null = null
+    let selectFrame = 0
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.button !== 0) return
+      const target = event.target
+      if (!(target instanceof Element) || !target.closest('svg.editor-canvas')) return
+      activePointerId = event.pointerId
+    }
+
+    const finishPointer = (event: PointerEvent) => {
+      if (activePointerId !== event.pointerId) return
+      activePointerId = null
+      window.cancelAnimationFrame(selectFrame)
+      selectFrame = window.requestAnimationFrame(onSelect)
+    }
+
+    window.addEventListener('pointerdown', handlePointerDown, true)
+    window.addEventListener('pointerup', finishPointer)
+    window.addEventListener('pointercancel', finishPointer)
+    return () => {
+      window.cancelAnimationFrame(selectFrame)
+      window.removeEventListener('pointerdown', handlePointerDown, true)
+      window.removeEventListener('pointerup', finishPointer)
+      window.removeEventListener('pointercancel', finishPointer)
+    }
+  }, [onSelect, tool.type])
+
   return (
     <>
       <WorkbenchToolShortcuts
