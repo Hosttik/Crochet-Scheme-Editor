@@ -1,5 +1,12 @@
+import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
-import packageJson from '../package.json'
+
+async function packageVersion() {
+  const packageJson = JSON.parse(
+    await readFile(new URL('../package.json', import.meta.url), 'utf8'),
+  ) as { version: string }
+  return packageJson.version
+}
 
 test('shows the package.json version persistently in the topbar', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -12,5 +19,5 @@ test('shows the package.json version persistently in the topbar', async ({ page 
     getComputedStyle(element, '::after').content.replace(/^['"]|['"]$/g, '')
   ))
 
-  expect(visibleVersion).toBe(`v${packageJson.version}`)
+  expect(visibleVersion).toBe(`v${await packageVersion()}`)
 })
