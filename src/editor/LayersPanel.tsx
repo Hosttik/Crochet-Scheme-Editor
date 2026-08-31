@@ -5,6 +5,7 @@ import type { MeasurementRuler, StitchElement } from '../types'
 import { EditorIcon } from '../ui/icons'
 import { IconButton } from '../ui/primitives'
 import { isElementLocked, isElementVisible } from './document'
+import { useRulerLayersStore } from './rulerLayersStore'
 import { resolvedStitchGeometry, stitchVisualSize } from './stitchGeometry'
 
 type LayerCluster = {
@@ -42,16 +43,16 @@ function elementLabel(element: StitchElement, locale: Locale) {
 export function LayersPanel({
   elements,
   selectedIds,
-  rulers = [],
-  selectedRulerId = null,
+  rulers: rulersProp,
+  selectedRulerId: selectedRulerIdProp,
   locale,
   onSelect,
   onToggleVisible,
   onToggleLocked,
-  onSelectRuler,
-  onToggleRulerVisible,
-  onToggleRulerLocked,
-  onDeleteRuler,
+  onSelectRuler: onSelectRulerProp,
+  onToggleRulerVisible: onToggleRulerVisibleProp,
+  onToggleRulerLocked: onToggleRulerLockedProp,
+  onDeleteRuler: onDeleteRulerProp,
   onBringForward,
   onSendBackward,
   onBringToFront,
@@ -75,6 +76,21 @@ export function LayersPanel({
   onSendToBack: () => void
 }) {
   const t = UI[locale]
+  const rulerStore = useRulerLayersStore()
+  const rulers = rulersProp ?? rulerStore.rulers
+  const selectedRulerId = selectedRulerIdProp === undefined ? rulerStore.selectedRulerId : selectedRulerIdProp
+  const onSelectRuler = onSelectRulerProp ?? rulerStore.actions?.select
+  const onToggleRulerVisible = onToggleRulerVisibleProp ?? ((id: string) => {
+    const ruler = rulers.find((item) => item.id === id)
+    if (!ruler) return
+    rulerStore.actions?.update(id, { visible: ruler.visible === false })
+  })
+  const onToggleRulerLocked = onToggleRulerLockedProp ?? ((id: string) => {
+    const ruler = rulers.find((item) => item.id === id)
+    if (!ruler) return
+    rulerStore.actions?.update(id, { locked: ruler.locked !== true })
+  })
+  const onDeleteRuler = onDeleteRulerProp ?? rulerStore.actions?.delete
   const [query, setQuery] = useState('')
   const selected = new Set(selectedIds)
   const canReorder = elements.some((element) => selected.has(element.id) && !isElementLocked(element))
