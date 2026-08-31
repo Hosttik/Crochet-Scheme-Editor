@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('removes duplicate topbar guides and renders lighter favorite shortcuts', async ({ page }) => {
+test('removes duplicate topbar guides and keeps favorites in the element library only', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.addInitScript(() => {
     window.localStorage.setItem(
@@ -9,27 +9,18 @@ test('removes duplicate topbar guides and renders lighter favorite shortcuts', a
     )
   })
   await page.goto('/Crochet-Scheme-Editor/')
-  await expect(page.getByTestId('editor-topbar')).toBeVisible()
+  const topbar = page.getByTestId('editor-topbar')
+  await expect(topbar).toBeVisible()
 
-  await expect(page.locator('.topbar-v2 > button[aria-label="Направляющие"]')).toBeHidden()
+  await expect(topbar.locator('> button[aria-label="Направляющие"]')).toBeHidden()
+  await expect(topbar.locator('.topbar-favorites-trigger')).toBeHidden()
+  await expect(topbar.locator('.ui-v2-favorites-host')).toBeHidden()
+  await expect(topbar.locator('.topbar-add-favorite')).toBeHidden()
 
-  const favorites = page.getByTestId('favorite-quick-bar')
-  await expect(favorites).toBeVisible()
-  const quickButtons = favorites.locator('.favorite-quick-button')
-  expect(await quickButtons.count()).toBeGreaterThanOrEqual(3)
-
-  const glyph = quickButtons.first().locator('.symbol-glyph')
-  await expect(glyph).toBeVisible()
-  const opacity = await glyph.evaluate((element) => Number(getComputedStyle(element).opacity))
-  expect(opacity).toBeLessThan(0.9)
-
-  const iconBox = await glyph.boundingBox()
-  expect(iconBox).not.toBeNull()
-  expect(iconBox!.width).toBeLessThanOrEqual(20.5)
-  expect(iconBox!.height).toBeLessThanOrEqual(20.5)
-
-  const gap = await favorites.evaluate((element) => parseFloat(getComputedStyle(element).gap))
-  expect(gap).toBeGreaterThanOrEqual(4)
+  const favoritesSection = page.getByTestId('favorites-section')
+  await expect(favoritesSection).toBeVisible()
+  const favoriteItems = favoritesSection.locator('.favorite-item-button')
+  expect(await favoriteItems.count()).toBeGreaterThanOrEqual(3)
 })
 
 test('projects and guide list collapse independently and remember their state', async ({ page }) => {
