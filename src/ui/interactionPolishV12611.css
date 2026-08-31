@@ -26,11 +26,24 @@
   display: none !important;
 }
 
-/* The 900px command row has no room for low-priority metadata after the core
- * file/history/view actions. Keep all interactive controls at their compact
- * hit-target sizes and drop only the decorative version pill at this gate.
- * The version remains visible at normal desktop widths and in the autosave
- * popover, while the row itself no longer creates horizontal scroll. */
+/* At compact desktop widths editorTopbar.css hides the autosave label and keeps
+ * only the status dot. The legacy global .autosave-indicator still carried a
+ * 92px minimum pill, so it reserved empty width even with no visible text. */
+@media (max-width: 1180px) {
+  .topbar-v2 .autosave-indicator {
+    min-width: 0;
+    max-width: 0;
+    width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: hidden;
+  }
+}
+
+/* Use the icon-only command state efficiently at the 900px regression gate.
+ * Interactive targets keep their vertical hit area; only low-priority chrome
+ * and horizontal spacing are reduced. */
 @media (max-width: 920px) {
   .topbar-v2 .topbar-command-button {
     width: 38px;
