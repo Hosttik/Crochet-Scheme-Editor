@@ -1,0 +1,24 @@
+name: Temporary source export
+
+on:
+  push:
+    branches:
+      - fix/chain-bundle-selection-parity
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-export
+          path: |
+            src/App.tsx
+            src/editor/StitchLayer.tsx
+            src/editor/ProductivityPanelCore.tsx
+            src/selection.css
+            e2e/geometryInteractionV1222.e2e.ts
+            package.json
+            package-lock.json
+          if-no-files-found: error
