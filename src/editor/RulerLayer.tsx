@@ -20,15 +20,27 @@ export function RulerLayer({ rulers, selectedId, draft, elements, gauge, locale,
   const byId = new Map(elements.map((element) => [element.id, element]))
   return (
     <g className="measurement-rulers">
-      {rulers.map((ruler) => {
+      {rulers.filter((ruler) => ruler.visible !== false).map((ruler) => {
         const selected = ruler.id === selectedId
+        const locked = ruler.locked === true
         const center = midpoint(ruler.start, ruler.end)
         const label = rulerDisplayLabel(ruler, elements, gauge, locale)
         const estimate = rulerEstimate(ruler, elements, gauge)
         const corridor = selected ? rulerCorridorPolygon(ruler) : []
         const counted = selected && estimate.source === 'automatic' ? (estimate.elementIds ?? []) : []
+        const selectRuler = (event: ReactPointerEvent<SVGElement>) => {
+          if (event.button !== 0) return
+          event.preventDefault()
+          event.stopPropagation()
+          onSelect(ruler.id)
+        }
         return (
-          <g key={ruler.id} className={`measurement-ruler ${selected ? 'selected' : ''}`} data-ruler-id={ruler.id}>
+          <g
+            key={ruler.id}
+            className={`measurement-ruler ${selected ? 'selected' : ''} ${locked ? 'locked' : ''}`}
+            data-ruler-id={ruler.id}
+            data-ruler-locked={locked ? 'true' : undefined}
+          >
             {corridor.length === 4 && (
               <polygon
                 points={corridor.map((point) => `${point.x},${point.y}`).join(' ')}
@@ -55,7 +67,17 @@ export function RulerLayer({ rulers, selectedId, draft, elements, gauge, locale,
                 </g>
               )
             })}
-            <line x1={ruler.start.x} y1={ruler.start.y} x2={ruler.end.x} y2={ruler.end.y} className="ruler-hit-line" strokeWidth={16 / zoom} pointerEvents="none" />
+            <line
+              x1={ruler.start.x}
+              y1={ruler.start.y}
+              x2={ruler.end.x}
+              y2={ruler.end.y}
+              className="ruler-hit-line"
+              strokeWidth={18 / zoom}
+              pointerEvents="stroke"
+              data-testid="ruler-hit-target"
+              onPointerDown={selectRuler}
+            />
             <line x1={ruler.start.x} y1={ruler.start.y} x2={ruler.end.x} y2={ruler.end.y} className="ruler-line" vectorEffect="non-scaling-stroke" pointerEvents="none" />
             <line x1={ruler.start.x} y1={ruler.start.y - 7 / zoom} x2={ruler.start.x} y2={ruler.start.y + 7 / zoom} className="ruler-tick" vectorEffect="non-scaling-stroke" pointerEvents="none" />
             <line x1={ruler.end.x} y1={ruler.end.y - 7 / zoom} x2={ruler.end.x} y2={ruler.end.y + 7 / zoom} className="ruler-tick" vectorEffect="non-scaling-stroke" pointerEvents="none" />
@@ -67,13 +89,9 @@ export function RulerLayer({ rulers, selectedId, draft, elements, gauge, locale,
               strokeWidth={4 / zoom}
               textAnchor="middle"
               pointerEvents="auto"
-              onPointerDown={(event) => {
-                if (event.button !== 0) return
-                event.stopPropagation()
-                onSelect(ruler.id)
-              }}
+              onPointerDown={selectRuler}
             >{label}</text>
-            {selected && (
+            {selected && !locked && (
               <>
                 <circle cx={ruler.start.x} cy={ruler.start.y} r={7 / zoom} className="ruler-handle" vectorEffect="non-scaling-stroke" onPointerDown={(event) => onHandlePointerDown(event, ruler, 'start')} />
                 <circle cx={ruler.end.x} cy={ruler.end.y} r={7 / zoom} className="ruler-handle" vectorEffect="non-scaling-stroke" onPointerDown={(event) => onHandlePointerDown(event, ruler, 'end')} />
