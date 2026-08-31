@@ -23,15 +23,24 @@ export function RightPanelTabs({
     { id: 'layers', label: copy.layers, icon: 'layers' },
   ]
 
-  const moveFocus = (event: KeyboardEvent<HTMLButtonElement>, direction: -1 | 1) => {
+  const activateAndFocus = (tab: RightPanelTab) => {
+    // Both tab buttons stay mounted when the active panel changes, so focus can
+    // move synchronously. This avoids a requestAnimationFrame race in release
+    // builds and keeps keyboard navigation tied to the actual focused tab.
+    document.getElementById(`ui-v2-right-tab-${tab}`)?.focus()
+    onChange(tab)
+  }
+
+  const moveFocus = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    currentTab: RightPanelTab,
+    direction: -1 | 1,
+  ) => {
     event.preventDefault()
     event.stopPropagation()
-    const index = tabs.findIndex((tab) => tab.id === activeTab)
+    const index = tabs.findIndex((tab) => tab.id === currentTab)
     const next = tabs[(index + direction + tabs.length) % tabs.length]
-    onChange(next.id)
-    requestAnimationFrame(() => {
-      document.getElementById(`ui-v2-right-tab-${next.id}`)?.focus()
-    })
+    activateAndFocus(next.id)
   }
 
   return (
@@ -51,19 +60,17 @@ export function RightPanelTabs({
               className={selected ? 'is-active' : ''}
               onClick={() => onChange(tab.id)}
               onKeyDown={(event) => {
-                if (event.key === 'ArrowRight') moveFocus(event, 1)
-                if (event.key === 'ArrowLeft') moveFocus(event, -1)
+                if (event.key === 'ArrowRight') moveFocus(event, tab.id, 1)
+                if (event.key === 'ArrowLeft') moveFocus(event, tab.id, -1)
                 if (event.key === 'Home') {
                   event.preventDefault()
                   event.stopPropagation()
-                  onChange('options')
-                  requestAnimationFrame(() => document.getElementById('ui-v2-right-tab-options')?.focus())
+                  activateAndFocus('options')
                 }
                 if (event.key === 'End') {
                   event.preventDefault()
                   event.stopPropagation()
-                  onChange('layers')
-                  requestAnimationFrame(() => document.getElementById('ui-v2-right-tab-layers')?.focus())
+                  activateAndFocus('layers')
                 }
               }}
             >
