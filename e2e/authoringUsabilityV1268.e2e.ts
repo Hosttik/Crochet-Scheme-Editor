@@ -103,7 +103,10 @@ test('shows the real guide snap surface and lets placement click through guide c
 
   const guide = page.locator('.guide-line')
   const zone = guide.getByTestId('guide-snap-zone')
-  await expect(zone).toBeVisible()
+  await expect(zone).toHaveCount(1)
+  // A perfectly horizontal SVG polyline has a zero-height geometric bounding box,
+  // so Playwright's toBeVisible() reports hidden even though its thick stroke is
+  // rendered. Verify the actual computed paint properties instead.
   expect(await zone.evaluate((element) => Number(getComputedStyle(element).opacity))).toBeGreaterThan(0)
   expect(await zone.evaluate((element) => parseFloat(getComputedStyle(element).strokeWidth))).toBeGreaterThanOrEqual(44)
 
