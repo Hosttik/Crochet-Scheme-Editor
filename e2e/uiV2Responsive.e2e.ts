@@ -35,7 +35,10 @@ test('keeps the full desktop workbench usable at 1440px', async ({ page }) => {
   })
   await openEditor(page)
 
-  await expect(page.locator('.ui-v2-favorites-host')).toBeVisible()
+  await expect(page.locator('.ui-v2-favorites-host')).toBeHidden()
+  await expect(page.locator('.topbar-favorites-trigger')).toBeHidden()
+  await expect(page.locator('.topbar-add-favorite')).toBeHidden()
+  await expect(page.getByTestId('favorites-section')).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Инструменты' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Библиотека элементов' })).toBeVisible()
   await expect(page.getByRole('tablist', { name: 'Правая панель' })).toBeVisible()
@@ -45,7 +48,6 @@ test('keeps the full desktop workbench usable at 1440px', async ({ page }) => {
   await expectInsideViewport(page, page.locator('.right-sidebar'))
   await expect(page.getByRole('button', { name: 'Сохранить', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Поиск по функциям', exact: true })).toBeVisible()
-  await expect(page.locator('.topbar-add-favorite')).toBeVisible()
 
   await expectNoHorizontalOverflow(page.locator('.editor-root-v2'))
   await expectNoHorizontalOverflow(page.locator('.topbar'))
@@ -75,6 +77,8 @@ test('preserves canvas and primary chrome at the 900px narrow-desktop gate', asy
   await openEditor(page)
 
   await expect(page.locator('.ui-v2-favorites-host')).toBeHidden()
+  await expect(page.locator('.topbar-favorites-trigger')).toBeHidden()
+  await expect(page.locator('.topbar-add-favorite')).toBeHidden()
   await expect(page.getByRole('button', { name: 'Новый', exact: true })).toBeVisible()
   await expect(page.getByRole('menubar', { name: 'Меню приложения' })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Инструменты' })).toBeVisible()
@@ -108,8 +112,8 @@ test('preserves canvas and primary chrome at the 900px narrow-desktop gate', asy
   expect(toolbarGeometry).not.toBeNull()
   expect(toolbarGeometry!.height).toBeLessThanOrEqual(32)
 
-  // At the narrow gate the command bar collapses labels and quick favorites,
-  // while the full File menu remains available.
+  // At the narrow gate the command bar collapses labels while the full File
+  // menu remains available; favorites stay in the element library at all widths.
   await expect(page.locator('.topbar-file-group')).toBeVisible()
   await page.getByRole('menuitem', { name: 'Файл', exact: true }).click()
   await expect(page.getByRole('menuitem', { name: 'Экспорт SVG…', exact: true })).toBeVisible()
