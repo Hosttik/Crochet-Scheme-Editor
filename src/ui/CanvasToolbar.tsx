@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Locale } from '../i18n'
 import type { OrientationMode } from '../types'
 import { EditorIcon } from './icons'
@@ -46,8 +48,13 @@ export function CanvasToolbar({
   const isPan = tool.type === 'pan'
   const isLasso = tool.type === 'lasso'
   const isRuler = tool.type === 'ruler'
+  const [footerHost, setFooterHost] = useState<HTMLElement | null>(null)
 
-  return (
+  useEffect(() => {
+    setFooterHost(document.getElementById('canvas-statusbar-controls'))
+  }, [])
+
+  const toolbar = (
     <div
       className="canvas-toolbar"
       role="toolbar"
@@ -55,12 +62,13 @@ export function CanvasToolbar({
       data-testid="canvas-toolbar"
     >
       <div className="canvas-toolbar-group canvas-toolbar-zoom" aria-label={locale === 'ru' ? 'Масштаб' : 'Zoom'}>
+        <span className="canvas-toolbar-label">{locale === 'ru' ? 'Масштаб:' : 'Zoom:'}</span>
         <button
           className="canvas-icon-button"
           aria-label={locale === 'ru' ? 'Уменьшить масштаб' : 'Zoom out'}
           title={locale === 'ru' ? 'Уменьшить масштаб' : 'Zoom out'}
           onClick={onZoomOut}
-        ><EditorIcon name="minus" size={15} /></button>
+        ><EditorIcon name="minus" size={14} /></button>
         <button
           className="zoom-readout"
           title={locale === 'ru' ? 'Вернуть масштаб 100% (0)' : 'Reset zoom to 100% (0)'}
@@ -71,7 +79,7 @@ export function CanvasToolbar({
           aria-label={locale === 'ru' ? 'Увеличить масштаб' : 'Zoom in'}
           title={locale === 'ru' ? 'Увеличить масштаб' : 'Zoom in'}
           onClick={onZoomIn}
-        ><EditorIcon name="plus" size={15} /></button>
+        ><EditorIcon name="plus" size={14} /></button>
       </div>
 
       <span className="canvas-toolbar-separator" aria-hidden="true" />
@@ -130,7 +138,10 @@ export function CanvasToolbar({
           onClick={onToggleSnapping}
         >
           <span className="canvas-snap-dot" aria-hidden="true" />
-          {snappingEnabled ? (locale === 'ru' ? 'Привязка' : 'Snap') : (locale === 'ru' ? 'Свободно' : 'Free')}
+          <span>{locale === 'ru' ? 'Привязка:' : 'Snap:'}</span>
+          <strong className="canvas-snap-state">
+            {snappingEnabled ? (locale === 'ru' ? 'Вкл.' : 'On') : (locale === 'ru' ? 'Выкл.' : 'Off')}
+          </strong>
           <kbd>S</kbd>
         </button>
         <select
@@ -150,4 +161,6 @@ export function CanvasToolbar({
       <span className="canvas-hint" title={zoomHint}>{zoomHint}</span>
     </div>
   )
+
+  return footerHost ? createPortal(toolbar, footerHost) : null
 }
