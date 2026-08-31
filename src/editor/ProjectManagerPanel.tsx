@@ -59,6 +59,7 @@ export function ProjectManagerPanel({
   const [busy, setBusy] = useState(false)
   const [nameDraft, setNameDraft] = useState(currentTitle)
   const [error, setError] = useState('')
+  const [panelOpen, setPanelOpen] = useState(projectPanelDefaultOpen)
 
   const refresh = async () => {
     try {
@@ -110,10 +111,12 @@ export function ProjectManagerPanel({
     <details
       className="panel-section project-manager-panel left-panel-disclosure"
       data-testid="projects-panel"
-      defaultOpen={projectPanelDefaultOpen()}
+      open={panelOpen}
       onToggle={(event) => {
+        const nextOpen = event.currentTarget.open
+        setPanelOpen(nextOpen)
         try {
-          window.localStorage.setItem(PROJECT_PANEL_OPEN_STORAGE_KEY, String(event.currentTarget.open))
+          window.localStorage.setItem(PROJECT_PANEL_OPEN_STORAGE_KEY, String(nextOpen))
         } catch {
           // Layout preference is non-critical.
         }
