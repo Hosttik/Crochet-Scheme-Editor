@@ -16,7 +16,7 @@ export const RELEASE_TOLERANCE_PX = 18
 export const GUIDE_ACQUIRE_TOLERANCE_PX = 24
 export const GUIDE_RELEASE_TOLERANCE_PX = 30
 
-const CENTER_ON_GUIDE_SYMBOL_IDS = new Set(['chain', 'slip', 'magic-ring'])
+const CENTER_ON_GUIDE_SYMBOL_IDS = new Set(['chain', 'slip', 'magic-ring', 'single'])
 
 export type SnapCandidate = {
   key: string
