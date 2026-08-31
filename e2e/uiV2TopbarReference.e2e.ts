@@ -37,7 +37,7 @@ test('panel 2 follows the reference command hierarchy and keeps its controls liv
   await expect(zoom).toHaveValue('100')
 
   await expect(topbar.getByRole('button', { name: 'Сетка', exact: true })).toBeVisible()
-  await expect(topbar.getByRole('button', { name: 'Направляющие', exact: true })).toBeVisible()
+  await expect(topbar.locator('button[aria-label="Направляющие"]')).toBeHidden()
   await expect(topbar.getByRole('button', { name: 'Поиск по функциям', exact: true })).toContainText('Ctrl + F')
 
   const grid = topbar.getByRole('button', { name: 'Сетка', exact: true })
@@ -51,10 +51,6 @@ test('panel 2 follows the reference command hierarchy and keeps its controls liv
   await grid.click()
   await expect(grid).toHaveAttribute('aria-pressed', 'true')
   await expect(canvasGrid).toBeVisible()
-
-  await topbar.getByRole('button', { name: 'Направляющие', exact: true }).click()
-  await expect(page.getByRole('menu', { name: 'Направляющие', exact: true })).toBeVisible()
-  await page.keyboard.press('Escape')
 
   const commandDialog = page.getByRole('dialog', { name: 'Поиск по функциям', exact: true })
   const commandInput = page.getByRole('combobox', { name: 'Поиск по функциям', exact: true })

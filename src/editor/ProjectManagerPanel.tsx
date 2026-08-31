@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { Locale } from '../i18n'
-import { Button, PanelHeader } from '../ui/primitives'
+import { Button } from '../ui/primitives'
+import { EditorIcon } from '../ui/icons'
 import { listLocalProjects, type LocalProjectSummary } from './persistence'
 import './projectManager.css'
+
+const PROJECT_PANEL_OPEN_STORAGE_KEY = 'crochet-ui-v2-project-panel-open'
 
 const COPY = {
   ru: {
@@ -22,6 +25,15 @@ const COPY = {
     empty: 'Local projects will appear here.',
   },
 } as const
+
+function projectPanelDefaultOpen() {
+  if (typeof window === 'undefined') return true
+  try {
+    return window.localStorage.getItem(PROJECT_PANEL_OPEN_STORAGE_KEY) !== 'false'
+  } catch {
+    return true
+  }
+}
 
 export function ProjectManagerPanel({
   locale,
@@ -47,6 +59,7 @@ export function ProjectManagerPanel({
   const [busy, setBusy] = useState(false)
   const [nameDraft, setNameDraft] = useState(currentTitle)
   const [error, setError] = useState('')
+  const [panelOpen, setPanelOpen] = useState(projectPanelDefaultOpen)
 
   const refresh = async () => {
     try {
@@ -95,61 +108,77 @@ export function ProjectManagerPanel({
   }
 
   return (
-    <section className="panel-section project-manager-panel">
-      <PanelHeader
-        title={copy.title}
-        actions={<span className="project-count" aria-label={`${copy.title}: ${projects.length}`}>{projects.length}</span>}
-      />
+    <details
+      className="panel-section project-manager-panel left-panel-disclosure"
+      data-testid="projects-panel"
+      open={panelOpen}
+      onToggle={(event) => {
+        const nextOpen = event.currentTarget.open
+        setPanelOpen(nextOpen)
+        try {
+          window.localStorage.setItem(PROJECT_PANEL_OPEN_STORAGE_KEY, String(nextOpen))
+        } catch {
+          // Layout preference is non-critical.
+        }
+      }}
+    >
+      <summary>
+        <EditorIcon name="chevronDown" size={13} className="left-panel-disclosure__chevron" />
+        <span className="left-panel-disclosure__title">{copy.title}</span>
+        <span className="left-panel-disclosure__count" aria-label={`${copy.title}: ${projects.length}`}>{projects.length}</span>
+      </summary>
 
-      <label className="project-name-field">
-        <span>{copy.name}</span>
-        <input
-          value={nameDraft}
-          onChange={(event) => setNameDraft(event.target.value)}
-          onBlur={commitRename}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') event.currentTarget.blur()
-            if (event.key === 'Escape') {
-              setNameDraft(currentTitle)
-              event.currentTarget.blur()
-            }
-          }}
-        />
-      </label>
+      <div className="left-panel-disclosure__body">
+        <label className="project-name-field">
+          <span>{copy.name}</span>
+          <input
+            value={nameDraft}
+            onChange={(event) => setNameDraft(event.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur()
+              if (event.key === 'Escape') {
+                setNameDraft(currentTitle)
+                event.currentTarget.blur()
+              }
+            }}
+          />
+        </label>
 
-      {projects.length ? (
-        <select
-          className="project-select"
-          value={activeProjectId}
-          disabled={busy}
-          onChange={(event) => void run(() => onOpen(event.target.value))}
-        >
-          {projects.map((project) => (
-            <option key={project.id} value={project.id}>{project.title}</option>
-          ))}
-        </select>
-      ) : (
-        <p className="project-empty">{copy.empty}</p>
-      )}
+        {projects.length ? (
+          <select
+            className="project-select"
+            value={activeProjectId}
+            disabled={busy}
+            onChange={(event) => void run(() => onOpen(event.target.value))}
+          >
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>{project.title}</option>
+            ))}
+          </select>
+        ) : (
+          <p className="project-empty">{copy.empty}</p>
+        )}
 
-      <div className="project-actions">
-        <Button icon="plus" disabled={busy} onClick={() => void run(onNew)}>{copy.newProject}</Button>
-        <Button icon="duplicate" disabled={busy} onClick={() => void run(onDuplicate)}>{copy.duplicate}</Button>
-        <Button
-          icon="trash"
-          variant="danger"
-          disabled={busy || projects.length <= 1}
-          onClick={() => {
-            const message = locale === 'ru'
-              ? `Удалить проект «${currentTitle}»? Это действие нельзя отменить.`
-              : `Delete “${currentTitle}”? This cannot be undone.`
-            if (window.confirm(message)) void run(() => onDelete(activeProjectId))
-          }}
-        >
-          {copy.delete}
-        </Button>
+        <div className="project-actions">
+          <Button icon="plus" disabled={busy} onClick={() => void run(onNew)}>{copy.newProject}</Button>
+          <Button icon="duplicate" disabled={busy} onClick={() => void run(onDuplicate)}>{copy.duplicate}</Button>
+          <Button
+            icon="trash"
+            variant="danger"
+            disabled={busy || projects.length <= 1}
+            onClick={() => {
+              const message = locale === 'ru'
+                ? `Удалить проект «${currentTitle}»? Это действие нельзя отменить.`
+                : `Delete “${currentTitle}”? This cannot be undone.`
+              if (window.confirm(message)) void run(() => onDelete(activeProjectId))
+            }}
+          >
+            {copy.delete}
+          </Button>
+        </div>
+        {error && <p className="project-error" role="alert">{error}</p>}
       </div>
-      {error && <p className="project-error" role="alert">{error}</p>}
-    </section>
+    </details>
   )
 }

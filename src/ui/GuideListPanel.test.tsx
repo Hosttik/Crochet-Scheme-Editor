@@ -26,7 +26,7 @@ const guides: Guide[] = [
 ]
 
 describe('guide list panel', () => {
-  it('preserves guide count, selection, visibility and lock presentation', () => {
+  it('preserves guide count, selection, visibility and lock presentation in a disclosure', () => {
     const markup = renderToStaticMarkup(
       <GuideListPanel
         locale="ru"
@@ -37,8 +37,12 @@ describe('guide list panel', () => {
       />,
     )
 
-    expect(markup).toContain('class="panel-section guide-section"')
-    expect(markup).toContain('<h2>Направляющие</h2>')
+    expect(markup).toContain('<details')
+    expect(markup).toContain('guide-section left-panel-disclosure')
+    expect(markup).toContain('data-testid="guides-panel"')
+    expect(markup).toContain('open=""')
+    expect(markup).toContain('left-panel-disclosure__title">Направляющие</span>')
+    expect(markup).toContain('left-panel-disclosure__count">2</span>')
     expect(markup).toContain('class="active"')
     expect(markup).toContain('1. Линия')
     expect(markup).toContain('visibility-dot hidden')

@@ -66,7 +66,7 @@ async function dragSelectedFrame(page: Page, dx: number, dy: number) {
   await page.mouse.up()
 }
 
-test('keeps all footer sections on the same vertical centerline', async ({ page }) => {
+test('keeps all footer sections and the snap switch on the same vertical centerline', async ({ page }) => {
   await openEditor(page)
 
   const statusbar = page.getByTestId('canvas-statusbar')
@@ -89,15 +89,20 @@ test('keeps all footer sections on the same vertical centerline', async ({ page 
 
   const zoomLabel = statusbar.locator('.canvas-toolbar-label')
   const snapLabel = statusbar.locator('.canvas-snap-label')
+  const snapTrack = statusbar.locator('.canvas-snap-dot')
   const zoomLabelBox = await zoomLabel.boundingBox()
   const snapLabelBox = await snapLabel.boundingBox()
+  const snapTrackBox = await snapTrack.boundingBox()
   expect(zoomLabelBox).not.toBeNull()
   expect(snapLabelBox).not.toBeNull()
+  expect(snapTrackBox).not.toBeNull()
   expect(zoomLabelBox!.height).toBe(24)
   expect(snapLabelBox!.height).toBe(24)
+  expect(snapTrackBox!.height).toBe(24)
+  expect(Math.abs((snapTrackBox!.y + snapTrackBox!.height / 2) - reference)).toBeLessThanOrEqual(1)
 })
 
-test('shows the real guide snap surface and lets placement click through guide chrome', async ({ page }) => {
+test('shows a compact guide snap surface and lets placement click through guide chrome', async ({ page }) => {
   await openEditor(page)
   await createGuideFromToolRail(page, 'Линия')
 
@@ -108,7 +113,7 @@ test('shows the real guide snap surface and lets placement click through guide c
   // so Playwright's toBeVisible() reports hidden even though its thick stroke is
   // rendered. Verify the actual computed paint properties instead.
   expect(await zone.evaluate((element) => Number(getComputedStyle(element).opacity))).toBeGreaterThan(0)
-  expect(await zone.evaluate((element) => parseFloat(getComputedStyle(element).strokeWidth))).toBeGreaterThanOrEqual(44)
+  expect(await zone.evaluate((element) => parseFloat(getComputedStyle(element).strokeWidth))).toBe(28)
 
   // Continuous guides accept any point on the path, so division dots are not
   // presented as fake exclusive targets.
@@ -117,6 +122,7 @@ test('shows the real guide snap surface and lets placement click through guide c
 
   await page.locator('.symbols-section .symbol-button[title^="Воздушная петля ·"]').click()
   await expect(page.locator('svg.editor-canvas')).toHaveClass(/placing/)
+  expect(await zone.evaluate((element) => parseFloat(getComputedStyle(element).strokeWidth))).toBe(32)
   expect(await guide.evaluate((element) => getComputedStyle(element).pointerEvents)).toBe('none')
 
   const guideStroke = guide.locator('.guide-stroke')

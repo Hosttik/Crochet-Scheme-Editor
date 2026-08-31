@@ -106,8 +106,10 @@ test('creates guides only from the ToolRail surface through the real editor hand
   await openEditor(page)
 
   const rail = page.getByRole('navigation', { name: 'Инструменты' })
+  const guidesPanel = page.getByTestId('guides-panel')
   await expect(page.locator('.left-sidebar .ui-v2-legacy-guide-add')).toHaveCount(0)
-  await expect(page.locator('.left-sidebar > .guide-section')).toBeHidden()
+  await expect(guidesPanel).toBeVisible()
+  await expect(guidesPanel.locator('.guide-list')).toHaveCount(0)
 
   const guideTrigger = rail.getByRole('button', { name: 'Направляющие', exact: true })
   await guideTrigger.click()
@@ -135,8 +137,8 @@ test('creates guides only from the ToolRail surface through the real editor hand
   await lineItem.click()
   await expect(menu).toHaveCount(0)
   await expect(guideTrigger).toHaveAttribute('aria-expanded', 'false')
-  await expect(page.locator('.left-sidebar > .guide-section')).toBeVisible()
-  await expect(page.locator('.left-sidebar > .guide-section .guide-list button')).toHaveCount(1)
+  await expect(guidesPanel).toBeVisible()
+  await expect(guidesPanel.locator('.guide-list button')).toHaveCount(1)
   await expect(page.locator('.statusbar')).toContainText('Линия')
 
   await guideTrigger.click()

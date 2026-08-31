@@ -1,0 +1,210 @@
+/* v1.26.10 compact chrome pass -------------------------------------------------
+ * Final overrides for the topbar/footer density and collapsible utility panels.
+ */
+
+/* The guide manager already lives in the left workbench. Avoid a duplicate
+ * topbar entry and its adjacent compact divider. */
+.topbar-v2 > .topbar-inline-command[aria-label="Направляющие"],
+.topbar-v2 > .topbar-inline-command[aria-label="Guides"],
+.topbar-v2 > .topbar-inline-command[aria-label="Направляющие"] + .topbar-divider,
+.topbar-v2 > .topbar-inline-command[aria-label="Guides"] + .topbar-divider {
+  display: none !important;
+}
+
+/* Favorites should read like quick glyph shortcuts, not bold dark stamps. */
+.favorite-quick-bar {
+  gap: 4px;
+  padding: 2px 4px;
+  background: color-mix(in srgb, var(--ui-surface-subtle) 72%, transparent);
+}
+
+.favorite-quick-bar__label {
+  width: 20px;
+  height: 26px;
+  color: var(--ui-text-faint);
+}
+
+.favorite-quick-button {
+  width: 29px;
+  height: 29px;
+  padding: 4px;
+  color: var(--ui-text-muted);
+}
+
+/* FavoriteQuickBar renders catalog symbols as an outer SVG and a .symbol-glyph
+ * <g> inside it. Size the outer viewport and soften the inner drawing. */
+.favorite-quick-button > svg {
+  width: 20px !important;
+  height: 20px !important;
+  max-width: 20px;
+  max-height: 20px;
+  overflow: visible;
+}
+
+.favorite-quick-button .symbol-glyph {
+  color: var(--ui-text-muted);
+  opacity: .72 !important;
+}
+
+.favorite-quick-button:hover:not(:disabled) .symbol-glyph,
+.favorite-quick-button.active .symbol-glyph {
+  color: var(--ui-text);
+  opacity: .94 !important;
+}
+
+.favorite-quick-button.active {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-accent) 28%, transparent);
+}
+
+/* The switch gets a full 24px alignment box. The actual 14px track is drawn
+ * inside it, which removes the persistent optical vertical offset. */
+.workspace .canvas-toolbar .canvas-snap-dot {
+  position: relative;
+  width: 26px !important;
+  min-width: 26px !important;
+  height: var(--canvas-footer-control-height) !important;
+  flex: 0 0 26px;
+  display: inline-block !important;
+  align-self: center !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  overflow: visible;
+}
+
+.workspace .canvas-toolbar .canvas-snap-dot::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 26px;
+  height: 14px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: var(--ui-border-strong);
+  transition: background-color 120ms ease;
+}
+
+.workspace .canvas-toolbar .canvas-snap-dot::after {
+  top: 50% !important;
+  left: 2px !important;
+  width: 10px !important;
+  height: 10px !important;
+  transform: translateY(-50%);
+  transition: transform 120ms ease;
+}
+
+.workspace .canvas-toolbar .snap-toggle.active .canvas-snap-dot {
+  background: transparent !important;
+}
+
+.workspace .canvas-toolbar .snap-toggle.active .canvas-snap-dot::before {
+  background: var(--ui-accent);
+}
+
+.workspace .canvas-toolbar .snap-toggle.active .canvas-snap-dot::after {
+  transform: translate(12px, -50%) !important;
+}
+
+/* The previous magnetic rail was intentionally generous, but visually read as
+ * a selected band. Keep the 24px snap acquisition logic while showing a much
+ * calmer affordance around the guide itself. */
+.guide-snap-zone {
+  stroke-width: 28px !important;
+}
+
+.workspace:has(.editor-canvas.placing):has(.snap-toggle.active) .guide-snap-zone {
+  stroke-width: 32px !important;
+  opacity: .07;
+}
+
+.workspace:has(.editor-canvas.placing):has(.snap-toggle.active) .guide-layer:hover .guide-snap-zone,
+.workspace:has(.editor-canvas.placing):has(.snap-toggle.active) .guide-layer.selected .guide-snap-zone {
+  opacity: .1;
+}
+
+/* Left utility sections --------------------------------------------------- */
+.left-panel-disclosure {
+  padding: 0 !important;
+  overflow: clip;
+}
+
+/* Legacy workbench CSS hid the entire guide section while it was empty. That
+ * conflicts with a persistent collapsible section: keep the header reachable
+ * even when the count is zero. */
+.left-sidebar > .guide-section.left-panel-disclosure {
+  display: block !important;
+}
+
+.left-panel-disclosure > summary {
+  min-height: 34px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--ui-text);
+  user-select: none;
+}
+
+.left-panel-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.left-panel-disclosure > summary:hover {
+  background: var(--ui-surface-hover);
+}
+
+.left-panel-disclosure__chevron {
+  flex: 0 0 auto;
+  color: var(--ui-text-faint);
+  transform: rotate(-90deg);
+  transition: transform 120ms ease;
+}
+
+.left-panel-disclosure[open] > summary .left-panel-disclosure__chevron {
+  transform: rotate(0deg);
+}
+
+.left-panel-disclosure__title {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.left-panel-disclosure__count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--ui-surface-subtle);
+  color: var(--ui-text-faint);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.left-panel-disclosure__body {
+  padding: 0 10px 10px;
+}
+
+.left-panel-disclosure[open] > summary {
+  margin-bottom: 2px;
+}
+
+.left-panel-disclosure.project-manager-panel {
+  display: block;
+}
+
+.left-panel-disclosure.project-manager-panel .left-panel-disclosure__body {
+  display: grid;
+  gap: 8px;
+}
+
+.left-panel-disclosure.guide-section .guide-list {
+  margin-top: 0;
+}
