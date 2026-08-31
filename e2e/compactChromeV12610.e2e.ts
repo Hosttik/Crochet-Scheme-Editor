@@ -23,11 +23,13 @@ test('removes duplicate topbar guides and renders lighter favorite shortcuts', a
   const opacity = await glyph.evaluate((element) => Number(getComputedStyle(element).opacity))
   expect(opacity).toBeLessThan(0.9)
 
-  const icon = quickButtons.first().locator('svg')
-  const iconBox = await icon.boundingBox()
+  const iconBox = await glyph.boundingBox()
   expect(iconBox).not.toBeNull()
   expect(iconBox!.width).toBeLessThanOrEqual(20.5)
   expect(iconBox!.height).toBeLessThanOrEqual(20.5)
+
+  const gap = await favorites.evaluate((element) => parseFloat(getComputedStyle(element).gap))
+  expect(gap).toBeGreaterThanOrEqual(4)
 })
 
 test('projects and guide list collapse independently and remember their state', async ({ page }) => {
@@ -37,23 +39,33 @@ test('projects and guide list collapse independently and remember their state', 
   const projects = page.getByTestId('projects-panel')
   const guides = page.getByTestId('guides-panel')
   await expect(projects).toBeVisible()
-  await expect(guides).toBeVisible()
+  await expect(guides).toHaveCount(1)
   expect(await projects.evaluate((element) => (element as HTMLDetailsElement).open)).toBe(true)
   expect(await guides.evaluate((element) => (element as HTMLDetailsElement).open)).toBe(true)
 
+  // Guides can sit below the initial left-workbench fold while Projects is open.
+  // The disclosure still exists and is independently usable after scrolling.
+  await guides.scrollIntoViewIfNeeded()
+  await expect(guides.locator('summary')).toBeVisible()
+
+  await projects.scrollIntoViewIfNeeded()
   await projects.locator('summary').click()
   expect(await projects.evaluate((element) => (element as HTMLDetailsElement).open)).toBe(false)
   expect(await guides.evaluate((element) => (element as HTMLDetailsElement).open)).toBe(true)
 
+  await guides.scrollIntoViewIfNeeded()
   await guides.locator('summary').click()
   expect(await guides.evaluate((element) => (element as HTMLDetailsElement).open)).toBe(false)
 
   await page.reload()
   await expect(page.getByTestId('editor-topbar')).toBeVisible()
-  expect(await page.getByTestId('projects-panel').evaluate((element) => (element as HTMLDetailsElement).open)).toBe(false)
-  expect(await page.getByTestId('guides-panel').evaluate((element) => (element as HTMLDetailsElement).open)).toBe(false)
+  const reloadedProjects = page.getByTestId('projects-panel')
+  const reloadedGuides = page.getByTestId('guides-panel')
+  expect(await reloadedProjects.evaluate((element) => (element as HTMLDetailsElement).open)).toBe(false)
+  expect(await reloadedGuides.evaluate((element) => (element as HTMLDetailsElement).open)).toBe(false)
 
-  await page.getByTestId('projects-panel').locator('summary').click()
-  expect(await page.getByTestId('projects-panel').evaluate((element) => (element as HTMLDetailsElement).open)).toBe(true)
-  expect(await page.getByTestId('guides-panel').evaluate((element) => (element as HTMLDetailsElement).open)).toBe(false)
+  await reloadedProjects.scrollIntoViewIfNeeded()
+  await reloadedProjects.locator('summary').click()
+  expect(await reloadedProjects.evaluate((element) => (element as HTMLDetailsElement).open)).toBe(true)
+  expect(await reloadedGuides.evaluate((element) => (element as HTMLDetailsElement).open)).toBe(false)
 })
