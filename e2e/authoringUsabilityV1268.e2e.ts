@@ -113,7 +113,7 @@ test('shows a compact guide snap surface and lets placement click through guide 
   // so Playwright's toBeVisible() reports hidden even though its thick stroke is
   // rendered. Verify the actual computed paint properties instead.
   expect(await zone.evaluate((element) => Number(getComputedStyle(element).opacity))).toBeGreaterThan(0)
-  expect(await zone.evaluate((element) => parseFloat(getComputedStyle(element).strokeWidth))).toBe(28)
+  expect(await zone.evaluate((element) => parseFloat(getComputedStyle(element).strokeWidth))).toBe(18)
 
   // Continuous guides accept any point on the path, so division dots are not
   // presented as fake exclusive targets.
@@ -122,7 +122,7 @@ test('shows a compact guide snap surface and lets placement click through guide 
 
   await page.locator('.symbols-section .symbol-button[title^="Воздушная петля ·"]').click()
   await expect(page.locator('svg.editor-canvas')).toHaveClass(/placing/)
-  expect(await zone.evaluate((element) => parseFloat(getComputedStyle(element).strokeWidth))).toBe(32)
+  expect(await zone.evaluate((element) => parseFloat(getComputedStyle(element).strokeWidth))).toBe(22)
   expect(await guide.evaluate((element) => getComputedStyle(element).pointerEvents)).toBe('none')
 
   const guideStroke = guide.locator('.guide-stroke')
