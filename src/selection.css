@@ -12,6 +12,21 @@
   stroke-dasharray: 7 4;
 }
 
+.group-selection-box.draggable {
+  pointer-events: all;
+  cursor: move;
+  transition: fill 100ms ease, stroke 100ms ease;
+}
+
+.group-selection-box.draggable:hover {
+  fill: rgba(37, 99, 235, .055);
+  stroke: #2563eb;
+}
+
+.group-selection-box.draggable:active {
+  cursor: grabbing;
+}
+
 .stitch-rotation-link {
   stroke: #3f8367;
   stroke-width: 1.2;
