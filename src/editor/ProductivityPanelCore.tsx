@@ -137,6 +137,7 @@ export function ProductivityPanel({
   canTransform,
   canGroup,
   canUngroup,
+  suppressAutoRepeatPreview = false,
   previewTarget = null,
   onGroup,
   onUngroup,
@@ -158,6 +159,7 @@ export function ProductivityPanel({
   canTransform: boolean
   canGroup: boolean
   canUngroup: boolean
+  suppressAutoRepeatPreview?: boolean
   previewTarget?: SVGGElement | null
   onGroup: () => void
   onUngroup: () => void
@@ -219,7 +221,7 @@ export function ProductivityPanel({
     // #10 only asks for a clean first single-stitch placement. Multi-selection
     // retains the live motif preview introduced in #12, except when that selection
     // was just created by committing Repeat/Mirror.
-    setRepeatPreviewActive(!suppressAutoPreview && !mirrorAxis && selectedIds.length > 1)
+    setRepeatPreviewActive(!suppressAutoPreview && !suppressAutoRepeatPreview && !mirrorAxis && selectedIds.length > 1)
     setPreviewDirection(null)
   // Selection identity is the transaction boundary for user-authored defaults.
   // eslint-disable-next-line react-hooks/exhaustive-deps

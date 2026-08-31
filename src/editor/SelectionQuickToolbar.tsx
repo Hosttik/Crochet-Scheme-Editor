@@ -3,6 +3,7 @@ import { SYMBOLS } from '../symbols'
 import type { StitchElement, Viewport } from '../types'
 import { IconButton } from '../ui/primitives'
 import { selectionAabb } from './selection'
+import { atomicChainGroupSelection } from './selectionTransform'
 import { stitchVisualSize } from './stitchGeometry'
 import './selectionQuickToolbar.css'
 
@@ -40,6 +41,8 @@ const COPY = {
 } as const
 
 const QUICK_TOOLBAR_HALF_WIDTH = 172
+const GROUP_ROTATION_HANDLE_OFFSET_PX = 30
+const GROUP_ROTATION_HIT_RADIUS_PX = 13
 
 export function SelectionQuickToolbar({
   locale,
@@ -93,6 +96,15 @@ export function SelectionQuickToolbar({
       const handleScreenY = viewport.panY + handleDocumentY * viewport.zoom
       highestInteractiveY = Math.min(highestInteractiveY, handleScreenY - 8)
     }
+  } else if (atomicChainGroupSelection(elements, selectedIds)) {
+    // Atomic chain presets expose one shared rotation handle 30 screen pixels
+    // above the group frame. Keep the floating toolbar above the complete hit
+    // target, otherwise the toolbar wins hit-testing and makes rotation appear
+    // broken even though the SVG handle is rendered underneath it.
+    highestInteractiveY = Math.min(
+      highestInteractiveY,
+      selectionTop - GROUP_ROTATION_HANDLE_OFFSET_PX - GROUP_ROTATION_HIT_RADIUS_PX,
+    )
   }
 
   // All stitches use the same placement rule. The previous compact-stitch

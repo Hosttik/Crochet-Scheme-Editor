@@ -15,6 +15,7 @@ import {
   type StitchGeometryHandle,
 } from './stitchGeometry'
 import { topologyChangeMarkers, type TopologyChangeMarker } from './topology'
+import { atomicChainGroupSelection } from './selectionTransform'
 import './rowShaping.css'
 import './topology.css'
 
@@ -57,6 +58,8 @@ export function StitchLayer({
   selectedTopologyParentId,
   onElementPointerDown,
   onRotatePointerDown,
+  onGroupRotatePointerDown,
+  onGroupScalePointerDown,
   onGeometryCommit,
   onTopologyMarkerPointerDown,
 }: {
@@ -74,6 +77,16 @@ export function StitchLayer({
   onRotatePointerDown: (
     event: ReactPointerEvent<SVGCircleElement>,
     element: StitchElement,
+  ) => void
+  onGroupRotatePointerDown: (
+    event: ReactPointerEvent<SVGCircleElement>,
+    ids: string[],
+    pivot: Point,
+  ) => void
+  onGroupScalePointerDown: (
+    event: ReactPointerEvent<SVGCircleElement>,
+    ids: string[],
+    pivot: Point,
   ) => void
   onGeometryCommit: (elementId: string, geometry?: StitchGeometry) => void
   onTopologyMarkerPointerDown?: (
@@ -113,6 +126,7 @@ export function StitchLayer({
     selectedIds.length > 1
       ? selectionAabb(previewElements, selectedIds, SYMBOL_SIZES)
       : null
+  const atomicChainGroup = atomicChainGroupSelection(previewElements, selectedIds)
   const groupDragReference = groupBounds
     ? selectedElements.find((element) => element.id === primaryId && !isElementLocked(element) && !element.parametricRow)
       ?? selectedElements.find((element) => !isElementLocked(element) && !element.parametricRow)
@@ -399,6 +413,55 @@ export function StitchLayer({
           </g>
         )
       })}
+
+      {groupBounds && atomicChainGroup && (
+        <g className="group-transform-handles" data-testid="chain-group-transform-handles">
+          <line
+            x1={(groupBounds.left + groupBounds.right) / 2}
+            y1={groupBounds.top}
+            x2={(groupBounds.left + groupBounds.right) / 2}
+            y2={groupBounds.top - 30 / zoom}
+            className="stitch-rotation-link"
+            vectorEffect="non-scaling-stroke"
+            pointerEvents="none"
+          />
+          <circle
+            cx={(groupBounds.left + groupBounds.right) / 2}
+            cy={groupBounds.top - 30 / zoom}
+            r={13 / zoom}
+            className="stitch-handle-hit-target rotation group-rotation"
+            data-testid="group-rotation-hit-target"
+            aria-label="Rotate chain group"
+            onPointerDown={(event) => onGroupRotatePointerDown(event, atomicChainGroup.ids, atomicChainGroup.pivot)}
+          />
+          <circle
+            cx={(groupBounds.left + groupBounds.right) / 2}
+            cy={groupBounds.top - 30 / zoom}
+            r={7 / zoom}
+            className="stitch-rotation-handle group-rotation"
+            vectorEffect="non-scaling-stroke"
+            pointerEvents="none"
+          />
+
+          <circle
+            cx={groupBounds.right + 8 / zoom}
+            cy={groupBounds.bottom + 8 / zoom}
+            r={13 / zoom}
+            className="stitch-handle-hit-target uniform group-scale"
+            data-testid="group-resize-uniform"
+            aria-label="Resize chain group"
+            onPointerDown={(event) => onGroupScalePointerDown(event, atomicChainGroup.ids, atomicChainGroup.pivot)}
+          />
+          <circle
+            cx={groupBounds.right + 8 / zoom}
+            cy={groupBounds.bottom + 8 / zoom}
+            r={7 / zoom}
+            className="stitch-geometry-handle uniform group-scale"
+            vectorEffect="non-scaling-stroke"
+            pointerEvents="none"
+          />
+        </g>
+      )}
 
       {visibleElements.map((element) => {
         const marker = markerByChildId.get(element.id)
