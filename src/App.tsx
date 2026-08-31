@@ -96,6 +96,11 @@ import {
 } from './editor/selection'
 import { solveSnap, type SnapCandidate } from './editor/snapping'
 import { resolvedStitchGeometry } from './editor/stitchGeometry'
+import {
+  atomicChainGroupSelection,
+  rotateSelectionAroundPivot,
+  scaleSelectionAroundPivot,
+} from './editor/selectionTransform'
 import type { TopologyChangeMarker } from './editor/topology'
 import {
   DEFAULT_LOCALE,
@@ -196,9 +201,17 @@ type LassoState = {
 }
 type RotateState = {
   pointerId: number
-  elementId: string
+  selectedIds: string[]
+  pivot: Point
   startRotation: number
   startPointerAngle: number
+  startSnapshot: DocumentSnapshot
+}
+type ScaleSelectionState = {
+  pointerId: number
+  selectedIds: string[]
+  pivot: Point
+  startDistance: number
   startSnapshot: DocumentSnapshot
 }
 type RulerDraftState = {
@@ -447,6 +460,7 @@ function App() {
   const [marquee, setMarquee] = useState<MarqueeState | null>(null)
   const [lasso, setLasso] = useState<LassoState | null>(null)
   const [rotate, setRotate] = useState<RotateState | null>(null)
+  const [scaleSelection, setScaleSelection] = useState<ScaleSelectionState | null>(null)
   const [pan, setPan] = useState<PanState | null>(null)
   const [rulerDraft, setRulerDraft] = useState<RulerDraftState | null>(null)
   const [rulerDrag, setRulerDrag] = useState<RulerDragState | null>(null)
@@ -566,6 +580,10 @@ function App() {
         ? elements.find((element) => element.id === primaryId) ?? null
         : null,
     [elements, primaryId, selectedIds.length],
+  )
+  const atomicChainSelection = useMemo(
+    () => atomicChainGroupSelection(elements, selectedIds),
+    [elements, selectedIds],
   )
   const selectedGuide = useMemo(
     () => guides.find((guide) => guide.id === selectedGuideId) ?? null,
@@ -1385,12 +1403,14 @@ function App() {
       if (event.key === 'Escape') {
         if (drag) setElements(drag.startSnapshot.elements)
         if (rotate) setElements(rotate.startSnapshot.elements)
+        if (scaleSelection) setElements(scaleSelection.startSnapshot.elements)
         if (rulerDrag) setRulers(rulerDrag.startSnapshot.rulers)
         setTool({ type: 'select' })
         setPreview(null)
         setSnapTarget(null)
         setDrag(null)
         setRotate(null)
+        setScaleSelection(null)
         setMarquee(null)
         setLasso(null)
         setRulerDraft(null)
@@ -1418,6 +1438,7 @@ function App() {
     nudgeSelection,
     rotate,
     rulerDrag,
+    scaleSelection,
     toggleSnapping,
     zoomCanvas,
   ])
@@ -1624,20 +1645,43 @@ function App() {
       return
     }
     if (rotate?.pointerId === event.pointerId) {
-      const original = rotate.startSnapshot.elements.find((element) => element.id === rotate.elementId)
-      if (!original) return
       const angle = rotationFromPointer(
         rotate.startRotation,
         rotate.startPointerAngle,
-        pointerAngle({ x: original.x, y: original.y }, documentPoint),
+        pointerAngle(rotate.pivot, documentPoint),
         event.shiftKey,
       )
-      interactionMovedRef.current = Math.abs(angle - rotate.startRotation) > 0.1
-      setElements(
-        rotate.startSnapshot.elements.map((element) =>
-          element.id === rotate.elementId ? { ...element, rotation: angle } : element,
-        ),
+      const delta = angle - rotate.startRotation
+      interactionMovedRef.current = Math.abs(delta) > 0.1
+      if (rotate.selectedIds.length === 1) {
+        const elementId = rotate.selectedIds[0]
+        setElements(rotate.startSnapshot.elements.map((element) =>
+          element.id === elementId ? { ...element, rotation: angle } : element,
+        ))
+      } else {
+        setElements(rotateSelectionAroundPivot(
+          rotate.startSnapshot.elements,
+          rotate.selectedIds,
+          rotate.pivot,
+          delta,
+        ))
+      }
+      return
+    }
+
+    if (scaleSelection?.pointerId === event.pointerId) {
+      const distance = Math.hypot(
+        documentPoint.x - scaleSelection.pivot.x,
+        documentPoint.y - scaleSelection.pivot.y,
       )
+      const factor = distance / Math.max(1e-6, scaleSelection.startDistance)
+      interactionMovedRef.current = Math.abs(factor - 1) > 0.005
+      setElements(scaleSelectionAroundPivot(
+        scaleSelection.startSnapshot.elements,
+        scaleSelection.selectedIds,
+        scaleSelection.pivot,
+        factor,
+      ))
       return
     }
 
@@ -1737,6 +1781,17 @@ function App() {
         setStatus(t.elementRotated)
       }
       setRotate(null)
+      interactionMovedRef.current = false
+      return
+    }
+
+    if (scaleSelection?.pointerId === event.pointerId) {
+      if (cancelled) setElements(scaleSelection.startSnapshot.elements)
+      else if (interactionMovedRef.current) {
+        recordSnapshot(scaleSelection.startSnapshot)
+        setStatus(locale === 'ru' ? 'Размер цепочки изменён' : 'Chain size changed')
+      }
+      setScaleSelection(null)
       interactionMovedRef.current = false
       return
     }
@@ -1880,21 +1935,66 @@ function App() {
     snapLockRef.current = null
   }
 
+  const beginSelectionRotate = (
+    event: ReactPointerEvent<SVGCircleElement>,
+    ids: string[],
+    pivot: Point,
+    startRotation: number,
+  ) => {
+    if (event.button !== 0 || spacePressedRef.current || !ids.length) return
+    event.preventDefault()
+    event.stopPropagation()
+    const point = clientToDocument(event.clientX, event.clientY)
+    setSelectedIds(ids)
+    setSelectedGuideId(null)
+    setRotate({
+      pointerId: event.pointerId,
+      selectedIds: ids,
+      pivot,
+      startRotation,
+      startPointerAngle: pointerAngle(pivot, point),
+      startSnapshot: currentSnapshot(),
+    })
+    interactionMovedRef.current = false
+    svgRef.current?.setPointerCapture(event.pointerId)
+  }
+
   const handleRotatePointerDown = (
     event: ReactPointerEvent<SVGCircleElement>,
     element: StitchElement,
   ) => {
-    if (event.button !== 0 || spacePressedRef.current || isElementLocked(element) || element.parametricRow) return
+    if (isElementLocked(element) || element.parametricRow) return
+    beginSelectionRotate(event, [element.id], { x: element.x, y: element.y }, element.rotation)
+  }
+
+  const handleGroupRotatePointerDown = (
+    event: ReactPointerEvent<SVGCircleElement>,
+    ids: string[],
+    pivot: Point,
+  ) => {
+    const first = elements.find((element) => element.id === ids[0])
+    if (!first) return
+    beginSelectionRotate(event, ids, pivot, first.rotation)
+  }
+
+  const handleGroupScalePointerDown = (
+    event: ReactPointerEvent<SVGCircleElement>,
+    ids: string[],
+    pivot: Point,
+  ) => {
+    if (event.button !== 0 || spacePressedRef.current || !ids.length) return
     event.preventDefault()
     event.stopPropagation()
     const point = clientToDocument(event.clientX, event.clientY)
-    setSelectedIds([element.id])
+    const startDistance = Math.hypot(point.x - pivot.x, point.y - pivot.y)
+    if (startDistance < 1e-6) return
+    setSelectedIds(ids)
     setSelectedGuideId(null)
-    setRotate({
+    setScaleSelection({
       pointerId: event.pointerId,
-      elementId: element.id,
-      startRotation: element.rotation,
-      startPointerAngle: pointerAngle({ x: element.x, y: element.y }, point),
+      selectedIds: ids,
+      pivot,
+      startDistance,
       startSnapshot: currentSnapshot(),
     })
     interactionMovedRef.current = false
@@ -1997,8 +2097,14 @@ function App() {
   )
 
   const rotateSelected = (delta: number) => {
-    const selected = new Set(unlockedSelectedIds())
+    const ids = unlockedSelectedIds()
+    const selected = new Set(ids)
     if (!selected.size) return
+    const chainGroup = atomicChainGroupSelection(elements, ids)
+    if (chainGroup) {
+      commitElements(rotateSelectionAroundPivot(elements, chainGroup.ids, chainGroup.pivot, delta))
+      return
+    }
     commitElements(elements.map((element) => {
       if (!selected.has(element.id) || element.parametricRow) return element
       const attachment = element.guideAttachment
@@ -2928,6 +3034,8 @@ function App() {
               selectedTopologyParentId={selectedTopologyParentId}
               onElementPointerDown={handleElementPointerDown}
               onRotatePointerDown={handleRotatePointerDown}
+              onGroupRotatePointerDown={handleGroupRotatePointerDown}
+              onGroupScalePointerDown={handleGroupScalePointerDown}
               onGeometryCommit={(elementId, geometry) => {
                 const target = elements.find((element) => element.id === elementId)
                 if (!target || target.parametricRow || isElementLocked(target)) return
@@ -3072,6 +3180,7 @@ function App() {
             canTransform
             canGroup={productivitySelection.canGroup}
             canUngroup={productivitySelection.canUngroup}
+            suppressAutoRepeatPreview={Boolean(atomicChainSelection)}
             previewTarget={canvasContentRef.current}
             onGroup={groupSelection}
             onUngroup={ungroupSelection}
