@@ -45,6 +45,7 @@ test('a placed ruler is selectable by its line and removable with Delete', async
   expect(box).not.toBeNull()
   await page.mouse.click(box!.x + 40, box!.y + 40)
   await expect(ruler).not.toHaveClass(/selected/)
+  await expect(ruler.locator('.ruler-handle')).toHaveCount(0)
 
   await clickRulerStroke(page, ruler)
   await expect(ruler).toHaveClass(/selected/)
