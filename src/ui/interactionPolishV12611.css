@@ -25,3 +25,26 @@
 .topbar-v2 > .topbar-add-favorite {
   display: none !important;
 }
+
+/* The old 900px layout was already at its min-content limit. After consolidating
+ * topbar responsibilities, use the icon-only state more efficiently instead of
+ * allowing the flex row to create ~32px of horizontal scroll. The 38px command
+ * slots remain larger than the icons and keep the same 44px vertical target. */
+@media (max-width: 920px) {
+  .topbar-v2 .topbar-command-button {
+    width: 38px;
+  }
+
+  .topbar-v2 .topbar-divider {
+    margin-inline: 4px;
+  }
+
+  .topbar-v2 .topbar-divider--compact {
+    margin-inline: 4px;
+  }
+
+  .topbar-v2 .topbar-flex-spacer {
+    min-width: 46px;
+    padding-right: 3px;
+  }
+}
