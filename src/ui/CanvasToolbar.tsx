@@ -140,7 +140,7 @@ export function CanvasToolbar({
           <span className="canvas-snap-dot" aria-hidden="true" />
           <span>{locale === 'ru' ? 'Привязка:' : 'Snap:'}</span>
           <strong className="canvas-snap-state">
-            {snappingEnabled ? (locale === 'ru' ? 'Вкл.' : 'On') : (locale === 'ru' ? 'Выкл.' : 'Off')}
+            {snappingEnabled ? (locale === 'ru' ? 'Вкл.' : 'On') : (locale === 'ru' ? 'Свободно' : 'Free')}
           </strong>
           <kbd>S</kbd>
         </button>
