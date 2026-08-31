@@ -75,7 +75,12 @@ test('collapses only the panel content while keeping the tool rail available', a
   await page.getByRole('region', { name: 'Библиотека элементов' })
     .getByRole('button', { name: 'Свернуть панель элементов', exact: true })
     .click()
-  await page.getByRole('button', { name: 'Добавить элемент из библиотеки', exact: true }).click()
+  // Wait for the collapsed surface to replace the library before using its
+  // quick-add action. Without this state boundary the locator can race React's
+  // layout update under a loaded CI worker.
+  const collapsed = page.getByTestId('element-library-collapsed')
+  await expect(collapsed).toBeAttached()
+  await collapsed.getByRole('button', { name: 'Добавить элемент из библиотеки', exact: true }).click()
   const search = page.getByRole('searchbox', { name: 'Поиск элементов' })
   await expect(search).toBeVisible()
   await expect(search).toBeFocused()
