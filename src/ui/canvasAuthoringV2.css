@@ -1,9 +1,8 @@
 /* Panel 5 authoring pass.
  *
  * Placement is intentionally construction-first: while a stitch tool is active,
- * existing stitches must not steal pointer events from the canvas. The compact
- * canvas controls are docked into the status surface so the drawing area stays
- * visually clear, matching the approved workspace reference more closely.
+ * existing stitches must not steal pointer events from the canvas. Canvas controls
+ * live inside the shared workspace footer so the bottom chrome is one aligned row.
  */
 
 /* Continuous placement ---------------------------------------------------- */
@@ -53,19 +52,66 @@
   fill: var(--ui-accent);
 }
 
-/* Workspace controls ------------------------------------------------------ */
-.workspace .canvas-toolbar {
-  top: auto !important;
-  right: auto !important;
-  bottom: 0;
-  left: 8px !important;
+/* Workspace footer -------------------------------------------------------- */
+.workspace {
+  --canvas-statusbar-height: 32px;
+}
+
+.workspace .statusbar {
+  height: var(--canvas-statusbar-height);
+  padding: 0 10px;
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) auto minmax(96px, 1fr);
+  grid-template-areas: 'state controls selection';
+  align-items: center;
+  column-gap: 14px;
+  border-top: 1px solid var(--ui-border);
+  background: var(--ui-surface);
+  backdrop-filter: none;
+}
+
+.workspace .statusbar-canvas-controls {
+  grid-area: controls;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.workspace .statusbar-state {
+  grid-area: state;
+  justify-self: start;
+}
+
+.workspace .statusbar-selection {
+  grid-area: selection;
+  justify-self: end;
+}
+
+/* Document statistics remain available to the component but are deliberately
+ * hidden from the primary footer. The approved reference keeps this row focused
+ * on save state, zoom, snapping and selection. */
+.workspace .statusbar-document-meta {
+  display: none !important;
+}
+
+/* The toolbar is now portaled into .statusbar-canvas-controls. Override the
+ * legacy floating-toolbar geometry instead of compensating with statusbar padding. */
+.workspace .statusbar-canvas-controls .canvas-toolbar {
+  position: static !important;
+  inset: auto !important;
   transform: none !important;
-  z-index: 14;
+  z-index: auto;
   width: auto;
-  max-width: 228px !important;
-  min-height: 30px;
-  height: 30px;
+  max-width: none !important;
+  min-height: 0;
+  height: 100%;
   padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 0;
   overflow: visible !important;
   border: 0;
@@ -75,9 +121,9 @@
   backdrop-filter: none;
 }
 
-/* Zoom is already present in the topbar but is useful as a compact bottom
- * control too. Fit remains available through F / Shift+F, while Hand/Lasso/
- * Ruler remain in the canonical left tool rail. */
+/* Zoom is duplicated in the topbar intentionally as a status/footer affordance.
+ * Fit remains available through F / Shift+F, while Hand/Lasso/Ruler stay in the
+ * canonical left tool rail. */
 .workspace .canvas-toolbar-fit,
 .workspace .canvas-toolbar-modes,
 .workspace .canvas-toolbar .canvas-orientation-select,
@@ -94,52 +140,69 @@
 }
 
 .workspace .canvas-toolbar-group {
-  height: 30px;
+  min-width: 0;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
-.workspace .canvas-toolbar-zoom {
-  gap: 0;
+.workspace .canvas-toolbar-label {
+  margin-right: 2px;
+  color: var(--ui-text-muted);
+  font-size: 9.5px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .workspace .canvas-toolbar-snap {
-  margin-left: 8px;
-  padding-left: 9px;
+  margin-left: 10px;
+  padding-left: 10px;
   border-left: 1px solid var(--ui-border);
 }
 
 .workspace .canvas-toolbar button,
 .workspace .canvas-toolbar button:not(.zoom-readout) {
-  height: 28px;
-  min-width: 28px;
-  padding: 0 5px;
+  height: 24px;
+  min-width: 24px;
+  padding: 0 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 5px;
   background: transparent;
   color: var(--ui-text-muted);
-  font-size: 10px;
+  font-size: 9.5px;
+  line-height: 1;
+}
+
+.workspace .canvas-toolbar button:hover:not(:disabled) {
+  background: var(--ui-surface-hover);
+  color: var(--ui-text);
 }
 
 .workspace .canvas-toolbar .zoom-readout {
-  min-width: 48px;
-  padding-inline: 4px;
+  min-width: 44px;
+  padding-inline: 3px;
   color: var(--ui-text);
   font-size: 9.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .workspace .canvas-toolbar .snap-toggle {
   width: auto !important;
-  min-width: 78px !important;
-  padding: 0 6px !important;
+  min-width: 0 !important;
+  padding: 0 5px !important;
   display: inline-flex !important;
   place-items: unset !important;
   justify-content: flex-start !important;
-  gap: 5px;
+  gap: 4px;
+  color: var(--ui-text-muted);
   font-size: 9.5px !important;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .workspace .canvas-toolbar .snap-toggle kbd {
@@ -147,48 +210,85 @@
 }
 
 .workspace .canvas-toolbar .canvas-snap-dot {
+  width: 5px;
+  height: 5px;
   display: block;
+  box-shadow: none;
+}
+
+.workspace .canvas-toolbar .canvas-snap-state {
+  color: var(--ui-text);
+  font-size: inherit;
+  font-weight: 650;
 }
 
 .workspace .canvas-toolbar .snap-toggle.active {
-  background: var(--ui-accent-soft);
+  background: transparent;
+  color: var(--ui-text-muted);
+  box-shadow: none;
+}
+
+.workspace .canvas-toolbar .snap-toggle.active:hover {
+  background: var(--ui-surface-hover);
+}
+
+.workspace .canvas-toolbar .snap-toggle.active .canvas-snap-state {
   color: var(--ui-accent-hover);
 }
 
-/* Reserve the left side of the shared status surface for zoom + snapping. */
-.workspace .statusbar {
-  padding-left: 236px;
+.workspace .statusbar-selection strong {
+  min-width: 20px;
+  padding: 2px 6px;
+}
+
+@media (max-width: 1080px) {
+  .workspace .statusbar {
+    grid-template-columns: minmax(92px, 1fr) auto minmax(82px, 1fr);
+    column-gap: 8px;
+  }
+
+  .workspace .canvas-toolbar-label {
+    display: none;
+  }
 }
 
 @media (max-width: 920px) {
-  .workspace .canvas-toolbar {
-    left: 6px !important;
-    max-width: 214px !important;
-  }
-
   .workspace .statusbar {
-    padding-left: 220px;
-  }
-
-  .statusbar-document-meta {
-    display: none !important;
-  }
-}
-
-@media (max-width: 720px) {
-  .workspace .canvas-toolbar .zoom-readout {
-    min-width: 42px;
-  }
-
-  .workspace .canvas-toolbar .snap-toggle {
-    min-width: 70px !important;
-  }
-
-  .workspace .statusbar {
-    padding-left: 204px;
+    padding-inline: 8px;
+    grid-template-columns: auto minmax(82px, 1fr);
+    grid-template-areas: 'controls selection';
+    column-gap: 8px;
   }
 
   .workspace .statusbar-state {
     display: none !important;
+  }
+
+  .workspace .statusbar-canvas-controls {
+    justify-self: start;
+    justify-content: flex-start;
+  }
+
+  .workspace .canvas-toolbar-snap {
+    margin-left: 6px;
+    padding-left: 7px;
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace .statusbar {
+    padding-inline: 6px;
+  }
+
+  .workspace .canvas-toolbar .zoom-readout {
+    min-width: 40px;
+  }
+
+  .workspace .canvas-toolbar .snap-toggle > span:not(.canvas-snap-dot) {
+    display: none;
+  }
+
+  .workspace .canvas-toolbar .snap-toggle {
+    padding-inline: 4px !important;
   }
 }
