@@ -67,8 +67,16 @@ test('keeps user-selected snapping and copy modes across a reload', async ({ pag
   await productivity.getByLabel('Шаг °', { exact: true }).fill('30')
   await productivity.getByLabel('Шаг °', { exact: true }).press('Enter')
 
+  // The copy/snapping preferences use immediate localStorage persistence, while the
+  // document itself uses the editor autosave delay. Let the placed stitch cross that
+  // transaction boundary before reloading so this test verifies both contracts.
+  await expect(page.locator('.stitch-element')).toHaveCount(1)
+  await page.waitForTimeout(900)
+  await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
+
   await page.reload()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
+  await expect(page.locator('.stitch-element')).toHaveCount(1)
 
   const snappingAfter = await openDetails(page, 'snapping-global-panel')
   await expect(snappingAfter.locator('fieldset').filter({ has: page.getByText('Ориентация', { exact: true }) }).locator('select')).toHaveValue('along')
