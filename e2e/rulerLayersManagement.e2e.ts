@@ -55,7 +55,7 @@ test('a placed ruler is selectable by its line and removable with Delete', async
   await expect(page.locator('.measurement-ruler:not(.draft)')).toHaveCount(0)
 })
 
-test('rulers are first-class Layers objects with hide, lock and delete controls', async ({ page }) => {
+test('rulers are first-class Layers objects with aligned hide, lock and delete controls', async ({ page }) => {
   await openEditor(page)
   const ruler = await createRuler(page, 24)
 
@@ -66,8 +66,24 @@ test('rulers are first-class Layers objects with hide, lock and delete controls'
   await expect(row).toBeVisible()
   await expect(row).toContainText('Линейка 1')
 
-  const visibility = row.locator('.layer-icon-button').nth(0)
-  const lock = row.locator('.layer-icon-button').nth(1)
+  const actions = row.locator('.ruler-layer-actions')
+  const actionButtons = actions.locator('.layer-icon-button')
+  await expect(actions).toBeVisible()
+  await expect(actionButtons).toHaveCount(3)
+  const actionBoxes = await actionButtons.evaluateAll((buttons) => buttons.map((button) => {
+    const rect = button.getBoundingClientRect()
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+  }))
+  expect(actionBoxes).toHaveLength(3)
+  for (const box of actionBoxes) {
+    expect(box.width).toBeCloseTo(28, 1)
+    expect(box.height).toBeGreaterThanOrEqual(45)
+    expect(box.y).toBeCloseTo(actionBoxes[0].y, 1)
+    expect(box.height).toBeCloseTo(actionBoxes[0].height, 1)
+  }
+
+  const visibility = actionButtons.nth(0)
+  const lock = actionButtons.nth(1)
   const remove = row.locator('.ruler-layer-delete')
 
   await lock.click()

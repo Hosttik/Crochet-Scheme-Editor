@@ -230,18 +230,6 @@ export function LayersPanel({
         className={`layer-row ruler-layer-row ${active ? 'selected' : ''} ${locked ? 'locked' : ''} ${visible ? '' : 'hidden'}`}
         data-testid={`ruler-layer-${ruler.id}`}
       >
-        <IconButton
-          className="layer-icon-button"
-          icon={visible ? 'eye' : 'eyeOff'}
-          label={visible ? t.hideLayer : t.showLayer}
-          onClick={() => onToggleRulerVisible?.(ruler.id)}
-        />
-        <IconButton
-          className="layer-icon-button"
-          icon={locked ? 'lock' : 'unlock'}
-          label={locked ? t.unlockLayer : t.lockLayer}
-          onClick={() => onToggleRulerLocked?.(ruler.id)}
-        />
         <button
           className="layer-main-button ruler-layer-main"
           title={label}
@@ -257,14 +245,31 @@ export function LayersPanel({
             <small>#{index + 1}{locked ? ` · ${locale === 'ru' ? 'заблокирована' : 'locked'}` : ''}</small>
           </span>
         </button>
-        <IconButton
-          className="layer-icon-button ruler-layer-delete"
-          icon="trash"
-          label={copy.deleteRuler}
-          disabled={locked}
-          data-testid={`ruler-layer-delete-${ruler.id}`}
-          onClick={() => onDeleteRuler?.(ruler.id)}
-        />
+        <div
+          className="ruler-layer-actions"
+          aria-label={`${label} · ${locale === 'ru' ? 'Управление' : 'Controls'}`}
+        >
+          <IconButton
+            className="layer-icon-button"
+            icon={visible ? 'eye' : 'eyeOff'}
+            label={visible ? t.hideLayer : t.showLayer}
+            onClick={() => onToggleRulerVisible?.(ruler.id)}
+          />
+          <IconButton
+            className="layer-icon-button"
+            icon={locked ? 'lock' : 'unlock'}
+            label={locked ? t.unlockLayer : t.lockLayer}
+            onClick={() => onToggleRulerLocked?.(ruler.id)}
+          />
+          <IconButton
+            className="layer-icon-button ruler-layer-delete"
+            icon="trash"
+            label={copy.deleteRuler}
+            disabled={locked}
+            data-testid={`ruler-layer-delete-${ruler.id}`}
+            onClick={() => onDeleteRuler?.(ruler.id)}
+          />
+        </div>
       </div>
     )
   }

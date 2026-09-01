@@ -37,6 +37,9 @@ test('edits straight guides by length and angle, shows direction, and reverses b
   await page.getByLabel('Угол °').fill('30')
   await page.getByLabel('Угол °').press('Enter')
   await expect(page.getByLabel('Угол °')).toHaveValue('30')
+  const guideValue = line.locator('.guide-value-label')
+  await expect(guideValue).toHaveText('30°')
+  await expect(guideValue).not.toContainText('px')
 
   const before = await line.locator('.guide-direction-arrow').getAttribute('transform')
   const strokeBox = await line.locator('.guide-stroke').boundingBox()

@@ -3,11 +3,12 @@ import type { Guide } from '../types'
 import { guideNumericValue } from './guideValueLabel'
 
 describe('guideNumericValue', () => {
-  it('shows length and angle for a straight guide', () => {
+  it('shows only the angle for a straight guide', () => {
     const guide: Guide = {
       id: 'line', type: 'line', start: { x: 0, y: 0 }, end: { x: 300, y: 0 }, divisions: 12, visible: true,
     }
-    expect(guideNumericValue(guide)).toBe('300 px · 0°')
+    expect(guideNumericValue(guide)).toBe('0°')
+    expect(guideNumericValue(guide)).not.toContain('px')
   })
 
   it('shows radius and sweep for an arc', () => {
