@@ -11,9 +11,8 @@ export function guideNumericValue(guide: Guide) {
   if (guide.type === 'line') {
     const dx = guide.end.x - guide.start.x
     const dy = guide.end.y - guide.start.y
-    const length = Math.hypot(dx, dy)
     const angle = (Math.atan2(dy, dx) * 180) / Math.PI
-    return `${round(length)} px · ${round(angle)}°`
+    return `${round(angle)}°`
   }
   if (guide.type === 'curve' || guide.type === 'parabola') {
     return `N ${Math.max(1, Math.round(guide.divisions))}`
