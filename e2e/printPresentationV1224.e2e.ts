@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { openGlobalPanel } from './helpers/rightWorkspace'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -16,14 +17,6 @@ async function placeAt(page: Page, title: string, rx: number, ry: number) {
   await page.locator(`.symbols-section .symbol-button[title^="${title} · "]`).click()
   const box = await canvasBox(page)
   await page.mouse.click(box.x + box.width * rx, box.y + box.height * ry)
-}
-
-async function openGlobalPanel(page: Page, testId: string) {
-  const details = page.getByTestId(testId)
-  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
-    await details.locator(':scope > summary').click()
-  }
-  return details
 }
 
 test('shows the package version in app chrome', async ({ page }) => {

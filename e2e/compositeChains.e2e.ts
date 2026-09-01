@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { openGlobalPanel } from './helpers/rightWorkspace'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -28,8 +29,7 @@ test('places 2/3/4 chain presets as real grouped chain stitches', async ({ page 
     await expect(page.locator('.group-selection-box')).toBeVisible()
   }
 
-  const legendDetails = page.getByTestId('legend-global-panel')
-  await legendDetails.locator(':scope > summary').click()
+  await openGlobalPanel(page, 'legend-global-panel')
   const legendRow = page.getByTestId('legend-panel').locator('.legend-used-row').filter({ hasText: 'Воздушная петля' })
   await expect(legendRow).toBeVisible()
   await expect(legendRow.locator('.legend-used-count')).toHaveText('9')

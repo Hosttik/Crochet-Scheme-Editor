@@ -1,15 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 import { createGuideFromToolRail } from './helpers/uiV2Guides'
+import { openGlobalPanel } from './helpers/rightWorkspace'
 
 function patternRow(page: Page, number: number) {
   return page.locator('.pattern-row-number').filter({ hasText: new RegExp(`^Ряд ${number}$`) })
 }
 
 async function openPatternRows(page: Page) {
-  const details = page.getByTestId('pattern-rows-global-panel')
-  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
-    await details.locator(':scope > summary').click()
-  }
+  await openGlobalPanel(page, 'pattern-rows-global-panel')
 }
 
 test('places a stitch, restores autosave and manages local projects', async ({ page }) => {

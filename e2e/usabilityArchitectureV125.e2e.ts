@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { openGlobalPanel, openRightWorkspaceMode } from './helpers/rightWorkspace'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -19,43 +20,43 @@ async function placeAt(page: Page, title: string, rx: number, ry: number) {
   await page.keyboard.press('Escape')
 }
 
-async function openGlobalPanel(page: Page, testId: string) {
-  const details = page.getByTestId(testId)
-  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
-    await details.locator(':scope > summary').click()
-  }
-  return details
-}
-
 function translateX(transform: string | null) {
   const match = transform?.match(/translate\(([-+\d.eE]+)[ ,]/)
   expect(match).not.toBeNull()
   return Number(match![1])
 }
 
-test('keeps contextual properties first and global panels collapsed below', async ({ page }) => {
+test('separates contextual Properties from document-wide settings', async ({ page }) => {
   await openEditor(page)
   await placeAt(page, 'Столбик с накидом', 0.5, 0.48)
 
   const context = page.getByTestId('selection-context-panel')
+  const productivity = page.locator('.productivity-panel')
   const background = page.getByTestId('background-global-panel')
   const print = page.getByTestId('print-global-panel')
+
   await expect(context).toBeVisible()
+  await expect(productivity).toBeVisible()
+  await expect(background).not.toBeVisible()
+  await expect(print).not.toBeVisible()
+
+  const contextBox = await context.boundingBox()
+  const productivityBox = await productivity.boundingBox()
+  expect(contextBox).not.toBeNull()
+  expect(productivityBox).not.toBeNull()
+  expect(productivityBox!.y).toBeGreaterThanOrEqual(contextBox!.y + contextBox!.height - 1)
+
+  await openRightWorkspaceMode(page, 'document')
+  await expect(context).not.toBeVisible()
+  await expect(productivity).not.toBeVisible()
+  await expect(background).toBeVisible()
+  await expect(print).toBeVisible()
   await expect(background).not.toHaveAttribute('open', '')
   await expect(print).not.toHaveAttribute('open', '')
 
-  const contextBox = await context.boundingBox()
-  const backgroundBox = await background.boundingBox()
-  expect(contextBox).not.toBeNull()
-  expect(backgroundBox).not.toBeNull()
-  expect(contextBox!.y).toBeLessThan(backgroundBox!.y)
-
-  const productivity = page.locator('.productivity-panel')
+  await openRightWorkspaceMode(page, 'properties')
+  await expect(context).toBeVisible()
   await expect(productivity).toBeVisible()
-  const productivityBox = await productivity.boundingBox()
-  expect(productivityBox).not.toBeNull()
-  expect(productivityBox!.y).toBeGreaterThanOrEqual(contextBox!.y + contextBox!.height - 1)
-  expect(productivityBox!.y).toBeLessThan(backgroundBox!.y)
 })
 
 test('filters the compact symbol palette while retaining full-name tooltips', async ({ page }) => {

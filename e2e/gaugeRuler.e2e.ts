@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { openGlobalPanel } from './helpers/rightWorkspace'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -13,10 +14,7 @@ async function canvasBox(page: Page) {
 }
 
 async function addGauge(page: Page) {
-  const details = page.getByTestId('gauge-global-panel')
-  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
-    await details.locator(':scope > summary').click()
-  }
+  await openGlobalPanel(page, 'gauge-global-panel')
   const gauge = page.locator('.gauge-panel')
   await gauge.getByRole('button', { name: 'Добавить образец плотности' }).click()
   await gauge.getByLabel('Петель в образце').fill('20')

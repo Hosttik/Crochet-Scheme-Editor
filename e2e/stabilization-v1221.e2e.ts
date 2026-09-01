@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { createGuideFromToolRail } from './helpers/uiV2Guides'
+import { openGlobalPanel } from './helpers/rightWorkspace'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -36,10 +37,7 @@ function angleDistance(left: number, right: number) {
 }
 
 async function uploadReference(page: Page) {
-  const details = page.getByTestId('background-global-panel')
-  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
-    await details.locator(':scope > summary').click()
-  }
+  await openGlobalPanel(page, 'background-global-panel')
   await page.getByTestId('background-file-input').setInputFiles({
     name: 'reference.svg',
     mimeType: 'image/svg+xml',
