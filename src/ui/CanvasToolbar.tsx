@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Locale } from '../i18n'
 import type { OrientationMode } from '../types'
+import { loadAuthoringPreferences, saveAuthoringPreferences, validSnapOrientation } from '../editor/authoringPreferences'
 import { EditorIcon } from './icons'
 import type { WorkbenchTool } from './workbenchTypes'
 import './canvasWorkspace.css'
@@ -49,10 +50,32 @@ export function CanvasToolbar({
   const isLasso = tool.type === 'lasso'
   const isRuler = tool.type === 'ruler'
   const [footerHost, setFooterHost] = useState<HTMLElement | null>(null)
+  const initialSnapPreference = useRef(validSnapOrientation(loadAuthoringPreferences().snapOrientation))
+  const skipNextPreferenceSave = useRef(false)
 
   useEffect(() => {
     setFooterHost(document.getElementById('canvas-statusbar-controls'))
   }, [])
+
+  useEffect(() => {
+    const preferred = initialSnapPreference.current
+    initialSnapPreference.current = null
+    if (!preferred || preferred === orientationMode) return
+    skipNextPreferenceSave.current = true
+    onOrientationChange(preferred)
+  // Restore the last user-authored snapping orientation once. Project state still
+  // owns subsequent changes, while new authoring sessions start from the user's
+  // last explicit choice rather than the catalog default.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (skipNextPreferenceSave.current) {
+      skipNextPreferenceSave.current = false
+      return
+    }
+    saveAuthoringPreferences({ snapOrientation: orientationMode })
+  }, [orientationMode])
 
   const toolbar = (
     <div

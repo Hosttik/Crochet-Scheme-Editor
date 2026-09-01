@@ -19,18 +19,26 @@ import { repeatDefaults } from './repeatDefaults'
 import { resolvedStitchGeometry } from './stitchGeometry'
 import type { MirrorAxisState } from './MirrorAxisOverlay'
 import { MirrorControls } from './MirrorControls'
+import {
+  loadAuthoringPreferences,
+  saveAuthoringPreferences,
+  validAngleStep,
+  validCopyCount,
+  validGuideOrientation,
+  validRepeatMode,
+} from './authoringPreferences'
 import './productivity.css'
 
 const COPY = {
   ru: {
     title: 'Ускорители',
-    hint: 'Измените параметр Repeat, чтобы увидеть ghost-preview. Создание происходит только по кнопке.',
-    groupedPreview: 'Группа считается одним объектом: ghost-preview показывает весь мотив.',
-    multiplePreviewHidden: 'Выбрано несколько элементов: ghost-preview показывает весь временный мотив.',
-    previewIdle: 'Предпросмотр выключен. Измените любой параметр Repeat, чтобы показать результат.',
+    hint: 'Измените параметры копирования, чтобы увидеть предпросмотр. Копии создаются только по кнопке.',
+    groupedPreview: 'Группа считается одним объектом: предпросмотр показывает весь мотив.',
+    multiplePreviewHidden: 'Выбрано несколько элементов: предпросмотр показывает весь временный мотив.',
+    previewIdle: 'Предпросмотр выключен. Измените любой параметр копирования, чтобы показать результат.',
     group: 'Группировать',
     ungroup: 'Разгруппировать',
-    repeat: 'Повтор',
+    repeat: 'Копирование',
     linear: 'Линейно',
     circular: 'По кругу',
     guide: 'По направляющей',
@@ -51,18 +59,18 @@ const COPY = {
     apply: 'Создать копии',
     cancelPreview: 'Отмена предпросмотра',
     needSelection: 'Выберите один или несколько обычных элементов.',
-    needGuide: 'Для движения по пути выберите направляющую.',
+    needGuide: 'Для копирования по пути выберите направляющую.',
     groupedHint: 'Группа — постоянный мотив. Alt+клик выбирает один элемент внутри группы.',
   },
   en: {
     title: 'Productivity',
-    hint: 'Change a Repeat parameter to show a ghost preview. Copies are only committed with the button.',
-    groupedPreview: 'A group is treated as one object: the ghost preview shows the whole motif.',
-    multiplePreviewHidden: 'Multiple stitches are selected: the ghost preview shows the whole temporary motif.',
-    previewIdle: 'Preview is off. Change any Repeat parameter to show the result.',
+    hint: 'Change a copy parameter to show the preview. Copies are only committed with the button.',
+    groupedPreview: 'A group is treated as one object: the preview shows the whole motif.',
+    multiplePreviewHidden: 'Multiple stitches are selected: the preview shows the whole temporary motif.',
+    previewIdle: 'Preview is off. Change any copy parameter to show the result.',
     group: 'Group',
     ungroup: 'Ungroup',
-    repeat: 'Repeat',
+    repeat: 'Copy',
     linear: 'Linear',
     circular: 'Circular',
     guide: 'Along guide',
@@ -83,7 +91,7 @@ const COPY = {
     apply: 'Create copies',
     cancelPreview: 'Cancel preview',
     needSelection: 'Select one or more regular stitches.',
-    needGuide: 'Choose a guide for along-guide repeat.',
+    needGuide: 'Choose a guide for copying along a path.',
     groupedHint: 'A group is a persistent motif. Alt+click selects one stitch inside it.',
   },
 } as const
@@ -174,14 +182,15 @@ export function ProductivityPanel({
   onRepeat: (options: RepeatOptions) => void
 }) {
   const copy = COPY[locale]
-  const [mode, setMode] = useState<RepeatMode>('linear')
-  const [copies, setCopies] = useState(5)
+  const storedPreferences = useRef(loadAuthoringPreferences()).current
+  const [mode, setMode] = useState<RepeatMode>(() => validRepeatMode(storedPreferences.copyMode))
+  const [copies, setCopies] = useState(() => validCopyCount(storedPreferences.copyCount))
   const [copiesValid, setCopiesValid] = useState(true)
   const [deltaX, setDeltaX] = useState(48)
   const [deltaY, setDeltaY] = useState(0)
-  const [angleStep, setAngleStep] = useState(45)
+  const [angleStep, setAngleStep] = useState(() => validAngleStep(storedPreferences.circularAngleStep))
   const [spacing, setSpacing] = useState(48)
-  const [orientation, setOrientation] = useState<GuideRepeatOrientation>('tangent')
+  const [orientation, setOrientation] = useState<GuideRepeatOrientation>(() => validGuideOrientation(storedPreferences.guideOrientation))
   const [guideId, setGuideId] = useState('')
   const [repeatPreviewActive, setRepeatPreviewActive] = useState(false)
   const [previewDirection, setPreviewDirection] = useState<MirrorDirection | null>(null)
@@ -206,6 +215,15 @@ export function ProductivityPanel({
   }, [elements, selectedIds])
 
   useEffect(() => {
+    saveAuthoringPreferences({
+      copyMode: mode,
+      copyCount: copies,
+      circularAngleStep: angleStep,
+      guideOrientation: orientation,
+    })
+  }, [angleStep, copies, mode, orientation])
+
+  useEffect(() => {
     if (!guideId || guides.some((guide) => guide.id === guideId)) return
     setGuideId('')
   }, [guideId, guides])
@@ -218,12 +236,11 @@ export function ProductivityPanel({
     setSpacing(defaults.guideSpacing)
     const suppressAutoPreview = suppressNextSelectionPreview.current
     suppressNextSelectionPreview.current = false
-    // #10 only asks for a clean first single-stitch placement. Multi-selection
-    // retains the live motif preview introduced in #12, except when that selection
-    // was just created by committing Repeat/Mirror.
+    // Keep the first single-stitch placement clean. Multi-selection keeps a live
+    // motif preview except when that selection was just created by Copy/Mirror.
     setRepeatPreviewActive(!suppressAutoPreview && !suppressAutoRepeatPreview && !mirrorAxis && selectedIds.length > 1)
     setPreviewDirection(null)
-  // Selection identity is the transaction boundary for user-authored defaults.
+  // Selection identity is the transaction boundary for geometry-derived defaults.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectionKey])
 

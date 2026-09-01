@@ -48,7 +48,7 @@ test('previews temporary multi selection and a colored group as one ghost motif'
   await expect(page.locator('.stitch-element.selected')).toHaveCount(2)
   const productivity = page.locator('.productivity-panel')
   await expect(page.locator('.productivity-repeat-preview-stitch')).toHaveCount(10)
-  await expect(productivity.locator('.productivity-hint')).toContainText('ghost-preview показывает весь временный мотив')
+  await expect(productivity.locator('.productivity-hint')).toContainText('предпросмотр показывает весь временный мотив')
 
   await productivity.getByRole('button', { name: 'Группировать', exact: true }).click()
   await expect(page.locator('.productivity-repeat-preview-group')).toHaveCount(0)

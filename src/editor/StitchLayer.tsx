@@ -14,6 +14,7 @@ import {
   supportsSemanticSpread,
   type StitchGeometryHandle,
 } from './stitchGeometry'
+import { STITCH_GEOMETRY_EDIT_EVENT, type StitchGeometryEditDetail } from './stitchGeometryEvents'
 import { topologyChangeMarkers, type TopologyChangeMarker } from './topology'
 import { atomicChainGroupSelection } from './selectionTransform'
 import './rowShaping.css'
@@ -142,6 +143,25 @@ export function StitchLayer({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [geometryDrag])
+
+  useEffect(() => {
+    const onRequestedGeometryEdit = (event: Event) => {
+      const detail = (event as CustomEvent<StitchGeometryEditDetail>).detail
+      if (!detail?.elementId) return
+      const element = elements.find((item) => item.id === detail.elementId)
+      if (!element || isElementLocked(element) || element.parametricRow) return
+      const current = resolvedStitchGeometry(element)
+      const next = normalizedStitchGeometry(element.symbolId, {
+        scaleX: current.scaleX,
+        scaleY: current.scaleY,
+        ...(supportsSemanticSpread(element.symbolId) ? { spread: current.spread } : {}),
+        ...detail.patch,
+      })
+      onGeometryCommit(element.id, next)
+    }
+    window.addEventListener(STITCH_GEOMETRY_EDIT_EVENT, onRequestedGeometryEdit)
+    return () => window.removeEventListener(STITCH_GEOMETRY_EDIT_EVENT, onRequestedGeometryEdit)
+  }, [elements, onGeometryCommit])
 
   const startGeometryDrag = (
     event: ReactPointerEvent<SVGCircleElement>,
