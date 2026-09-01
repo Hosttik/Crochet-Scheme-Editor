@@ -340,17 +340,16 @@ export function GuideRenderer({
         />
       )}
 
-      {selected && (
-        <text
-          x={center.x + 12 / zoom}
-          y={center.y + 20 / zoom}
-          fontSize={12 / zoom}
-          className="guide-value-label"
-          pointerEvents="none"
-        >
-          {guideNumericValue(guide)}
-        </text>
-      )}
+      <text
+        x={center.x + 12 / zoom}
+        y={center.y + 20 / zoom}
+        fontSize={12 / zoom}
+        className="guide-value-label"
+        pointerEvents="none"
+        aria-hidden="true"
+      >
+        {guideNumericValue(guide)}
+      </text>
 
       {selected && locked && (
         <text x={center.x + 10 / zoom} y={center.y - 10 / zoom} fontSize={12 / zoom} className="guide-lock-indicator">🔒</text>
