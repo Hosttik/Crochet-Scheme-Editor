@@ -1,5 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 import { createGuideFromToolRail } from './helpers/uiV2Guides'
+import {
+  createLinkedRowFromSelectedGuide,
+  openGlobalPanel,
+} from './helpers/rightWorkspace'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -17,13 +21,6 @@ async function placeAt(page: Page, title: string, rx: number, ry: number) {
   await page.locator(`.symbols-section .symbol-button[title^="${title} · "]`).click()
   const box = await canvasBox(page)
   await page.mouse.click(box.x + box.width * rx, box.y + box.height * ry)
-}
-
-async function openGlobalPanel(page: Page, testId: string) {
-  const details = page.getByTestId(testId)
-  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
-    await details.locator(':scope > summary').click()
-  }
 }
 
 test('keeps placement active and builds consecutive stitches through existing hit targets', async ({ page }) => {
@@ -133,10 +130,8 @@ test('keeps the quick toolbar clear of the rotation handle and shows a live used
 
 test('keeps common row controls visible and hides expert settings until requested', async ({ page }) => {
   await openEditor(page)
-  await openGlobalPanel(page, 'pattern-rows-global-panel')
   await createGuideFromToolRail(page, 'Радиальная сетка')
-  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
-  await expect(page.locator('.pattern-row-number').filter({ hasText: /^Ряд 1$/ })).toBeVisible()
+  await createLinkedRowFromSelectedGuide(page)
 
   const rowEditor = page.locator('.parametric-row-editor')
   await expect(rowEditor.getByLabel('Количество элементов')).toBeVisible()

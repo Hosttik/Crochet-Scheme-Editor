@@ -39,21 +39,28 @@ test('menu and right-tab keyboard navigation never mutate the selected stitch', 
   await page.keyboard.press('Escape')
 
   const tabs = page.getByRole('tablist', { name: 'Правая панель' })
-  const options = tabs.getByRole('tab', { name: 'Опции', exact: true })
+  const properties = tabs.getByRole('tab', { name: 'Свойства', exact: true })
   const layers = tabs.getByRole('tab', { name: 'Слои', exact: true })
+  const document = tabs.getByRole('tab', { name: 'Документ', exact: true })
 
   // Make the active tab intentionally different from the focused tab. Arrow
   // navigation must follow keyboard focus, not a potentially stale activeTab.
   await layers.click()
   await expect(layers).toHaveAttribute('aria-selected', 'true')
-  await options.focus()
-  await expect(options).toBeFocused()
+  await properties.focus()
+  await expect(properties).toBeFocused()
   await page.keyboard.press('ArrowRight')
   await expect(layers).toBeFocused()
   await expect(layers).toHaveAttribute('aria-selected', 'true')
+  await page.keyboard.press('ArrowRight')
+  await expect(document).toBeFocused()
+  await expect(document).toHaveAttribute('aria-selected', 'true')
   await page.keyboard.press('ArrowLeft')
-  await expect(options).toBeFocused()
-  await expect(options).toHaveAttribute('aria-selected', 'true')
+  await expect(layers).toBeFocused()
+  await expect(layers).toHaveAttribute('aria-selected', 'true')
+  await page.keyboard.press('ArrowLeft')
+  await expect(properties).toBeFocused()
+  await expect(properties).toHaveAttribute('aria-selected', 'true')
 
   await expect(stitch).toHaveAttribute('transform', before!)
 })

@@ -1,0 +1,409 @@
+/* Right workspace pass: one inspector scroll surface, clearer information architecture,
+   flatter hierarchy, and denser layer management without shrinking hit targets. */
+
+.sidebar.right-sidebar {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--ui-surface);
+}
+
+.ui-v2-right-tabs-host {
+  min-height: auto;
+  max-height: none;
+  flex: 0 0 auto;
+  display: block;
+  overflow: visible;
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-surface);
+}
+
+.right-panel-tabs {
+  z-index: 8;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  min-height: 42px;
+  padding: 0 7px;
+  border-bottom: 0;
+}
+
+.right-panel-tabs > button {
+  min-height: 42px;
+  gap: 5px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ui-text-faint);
+  font-size: 10.5px;
+  font-weight: 620;
+}
+
+.right-panel-tabs > button:hover {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ui-text);
+}
+
+.right-panel-tabs > button.is-active {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ui-accent-hover);
+}
+
+.right-panel-tabs > button.is-active::after {
+  right: 8px;
+  bottom: -1px;
+  left: 8px;
+  height: 2px;
+  background: var(--ui-accent);
+}
+
+.right-panel-contexts {
+  display: none !important;
+}
+
+.ui-v2-right-options-host,
+.ui-v2-right-layers-host {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  background: var(--ui-surface);
+}
+
+.right-sidebar:not([data-right-panel-mode]) .right-document-global,
+.right-sidebar[data-right-panel-mode='properties'] .right-document-global,
+.right-sidebar[data-right-panel-mode='document'] .right-properties-context,
+.right-sidebar[data-right-panel-mode='document'] .right-properties-global {
+  display: none;
+}
+
+.right-properties-context {
+  min-width: 0;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.right-properties-context:empty {
+  display: none;
+}
+
+.right-properties-context .right-panel-context {
+  padding: 11px 12px 10px;
+  border: 0;
+  background: transparent;
+}
+
+.right-properties-context .right-panel-context > .section-title-row {
+  min-height: 23px;
+  margin-bottom: 7px;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.right-properties-context .right-panel-context > .section-title-row h2 {
+  font-size: 11.5px;
+  font-weight: 660;
+}
+
+.right-properties-context .right-panel-context .rotation-controls,
+.right-properties-context .right-panel-context .layer-selection-controls {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.right-properties-context .right-panel-context .rotation-controls button,
+.right-properties-context .right-panel-context .selection-actions button,
+.right-properties-context .right-panel-context .layer-selection-controls button {
+  min-height: 31px;
+  border-radius: 6px;
+  font-size: 10.5px;
+}
+
+.right-properties-context .right-panel-context .rotation-controls {
+  gap: 5px;
+}
+
+.right-properties-context .right-panel-context .danger-button {
+  min-height: 31px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.right-properties-global,
+.right-document-global {
+  min-width: 0;
+  padding: 3px 10px 16px;
+}
+
+.right-options-group-label {
+  margin: 13px 2px 5px;
+  padding: 0;
+  border: 0;
+  color: var(--ui-text-faint);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: .085em;
+  text-transform: uppercase;
+}
+
+.right-properties-global .right-options-group-label:first-child,
+.right-document-global .right-options-group-label:first-child {
+  margin-top: 8px;
+}
+
+.right-properties-global .right-panel-collapsible,
+.right-document-global .right-panel-collapsible {
+  margin: 0;
+  overflow: visible;
+  border: 0;
+  border-top: 1px solid var(--ui-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.right-properties-global .right-panel-collapsible:last-child,
+.right-document-global .right-panel-collapsible:last-child {
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.right-properties-global .right-panel-collapsible > summary,
+.right-document-global .right-panel-collapsible > summary {
+  min-height: 38px;
+  padding: 0 3px;
+  border-radius: 0;
+  color: var(--ui-text);
+  font-size: 11.5px;
+  font-weight: 610;
+}
+
+.right-properties-global .right-panel-collapsible > summary:hover,
+.right-document-global .right-panel-collapsible > summary:hover {
+  background: transparent;
+  color: var(--ui-accent-hover);
+}
+
+.right-properties-global .right-panel-collapsible[open] > summary,
+.right-document-global .right-panel-collapsible[open] > summary {
+  color: var(--ui-text);
+}
+
+.right-properties-global .panel-section,
+.right-document-global .panel-section {
+  padding: 4px 2px 12px;
+}
+
+.right-properties-global fieldset,
+.right-document-global fieldset {
+  margin-block: 8px;
+}
+
+.right-properties-global .toggle-row,
+.right-document-global .toggle-row {
+  min-height: 32px;
+}
+
+.right-properties-global select,
+.right-properties-global input:not([type='checkbox']):not([type='range']),
+.right-document-global select,
+.right-document-global input:not([type='checkbox']):not([type='range']) {
+  min-height: 31px;
+}
+
+.right-panel-help {
+  margin-top: 8px !important;
+  opacity: .8;
+}
+
+/* Layers: reserve vertical space for content rather than toolbar chrome. */
+.ui-v2-right-layers-host > .layers-section {
+  padding: 0 8px 12px;
+}
+
+.ui-v2-right-layers-host .layers-content {
+  gap: 5px;
+}
+
+.ui-v2-right-layers-host .layers-sticky-tools {
+  gap: 5px;
+  margin: 0;
+  padding: 8px 0 7px;
+  background: color-mix(in srgb, var(--ui-surface) 97%, transparent);
+}
+
+.layers-search-field input {
+  height: 34px;
+  padding: 0 10px;
+  border-color: var(--ui-border);
+  border-radius: 7px;
+  background: var(--ui-surface-subtle);
+  font-size: 11.5px;
+}
+
+.layers-search-field input:focus {
+  border-color: var(--ui-accent);
+  background: var(--ui-surface);
+  outline: 0;
+  box-shadow: var(--ui-focus-ring);
+}
+
+.layers-meta {
+  min-height: 13px;
+  padding: 0 2px;
+  font-size: 9px;
+}
+
+.ui-v2-right-layers-host .layer-order-controls {
+  max-height: 0;
+  grid-template-columns: repeat(4, 28px);
+  justify-content: end;
+  gap: 3px;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 120ms ease, opacity 120ms ease;
+}
+
+.ui-v2-right-layers-host .layers-sticky-tools:has(.layer-order-controls button:not(:disabled)) .layer-order-controls {
+  max-height: 30px;
+  opacity: 1;
+}
+
+.ui-v2-right-layers-host .layer-order-controls button {
+  width: 28px;
+  min-height: 28px;
+  border-color: transparent;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.ui-v2-right-layers-host .layer-order-controls button:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--ui-surface-hover);
+}
+
+.ui-v2-right-layers-host .layers-list {
+  gap: 1px;
+  padding-top: 2px;
+}
+
+.ui-v2-right-layers-host .layer-row:not(.ruler-layer-row) {
+  min-height: 38px;
+  grid-template-columns: 28px minmax(0, 1fr) 28px;
+  gap: 1px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.ui-v2-right-layers-host .layer-row:not(.ruler-layer-row):hover {
+  border-color: transparent;
+  background: var(--ui-surface-hover);
+}
+
+.ui-v2-right-layers-host .layer-row:not(.ruler-layer-row).selected {
+  border-color: transparent;
+  background: var(--ui-accent-soft);
+  box-shadow: inset 2px 0 0 var(--ui-accent);
+}
+
+.ui-v2-right-layers-host .layer-row:not(.ruler-layer-row) > .layer-icon-button:first-child {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.ui-v2-right-layers-host .layer-row:not(.ruler-layer-row) > .layer-icon-button:nth-child(2) {
+  grid-column: 3;
+  grid-row: 1;
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.ui-v2-right-layers-host .layer-row:not(.ruler-layer-row):hover > .layer-icon-button:nth-child(2),
+.ui-v2-right-layers-host .layer-row:not(.ruler-layer-row).locked > .layer-icon-button:nth-child(2),
+.ui-v2-right-layers-host .layer-row:not(.ruler-layer-row).selected > .layer-icon-button:nth-child(2) {
+  opacity: 1;
+}
+
+.ui-v2-right-layers-host .layer-row:not(.ruler-layer-row) > .layer-main-button {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.ui-v2-right-layers-host .layer-icon-button {
+  width: 27px;
+  height: 30px;
+  color: var(--ui-text-faint);
+}
+
+.ui-v2-right-layers-host .layer-row.hidden {
+  opacity: .5;
+}
+
+.ui-v2-right-layers-host .layer-main-button {
+  min-height: 38px;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 6px;
+  padding: 1px 5px 1px 1px;
+}
+
+.ui-v2-right-layers-host .layer-main-button svg {
+  width: 29px;
+  height: 34px;
+}
+
+.ui-v2-right-layers-host .layer-main-button strong {
+  font-size: 11px;
+  font-weight: 590;
+}
+
+.ui-v2-right-layers-host .layer-main-button small {
+  font-size: 8.5px;
+}
+
+.ui-v2-right-layers-host .layer-cluster {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.ui-v2-right-layers-host .layer-cluster.selected {
+  border-color: transparent;
+}
+
+.ui-v2-right-layers-host .layer-cluster > summary {
+  min-height: 34px;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  gap: 5px;
+  padding: 0 5px;
+  border-radius: 6px;
+}
+
+.ui-v2-right-layers-host .layer-cluster > summary strong {
+  font-size: 10.5px;
+  font-weight: 620;
+}
+
+.ui-v2-right-layers-host .layer-cluster-items {
+  gap: 1px;
+  margin-left: 10px;
+  padding: 2px 0 3px 7px;
+  border-top: 0;
+  border-left: 1px solid var(--ui-border);
+  background: transparent;
+}
+
+.ui-v2-right-layers-host .ruler-layer-cluster .layer-cluster-items {
+  margin-left: 10px;
+}
+
+@media (max-width: 1180px) {
+  .right-panel-tabs > button {
+    gap: 4px;
+    font-size: 10px;
+  }
+}

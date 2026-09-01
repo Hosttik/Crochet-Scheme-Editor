@@ -2,19 +2,12 @@ import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createGuideFromToolRail } from './helpers/uiV2Guides'
 import { downloadFromFileMenu } from './helpers/uiV2FileMenu'
+import { openGlobalPanel, openRightWorkspaceMode } from './helpers/rightWorkspace'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
   await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
-}
-
-async function openGlobalPanel(page: Page, testId: string) {
-  const details = page.getByTestId(testId)
-  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
-    await details.locator(':scope > summary').click()
-  }
-  return details
 }
 
 async function canvasBox(page: Page) {
@@ -115,6 +108,7 @@ test('authors locked guides, gap-free row numbers and an exported automatic lege
 
   // Persist a locked guide as well, then validate schema and SVG authoring output.
   await page.locator('.guide-list button').filter({ hasText: 'Линия' }).click()
+  await openRightWorkspaceMode(page, 'properties')
   await guideEditor.getByLabel('Заблокировать направляющую').check()
 
   const jsonDownload = await downloadFromFileMenu(page, 'Экспорт проекта…')

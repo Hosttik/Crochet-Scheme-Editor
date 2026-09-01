@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { openGlobalPanel } from './helpers/rightWorkspace'
 
 async function canvasBox(page: Page) {
   const box = await page.locator('svg.editor-canvas').boundingBox()
@@ -58,10 +59,7 @@ test('surfaces storage failure instead of reporting a successful autosave', asyn
 
 test('reports row-number deletion correctly in English', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
-  const panel = page.getByTestId('row-markers-global-panel')
-  if (!(await panel.evaluate((element) => (element as HTMLDetailsElement).open))) {
-    await panel.locator(':scope > summary').click()
-  }
+  const panel = await openGlobalPanel(page, 'row-markers-global-panel')
 
   await panel.getByRole('button', { name: 'Поставить ряд №1' }).click()
   const box = await canvasBox(page)

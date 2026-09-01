@@ -7,6 +7,7 @@ import { PrintPanel } from '../editor/PrintPanel'
 import { RowMarkersPanel } from '../editor/RowMarkersPanel'
 import { UI, type Locale } from '../i18n'
 import type { AnchorName, OrientationMode, SnappingSettings } from '../types'
+import { setRightPanelMode, type RightPanelMode } from './RightPanelTabs'
 
 type PanelRef = RefObject<HTMLDetailsElement | null>
 type BackgroundPanelProps = Omit<ComponentProps<typeof BackgroundImagePanel>, 'locale'>
@@ -39,6 +40,12 @@ export type RightOptionsPanelsProps = {
   onToleranceChange: (tolerancePx: number) => void
 }
 
+function activateModeWhenOpened(mode: RightPanelMode) {
+  return (event: { currentTarget: HTMLDetailsElement }) => {
+    if (event.currentTarget.open) setRightPanelMode(mode)
+  }
+}
+
 export function RightOptionsPanels({
   locale,
   gaugePanelRef,
@@ -68,123 +75,175 @@ export function RightOptionsPanels({
     bottom: t.bottom,
   }
   const groupLabels = locale === 'ru'
-    ? { construction: 'Построение схемы', document: 'Документ и вывод' }
-    : { construction: 'Chart construction', document: 'Document & output' }
+    ? {
+        authoring: 'Рабочие настройки',
+        construction: 'Построение',
+        appearance: 'Оформление',
+        output: 'Вывод',
+      }
+    : {
+        authoring: 'Authoring',
+        construction: 'Construction',
+        appearance: 'Appearance',
+        output: 'Output',
+      }
 
   return (
     <>
-      <div className="right-options-group-label">{groupLabels.construction}</div>
+      <div className="right-properties-global" data-testid="right-properties-global">
+        <div className="right-options-group-label">{groupLabels.authoring}</div>
 
-      <details ref={snappingPanelRef} className="right-panel-collapsible" data-testid="snapping-global-panel">
-        <summary>{t.snapping}</summary>
-        <section className="panel-section">
-          <label className="toggle-row">
-            <span><strong>{t.allowSnapping}</strong><small>{t.snappingHint}</small></span>
-            <input
-              type="checkbox"
-              checked={snapping.enabled}
-              onChange={(event) => onSnappingEnabledChange(event.target.checked)}
-            />
-          </label>
+        <details
+          ref={snappingPanelRef}
+          className="right-panel-collapsible"
+          data-testid="snapping-global-panel"
+          onToggle={activateModeWhenOpened('properties')}
+        >
+          <summary>{t.snapping}</summary>
+          <section className="panel-section">
+            <label className="toggle-row">
+              <span><strong>{t.allowSnapping}</strong><small>{t.snappingHint}</small></span>
+              <input
+                type="checkbox"
+                checked={snapping.enabled}
+                onChange={(event) => onSnappingEnabledChange(event.target.checked)}
+              />
+            </label>
 
-          <fieldset disabled={!snapping.enabled}>
-            <legend>{t.snapPoint}</legend>
-            <div className="segmented-control">
-              {(['top', 'center', 'bottom'] as AnchorName[]).map((anchor) => (
-                <button key={anchor} className={snapping.sourceAnchor === anchor ? 'active' : ''} onClick={() => onSourceAnchorChange(anchor)}>
-                  {anchorLabels[anchor]}
-                </button>
-              ))}
-            </div>
-          </fieldset>
+            <fieldset disabled={!snapping.enabled}>
+              <legend>{t.snapPoint}</legend>
+              <div className="segmented-control">
+                {(['top', 'center', 'bottom'] as AnchorName[]).map((anchor) => (
+                  <button key={anchor} className={snapping.sourceAnchor === anchor ? 'active' : ''} onClick={() => onSourceAnchorChange(anchor)}>
+                    {anchorLabels[anchor]}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
 
-          <fieldset disabled={!snapping.enabled}>
-            <legend>{t.orientation}</legend>
-            <select value={snapping.orientationMode} onChange={(event) => onOrientationChange(event.target.value as OrientationMode)}>
-              <option value="none">{t.keepCurrent}</option>
-              <option value="along">{t.alongTarget}</option>
-              <option value="perpendicular">{t.perpendicular}</option>
-            </select>
-          </fieldset>
+            <fieldset disabled={!snapping.enabled}>
+              <legend>{t.orientation}</legend>
+              <select value={snapping.orientationMode} onChange={(event) => onOrientationChange(event.target.value as OrientationMode)}>
+                <option value="none">{t.keepCurrent}</option>
+                <option value="along">{t.alongTarget}</option>
+                <option value="perpendicular">{t.perpendicular}</option>
+              </select>
+            </fieldset>
 
-          <label className="toggle-row compact-toggle">
-            <span>{t.snapToVertices}</span>
-            <input
-              type="checkbox"
-              checked={snapping.snapToVertices}
-              disabled={!snapping.enabled}
-              onChange={(event) => onSnapToVerticesChange(event.target.checked)}
-            />
-          </label>
-          <label className="range-row">
-            <span>{t.snapRadius} <strong>{snapping.tolerancePx}px</strong></span>
-            <input
-              type="range"
-              min="6"
-              max="32"
-              step="2"
-              value={snapping.tolerancePx}
-              disabled={!snapping.enabled}
-              onChange={(event) => onToleranceChange(Number(event.target.value))}
-            />
-          </label>
-          <small className="snapping-corridor-note">
-            {locale === 'ru'
-              ? 'Направляющие имеют расширенную магнитную зону — их не нужно ловить пиксель в пиксель.'
-              : 'Guides use a wider magnetic corridor, so you do not need pixel-perfect aiming.'}
-          </small>
-        </section>
-      </details>
+            <label className="toggle-row compact-toggle">
+              <span>{t.snapToVertices}</span>
+              <input
+                type="checkbox"
+                checked={snapping.snapToVertices}
+                disabled={!snapping.enabled}
+                onChange={(event) => onSnapToVerticesChange(event.target.checked)}
+              />
+            </label>
+            <label className="range-row">
+              <span>{t.snapRadius} <strong>{snapping.tolerancePx}px</strong></span>
+              <input
+                type="range"
+                min="6"
+                max="32"
+                step="2"
+                value={snapping.tolerancePx}
+                disabled={!snapping.enabled}
+                onChange={(event) => onToleranceChange(Number(event.target.value))}
+              />
+            </label>
+          </section>
+        </details>
+      </div>
 
-      <details ref={gaugePanelRef} className="right-panel-collapsible" data-testid="gauge-global-panel">
-        <summary>{locale === 'ru' ? 'Плотность и размер' : 'Gauge & size'}</summary>
-        <GaugeRulerPanel locale={locale} {...gaugePanelProps} />
-      </details>
+      <div className="right-document-global" data-testid="right-document-global">
+        <div className="right-options-group-label">{groupLabels.construction}</div>
 
-      <details ref={patternRowsPanelRef} className="right-panel-collapsible" data-testid="pattern-rows-global-panel">
-        <summary>{locale === 'ru' ? 'Ряды узора' : 'Pattern rows'}</summary>
-        <section className="panel-section">
-          <PatternRowsPanel locale={locale} {...patternRowsPanelProps} />
-        </section>
-      </details>
+        <details
+          ref={gaugePanelRef}
+          className="right-panel-collapsible"
+          data-testid="gauge-global-panel"
+          onToggle={activateModeWhenOpened('document')}
+        >
+          <summary>{locale === 'ru' ? 'Плотность и размер' : 'Gauge & size'}</summary>
+          <GaugeRulerPanel locale={locale} {...gaugePanelProps} />
+        </details>
 
-      <details ref={rowMarkersPanelRef} className="right-panel-collapsible" data-testid="row-markers-global-panel">
-        <summary>{locale === 'ru' ? 'Номера рядов' : 'Row numbers'}</summary>
-        <section className="panel-section">
-          <RowMarkersPanel locale={locale} {...rowMarkersPanelProps} />
-        </section>
-      </details>
+        <details
+          ref={patternRowsPanelRef}
+          className="right-panel-collapsible"
+          data-testid="pattern-rows-global-panel"
+          onToggle={activateModeWhenOpened('document')}
+        >
+          <summary>{locale === 'ru' ? 'Ряды узора' : 'Pattern rows'}</summary>
+          <section className="panel-section">
+            <PatternRowsPanel locale={locale} {...patternRowsPanelProps} />
+          </section>
+        </details>
 
-      <div className="right-options-group-label">{groupLabels.document}</div>
+        <details
+          ref={rowMarkersPanelRef}
+          className="right-panel-collapsible"
+          data-testid="row-markers-global-panel"
+          onToggle={activateModeWhenOpened('document')}
+        >
+          <summary>{locale === 'ru' ? 'Номера рядов' : 'Row numbers'}</summary>
+          <section className="panel-section">
+            <RowMarkersPanel locale={locale} {...rowMarkersPanelProps} />
+          </section>
+        </details>
 
-      <details className="right-panel-collapsible" data-testid="background-global-panel">
-        <summary>{locale === 'ru' ? 'Фоновое изображение' : 'Background image'}</summary>
-        <BackgroundImagePanel locale={locale} {...backgroundPanelProps} />
-      </details>
+        <div className="right-options-group-label">{groupLabels.appearance}</div>
 
-      <details ref={legendPanelRef} className="right-panel-collapsible" data-testid="legend-global-panel">
-        <summary>{locale === 'ru' ? 'Легенда и холст' : 'Legend & canvas'}</summary>
-        <LegendPanel locale={locale} {...legendPanelProps} />
-      </details>
+        <details
+          className="right-panel-collapsible"
+          data-testid="background-global-panel"
+          onToggle={activateModeWhenOpened('document')}
+        >
+          <summary>{locale === 'ru' ? 'Фоновое изображение' : 'Background image'}</summary>
+          <BackgroundImagePanel locale={locale} {...backgroundPanelProps} />
+        </details>
 
-      <details ref={printPanelRef} className="right-panel-collapsible" data-testid="print-global-panel">
-        <summary>{locale === 'ru' ? 'Печать по страницам' : 'Tiled print'}</summary>
-        <PrintPanel locale={locale} {...printPanelProps} />
-      </details>
+        <details
+          ref={legendPanelRef}
+          className="right-panel-collapsible"
+          data-testid="legend-global-panel"
+          onToggle={activateModeWhenOpened('document')}
+        >
+          <summary>{locale === 'ru' ? 'Легенда и холст' : 'Legend & canvas'}</summary>
+          <LegendPanel locale={locale} {...legendPanelProps} />
+        </details>
 
-      <details ref={helpPanelRef} className="right-panel-collapsible help-section" data-testid="help-global-panel">
-        <summary>{t.controls}</summary>
-        <section className="panel-section">
-          <ul>
-            <li>{t.help1}</li>
-            <li>{t.help2}</li>
-            <li>{t.help3}</li>
-            <li>{t.help4}</li>
-            <li>{t.help5}</li>
-            <li>{t.help6}</li>
-          </ul>
-        </section>
-      </details>
+        <div className="right-options-group-label">{groupLabels.output}</div>
+
+        <details
+          ref={printPanelRef}
+          className="right-panel-collapsible"
+          data-testid="print-global-panel"
+          onToggle={activateModeWhenOpened('document')}
+        >
+          <summary>{locale === 'ru' ? 'Печать по страницам' : 'Tiled print'}</summary>
+          <PrintPanel locale={locale} {...printPanelProps} />
+        </details>
+
+        <details
+          ref={helpPanelRef}
+          className="right-panel-collapsible help-section right-panel-help"
+          data-testid="help-global-panel"
+          onToggle={activateModeWhenOpened('document')}
+        >
+          <summary>{t.controls}</summary>
+          <section className="panel-section">
+            <ul>
+              <li>{t.help1}</li>
+              <li>{t.help2}</li>
+              <li>{t.help3}</li>
+              <li>{t.help4}</li>
+              <li>{t.help5}</li>
+              <li>{t.help6}</li>
+            </ul>
+          </section>
+        </details>
+      </div>
     </>
   )
 }

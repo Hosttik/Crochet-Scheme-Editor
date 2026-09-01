@@ -16,110 +16,119 @@ async function placeElement(page: Page, name: string, xOffset = 0) {
   await page.keyboard.press('Escape')
 }
 
-test('renders persistent context plus switchable Options / Layers tabs', async ({ page }) => {
-  await openEditor(page)
-
+function rightWorkspace(page: Page) {
   const tabs = page.getByRole('tablist', { name: 'Правая панель' })
-  const options = tabs.getByRole('tab', { name: 'Опции', exact: true })
-  const layersTab = tabs.getByRole('tab', { name: 'Слои', exact: true })
-  const optionsPanel = page.getByRole('tabpanel', { name: 'Опции', exact: true })
-  const layersPanel = page.getByRole('tabpanel', { name: 'Слои', exact: true })
-  const context = page.getByTestId('selection-context-panel')
+  return {
+    tabs,
+    properties: tabs.getByRole('tab', { name: 'Свойства', exact: true }),
+    layers: tabs.getByRole('tab', { name: 'Слои', exact: true }),
+    document: tabs.getByRole('tab', { name: 'Документ', exact: true }),
+    optionsPanel: page.locator('#ui-v2-right-options-panel'),
+    layersPanel: page.locator('#ui-v2-right-layers-panel'),
+    sidebar: page.locator('.right-sidebar'),
+  }
+}
 
-  await expect(tabs).toBeVisible()
-  await expect(tabs).toHaveAttribute('aria-orientation', 'horizontal')
-  await expect(options).toHaveAttribute('aria-selected', 'true')
-  await expect(options).toHaveAttribute('aria-controls', 'ui-v2-right-options-panel')
-  await expect(options).toHaveAttribute('tabindex', '0')
-  await expect(layersTab).toHaveAttribute('aria-selected', 'false')
-  await expect(layersTab).toHaveAttribute('aria-controls', 'ui-v2-right-layers-panel')
-  await expect(layersTab).toHaveAttribute('tabindex', '-1')
-  await expect(optionsPanel).toBeVisible()
-  await expect(layersPanel).toBeHidden()
-  await expect(context).toBeVisible()
-  await expect(page.getByTestId('right-panel-contexts')).toBeVisible()
+test('renders a single Properties / Layers / Document right workspace', async ({ page }) => {
+  await openEditor(page)
+  const workspace = rightWorkspace(page)
 
-  await expect(page.locator('.left-sidebar > .layers-section')).toHaveCount(0)
-  await expect(page.locator('[data-ui-v2-bridge="right-inspector"]')).toHaveCount(0)
-  await expect(page.locator('.ui-v2-right-layers-host > .layers-section')).toHaveCount(1)
+  await expect(workspace.tabs).toBeVisible()
+  await expect(workspace.tabs).toHaveAttribute('aria-orientation', 'horizontal')
+  await expect(workspace.properties).toHaveAttribute('aria-selected', 'true')
+  await expect(workspace.properties).toHaveAttribute('aria-controls', 'ui-v2-right-options-panel')
+  await expect(workspace.properties).toHaveAttribute('tabindex', '0')
+  await expect(workspace.layers).toHaveAttribute('aria-selected', 'false')
+  await expect(workspace.document).toHaveAttribute('aria-selected', 'false')
+  await expect(workspace.optionsPanel).toBeVisible()
+  await expect(workspace.layersPanel).toBeHidden()
+  await expect(workspace.sidebar).toHaveAttribute('data-right-panel-mode', 'properties')
+  await expect(page.getByTestId('right-properties-selection')).toBeVisible()
+  await expect(page.getByTestId('right-properties-global')).toBeVisible()
+  await expect(page.getByTestId('right-document-global')).toBeHidden()
+  await expect(page.getByTestId('right-panel-contexts')).toHaveCount(0)
 
-  await layersTab.click()
-  await expect(layersTab).toHaveAttribute('aria-selected', 'true')
-  await expect(optionsPanel).toBeHidden()
-  await expect(layersPanel).toBeVisible()
-  await expect(context).toBeVisible()
+  await workspace.document.click()
+  await expect(workspace.document).toHaveAttribute('aria-selected', 'true')
+  await expect(workspace.optionsPanel).toBeVisible()
+  await expect(workspace.sidebar).toHaveAttribute('data-right-panel-mode', 'document')
+  await expect(page.getByTestId('right-properties-selection')).toBeHidden()
+  await expect(page.getByTestId('right-properties-global')).toBeHidden()
+  await expect(page.getByTestId('right-document-global')).toBeVisible()
+
+  await workspace.layers.click()
+  await expect(workspace.layers).toHaveAttribute('aria-selected', 'true')
+  await expect(workspace.optionsPanel).toBeHidden()
+  await expect(workspace.layersPanel).toBeVisible()
   await expect(page.locator('.ui-v2-right-layers-host > .layers-section')).toBeVisible()
 
-  await options.click()
-  await expect(options).toHaveAttribute('aria-selected', 'true')
-  await expect(optionsPanel).toBeVisible()
-  await expect(layersPanel).toBeHidden()
-  await expect(context).toBeVisible()
+  await workspace.properties.click()
+  await expect(workspace.properties).toHaveAttribute('aria-selected', 'true')
+  await expect(workspace.optionsPanel).toBeVisible()
+  await expect(workspace.layersPanel).toBeHidden()
+  await expect(page.getByTestId('right-properties-selection')).toBeVisible()
 })
 
-test('supports keyboard navigation across right panel tabs', async ({ page }) => {
+test('supports keyboard navigation across all three right workspace tabs', async ({ page }) => {
   await openEditor(page)
+  const workspace = rightWorkspace(page)
 
-  const tabs = page.getByRole('tablist', { name: 'Правая панель' })
-  const options = tabs.getByRole('tab', { name: 'Опции', exact: true })
-  const layers = tabs.getByRole('tab', { name: 'Слои', exact: true })
-  const layersPanel = page.getByRole('tabpanel', { name: 'Слои', exact: true })
-
-  await options.focus()
+  await workspace.properties.focus()
   await page.keyboard.press('ArrowRight')
-  await expect(layers).toBeFocused()
-  await expect(layers).toHaveAttribute('aria-selected', 'true')
-  await expect(layersPanel).toBeVisible()
+  await expect(workspace.layers).toBeFocused()
+  await expect(workspace.layers).toHaveAttribute('aria-selected', 'true')
 
-  await page.keyboard.press('ArrowLeft')
-  await expect(options).toBeFocused()
-  await expect(options).toHaveAttribute('aria-selected', 'true')
-  await expect(layersPanel).toBeHidden()
+  await page.keyboard.press('ArrowRight')
+  await expect(workspace.document).toBeFocused()
+  await expect(workspace.document).toHaveAttribute('aria-selected', 'true')
+  await expect(workspace.sidebar).toHaveAttribute('data-right-panel-mode', 'document')
+
+  await page.keyboard.press('ArrowRight')
+  await expect(workspace.properties).toBeFocused()
+  await expect(workspace.properties).toHaveAttribute('aria-selected', 'true')
 
   await page.keyboard.press('End')
-  await expect(layers).toBeFocused()
+  await expect(workspace.document).toBeFocused()
+  await expect(workspace.document).toHaveAttribute('aria-selected', 'true')
   await page.keyboard.press('Home')
-  await expect(options).toBeFocused()
+  await expect(workspace.properties).toBeFocused()
 })
 
-test('keeps scrolling inside panel content while tabs remain fixed', async ({ page }) => {
+test('uses one scrolling surface while right workspace tabs stay fixed', async ({ page }) => {
   await openEditor(page)
+  const workspace = rightWorkspace(page)
 
-  const sidebar = page.locator('.right-sidebar')
-  const tabs = page.getByRole('tablist', { name: 'Правая панель' })
-  const optionsPanel = page.getByRole('tabpanel', { name: 'Опции', exact: true })
+  await workspace.document.click()
+  await expect.poll(() => workspace.sidebar.evaluate((node) => getComputedStyle(node).overflowY)).toBe('hidden')
+  await expect.poll(() => workspace.optionsPanel.evaluate((node) => getComputedStyle(node).overflowY)).toBe('auto')
 
-  await expect.poll(() => sidebar.evaluate((node) => getComputedStyle(node).overflowY)).toBe('hidden')
-  await expect.poll(() => optionsPanel.evaluate((node) => getComputedStyle(node).overflowY)).toBe('auto')
-
-  await optionsPanel.locator('details').evaluateAll((nodes) => {
+  await page.getByTestId('right-document-global').locator('details').evaluateAll((nodes) => {
     nodes.forEach((node) => { (node as HTMLDetailsElement).open = true })
   })
-  const before = await tabs.boundingBox()
+  const before = await workspace.tabs.boundingBox()
   expect(before).not.toBeNull()
-  const didScroll = await optionsPanel.evaluate((node) => {
+  const didScroll = await workspace.optionsPanel.evaluate((node) => {
     node.scrollTop = node.scrollHeight
     return node.scrollTop > 0
   })
   expect(didScroll).toBe(true)
-  const after = await tabs.boundingBox()
+  const after = await workspace.tabs.boundingBox()
   expect(after).not.toBeNull()
   expect(Math.abs(after!.y - before!.y)).toBeLessThan(1)
 })
 
-test('filters layers without changing the document and keeps layer tools visible', async ({ page }) => {
+test('filters layers without changing the document and keeps ordering actions contextual', async ({ page }) => {
   await openEditor(page)
   await placeElement(page, 'Воздушная петля · ch', -45)
   await placeElement(page, 'Столбик без накида · sc', 45)
 
-  const tabs = page.getByRole('tablist', { name: 'Правая панель' })
-  await tabs.getByRole('tab', { name: 'Слои', exact: true }).click()
+  const workspace = rightWorkspace(page)
+  await workspace.layers.click()
 
-  const layersPanel = page.getByRole('tabpanel', { name: 'Слои', exact: true })
-  const search = layersPanel.getByRole('searchbox', { name: 'Поиск слоев', exact: true })
-  const rows = layersPanel.locator('.layer-row')
+  const search = workspace.layersPanel.getByRole('searchbox', { name: 'Поиск слоев', exact: true })
+  const rows = workspace.layersPanel.locator('.layer-row')
   await expect(search).toBeVisible()
-  await expect(layersPanel.locator('.layer-order-controls')).toBeVisible()
+  await expect(workspace.layersPanel.locator('.layer-order-controls')).toHaveCount(1)
   await expect(rows).toHaveCount(2)
   await expect(page.locator('.stitch-element')).toHaveCount(2)
 
@@ -130,14 +139,14 @@ test('filters layers without changing the document and keeps layer tools visible
 
   await search.fill('такого слоя нет')
   await expect(rows).toHaveCount(0)
-  await expect(layersPanel.getByText('Нет слоев, подходящих под поиск', { exact: true })).toBeVisible()
+  await expect(workspace.layersPanel.getByText('Нет слоев, подходящих под поиск', { exact: true })).toBeVisible()
   await expect(page.locator('.stitch-element')).toHaveCount(2)
 
   await search.fill('')
   await expect(rows).toHaveCount(2)
 })
 
-test('gives transform controls priority over utility and destructive actions', async ({ page }) => {
+test('uses flatter properties hierarchy while preserving usable transform targets', async ({ page }) => {
   await openEditor(page)
   await placeElement(page, 'Воздушная петля · ch')
 
@@ -163,49 +172,50 @@ test('gives transform controls priority over utility and destructive actions', a
       dangerHeight: danger.getBoundingClientRect().height,
     }
   })
-  expect(presentation.rotationBackground).not.toBe('rgba(0, 0, 0, 0)')
-  expect(presentation.utilitiesBackground).not.toBe('rgba(0, 0, 0, 0)')
+  expect(presentation.rotationBackground).toBe('rgba(0, 0, 0, 0)')
+  expect(presentation.utilitiesBackground).toBe('rgba(0, 0, 0, 0)')
   expect(presentation.dangerBackground).toBe('rgba(0, 0, 0, 0)')
   expect(presentation.rotateHeight).toBeGreaterThanOrEqual(30)
   expect(presentation.dangerHeight).toBeGreaterThanOrEqual(30)
 })
 
-test('keeps context and active panel usable on a short viewport', async ({ page }) => {
+test('keeps the right workspace compact and usable on a short viewport', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 640 })
   await openEditor(page)
   await placeElement(page, 'Воздушная петля · ch')
 
-  const contextHost = page.locator('.ui-v2-right-tabs-host')
-  const optionsPanel = page.getByRole('tabpanel', { name: 'Опции', exact: true })
-  const context = page.getByTestId('selection-context-panel')
-  const hostBox = await contextHost.boundingBox()
-  const sidebarBox = await page.locator('.right-sidebar').boundingBox()
+  const workspace = rightWorkspace(page)
+  const tabsHost = page.locator('.ui-v2-right-tabs-host')
+  const hostBox = await tabsHost.boundingBox()
+  const sidebarBox = await workspace.sidebar.boundingBox()
   expect(hostBox).not.toBeNull()
   expect(sidebarBox).not.toBeNull()
-  expect(hostBox!.height).toBeLessThan(sidebarBox!.height * .5)
-  await expect(context.locator('.rotation-controls')).toBeVisible()
-  await expect(optionsPanel.getByTestId('snapping-global-panel')).toBeVisible()
+  expect(hostBox!.height).toBeLessThan(70)
+  expect(hostBox!.height).toBeLessThan(sidebarBox!.height * .2)
+  await expect(page.getByTestId('selection-context-panel').locator('.rotation-controls')).toBeVisible()
+  await expect(workspace.optionsPanel.getByTestId('snapping-global-panel')).toBeVisible()
 })
 
-test('keeps layer selection, selection properties and productivity controls available together', async ({ page }) => {
+test('preserves layer selection while moving into Properties for editing', async ({ page }) => {
   await openEditor(page)
-
   await placeElement(page, 'Воздушная петля · ch')
 
-  const tabs = page.getByRole('tablist', { name: 'Правая панель' })
-  await tabs.getByRole('tab', { name: 'Слои', exact: true }).click()
+  const workspace = rightWorkspace(page)
+  await workspace.layers.click()
 
-  const layers = page.locator('.ui-v2-right-layers-host .layers-section')
-  const row = layers.locator('.layer-row').first()
+  const row = workspace.layersPanel.locator('.layer-row').first()
   await expect(row).toBeVisible()
-
   await row.locator('.layer-main-button').click()
   await expect(page.locator('.stitch-element.selected')).toHaveCount(1)
   await expect(row.locator('.layer-main-button')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('right-properties-selection')).toBeHidden()
+
+  await workspace.properties.click()
   await expect(page.getByTestId('selection-context-panel')).toBeVisible()
   await expect(page.getByTestId('selection-context-panel').locator('.selection-card')).toBeVisible()
   await expect(page.locator('.productivity-panel')).toBeVisible()
 
+  await workspace.layers.click()
   const visibility = row.locator('.layer-icon-button').first()
   const beforeLabel = await visibility.getAttribute('aria-label')
   expect(beforeLabel).not.toBeNull()
@@ -213,16 +223,18 @@ test('keeps layer selection, selection properties and productivity controls avai
   await expect(visibility).not.toHaveAttribute('aria-label', beforeLabel!)
 })
 
-test('keeps guide properties reachable while Layers is active', async ({ page }) => {
+test('keeps guide properties in Properties instead of duplicating them above Layers', async ({ page }) => {
   await openEditor(page)
 
   const rail = page.getByRole('navigation', { name: 'Инструменты' })
   await rail.getByRole('button', { name: 'Направляющие', exact: true }).click()
   await page.getByRole('menu', { name: 'Направляющие', exact: true }).getByRole('menuitem', { name: 'Линия', exact: true }).click()
 
-  const tabs = page.getByRole('tablist', { name: 'Правая панель' })
-  await tabs.getByRole('tab', { name: 'Слои', exact: true }).click()
+  const workspace = rightWorkspace(page)
+  await workspace.layers.click()
+  await expect(page.getByTestId('right-properties-selection')).toBeHidden()
 
+  await workspace.properties.click()
   const context = page.getByTestId('selection-context-panel')
   await expect(context).toBeVisible()
   await expect(context.locator('.guide-editor')).toBeVisible()

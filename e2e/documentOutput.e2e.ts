@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { openGlobalPanel } from './helpers/rightWorkspace'
 import { downloadTextFromFileMenu } from './helpers/uiV2FileMenu'
 
 test('persists a background underlay and previews tiled print pages', async ({ page }) => {
@@ -21,14 +22,7 @@ test('persists a background underlay and previews tiled print pages', async ({ p
     return text
   }
 
-  const openGlobalPanel = async (testId: string) => {
-    const details = page.getByTestId(testId)
-    if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
-      await details.locator(':scope > summary').click()
-    }
-  }
-
-  await openGlobalPanel('background-global-panel')
+  await openGlobalPanel(page, 'background-global-panel')
   const svgSource = '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400"><rect width="800" height="400" fill="#ddd"/></svg>'
   await page.getByTestId('background-file-input').setInputFiles({
     name: 'reference.svg',
@@ -54,18 +48,18 @@ test('persists a background underlay and previews tiled print pages', async ({ p
   await expect(opacity).toHaveValue('0.3')
   await page.getByTestId('background-lock').check()
 
-  await openGlobalPanel('print-global-panel')
+  await openGlobalPanel(page, 'print-global-panel')
   await expect(page.getByTestId('print-page-count')).not.toHaveText('1')
   await page.waitForTimeout(900)
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
   await page.reload()
 
-  await openGlobalPanel('background-global-panel')
+  await openGlobalPanel(page, 'background-global-panel')
   await expect(page.locator('image.background-canvas-image')).toHaveCount(1)
   await expect(page.getByTestId('background-lock')).toBeChecked()
   await expect(page.getByTestId('background-export')).toBeChecked()
   await expect(page.getByTestId('background-opacity')).toHaveValue('0.3')
-  await openGlobalPanel('print-global-panel')
+  await openGlobalPanel(page, 'print-global-panel')
   await expect(page.getByTestId('print-page-count')).not.toHaveText('1')
 
   const json = await downloadTextFromFileMenu(page, 'Экспорт проекта…')

@@ -1,17 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
+import { openGlobalPanel } from './helpers/rightWorkspace'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
   await expect(page.getByTestId('editor-topbar')).toBeVisible()
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
-}
-
-async function openGlobalPanel(page: Page, testId: string) {
-  const details = page.getByTestId(testId)
-  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
-    await details.locator(':scope > summary').click()
-  }
-  return details
 }
 
 async function uploadReference(page: Page) {

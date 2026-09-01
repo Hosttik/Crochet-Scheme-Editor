@@ -82,7 +82,7 @@ function createProps(locale: 'ru' | 'en' = 'en'): RightOptionsPanelsProps {
 }
 
 describe('right options panels', () => {
-  it('preserves all global options panel contracts and prioritizes construction controls', () => {
+  it('keeps authoring properties separate from document settings while preserving panel contracts', () => {
     const markup = renderToStaticMarkup(<RightOptionsPanels {...createProps()} />)
 
     for (const testId of [
@@ -98,8 +98,12 @@ describe('right options panels', () => {
       expect(markup).toContain(`data-testid="${testId}"`)
     }
 
-    expect(markup).toContain('Chart construction')
-    expect(markup).toContain('Document &amp; output')
+    expect(markup).toContain('data-testid="right-properties-global"')
+    expect(markup).toContain('data-testid="right-document-global"')
+    expect(markup).toContain('Authoring')
+    expect(markup).toContain('Construction')
+    expect(markup).toContain('Appearance')
+    expect(markup).toContain('Output')
     expect(markup).toContain('<summary>Background image</summary>')
     expect(markup).toContain('<summary>Gauge &amp; size</summary>')
     expect(markup).toContain('<summary>Tiled print</summary>')
@@ -113,11 +117,13 @@ describe('right options panels', () => {
     expect(markup.indexOf('data-testid="background-global-panel"')).toBeLessThan(markup.indexOf('data-testid="print-global-panel"'))
   })
 
-  it('keeps the global panel summaries and workflow groups localized in Russian', () => {
+  it('localizes the new workspace groups in Russian', () => {
     const markup = renderToStaticMarkup(<RightOptionsPanels {...createProps('ru')} />)
 
-    expect(markup).toContain('Построение схемы')
-    expect(markup).toContain('Документ и вывод')
+    expect(markup).toContain('Рабочие настройки')
+    expect(markup).toContain('Построение')
+    expect(markup).toContain('Оформление')
+    expect(markup).toContain('Вывод')
     expect(markup).toContain('<summary>Фоновое изображение</summary>')
     expect(markup).toContain('<summary>Плотность и размер</summary>')
     expect(markup).toContain('<summary>Печать по страницам</summary>')
