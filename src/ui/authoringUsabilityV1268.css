@@ -37,6 +37,18 @@
   opacity: .12;
 }
 
+/* Guide values are inspection feedback, not persistent canvas chrome. Keep the
+ * label hidden at rest and reveal it on hover or selection directly on the guide. */
+.guide-value-label {
+  opacity: 0;
+  transition: opacity 90ms ease;
+}
+
+.guide-layer:hover .guide-value-label,
+.guide-layer.selected .guide-value-label {
+  opacity: 1;
+}
+
 /* Discrete guide systems (rectangular/radial grids) keep actual snap points. */
 .guide-grid .guide-snap-point,
 .guide-radial-grid .guide-snap-point {
