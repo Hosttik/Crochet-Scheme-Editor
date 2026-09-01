@@ -3,6 +3,7 @@ import type { Locale } from '../i18n'
 import { EditorIcon, type EditorIconName } from './icons'
 import './rightInspector.css'
 import './rightPanelWorkspacePass.css'
+import './rightFormControls.css'
 
 export type RightPanelTab = 'options' | 'layers'
 export type RightPanelMode = 'properties' | 'document'

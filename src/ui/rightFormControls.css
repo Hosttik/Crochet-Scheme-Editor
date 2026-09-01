@@ -1,0 +1,124 @@
+/* Right-panel form controls intentionally mirror the compact SearchField visual language.
+   Keep this scoped to the inspector so editor/canvas controls retain their own ergonomics. */
+
+.right-sidebar input[type='text'],
+.right-sidebar input[type='number'],
+.right-sidebar input[type='search'],
+.right-sidebar input:not([type]),
+.right-sidebar select,
+.right-sidebar textarea {
+  min-width: 0;
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--ui-border);
+  border-radius: 7px;
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  outline: 0;
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 1.25;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.right-sidebar input[type='text'],
+.right-sidebar input[type='number'],
+.right-sidebar input[type='search'],
+.right-sidebar input:not([type]) {
+  padding: 0 10px;
+}
+
+.right-sidebar select {
+  padding: 0 9px;
+}
+
+.right-sidebar textarea {
+  min-height: 68px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.right-sidebar input[type='text']::placeholder,
+.right-sidebar input[type='number']::placeholder,
+.right-sidebar input[type='search']::placeholder,
+.right-sidebar input:not([type])::placeholder,
+.right-sidebar textarea::placeholder {
+  color: var(--ui-text-faint);
+}
+
+.right-sidebar input[type='text']:hover:not(:disabled),
+.right-sidebar input[type='number']:hover:not(:disabled),
+.right-sidebar input[type='search']:hover:not(:disabled),
+.right-sidebar input:not([type]):hover:not(:disabled),
+.right-sidebar select:hover:not(:disabled),
+.right-sidebar textarea:hover:not(:disabled) {
+  border-color: var(--ui-border-strong);
+}
+
+.right-sidebar input[type='text']:focus,
+.right-sidebar input[type='number']:focus,
+.right-sidebar input[type='search']:focus,
+.right-sidebar input:not([type]):focus,
+.right-sidebar select:focus,
+.right-sidebar textarea:focus {
+  border-color: var(--ui-accent);
+  background: var(--ui-surface);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ui-accent) 18%, transparent);
+}
+
+.right-sidebar input[type='text']:disabled,
+.right-sidebar input[type='number']:disabled,
+.right-sidebar input[type='search']:disabled,
+.right-sidebar input:not([type]):disabled,
+.right-sidebar select:disabled,
+.right-sidebar textarea:disabled {
+  cursor: not-allowed;
+  border-color: var(--ui-border);
+  background: var(--ui-surface-subtle);
+  color: var(--ui-text-faint);
+  opacity: .72;
+}
+
+.right-sidebar input[type='number'] {
+  font-variant-numeric: tabular-nums;
+}
+
+.right-sidebar input[type='number'][aria-invalid='true'] {
+  border-color: color-mix(in srgb, var(--ui-danger) 55%, var(--ui-border));
+  background: color-mix(in srgb, var(--ui-danger-soft) 42%, var(--ui-surface));
+}
+
+.right-sidebar input[type='number'][aria-invalid='true']:focus {
+  border-color: var(--ui-danger);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ui-danger) 14%, transparent);
+}
+
+/* Contextual geometry fields used to be visibly smaller than document controls.
+   Use one control rhythm across Properties and Document. */
+.right-properties-context .right-panel-context .number-field input,
+.right-properties-context .right-panel-context select,
+.right-properties-context .right-panel-context textarea {
+  min-height: 34px;
+  padding-inline: 10px;
+  font-size: 11.5px;
+}
+
+.right-properties-global select,
+.right-properties-global input:not([type='checkbox']):not([type='range']):not([type='file']),
+.right-document-global select,
+.right-document-global input:not([type='checkbox']):not([type='range']):not([type='file']) {
+  min-height: 34px;
+}
+
+/* Layers search is intentionally a touch quieter at rest, but gets the same focus ring. */
+.right-sidebar .layers-search-field input {
+  min-height: 34px;
+  background: var(--ui-surface-subtle);
+}
+
+.right-sidebar .layers-search-field input:focus {
+  background: var(--ui-surface);
+}
