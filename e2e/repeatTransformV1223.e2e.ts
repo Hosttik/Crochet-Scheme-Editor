@@ -78,15 +78,23 @@ test('mirror direction and custom axis preview without mutating the document', a
   await expect(page.locator('.productivity-mirror-preview-stitch')).toHaveCount(0)
 })
 
-test('selected guide exposes a live numeric value on canvas', async ({ page }) => {
+test('selected guide exposes a live angle value on canvas while length stays in the inspector', async ({ page }) => {
   await openEditor(page)
   await createGuideFromToolRail(page, 'Линия')
 
   const value = page.locator('.guide-line .guide-value-label')
-  await expect(value).toHaveText('260 px · 0°')
+  await expect(value).toHaveText('0°')
+  await expect(value).not.toContainText('px')
 
   const length = page.getByLabel('Длина')
   await length.fill('420')
   await length.press('Enter')
-  await expect(value).toHaveText('420 px · 0°')
+  await expect(length).toHaveValue('420')
+  await expect(value).toHaveText('0°')
+
+  const angle = page.getByLabel('Угол °')
+  await angle.fill('30')
+  await angle.press('Enter')
+  await expect(angle).toHaveValue('30')
+  await expect(value).toHaveText('30°')
 })
