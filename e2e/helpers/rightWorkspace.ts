@@ -27,3 +27,11 @@ export async function openGlobalPanel(page: Page, testId: string) {
   await expect(details).toBeVisible()
   return details
 }
+
+export async function createLinkedRowFromSelectedGuide(page: Page) {
+  await openRightWorkspaceMode(page, 'properties')
+  const generator = page.locator('section.guide-row-generator')
+  await expect(generator).toBeVisible()
+  await generator.locator('.row-generator-submit').click()
+  await expect(page.locator('.parametric-row-editor')).toBeVisible()
+}

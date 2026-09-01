@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createGuideFromToolRail } from './helpers/uiV2Guides'
 import { downloadFromFileMenu } from './helpers/uiV2FileMenu'
-import { openGlobalPanel } from './helpers/rightWorkspace'
+import { openGlobalPanel, openRightWorkspaceMode } from './helpers/rightWorkspace'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -108,6 +108,7 @@ test('authors locked guides, gap-free row numbers and an exported automatic lege
 
   // Persist a locked guide as well, then validate schema and SVG authoring output.
   await page.locator('.guide-list button').filter({ hasText: 'Линия' }).click()
+  await openRightWorkspaceMode(page, 'properties')
   await guideEditor.getByLabel('Заблокировать направляющую').check()
 
   const jsonDownload = await downloadFromFileMenu(page, 'Экспорт проекта…')

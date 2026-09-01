@@ -1,6 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
 import { createGuideFromToolRail } from './helpers/uiV2Guides'
-import { openGlobalPanel } from './helpers/rightWorkspace'
+import {
+  createLinkedRowFromSelectedGuide,
+  openGlobalPanel,
+  openRightWorkspaceMode,
+} from './helpers/rightWorkspace'
 
 function patternRow(page: Page, number: number) {
   return page.locator('.pattern-row-number').filter({ hasText: new RegExp(`^Ряд ${number}$`) })
@@ -8,6 +12,11 @@ function patternRow(page: Page, number: number) {
 
 async function openPatternRows(page: Page) {
   await openGlobalPanel(page, 'pattern-rows-global-panel')
+}
+
+async function createFirstPatternRow(page: Page) {
+  await createGuideFromToolRail(page, 'Радиальная сетка')
+  await createLinkedRowFromSelectedGuide(page)
 }
 
 test('places a stitch, restores autosave and manages local projects', async ({ page }) => {
@@ -51,17 +60,16 @@ test('places a stitch, restores autosave and manages local projects', async ({ p
 
 test('edits explicit parent-child topology and restores it with undo', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
+  await createFirstPatternRow(page)
+
   await openPatternRows(page)
-
-  await createGuideFromToolRail(page, 'Радиальная сетка')
-  await expect(page.getByText('Создать параметрический ряд', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
-
   await expect(patternRow(page, 1)).toBeVisible()
+  await patternRow(page, 1).click()
   await page.getByRole('button', { name: '+6 прибавок' }).click()
 
   await expect(patternRow(page, 2)).toBeVisible()
   await expect(page.locator('.stitch-topology-link')).toHaveCount(18)
+  await openRightWorkspaceMode(page, 'properties')
   await expect(page.locator('.topology-mode-badge')).toHaveText('Равномерно')
   await expect(page.locator('.topology-change-button')).toHaveCount(6)
   await expect(page.locator('.topology-change-button').first()).toContainText('+ 2')
@@ -77,7 +85,9 @@ test('edits explicit parent-child topology and restores it with undo', async ({ 
   await expect(page.getByText(/прибавки в петли 3, 4, 6, 8, 10, 12/)).toBeVisible()
 
   await page.getByRole('button', { name: 'Отменить' }).click()
+  await openPatternRows(page)
   await patternRow(page, 2).click()
+  await openRightWorkspaceMode(page, 'properties')
   await expect(page.locator('.topology-mode-badge')).toHaveText('Равномерно')
   await expect(page.locator('.topology-change-button').first()).toContainText('+ 2')
   await expect(page.locator('.stitch-topology-link')).toHaveCount(18)
@@ -85,13 +95,15 @@ test('edits explicit parent-child topology and restores it with undo', async ({ 
 
 test('edits a mixed stitch rapport and restores it from autosave', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
+  await createFirstPatternRow(page)
+
   await openPatternRows(page)
-
-  await createGuideFromToolRail(page, 'Радиальная сетка')
-  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
   await expect(patternRow(page, 1)).toBeVisible()
-  await page.getByRole('button', { name: 'Дополнительно' }).click()
+  await patternRow(page, 1).click()
+  await openRightWorkspaceMode(page, 'properties')
 
+  const rowEditor = page.locator('.parametric-row-editor')
+  await rowEditor.getByRole('button', { name: 'Дополнительно' }).click()
   await page.getByRole('button', { name: 'Раппорт', exact: true }).click()
   await expect(page.locator('.row-sequence-item')).toHaveCount(2)
   await expect(page.getByText('Смешанный раппорт', { exact: true })).toBeVisible()
@@ -114,21 +126,27 @@ test('edits a mixed stitch rapport and restores it from autosave', async ({ page
 
 test('compiles a semantic rapport into stitch types and exact topology', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
+  await createFirstPatternRow(page)
+
   await openPatternRows(page)
-
-  await createGuideFromToolRail(page, 'Радиальная сетка')
-  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
   await expect(patternRow(page, 1)).toBeVisible()
+  await patternRow(page, 1).click()
+  await openRightWorkspaceMode(page, 'properties')
 
-  const rowEditor = page.locator('.parametric-row-editor')
+  let rowEditor = page.locator('.parametric-row-editor')
   const firstRowAdvanced = rowEditor.getByRole('button', { name: 'Дополнительно' })
   await expect(firstRowAdvanced).toHaveAttribute('aria-expanded', 'false')
   await firstRowAdvanced.click()
   await expect(firstRowAdvanced).toHaveAttribute('aria-expanded', 'true')
 
-  await page.getByRole('button', { name: 'Без изменений' }).click()
+  await openPatternRows(page)
+  await patternRow(page, 1).click()
+  await page.locator('.pattern-row-next-actions').getByRole('button', { name: 'Без изменений' }).click()
   await expect(patternRow(page, 2)).toBeVisible()
+  await patternRow(page, 2).click()
+  await openRightWorkspaceMode(page, 'properties')
 
+  rowEditor = page.locator('.parametric-row-editor')
   const advanced = rowEditor.getByRole('button', { name: 'Дополнительно' })
   await expect(advanced).toHaveAttribute('aria-expanded', 'false')
   await advanced.click()
@@ -160,13 +178,15 @@ test('compiles a semantic rapport into stitch types and exact topology', async (
 
 test('reopens Advanced for a manually changed child row offset', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
-  await openPatternRows(page)
+  await createFirstPatternRow(page)
 
-  await createGuideFromToolRail(page, 'Радиальная сетка')
-  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
+  await openPatternRows(page)
   await expect(patternRow(page, 1)).toBeVisible()
+  await patternRow(page, 1).click()
   await page.locator('.pattern-row-next-actions').getByRole('button', { name: 'Без изменений' }).click()
   await expect(patternRow(page, 2)).toBeVisible()
+  await patternRow(page, 2).click()
+  await openRightWorkspaceMode(page, 'properties')
 
   const rowEditor = page.locator('.parametric-row-editor')
   const advanced = rowEditor.getByRole('button', { name: 'Дополнительно' })
@@ -185,6 +205,7 @@ test('reopens Advanced for a manually changed child row offset', async ({ page }
   await openPatternRows(page)
 
   await patternRow(page, 2).click()
+  await openRightWorkspaceMode(page, 'properties')
   const restoredEditor = page.locator('.parametric-row-editor')
   const restoredAdvanced = restoredEditor.getByRole('button', { name: 'Дополнительно' })
   await expect(restoredAdvanced).toHaveAttribute('aria-expanded', 'true')
@@ -193,33 +214,40 @@ test('reopens Advanced for a manually changed child row offset', async ({ page }
 
 test('persists joined and turning row construction semantics', async ({ page }) => {
   await page.goto('/Crochet-Scheme-Editor/')
-  await openPatternRows(page)
+  await createFirstPatternRow(page)
 
-  await createGuideFromToolRail(page, 'Радиальная сетка')
-  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
-  await expect(patternRow(page, 1)).toBeVisible()
-  await page.getByRole('button', { name: 'Дополнительно' }).click()
-
-  await page.getByRole('button', { name: 'Замкнутый', exact: true }).click()
+  const rowEditor = page.locator('.parametric-row-editor')
+  await rowEditor.getByRole('button', { name: 'Дополнительно' }).click()
+  await rowEditor.getByRole('button', { name: 'Замкнутый', exact: true }).click()
   await expect(page.locator('.row-construction-status strong')).toHaveText('↻')
-  await page.getByLabel('ВП подъёма').fill('2')
-  await expect(page.getByLabel('Замыкать соединительным столбиком')).toBeChecked()
+  await rowEditor.getByLabel('ВП подъёма').fill('2')
+  await expect(rowEditor.getByLabel('Замыкать соединительным столбиком')).toBeChecked()
   await expect(page.locator('.row-construction-marker')).toHaveCount(2)
   await expect(page.locator('.row-construction-path')).toHaveCount(1)
   await expect(page.getByText(/2 ВП подъёма \(вне счёта ряда\); 12 СБН = 12; замкнутый круг ↻; замкнуть СС в первую провязанную петлю/)).toBeVisible()
 
+  await openPatternRows(page)
+  await patternRow(page, 1).click()
   await page.locator('.pattern-row-next-actions').getByRole('button', { name: 'Без изменений' }).click()
   await expect(patternRow(page, 2)).toBeVisible()
   await expect(page.getByText(/замкнутый круг ↻; замкнуть СС в первую провязанную петлю/).last()).toBeVisible()
 
-  await page.getByRole('button', { name: 'Поворотный', exact: true }).click()
+  await patternRow(page, 2).click()
+  await openRightWorkspaceMode(page, 'properties')
+  const secondRowEditor = page.locator('.parametric-row-editor')
+  await secondRowEditor.getByRole('button', { name: 'Поворотный', exact: true }).click()
   await expect(page.locator('.row-construction-status strong')).toHaveText('→')
-  await page.locator('.pattern-row-next-actions').getByRole('button', { name: 'Без изменений' }).click()
 
+  await openPatternRows(page)
+  await patternRow(page, 2).click()
+  await page.locator('.pattern-row-next-actions').getByRole('button', { name: 'Без изменений' }).click()
   await expect(patternRow(page, 3)).toBeVisible()
-  await expect(page.locator('.row-construction-status strong')).toHaveText('←')
   await expect(page.getByText(/поворотный ряд ←; повернуть работу/).last()).toBeVisible()
   await expect(page.locator('.row-construction-marker')).toHaveCount(2)
+
+  await patternRow(page, 3).click()
+  await openRightWorkspaceMode(page, 'properties')
+  await expect(page.locator('.row-construction-status strong')).toHaveText('←')
 
   await page.waitForTimeout(900)
   await expect(page.locator('.autosave-indicator')).toContainText('Автосохранено')
@@ -227,6 +255,7 @@ test('persists joined and turning row construction semantics', async ({ page }) 
   await openPatternRows(page)
 
   await patternRow(page, 3).click()
+  await openRightWorkspaceMode(page, 'properties')
   await expect(page.locator('.row-construction-status strong')).toHaveText('←')
   await expect(page.getByText(/поворотный ряд ←; повернуть работу/).last()).toBeVisible()
 })

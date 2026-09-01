@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 import { createGuideFromToolRail } from './helpers/uiV2Guides'
-import { openGlobalPanel } from './helpers/rightWorkspace'
+import {
+  createLinkedRowFromSelectedGuide,
+  openGlobalPanel,
+} from './helpers/rightWorkspace'
 
 async function openEditor(page: Page) {
   await page.goto('/Crochet-Scheme-Editor/')
@@ -127,10 +130,8 @@ test('keeps the quick toolbar clear of the rotation handle and shows a live used
 
 test('keeps common row controls visible and hides expert settings until requested', async ({ page }) => {
   await openEditor(page)
-  await openGlobalPanel(page, 'pattern-rows-global-panel')
   await createGuideFromToolRail(page, 'Радиальная сетка')
-  await page.getByRole('button', { name: 'Создать связанный ряд' }).click()
-  await expect(page.locator('.pattern-row-number').filter({ hasText: /^Ряд 1$/ })).toBeVisible()
+  await createLinkedRowFromSelectedGuide(page)
 
   const rowEditor = page.locator('.parametric-row-editor')
   await expect(rowEditor.getByLabel('Количество элементов')).toBeVisible()
