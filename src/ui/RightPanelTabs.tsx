@@ -11,7 +11,15 @@ export const RIGHT_PANEL_MODE_EVENT = 'crochet-editor:right-panel-mode'
 
 export function setRightPanelMode(mode: RightPanelMode) {
   if (typeof document !== 'undefined') {
-    document.querySelector<HTMLElement>('.sidebar.right-sidebar')?.setAttribute('data-right-panel-mode', mode)
+    const sidebar = document.querySelector<HTMLElement>('.sidebar.right-sidebar')
+    const currentMode = sidebar?.getAttribute('data-right-panel-mode')
+    if (currentMode && currentMode !== mode) {
+      const hiddenScope = mode === 'properties' ? '.right-document-global' : '.right-properties-global'
+      sidebar?.querySelectorAll<HTMLDetailsElement>(`${hiddenScope} details[open]`).forEach((details) => {
+        details.open = false
+      })
+    }
+    sidebar?.setAttribute('data-right-panel-mode', mode)
   }
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent<RightPanelMode>(RIGHT_PANEL_MODE_EVENT, { detail: mode }))
