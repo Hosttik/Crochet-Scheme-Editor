@@ -72,9 +72,16 @@ test('keeps user-selected snapping and copy modes across a reload', async ({ pag
 
   const snappingAfter = await openDetails(page, 'snapping-global-panel')
   await expect(snappingAfter.locator('fieldset').filter({ has: page.getByText('Ориентация', { exact: true }) }).locator('select')).toHaveValue('along')
-  await expect(page.locator('.productivity-panel').getByRole('button', { name: 'По кругу', exact: true })).toHaveClass(/active/)
-  await expect(page.locator('.productivity-panel').getByLabel('Копий', { exact: true })).toHaveValue('7')
-  await expect(page.locator('.productivity-panel').getByLabel('Шаг °', { exact: true })).toHaveValue('30')
+
+  // Selection is intentionally transient UI state and is not restored with the document.
+  // Re-enter the same authoring context before checking the persisted tool preferences.
+  await page.locator('.stitch-element').first().click()
+  await expect(page.locator('.stitch-element.selected')).toHaveCount(1)
+
+  const productivityAfter = page.locator('.productivity-panel')
+  await expect(productivityAfter.getByRole('button', { name: 'По кругу', exact: true })).toHaveClass(/active/)
+  await expect(productivityAfter.getByLabel('Копий', { exact: true })).toHaveValue('7')
+  await expect(productivityAfter.getByLabel('Шаг °', { exact: true })).toHaveValue('30')
 })
 
 test('lets fan stitches use precise stem spacing and height controls', async ({ page }) => {
