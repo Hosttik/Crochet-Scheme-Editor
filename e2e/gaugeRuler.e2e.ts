@@ -57,7 +57,7 @@ test('counts actual stitch anchors inside the measurement region and converts th
   await expect(ruler.locator('.ruler-counted-anchor')).toHaveCount(4)
 })
 
-test('row mode counts anchors/semantic rows in a vertical region and Escape removes the measurement', async ({ page }) => {
+test('row mode counts anchors/semantic rows and Delete removes the selected measurement', async ({ page }) => {
   await openEditor(page)
   const gauge = await addGauge(page)
 
@@ -81,7 +81,7 @@ test('row mode counts anchors/semantic rows in a vertical region and Escape remo
   await expect(gauge.getByTestId('ruler-auto-summary')).toContainText('3 ряд.')
   await expect(ruler.locator('.ruler-counted-anchor')).toHaveCount(3)
 
-  await page.keyboard.press('Escape')
+  await page.keyboard.press('Delete')
   await expect(page.locator('.measurement-ruler')).toHaveCount(0)
 
   await gauge.getByRole('button', { name: 'Новая область измерения', exact: true }).click()

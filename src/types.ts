@@ -35,6 +35,10 @@ export type MeasurementRuler = {
   profileId?: string
   /** Defaults to stitches for backwards-compatible schema v19 rulers. */
   mode?: RulerMeasurementMode
+  /** Rulers created before layer management default to visible. */
+  visible?: boolean
+  /** Rulers created before layer management default to unlocked. */
+  locked?: boolean
   /** Legacy compatibility only; v1.23+ chart measurement ignores manual overrides. */
   manualStitchCount?: number
   /** Legacy compatibility only; v1.23+ chart measurement ignores manual overrides. */

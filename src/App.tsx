@@ -1536,6 +1536,7 @@ function App() {
       event.currentTarget.setPointerCapture(event.pointerId)
       setSelectedGuideId(null)
       setSelectedRowMarkerId(null)
+      setSelectedRulerId(null)
       setLasso({
         pointerId: event.pointerId,
         points: [point],
@@ -1608,6 +1609,7 @@ function App() {
     event.currentTarget.setPointerCapture(event.pointerId)
     setSelectedGuideId(null)
     setSelectedRowMarkerId(null)
+    setSelectedRulerId(null)
     setMarquee({
       pointerId: event.pointerId,
       start: point,
