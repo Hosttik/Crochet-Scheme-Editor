@@ -5,20 +5,22 @@ async function openEditor(page: Page) {
   await expect(page.getByTestId('editor-topbar')).toBeVisible()
 }
 
-test('right panel number and select controls share search-field styling', async ({ page }) => {
+async function ensureDetailsOpen(details: ReturnType<Page['getByTestId']>) {
+  const isOpen = await details.evaluate((node) => (node as HTMLDetailsElement).open)
+  if (!isOpen) await details.locator('summary').click()
+}
+
+test('right panel inputs and selects share search-field styling', async ({ page }) => {
   await openEditor(page)
 
-  const documentTab = page.getByRole('tablist', { name: 'Правая панель' })
-    .getByRole('tab', { name: 'Документ', exact: true })
-  await documentTab.click()
+  const tabs = page.getByRole('tablist', { name: 'Правая панель' })
+  await tabs.getByRole('tab', { name: 'Слои', exact: true }).click()
 
-  const gauge = page.getByTestId('gauge-global-panel')
-  await gauge.locator('summary').click()
+  const search = page.locator('#ui-v2-right-layers-panel')
+    .getByRole('searchbox', { name: 'Поиск слоев', exact: true })
+  await expect(search).toBeVisible()
 
-  const numberInput = gauge.locator('input[type="number"]').first()
-  await expect(numberInput).toBeVisible()
-
-  const numberPresentation = await numberInput.evaluate((node) => {
+  const inputPresentation = await search.evaluate((node) => {
     const style = getComputedStyle(node)
     return {
       height: node.getBoundingClientRect().height,
@@ -27,19 +29,30 @@ test('right panel number and select controls share search-field styling', async 
       backgroundColor: style.backgroundColor,
     }
   })
-  expect(numberPresentation.height).toBeGreaterThanOrEqual(34)
-  expect(Number.parseFloat(numberPresentation.borderRadius)).toBeGreaterThanOrEqual(7)
-  expect(numberPresentation.borderStyle).toBe('solid')
-  expect(numberPresentation.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+  expect(inputPresentation.height).toBeGreaterThanOrEqual(34)
+  expect(Number.parseFloat(inputPresentation.borderRadius)).toBeGreaterThanOrEqual(7)
+  expect(inputPresentation.borderStyle).toBe('solid')
+  expect(inputPresentation.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
 
-  await numberInput.focus()
-  await expect.poll(() => numberInput.evaluate((node) => getComputedStyle(node).boxShadow)).not.toBe('none')
+  await search.focus()
+  await expect.poll(() => search.evaluate((node) => getComputedStyle(node).boxShadow)).not.toBe('none')
 
-  await page.getByRole('tab', { name: 'Свойства', exact: true }).click()
+  await tabs.getByRole('tab', { name: 'Свойства', exact: true }).click()
   const snapping = page.getByTestId('snapping-global-panel')
-  await snapping.locator('summary').click()
+  await ensureDetailsOpen(snapping)
+
   const select = snapping.locator('select').first()
   await expect(select).toBeVisible()
+  const selectPresentation = await select.evaluate((node) => {
+    const style = getComputedStyle(node)
+    return {
+      height: node.getBoundingClientRect().height,
+      borderRadius: style.borderRadius,
+    }
+  })
+  expect(selectPresentation.height).toBeGreaterThanOrEqual(34)
+  expect(Number.parseFloat(selectPresentation.borderRadius)).toBeGreaterThanOrEqual(7)
+
   await select.focus()
   await expect.poll(() => select.evaluate((node) => getComputedStyle(node).boxShadow)).not.toBe('none')
 })
