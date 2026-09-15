@@ -20,6 +20,8 @@ export type GuideSnapPoint = {
   pathT?: number
 }
 
+const MAX_RENDERED_DISCRETE_SNAP_POINTS = 256
+
 function polarPoint(center: Point, radius: number, angleDegrees: number): Point {
   const radians = (angleDegrees * Math.PI) / 180
   return {
@@ -134,7 +136,7 @@ export function radialGridGuideSnapPoints(guide: RadialGridGuide): GuideSnapPoin
   return points
 }
 
-export function guideSnapPoints(guide: Guide): GuideSnapPoint[] {
+function allGuideSnapPoints(guide: Guide): GuideSnapPoint[] {
   if (!guide.visible) return []
   switch (guide.type) {
     case 'arc':
@@ -152,8 +154,26 @@ export function guideSnapPoints(guide: Guide): GuideSnapPoint[] {
   }
 }
 
+export function guideSnapPoints(guide: Guide): GuideSnapPoint[] {
+  if (!guide.visible) return []
+
+  if (guide.type === 'grid') {
+    const rows = Math.max(1, Math.round(guide.rows))
+    const columns = Math.max(1, Math.round(guide.columns))
+    if (rows * columns > MAX_RENDERED_DISCRETE_SNAP_POINTS) return []
+  }
+
+  if (guide.type === 'radial-grid') {
+    const ringCount = Math.max(1, Math.round(guide.ringCount))
+    const sectorCount = Math.max(2, Math.round(guide.sectorCount))
+    if (1 + ringCount * sectorCount > MAX_RENDERED_DISCRETE_SNAP_POINTS) return []
+  }
+
+  return allGuideSnapPoints(guide)
+}
+
 export function buildGuideSnapPoints(guides: Guide[]): GuideSnapPoint[] {
-  return guides.flatMap(guideSnapPoints)
+  return guides.flatMap(allGuideSnapPoints)
 }
 
 export function arcRenderPoints(guide: ArcGuide, segments = 64): Point[] {
