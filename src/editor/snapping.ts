@@ -8,6 +8,7 @@ import type {
   Viewport,
 } from '../types'
 import { distance, rotatePoint } from './geometry'
+import { buildNearestDiscreteGuideCandidates } from './gridSnap'
 import { buildGuideSnapPoints } from './guides'
 import { isPathGuide, nearestPathParameter, pathPoseAt } from './pathGuides'
 import { stitchLocalAnchor } from './stitchGeometry'
@@ -138,21 +139,14 @@ export function solveSnap(
     proposed.id,
     settings.snapToVertices,
   )
-  const discreteGuideCandidates = buildGuideSnapPoints(
-    guides.filter((guide) => !isPathGuide(guide)),
-  ).map((candidate) => ({
-    key: candidate.key,
-    point: candidate.point,
-    targetId: candidate.guideId,
-    targetType: 'guide' as const,
-    targetRotation: candidate.targetRotation,
-    guideType: candidate.guideType,
-    pathT: candidate.pathT,
-  }))
-  const continuousGuideCandidates = buildContinuousGuideCandidates(guides, {
-    x: proposed.x,
-    y: proposed.y,
-  })
+  const placementReference = { x: proposed.x, y: proposed.y }
+  const effectiveLockedKey = proposed.id === '__preview__' ? null : lockedKey
+  const discreteGuideCandidates = buildNearestDiscreteGuideCandidates(
+    guides,
+    placementReference,
+    effectiveLockedKey,
+  )
+  const continuousGuideCandidates = buildContinuousGuideCandidates(guides, placementReference)
   const guideCandidates = [
     ...discreteGuideCandidates,
     ...continuousGuideCandidates,
@@ -172,14 +166,13 @@ export function solveSnap(
   }
 
   const sourcePosition = anchorWorldPosition(proposed, settings.sourceAnchor)
-  const placementReference = { x: proposed.x, y: proposed.y }
   const detectionPoint = (candidate: SnapCandidate) =>
     candidate.targetType === 'guide' ? placementReference : sourcePosition
 
   // Placement previews are independent authoring decisions. Do not let the
   // previous insertion's hysteresis lock bias the next cursor position.
-  const locked = proposed.id !== '__preview__' && lockedKey
-    ? candidates.find((candidate) => candidate.key === lockedKey)
+  const locked = effectiveLockedKey
+    ? candidates.find((candidate) => candidate.key === effectiveLockedKey)
     : undefined
 
   let winner: SnapCandidate | undefined
