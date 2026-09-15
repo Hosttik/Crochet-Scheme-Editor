@@ -192,50 +192,22 @@ export function GuideRenderer({
     )
   }
 
-  const gridLine = (
-    key: string,
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-  ) => (
-    <g key={key}>
-      <line
-        x1={x1}
-        y1={y1}
-        x2={x2}
-        y2={y2}
-        className="guide-hit-area"
-        vectorEffect="non-scaling-stroke"
-      />
-      <line
-        x1={x1}
-        y1={y1}
-        x2={x2}
-        y2={y2}
-        className="guide-stroke"
-        vectorEffect="non-scaling-stroke"
-        pointerEvents="none"
-      />
-    </g>
-  )
-
-  const gridCircle = (key: string, radius: number) => (
-    <g key={key}>
-      <circle
-        r={radius}
+  const gridPath = (d: string) => (
+    <>
+      <path
+        d={d}
         className="guide-hit-area"
         fill="none"
         vectorEffect="non-scaling-stroke"
       />
-      <circle
-        r={radius}
+      <path
+        d={d}
         className="guide-stroke"
         fill="none"
         vectorEffect="non-scaling-stroke"
         pointerEvents="none"
       />
-    </g>
+    </>
   )
 
   return (
@@ -296,39 +268,48 @@ export function GuideRenderer({
         const { halfWidth, halfHeight } = gridLocalBounds(guide)
         const rows = Math.max(1, Math.round(guide.rows))
         const columns = Math.max(1, Math.round(guide.columns))
+        const commands: string[] = []
+
+        for (let row = 0; row < rows; row += 1) {
+          const y = (row - (rows - 1) / 2) * guide.spacingY
+          commands.push(`M ${-halfWidth} ${y} L ${halfWidth} ${y}`)
+        }
+        for (let column = 0; column < columns; column += 1) {
+          const x = (column - (columns - 1) / 2) * guide.spacingX
+          commands.push(`M ${x} ${-halfHeight} L ${x} ${halfHeight}`)
+        }
+
         return (
           <g transform={`translate(${guide.origin.x} ${guide.origin.y}) rotate(${guide.rotation})`}>
-            {Array.from({ length: rows }, (_, row) => {
-              const y = (row - (rows - 1) / 2) * guide.spacingY
-              return gridLine(`row-${row}`, -halfWidth, y, halfWidth, y)
-            })}
-            {Array.from({ length: columns }, (_, column) => {
-              const x = (column - (columns - 1) / 2) * guide.spacingX
-              return gridLine(`column-${column}`, x, -halfHeight, x, halfHeight)
-            })}
+            {gridPath(commands.join(' '))}
           </g>
         )
       })()}
 
-      {guide.type === 'radial-grid' && (
-        <g transform={`translate(${guide.center.x} ${guide.center.y})`}>
-          {Array.from({ length: Math.max(1, Math.round(guide.ringCount)) }, (_, index) =>
-            gridCircle(`ring-${index}`, (index + 1) * guide.ringSpacing),
-          )}
-          {Array.from({ length: Math.max(2, Math.round(guide.sectorCount)) }, (_, sector) => {
-            const angle = guide.startAngle + (sector * 360) / Math.max(2, Math.round(guide.sectorCount))
-            const radians = (angle * Math.PI) / 180
-            const radius = Math.max(1, Math.round(guide.ringCount)) * guide.ringSpacing
-            return gridLine(
-              `sector-${sector}`,
-              0,
-              0,
-              Math.cos(radians) * radius,
-              Math.sin(radians) * radius,
-            )
-          })}
-        </g>
-      )}
+      {guide.type === 'radial-grid' && (() => {
+        const ringCount = Math.max(1, Math.round(guide.ringCount))
+        const sectorCount = Math.max(2, Math.round(guide.sectorCount))
+        const commands: string[] = []
+
+        for (let ring = 1; ring <= ringCount; ring += 1) {
+          const radius = ring * guide.ringSpacing
+          commands.push(
+            `M ${radius} 0 A ${radius} ${radius} 0 1 0 ${-radius} 0 A ${radius} ${radius} 0 1 0 ${radius} 0`,
+          )
+        }
+        for (let sector = 0; sector < sectorCount; sector += 1) {
+          const angle = guide.startAngle + (sector * 360) / sectorCount
+          const radians = (angle * Math.PI) / 180
+          const radius = ringCount * guide.ringSpacing
+          commands.push(`M 0 0 L ${Math.cos(radians) * radius} ${Math.sin(radians) * radius}`)
+        }
+
+        return (
+          <g transform={`translate(${guide.center.x} ${guide.center.y})`}>
+            {gridPath(commands.join(' '))}
+          </g>
+        )
+      })()}
 
       {directionPose && (
         <polygon
