@@ -282,8 +282,6 @@ export function StitchLayer({
         const definition = SYMBOL_BY_ID.get(element.symbolId)
         const { width, height } = stitchVisualSize(renderElement)
         const geometry = resolvedStitchGeometry(renderElement)
-        const hitWidth = Math.max(38, width + 18)
-        const hitHeight = Math.max(38, height + 18)
         const handleY = -height / 2 - 30
         const attached = Boolean(element.guideAttachment)
         const canDirectRotate = !element.parametricRow && (
@@ -308,22 +306,20 @@ export function StitchLayer({
             onPointerDown={(event) => onElementPointerDown(event, element)}
           >
             <rect
-              x={-hitWidth / 2}
-              y={-hitHeight / 2}
-              width={hitWidth}
-              height={hitHeight}
-              rx="7"
+              x={-width / 2}
+              y={-height / 2}
+              width={width}
+              height={height}
               className="stitch-hit-target"
               aria-hidden="true"
             />
 
             {selected && !groupBounds && (
               <rect
-                x={-width / 2 - 8}
-                y={-height / 2 - 8}
-                width={width + 16}
-                height={height + 16}
-                rx="5"
+                x={-width / 2}
+                y={-height / 2}
+                width={width}
+                height={height}
                 className="selection-box"
               />
             )}
