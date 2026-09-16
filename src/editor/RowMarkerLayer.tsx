@@ -94,10 +94,10 @@ export function RowMarkerLayer({
             onPointerDown={(event) => startDrag(event, marker)}
           >
             <circle className="row-marker-hit" r={18 / zoom} />
-            {selected && <circle className="row-marker-selection" r={12 / zoom} vectorEffect="non-scaling-stroke" />}
-            <circle className="row-marker-dot" r={5 / zoom} />
-            <text className="row-marker-number" x={10 / zoom} y={4 / zoom} fontSize={13 / zoom}>{marker.number}</text>
-            {isRowMarkerLocked(marker) && <text className="row-marker-lock" x={10 / zoom} y={17 / zoom} fontSize={9 / zoom}>🔒</text>}
+            {selected && <circle className="row-marker-selection" r={12} vectorEffect="non-scaling-stroke" />}
+            <circle className="row-marker-dot" r={5} />
+            <text className="row-marker-number" x={10} y={4} fontSize={13}>{marker.number}</text>
+            {isRowMarkerLocked(marker) && <text className="row-marker-lock" x={10} y={17} fontSize={9}>🔒</text>}
           </g>
         )
       })}
