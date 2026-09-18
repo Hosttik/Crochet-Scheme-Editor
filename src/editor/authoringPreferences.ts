@@ -9,6 +9,7 @@ export type AuthoringPreferences = {
   copyCount?: number
   circularAngleStep?: number
   guideOrientation?: GuideRepeatOrientation
+  guideSpacing?: number
 }
 
 const EMPTY: AuthoringPreferences = {}
@@ -48,6 +49,10 @@ export function validCopyCount(value: unknown, fallback = 5) {
 
 export function validAngleStep(value: unknown, fallback = 45) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+export function validGuideSpacing(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null
 }
 
 export function validRepeatMode(value: unknown): RepeatMode {
