@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { StitchElement } from '../types'
 import {
   documentPointToElementLocal,
+  MIN_STITCH_SCALE,
   geometryFromHandleDrag,
   normalizedStitchGeometry,
   resolvedStitchGeometry,
@@ -15,6 +16,14 @@ function element(symbolId = 'double', geometry?: StitchElement['geometry']): Sti
 }
 
 describe('stitch geometry', () => {
+  it('allows stitches to be reduced to one quarter of their base size', () => {
+    expect(MIN_STITCH_SCALE).toBe(0.25)
+    expect(resolvedStitchGeometry(element('double', { scaleX: 0.1, scaleY: 0.2 }))).toMatchObject({
+      scaleX: 0.25,
+      scaleY: 0.25,
+    })
+  })
+
   it('scales visual size and snapping anchors from the same geometry', () => {
     const item = element('double', { scaleX: 1.5, scaleY: 2 })
     expect(stitchVisualSize(item)).toEqual({ width: 45, height: 116 })

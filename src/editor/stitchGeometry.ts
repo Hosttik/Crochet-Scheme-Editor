@@ -1,7 +1,7 @@
 import { SYMBOL_BY_ID } from '../symbols'
 import type { AnchorName, Point, StitchElement, StitchGeometry } from '../types'
 
-export const MIN_STITCH_SCALE = 0.35
+export const MIN_STITCH_SCALE = 0.25
 export const MAX_STITCH_SCALE = 3
 export const MIN_STITCH_SPREAD = 0.45
 export const MAX_STITCH_SPREAD = 2.5

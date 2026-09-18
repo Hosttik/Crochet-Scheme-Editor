@@ -25,6 +25,7 @@ import {
   validAngleStep,
   validCopyCount,
   validGuideOrientation,
+  validGuideSpacing,
   validRepeatMode,
 } from './authoringPreferences'
 import './productivity.css'
@@ -183,19 +184,21 @@ export function ProductivityPanel({
 }) {
   const copy = COPY[locale]
   const storedPreferences = useRef(loadAuthoringPreferences()).current
+  const storedGuideSpacing = useRef(validGuideSpacing(storedPreferences.guideSpacing)).current
   const [mode, setMode] = useState<RepeatMode>(() => validRepeatMode(storedPreferences.copyMode))
   const [copies, setCopies] = useState(() => validCopyCount(storedPreferences.copyCount))
   const [copiesValid, setCopiesValid] = useState(true)
   const [deltaX, setDeltaX] = useState(48)
   const [deltaY, setDeltaY] = useState(0)
   const [angleStep, setAngleStep] = useState(() => validAngleStep(storedPreferences.circularAngleStep))
-  const [spacing, setSpacing] = useState(48)
+  const [spacing, setSpacing] = useState(() => storedGuideSpacing ?? 48)
   const [orientation, setOrientation] = useState<GuideRepeatOrientation>(() => validGuideOrientation(storedPreferences.guideOrientation))
   const [guideId, setGuideId] = useState('')
   const [repeatPreviewActive, setRepeatPreviewActive] = useState(false)
   const [previewDirection, setPreviewDirection] = useState<MirrorDirection | null>(null)
   const suppressNextSelectionPreview = useRef(false)
-  const repeatDefaultsDirty = useRef({ deltaX: false, deltaY: false, spacing: false })
+  const guideSpacingSticky = useRef(storedGuideSpacing !== null)
+  const repeatDefaultsDirty = useRef({ deltaX: false, deltaY: false, spacing: guideSpacingSticky.current })
   const selectionKey = useMemo(() => [...selectedIds].sort().join('|'), [selectedIds])
   const selectionDefaultsKey = useMemo(() => {
     const selected = new Set(selectedIds)
@@ -229,11 +232,11 @@ export function ProductivityPanel({
   }, [guideId, guides])
 
   useEffect(() => {
-    repeatDefaultsDirty.current = { deltaX: false, deltaY: false, spacing: false }
+    repeatDefaultsDirty.current = { deltaX: false, deltaY: false, spacing: guideSpacingSticky.current }
     const defaults = repeatDefaults(elements, selectedIds)
     setDeltaX(defaults.deltaX)
     setDeltaY(defaults.deltaY)
-    setSpacing(defaults.guideSpacing)
+    if (!guideSpacingSticky.current) setSpacing(defaults.guideSpacing)
     const suppressAutoPreview = suppressNextSelectionPreview.current
     suppressNextSelectionPreview.current = false
     // Keep the first single-stitch placement clean. Multi-selection keeps a live
@@ -453,7 +456,7 @@ export function ProductivityPanel({
               </label>
               <label className="productivity-field">
                 <span>{copy.spacing}</span>
-                <DraftNumberInput ariaLabel={copy.spacing} min={0} step={1} value={spacing} onChange={(value) => { repeatDefaultsDirty.current.spacing = true; setSpacing(value); activateRepeatPreview() }} />
+                <DraftNumberInput ariaLabel={copy.spacing} min={0} step={1} value={spacing} onChange={(value) => { guideSpacingSticky.current = true; repeatDefaultsDirty.current.spacing = true; setSpacing(value); saveAuthoringPreferences({ guideSpacing: value }); activateRepeatPreview() }} />
               </label>
               <label className="productivity-field">
                 <span>{copy.orientation}</span>
