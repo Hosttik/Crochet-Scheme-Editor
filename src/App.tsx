@@ -25,10 +25,26 @@ import {
 import { DEFAULT_STITCH_COLOR } from './editor/elementColor'
 import { clampBackgroundOpacity, prepareBackgroundImage } from './editor/backgroundImage'
 import { backgroundImageBounds } from './editor/backgroundGeometry'
+import { loadAuthoringPreferences, saveAuthoringPreferences } from './editor/authoringPreferences'
 import { chainBundleLayout, createChainBundle, type ChainBundleCount } from './editor/chainBundle'
 import { buildTiledPrintHtml, parseLegendPrintBounds, parseSvgViewBox, type PrintSettings } from './editor/printLayout'
 import { usedLegendItems } from './editor/legend'
-import { deleteRowMarkerAndRenumber, isRowMarkerLocked, nextRowMarkerNumber, normalizedRowMarkerNumber } from './editor/rowMarkers'
+import {
+  attachRowMarkerToGuide,
+  deleteRowMarkerAndRenumber,
+  detachRowMarkerFromGuide,
+  isRowMarkerLocked,
+  moveAttachedRowMarker,
+  nextRowMarkerNumber,
+  normalizedRowMarkerColor,
+  normalizedRowMarkerLabelAngle,
+  normalizedRowMarkerNumber,
+  normalizedRowMarkerSize,
+  reconcileRowMarkerAttachments,
+  remapRowMarkerAttachmentsForReversedGuide,
+  rowMarkerLabelGeometry,
+  rowMarkerVisualBounds,
+} from './editor/rowMarkers'
 import type { GuideManipulationMode } from './editor/guideManipulation'
 import { fitLineGuideToRect, reverseGuide } from './editor/guideGeometry'
 import { clamp, screenToDocument } from './editor/geometry'
@@ -286,9 +302,7 @@ function serializeSvg(
   const bounds = elements.map((element) =>
     elementAabb(element, SYMBOL_SIZES[element.symbolId] ?? { width: 30, height: 30 }, 12),
   )
-  bounds.push(...visibleMarkers.map((marker) => ({
-    left: marker.x - 8, right: marker.x + 42, top: marker.y - 14, bottom: marker.y + 14,
-  })))
+  bounds.push(...visibleMarkers.map(rowMarkerVisualBounds))
   if (exportBackground) {
     const backgroundBounds = backgroundImageBounds(exportBackground)
     bounds.push({
@@ -316,7 +330,11 @@ function serializeSvg(
     })
     .join('')
   const markerContent = visibleMarkers
-    .map((marker) => `<g transform="translate(${marker.x} ${marker.y})"><circle r="5" fill="#c2413b"/><text x="10" y="4" font-family="sans-serif" font-size="13" font-weight="700" fill="#b23833">${marker.number}</text></g>`)
+    .map((marker) => {
+      const label = rowMarkerLabelGeometry(marker)
+      const color = normalizedRowMarkerColor(marker.color)
+      return `<g transform="translate(${marker.x} ${marker.y})"><circle r="${label.dotRadius}" fill="${color}"/><text x="${label.x}" y="${label.y}" text-anchor="${label.textAnchor}" font-family="sans-serif" font-size="${label.fontSize}" font-weight="700" fill="${color}">${marker.number}</text></g>`
+    })
     .join('')
 
   const legendItems = legendVisible ? usedLegendItems(elements) : []
@@ -571,6 +589,7 @@ function App() {
   useEffect(() => {
     if (!hydrated) return
     setElements((current) => reconcileLinkedElements(current, guides))
+    setRowMarkers((current) => reconcileRowMarkerAttachments(current, guides))
   }, [guides, hydrated])
 
   const primaryId = selectedIds.at(-1) ?? null
@@ -1546,8 +1565,17 @@ function App() {
       return
     }
     if (tool.type === 'row-marker') {
+      const preferences = loadAuthoringPreferences()
       const marker: RowMarker = {
-        id: createId(), number: nextRowNumber, x: point.x, y: point.y, visible: true, locked: false,
+        id: createId(),
+        number: nextRowNumber,
+        x: point.x,
+        y: point.y,
+        size: normalizedRowMarkerSize(preferences.rowMarkerSize),
+        labelAngle: normalizedRowMarkerLabelAngle(preferences.rowMarkerLabelAngle),
+        color: normalizedRowMarkerColor(preferences.rowMarkerColor),
+        visible: true,
+        locked: false,
       }
       commitRowMarkers([...rowMarkers, marker])
       setSelectedRowMarkerId(marker.id)
@@ -2042,15 +2070,24 @@ function App() {
   }, [currentSnapshot])
 
   const handleRowMarkerMovePreview = useCallback((marker: RowMarker) => {
-    setRowMarkers((current) => current.map((item) => item.id === marker.id ? marker : item))
-  }, [])
+    const attachment = marker.guideAttachment
+    const guide = attachment ? guides.find((item) => item.id === attachment.guideId) : undefined
+    const preview = attachment && guide && isPathGuide(guide)
+      ? moveAttachedRowMarker(marker, guide, { x: marker.x, y: marker.y })
+      : marker
+    setRowMarkers((current) => current.map((item) => item.id === marker.id ? preview : item))
+  }, [guides])
 
-  const handleRowMarkerMoveEnd = useCallback((moved: boolean, cancelled: boolean) => {
+  const handleRowMarkerMoveEnd = useCallback((moved: boolean, cancelled: boolean, marker: RowMarker) => {
     const before = rowMarkerManipulationSnapshotRef.current
     rowMarkerManipulationSnapshotRef.current = null
     if (moved && !cancelled && before) {
+      const previous = before.rowMarkers.find((item) => item.id === marker.id)
+      if (previous && normalizedRowMarkerLabelAngle(previous.labelAngle) !== normalizedRowMarkerLabelAngle(marker.labelAngle)) {
+        saveAuthoringPreferences({ rowMarkerLabelAngle: normalizedRowMarkerLabelAngle(marker.labelAngle) })
+      }
       recordSnapshot(before)
-      setStatus(locale === 'ru' ? 'Номер ряда перемещён' : 'Row number moved')
+      setStatus(locale === 'ru' ? 'Маркер ряда изменён' : 'Row marker changed')
     }
   }, [locale, recordSnapshot])
 
@@ -2062,7 +2099,36 @@ function App() {
       setStatus(locale === 'ru' ? `Ряд №${nextNumber} уже существует` : `Row #${nextNumber} already exists`)
       return
     }
-    commitRowMarkers(rowMarkers.map((marker) => marker.id === id ? { ...marker, ...patch, number: nextNumber } : marker))
+    const normalizedPatch: Partial<RowMarker> = { ...patch }
+    if (patch.size !== undefined) {
+      normalizedPatch.size = normalizedRowMarkerSize(patch.size)
+      saveAuthoringPreferences({ rowMarkerSize: normalizedPatch.size })
+    }
+    if (patch.labelAngle !== undefined) {
+      normalizedPatch.labelAngle = normalizedRowMarkerLabelAngle(patch.labelAngle)
+      saveAuthoringPreferences({ rowMarkerLabelAngle: normalizedPatch.labelAngle })
+    }
+    if (patch.color !== undefined) {
+      normalizedPatch.color = normalizedRowMarkerColor(patch.color)
+      saveAuthoringPreferences({ rowMarkerColor: normalizedPatch.color })
+    }
+    commitRowMarkers(rowMarkers.map((marker) => marker.id === id ? { ...marker, ...normalizedPatch, number: nextNumber } : marker))
+  }, [commitRowMarkers, locale, rowMarkers])
+
+  const attachRowMarkerGuide = useCallback((id: string, guideId: string) => {
+    const marker = rowMarkers.find((item) => item.id === id)
+    const guide = guides.find((item) => item.id === guideId)
+    if (!marker || isRowMarkerLocked(marker) || !guide || !isPathGuide(guide)) return
+    const attached = attachRowMarkerToGuide(marker, guide)
+    commitRowMarkers(rowMarkers.map((item) => item.id === id ? attached : item))
+    setStatus(locale === 'ru' ? 'Маркер привязан к направляющей' : 'Row marker attached to guide')
+  }, [commitRowMarkers, guides, locale, rowMarkers])
+
+  const detachRowMarkerGuide = useCallback((id: string) => {
+    const marker = rowMarkers.find((item) => item.id === id)
+    if (!marker || isRowMarkerLocked(marker) || !marker.guideAttachment) return
+    commitRowMarkers(rowMarkers.map((item) => item.id === id ? detachRowMarkerFromGuide(item) : item))
+    setStatus(locale === 'ru' ? 'Привязка маркера снята' : 'Row marker detached from guide')
   }, [commitRowMarkers, locale, rowMarkers])
 
   const deleteRowMarker = useCallback((id: string) => {
@@ -2323,8 +2389,9 @@ function App() {
     if (!isPathGuide(reversed)) return
     commitGuides(guides.map((guide) => guide.id === target.id ? reversed : guide))
     setElements(remapAttachmentsForReversedGuide(elements, reversed))
+    setRowMarkers(remapRowMarkerAttachmentsForReversedGuide(rowMarkers, reversed))
     setStatus(locale === 'ru' ? 'Направление направляющей изменено' : 'Guide direction reversed')
-  }, [commitGuides, elements, guides, locale])
+  }, [commitGuides, elements, guides, locale, rowMarkers])
 
   const fitSelectedLineToProject = useCallback(() => {
     if (!selectedGuide || selectedGuide.type !== 'line' || selectedGuide.locked === true) return
@@ -3244,12 +3311,15 @@ function App() {
           }}
           rowMarkersPanelProps={{
             markers: rowMarkers,
+            guides,
             selectedId: selectedRowMarkerId,
             nextNumber: nextRowNumber,
             placing: tool.type === 'row-marker',
             onStartPlacement: toggleRowMarkerPlacement,
             onSelect: handleSelectRowMarker,
             onChange: updateRowMarker,
+            onAttachGuide: attachRowMarkerGuide,
+            onDetachGuide: detachRowMarkerGuide,
             onDelete: deleteRowMarker,
           }}
           legendPanelProps={{
