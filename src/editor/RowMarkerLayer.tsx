@@ -1,15 +1,18 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import type { Point, RowMarker } from '../types'
+import type { Guide, Point, RowMarker } from '../types'
+import { isPathGuide } from './pathGuides'
 import {
   isRowMarkerLocked,
   isRowMarkerVisible,
   normalizedRowMarkerColor,
+  moveAttachedRowMarker,
   normalizedRowMarkerLabelAngle,
   rowMarkerLabelGeometry,
 } from './rowMarkers'
 
 type Props = {
   markers: RowMarker[]
+  guides: Guide[]
   selectedId: string | null
   zoom: number
   clientToDocument: (clientX: number, clientY: number) => Point
@@ -21,6 +24,7 @@ type Props = {
 
 export function RowMarkerLayer({
   markers,
+  guides,
   selectedId,
   zoom,
   clientToDocument,
@@ -63,11 +67,15 @@ export function RowMarkerLayer({
       if (nativeEvent.pointerId !== pointerId) return
       if (Math.hypot(nativeEvent.clientX - startClient.x, nativeEvent.clientY - startClient.y) > 1) moved = true
       const current = clientToDocument(nativeEvent.clientX, nativeEvent.clientY)
-      previewMarker = {
-        ...marker,
+      const target = {
         x: marker.x + current.x - startPointer.x,
         y: marker.y + current.y - startPointer.y,
       }
+      const attachment = marker.guideAttachment
+      const guide = attachment ? guides.find((item) => item.id === attachment.guideId) : undefined
+      previewMarker = attachment && guide && isPathGuide(guide)
+        ? moveAttachedRowMarker(marker, guide, target)
+        : { ...marker, ...target }
       onMovePreview(previewMarker)
     }
 
