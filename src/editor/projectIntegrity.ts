@@ -1,4 +1,5 @@
 import { SYMBOL_BY_ID } from '../symbols'
+import { isStitchColor } from './elementColor'
 import { rowConstructionTopologyParents } from './rowConstruction'
 import { rowProgramHasTopologyOperations, rowProgramMetrics } from './rowProgram'
 import type { CrochetProject, Guide, ParametricRowBinding, StitchElement } from '../types'
@@ -211,6 +212,23 @@ export function projectIntegrityIssue(project: CrochetProject, strictReferences 
 
   for (const marker of markers) {
     if (!bounded(marker.x) || !bounded(marker.y)) return 'Row marker geometry is out of bounds'
+    if (marker.size !== undefined && (!Number.isFinite(marker.size) || marker.size < 0.5 || marker.size > 3)) {
+      return 'Row marker size is out of bounds'
+    }
+    if (marker.labelAngle !== undefined && !bounded(marker.labelAngle)) return 'Row marker direction is out of bounds'
+    if (marker.color !== undefined && !isStitchColor(marker.color)) return 'Row marker color is invalid'
+    if (marker.guideAttachment) {
+      const guide = guideById.get(marker.guideAttachment.guideId)
+      if (guide && guide.type !== 'arc' && guide.type !== 'line' && guide.type !== 'curve' && guide.type !== 'parabola') {
+        return 'Row marker attachment references an incompatible guide'
+      }
+      if (!guide && strictReferences) return 'Row marker attachment references an incompatible guide'
+      if (
+        !Number.isFinite(marker.guideAttachment.t) ||
+        marker.guideAttachment.t < 0 || marker.guideAttachment.t > 1 ||
+        !bounded(marker.guideAttachment.normalOffset)
+      ) return 'Row marker attachment is out of bounds'
+    }
   }
   const background = project.backgroundImage
   if (background) {

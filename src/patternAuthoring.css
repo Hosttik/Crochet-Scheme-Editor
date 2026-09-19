@@ -22,15 +22,17 @@
   pointer-events: all;
 }
 
-.row-marker-dot,
+.row-marker-dot {
+  fill: currentColor;
+}
+
 .row-marker-list-dot,
 .row-marker-tool-dot {
-  fill: #c2413b;
   color: #c2413b;
 }
 
 .row-marker-number {
-  fill: #b23833;
+  fill: currentColor;
   font-family: system-ui, sans-serif;
   font-weight: 700;
   paint-order: stroke;
@@ -47,6 +49,56 @@
   stroke-width: 1.5px;
   stroke-dasharray: 3 2;
   pointer-events: none;
+}
+
+.row-marker-direction-link {
+  stroke: #2563eb;
+  stroke-width: 1px;
+  stroke-dasharray: 2 2;
+  pointer-events: none;
+}
+
+.row-marker-direction-handle {
+  fill: #fff;
+  stroke: #2563eb;
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  cursor: crosshair;
+}
+
+.row-marker-direction-control {
+  color: #2563eb;
+}
+
+.row-marker-direction-editor {
+  display: grid;
+  gap: 5px;
+}
+
+.row-marker-editor-label,
+.row-marker-color-field > span {
+  color: var(--muted, #66706b);
+  font-size: 11px;
+}
+
+.row-marker-direction-presets {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.row-marker-color-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.row-marker-color-field input[type="color"] {
+  width: 48px;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid var(--line, #dedbd4);
+  border-radius: 7px;
+  background: #fff;
 }
 
 .row-marker-lock {

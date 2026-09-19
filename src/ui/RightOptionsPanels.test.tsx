@@ -53,12 +53,15 @@ function createProps(locale: 'ru' | 'en' = 'en'): RightOptionsPanelsProps {
     },
     rowMarkersPanelProps: {
       markers: [],
+      guides: [],
       selectedId: null,
       nextNumber: 1,
       placing: false,
       onStartPlacement: noop,
       onSelect: noop,
       onChange: noop,
+      onAttachGuide: noop,
+      onDetachGuide: noop,
       onDelete: noop,
     },
     legendPanelProps: {
