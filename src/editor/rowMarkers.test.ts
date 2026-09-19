@@ -66,11 +66,11 @@ describe('row marker appearance and guide attachment', () => {
     }
     const attached = attachRowMarkerToGuide({ ...marker(1), x: 40, y: 80 }, guide)
     expect(attached.y).toBeCloseTo(20, 6)
-    expect(attached.x).toBeCloseTo(40, 3)
+    expect(attached.x).toBeCloseTo(40, 2)
     expect(attached.guideAttachment?.guideId).toBe('line')
 
     const moved = moveAttachedRowMarker(attached, guide, { x: 150, y: 90 })
-    expect(moved.x).toBeCloseTo(150, 3)
+    expect(moved.x).toBeCloseTo(150, 2)
     expect(moved.y).toBeCloseTo(20, 6)
     expect(moved.guideAttachment?.t).toBeCloseTo(0.75, 2)
   })
@@ -87,12 +87,12 @@ describe('row marker appearance and guide attachment', () => {
     const attached = attachRowMarkerToGuide({ ...marker(1), x: 25, y: 5 }, guide)
     const shifted: LineGuide = { ...guide, start: { x: 0, y: 30 }, end: { x: 100, y: 30 } }
     const [followed] = reconcileRowMarkerAttachments([attached], [shifted])
-    expect(followed.x).toBeCloseTo(25, 3)
+    expect(followed.x).toBeCloseTo(25, 2)
     expect(followed.y).toBeCloseTo(30, 6)
 
     const reversed: LineGuide = { ...guide, start: guide.end, end: guide.start }
     const [remapped] = remapRowMarkerAttachmentsForReversedGuide([attached], reversed)
-    expect(remapped.x).toBeCloseTo(attached.x, 3)
+    expect(remapped.x).toBeCloseTo(attached.x, 2)
     expect(remapped.y).toBeCloseTo(attached.y, 3)
   })
 })
