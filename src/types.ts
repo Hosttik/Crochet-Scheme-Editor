@@ -235,11 +235,25 @@ export type RadialGridGuide = {
 
 export type Guide = ArcGuide | LineGuide | CurveGuide | ParabolaGuide | GridGuide | RadialGridGuide
 
+export type RowMarkerGuideAttachment = {
+  guideId: string
+  t: number
+  normalOffset: number
+}
+
 export type RowMarker = {
   id: string
   number: number
   x: number
   y: number
+  /** Overall dot/label scale. Legacy markers default to 1. */
+  size?: number
+  /** Direction from the marker dot to the upright number label, in degrees. Legacy markers default to 0 (right). */
+  labelAngle?: number
+  /** Marker dot and number color. Legacy markers use the default red. */
+  color?: string
+  /** Optional positional attachment to a path guide. */
+  guideAttachment?: RowMarkerGuideAttachment
   visible?: boolean
   locked?: boolean
 }
