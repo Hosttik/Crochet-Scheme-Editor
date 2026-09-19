@@ -10,6 +10,7 @@ import type {
   ParametricRowBinding,
   RowProgram,
   RowMarker,
+  RowMarkerGuideAttachment,
   SnappingSettings,
   StitchElement,
   StitchGeometry,
@@ -18,6 +19,7 @@ import { isStitchColor } from './elementColor'
 import { rowProgramMetrics } from './rowProgram'
 import { MAX_GAUGE_PROFILES, MAX_PROJECT_ELEMENTS, MAX_PROJECT_GUIDES, MAX_PROJECT_ROW_MARKERS, MAX_PROJECT_RULERS, projectIntegrityIssue } from './projectIntegrity'
 import { CURRENT_PROJECT_SCHEMA_VERSION, MIN_PROJECT_SCHEMA_VERSION, STRICT_PROJECT_SCHEMA_VERSION } from './projectVersion'
+import { MAX_STITCH_SCALE, MAX_STITCH_SPREAD, MIN_STITCH_SCALE, MIN_STITCH_SPREAD } from './stitchGeometry'
 
 export class ProjectValidationError extends Error {
   constructor(message: string) {
@@ -211,8 +213,8 @@ function parseGuideAttachment(value: unknown): GuideAttachment | undefined {
 function parseStitchGeometry(value: unknown): StitchGeometry | undefined {
   if (value === undefined) return undefined
   if (!isRecord(value)) throw new ProjectValidationError('Invalid stitch geometry')
-  const validScale = (candidate: unknown) => candidate === undefined || (finite(candidate) && candidate >= 0.35 && candidate <= 3)
-  const validSpread = (candidate: unknown) => candidate === undefined || (finite(candidate) && candidate >= 0.45 && candidate <= 2.5)
+  const validScale = (candidate: unknown) => candidate === undefined || (finite(candidate) && candidate >= MIN_STITCH_SCALE && candidate <= MAX_STITCH_SCALE)
+  const validSpread = (candidate: unknown) => candidate === undefined || (finite(candidate) && candidate >= MIN_STITCH_SPREAD && candidate <= MAX_STITCH_SPREAD)
   if (!validScale(value.scaleX) || !validScale(value.scaleY) || !validSpread(value.spread)) {
     throw new ProjectValidationError('Invalid stitch geometry')
   }
@@ -288,10 +290,27 @@ function parseGuide(value: unknown): Guide {
   throw new ProjectValidationError('Unknown guide type')
 }
 
+function parseRowMarkerGuideAttachment(value: unknown): RowMarkerGuideAttachment | undefined {
+  if (value === undefined) return undefined
+  if (
+    !isRecord(value) || !nonEmptyString(value.guideId) ||
+    !finite(value.t) || value.t < 0 || value.t > 1 ||
+    !finite(value.normalOffset)
+  ) throw new ProjectValidationError('Invalid row marker guide attachment')
+  return {
+    guideId: value.guideId,
+    t: value.t,
+    normalOffset: value.normalOffset,
+  }
+}
+
 function parseRowMarker(value: unknown): RowMarker {
   if (
     !isRecord(value) || !nonEmptyString(value.id) ||
     !positiveInteger(value.number, MAX_PROJECT_ROW_MARKERS) || !finite(value.x) || !finite(value.y) ||
+    !(value.size === undefined || (finite(value.size) && value.size >= 0.5 && value.size <= 3)) ||
+    !(value.labelAngle === undefined || finite(value.labelAngle)) ||
+    !(value.color === undefined || isStitchColor(value.color)) ||
     !optionalBoolean(value.visible) || !optionalBoolean(value.locked)
   ) throw new ProjectValidationError('Invalid row marker')
   return {
@@ -299,6 +318,10 @@ function parseRowMarker(value: unknown): RowMarker {
     number: value.number as number,
     x: value.x,
     y: value.y,
+    size: value.size as number | undefined,
+    labelAngle: value.labelAngle as number | undefined,
+    color: typeof value.color === 'string' ? value.color.toLowerCase() : undefined,
+    guideAttachment: parseRowMarkerGuideAttachment(value.guideAttachment),
     visible: value.visible !== false,
     locked: value.locked === true,
   }
