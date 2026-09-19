@@ -34,7 +34,6 @@ import {
   deleteRowMarkerAndRenumber,
   detachRowMarkerFromGuide,
   isRowMarkerLocked,
-  moveAttachedRowMarker,
   nextRowMarkerNumber,
   normalizedRowMarkerColor,
   normalizedRowMarkerLabelAngle,
@@ -2070,13 +2069,8 @@ function App() {
   }, [currentSnapshot])
 
   const handleRowMarkerMovePreview = useCallback((marker: RowMarker) => {
-    const attachment = marker.guideAttachment
-    const guide = attachment ? guides.find((item) => item.id === attachment.guideId) : undefined
-    const preview = attachment && guide && isPathGuide(guide)
-      ? moveAttachedRowMarker(marker, guide, { x: marker.x, y: marker.y })
-      : marker
-    setRowMarkers((current) => current.map((item) => item.id === marker.id ? preview : item))
-  }, [guides])
+    setRowMarkers((current) => current.map((item) => item.id === marker.id ? marker : item))
+  }, [])
 
   const handleRowMarkerMoveEnd = useCallback((moved: boolean, cancelled: boolean, marker: RowMarker) => {
     const before = rowMarkerManipulationSnapshotRef.current
@@ -3132,6 +3126,7 @@ function App() {
 
             <RowMarkerLayer
               markers={rowMarkers}
+              guides={guides}
               selectedId={selectedRowMarkerId}
               zoom={viewport.zoom}
               clientToDocument={clientToDocument}
