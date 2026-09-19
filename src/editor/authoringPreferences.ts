@@ -10,6 +10,9 @@ export type AuthoringPreferences = {
   circularAngleStep?: number
   guideOrientation?: GuideRepeatOrientation
   guideSpacing?: number
+  rowMarkerSize?: number
+  rowMarkerLabelAngle?: number
+  rowMarkerColor?: string
 }
 
 const EMPTY: AuthoringPreferences = {}
