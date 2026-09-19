@@ -300,6 +300,47 @@ describe('parseProject', () => {
     expect(parsed.settings.legend).toEqual({ visible: false })
   })
 
+  it('preserves row marker appearance and path-guide attachment metadata', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 22
+    raw.guides = [{
+      id: 'line-1', type: 'line', start: { x: 0, y: 0 }, end: { x: 100, y: 0 },
+      divisions: 8, visible: true,
+    }]
+    raw.rowMarkers = [{
+      id: 'row-number-1',
+      number: 1,
+      x: 25,
+      y: 0,
+      size: 1.4,
+      labelAngle: 90,
+      color: '#336699',
+      guideAttachment: { guideId: 'line-1', t: 0.25, normalOffset: 0 },
+      visible: true,
+      locked: false,
+    }]
+    const parsed = parseProject(raw, fallback)
+    expect(parsed.rowMarkers?.[0]).toMatchObject({
+      size: 1.4,
+      labelAngle: 90,
+      color: '#336699',
+      guideAttachment: { guideId: 'line-1', t: 0.25, normalOffset: 0 },
+    })
+  })
+
+  it('rejects malformed row marker appearance and attachment metadata', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 22
+    raw.rowMarkers = [{ id: 'row-number-1', number: 1, x: 0, y: 0, size: 0.1 }]
+    expect(() => parseProject(raw, fallback)).toThrow('Invalid row marker')
+
+    raw.rowMarkers[0] = {
+      id: 'row-number-1', number: 1, x: 0, y: 0,
+      guideAttachment: { guideId: 'line-1', t: 1.5, normalOffset: 0 },
+    }
+    expect(() => parseProject(raw, fallback)).toThrow('Invalid row marker guide attachment')
+  })
+
   it('rejects malformed schema v15 row numbers and legend settings', () => {
     const raw = legacyProject() as any
     raw.schemaVersion = 15
@@ -314,9 +355,9 @@ describe('parseProject', () => {
     const raw = legacyProject() as any
     raw.schemaVersion = 22
     raw.elements[0].symbolId = 'double-5-shell'
-    raw.elements[0].geometry = { scaleX: 1.4, scaleY: 0.8, spread: 1.6 }
+    raw.elements[0].geometry = { scaleX: 0.25, scaleY: 0.8, spread: 1.6 }
     const parsed = parseProject(raw, fallback)
-    expect(parsed.elements[0].geometry).toEqual({ scaleX: 1.4, scaleY: 0.8, spread: 1.6 })
+    expect(parsed.elements[0].geometry).toEqual({ scaleX: 0.25, scaleY: 0.8, spread: 1.6 })
 
     raw.elements[0].geometry = { scaleX: 4 }
     expect(() => parseProject(raw, fallback)).toThrow('Invalid stitch geometry')
