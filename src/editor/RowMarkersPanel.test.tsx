@@ -200,6 +200,7 @@ describe('RowMarkersPanel guide options', () => {
     expect(markup).toContain('style="color:#cc0000"')
     expect(markup).toContain('style="color:#0055cc"')
     expect(markup).toContain('title="Счёт этой группы начинается с 0"')
+    expect(markup).toContain('с 0')
   })
 
   it('shows numbering group controls and zero-based mode', () => {
