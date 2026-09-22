@@ -328,6 +328,45 @@ describe('parseProject', () => {
     })
   })
 
+  it('preserves row marker attachment to a rectangular grid track', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 22
+    raw.guides = [{
+      id: 'grid-1',
+      type: 'grid',
+      origin: { x: 0, y: 0 },
+      rows: 3,
+      columns: 5,
+      spacingX: 20,
+      spacingY: 30,
+      rotation: 0,
+      visible: true,
+    }]
+    raw.rowMarkers = [{
+      id: 'row-number-1',
+      number: 1,
+      x: 10,
+      y: 30,
+      guideAttachment: {
+        guideId: 'grid-1',
+        t: 0.75,
+        normalOffset: 0,
+        track: 'row',
+        trackIndex: 2,
+      },
+      visible: true,
+      locked: false,
+    }]
+    const parsed = parseProject(raw, fallback)
+    expect(parsed.rowMarkers?.[0].guideAttachment).toEqual({
+      guideId: 'grid-1',
+      t: 0.75,
+      normalOffset: 0,
+      track: 'row',
+      trackIndex: 2,
+    })
+  })
+
   it('rejects malformed row marker appearance and attachment metadata', () => {
     const raw = legacyProject() as any
     raw.schemaVersion = 22
@@ -337,6 +376,12 @@ describe('parseProject', () => {
     raw.rowMarkers[0] = {
       id: 'row-number-1', number: 1, x: 0, y: 0,
       guideAttachment: { guideId: 'line-1', t: 1.5, normalOffset: 0 },
+    }
+    expect(() => parseProject(raw, fallback)).toThrow('Invalid row marker guide attachment')
+
+    raw.rowMarkers[0] = {
+      id: 'row-number-1', number: 1, x: 0, y: 0,
+      guideAttachment: { guideId: 'grid-1', t: 0.5, normalOffset: 0, track: 'row' },
     }
     expect(() => parseProject(raw, fallback)).toThrow('Invalid row marker guide attachment')
   })
