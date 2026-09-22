@@ -64,6 +64,8 @@ function createProps(locale: 'ru' | 'en' = 'en'): RightOptionsPanelsProps {
       onDetachGuide: noop,
       onAssignGroup: noop,
       onCreateGroup: noop,
+      onAssignGroupMany: noop,
+      onCreateGroupMany: noop,
       onGroupStartAtZeroChange: noop,
       onDelete: noop,
       guideLabel: () => 'Guide',
