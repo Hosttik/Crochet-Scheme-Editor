@@ -106,21 +106,85 @@
   pointer-events: none;
 }
 
+.row-marker-bulk-toolbar {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid var(--line, #dedbd4);
+  border-radius: 8px;
+  background: #f8f6f1;
+}
+
+.row-marker-bulk-selection-actions,
+.row-marker-bulk-group-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.row-marker-bulk-selection-actions button,
+.row-marker-bulk-group-buttons button {
+  padding: 5px 7px;
+  border: 1px solid var(--line, #dedbd4);
+  background: #fff;
+  font-size: 10px;
+}
+
+.row-marker-bulk-group-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.row-marker-bulk-group-actions label {
+  display: grid;
+  gap: 4px;
+}
+
+.row-marker-bulk-group-actions label > span {
+  color: var(--muted, #66706b);
+  font-size: 10px;
+}
+
 .row-marker-list {
   display: grid;
   gap: 4px;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
-.row-marker-list button {
+.row-marker-list-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+}
+
+.row-marker-list-item.bulk-selected {
+  border-color: #8db39f;
+  background: #edf5f0;
+}
+
+.row-marker-list-item > input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: #3c745d;
+}
+
+.row-marker-list-item > button {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
+  min-width: 0;
   text-align: left;
 }
 
-.row-marker-list button.active {
+.row-marker-list-item > button.active {
   outline: 1px solid currentColor;
 }
 
