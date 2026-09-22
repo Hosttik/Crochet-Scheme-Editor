@@ -77,12 +77,14 @@ test('tiled print adds matching registration crosses and keeps legend inside pri
   await openGlobalPanel(page, 'print-global-panel')
 
   const panel = page.getByTestId('print-panel')
-  await panel.getByTestId('print-scale').fill('400')
+  await panel.getByTestId('print-mode').selectOption('fixed-grid')
+  await panel.getByTestId('print-page-columns').fill('2')
+  await panel.getByTestId('print-page-rows').fill('1')
   await expect(panel.getByTestId('print-alignment-marks')).toBeChecked()
-  expect(Number(await panel.getByTestId('print-page-count').textContent())).toBeGreaterThan(1)
+  await expect(panel.getByTestId('print-page-count')).toHaveText('2')
 
   const popupPromise = page.waitForEvent('popup')
-  await panel.getByRole('button', { name: 'Открыть печать', exact: true }).click()
+  await panel.getByRole('button', { name: 'Открыть PDF / печать', exact: true }).click()
   const popup = await popupPromise
   await popup.waitForLoadState('domcontentloaded')
 
