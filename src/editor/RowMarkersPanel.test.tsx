@@ -43,8 +43,10 @@ describe('RowMarkersPanel guide options', () => {
         markers={[marker]}
         guides={guides}
         selectedId={marker.id}
+        placementGroupId={null}
         nextNumber={2}
         placing={false}
+        onPlacementGroupChange={noop}
         onStartPlacement={noop}
         onSelect={noop}
         onChange={noop}
@@ -96,8 +98,10 @@ describe('RowMarkersPanel guide options', () => {
         markers={[marker]}
         guides={guides}
         selectedId={marker.id}
+        placementGroupId={null}
         nextNumber={2}
         placing={false}
+        onPlacementGroupChange={noop}
         onStartPlacement={noop}
         onSelect={noop}
         onChange={noop}
@@ -129,8 +133,10 @@ describe('RowMarkersPanel guide options', () => {
         markers={markers}
         guides={[]}
         selectedId={null}
+        placementGroupId={null}
         nextNumber={4}
         placing={false}
+        onPlacementGroupChange={noop}
         onStartPlacement={noop}
         onSelect={noop}
         onChange={noop}
@@ -154,6 +160,49 @@ describe('RowMarkersPanel guide options', () => {
     expect(markup).toContain('aria-label="Выбрать ряд 3" disabled=""')
   })
 
+  it('lets the placement tool choose a specific numbering group and shows each next number', () => {
+    const markers: RowMarker[] = [
+      { id: 'red-0', number: 0, x: 0, y: 0, groupId: 'red', startAtZero: true, color: '#cc0000', visible: true },
+      { id: 'red-1', number: 1, x: 20, y: 0, groupId: 'red', startAtZero: true, color: '#cc0000', visible: true },
+      { id: 'blue-1', number: 1, x: 40, y: 0, groupId: 'blue', color: '#0055cc', visible: true },
+    ]
+    const markup = renderToStaticMarkup(
+      <RowMarkersPanel
+        locale="ru"
+        markers={markers}
+        guides={[]}
+        selectedId={null}
+        nextNumber={2}
+        placementGroupId="red"
+        placing={false}
+        onPlacementGroupChange={noop}
+        onStartPlacement={noop}
+        onSelect={noop}
+        onChange={noop}
+        onAttachGuide={noop}
+        onDetachGuide={noop}
+        onAssignGroup={noop}
+        onCreateGroup={noop}
+        onAssignGroupMany={noop}
+        onCreateGroupMany={noop}
+        onGroupStartAtZeroChange={noop}
+        onDelete={noop}
+        guideLabel={() => 'Направляющая'}
+      />,
+    )
+
+    expect(markup).toContain('Группа для нового маркера')
+    expect((markup.match(/data-testid="row-marker-placement-group"/g) ?? [])).toHaveLength(3)
+    expect(markup).toContain('Группа 1')
+    expect(markup).toContain('Группа 2')
+    expect(markup).toContain('№2')
+    expect(markup).toContain('Поставить Группа 1 · ряд №2')
+    expect(markup).toContain('style="color:#cc0000"')
+    expect(markup).toContain('style="color:#0055cc"')
+    expect(markup).toContain('title="Счёт этой группы начинается с 0"')
+    expect(markup).toContain('с 0')
+  })
+
   it('shows numbering group controls and zero-based mode', () => {
     const markers: RowMarker[] = [
       { id: 'a-0', number: 0, x: 0, y: 0, groupId: 'group-a', startAtZero: true, visible: true },
@@ -165,8 +214,10 @@ describe('RowMarkersPanel guide options', () => {
         markers={markers}
         guides={[]}
         selectedId="a-0"
+        placementGroupId={null}
         nextNumber={1}
         placing={false}
+        onPlacementGroupChange={noop}
         onStartPlacement={noop}
         onSelect={noop}
         onChange={noop}
