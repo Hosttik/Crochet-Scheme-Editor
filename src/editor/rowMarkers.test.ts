@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GridGuide, LineGuide, RadialGridGuide, RowMarker } from '../types'
 import {
+  assignRowMarkerToGroup,
   attachRowMarkerToDefaultGuide,
   attachRowMarkerToGuide,
   deleteRowMarkerAndRenumber,
@@ -12,7 +13,10 @@ import {
   normalizedRowMarkerSize,
   reconcileRowMarkerAttachments,
   remapRowMarkerAttachmentsForReversedGuide,
+  rowMarkerGroupIds,
+  rowMarkerGroupStartsAtZero,
   rowMarkerLabelGeometry,
+  setRowMarkerGroupStartAtZero,
 } from './rowMarkers'
 
 function marker(number: number): RowMarker {
@@ -20,7 +24,7 @@ function marker(number: number): RowMarker {
 }
 
 describe('row marker numbering', () => {
-  it('uses the first missing positive number', () => {
+  it('uses the first missing number in the active numbering group', () => {
     expect(nextRowMarkerNumber([marker(1), marker(2), marker(4)])).toBe(3)
     expect(nextRowMarkerNumber([marker(2), marker(3)])).toBe(1)
     expect(nextRowMarkerNumber([marker(1), marker(2), marker(3)])).toBe(4)
@@ -33,9 +37,59 @@ describe('row marker numbering', () => {
     expect(next.map((item) => item.id)).toEqual(['row-1', 'row-3', 'row-4'])
   })
 
-  it('normalizes manual row numbers to positive integers', () => {
+  it('normalizes manual row numbers to non-negative integers', () => {
     expect(normalizedRowMarkerNumber(2.6)).toBe(3)
-    expect(normalizedRowMarkerNumber(-4)).toBe(1)
+    expect(normalizedRowMarkerNumber(-4)).toBe(0)
+  })
+
+  it('keeps numbering independent between marker groups and supports zero-based groups', () => {
+    const rows: RowMarker[] = [
+      { ...marker(1), id: 'a-0', number: 0, groupId: 'a', startAtZero: true },
+      { ...marker(1), id: 'a-1', number: 1, groupId: 'a', startAtZero: true },
+      { ...marker(1), id: 'b-1', number: 1, groupId: 'b' },
+      { ...marker(2), id: 'plain-2', number: 2 },
+    ]
+    expect(rowMarkerGroupIds(rows)).toEqual(['a', 'b'])
+    expect(rowMarkerGroupStartsAtZero(rows, 'a')).toBe(true)
+    expect(nextRowMarkerNumber(rows, 'a')).toBe(2)
+    expect(nextRowMarkerNumber(rows, 'b')).toBe(2)
+    expect(nextRowMarkerNumber(rows, null)).toBe(1)
+  })
+
+  it('moves a marker between groups and renumbers only affected groups', () => {
+    const rows: RowMarker[] = [
+      { ...marker(1), id: 'a-1', number: 1, groupId: 'a' },
+      { ...marker(2), id: 'a-2', number: 2, groupId: 'a' },
+      { ...marker(1), id: 'b-1', number: 1, groupId: 'b' },
+    ]
+    const moved = assignRowMarkerToGroup(rows, 'a-1', 'b')
+    expect(moved.find((item) => item.id === 'a-2')?.number).toBe(1)
+    expect(moved.find((item) => item.id === 'a-1')).toMatchObject({ groupId: 'b', number: 2 })
+    expect(moved.find((item) => item.id === 'b-1')?.number).toBe(1)
+  })
+
+  it('can renumber a complete group from zero without changing other groups', () => {
+    const rows: RowMarker[] = [
+      { ...marker(3), id: 'a-3', number: 3, groupId: 'a' },
+      { ...marker(7), id: 'a-7', number: 7, groupId: 'a' },
+      { ...marker(4), id: 'b-4', number: 4, groupId: 'b' },
+    ]
+    const next = setRowMarkerGroupStartAtZero(rows, 'a-3', true)
+    expect(next.filter((item) => item.groupId === 'a').map((item) => item.number)).toEqual([0, 1])
+    expect(next.filter((item) => item.groupId === 'a').every((item) => item.startAtZero === true)).toBe(true)
+    expect(next.find((item) => item.id === 'b-4')?.number).toBe(4)
+  })
+
+  it('deleting a marker closes the numbering gap only inside its group', () => {
+    const rows: RowMarker[] = [
+      { ...marker(0), id: 'a-0', number: 0, groupId: 'a', startAtZero: true },
+      { ...marker(1), id: 'a-1', number: 1, groupId: 'a', startAtZero: true },
+      { ...marker(2), id: 'a-2', number: 2, groupId: 'a', startAtZero: true },
+      { ...marker(1), id: 'b-1', number: 1, groupId: 'b' },
+    ]
+    const next = deleteRowMarkerAndRenumber(rows, 'a-1')
+    expect(next.filter((item) => item.groupId === 'a').map((item) => item.number)).toEqual([0, 1])
+    expect(next.find((item) => item.id === 'b-1')?.number).toBe(1)
   })
 })
 
