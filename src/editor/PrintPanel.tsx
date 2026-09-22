@@ -172,7 +172,7 @@ export function PrintPanel({ locale, bounds, legendBounds, onPrint }: Props) {
         )}
 
         <label>
-          <span>{autoScale ? (ru ? 'Масштаб · авто' : 'Scale · auto') : (ru ? 'Масштаб' : 'Scale')}</span>
+          <span>{autoScale ? (ru ? 'Итоговый масштаб · авто' : 'Resolved scale · auto') : (ru ? 'Масштаб' : 'Scale')}</span>
           <input
             data-testid="print-scale"
             type="number"
@@ -184,6 +184,40 @@ export function PrintPanel({ locale, bounds, legendBounds, onPrint }: Props) {
             onChange={(event) => patch({ scalePercent: Number(event.target.value) || 100 })}
           />
           <small>%</small>
+        </label>
+
+        {autoScale && (
+          <label>
+            <span>{ru ? 'Заполнение листа' : 'Page fill'}</span>
+            <input
+              data-testid="print-page-fill"
+              type="number"
+              min="25"
+              max="100"
+              step="5"
+              value={settings.pageFillPercent}
+              onChange={(event) => patch({
+                pageFillPercent: Math.max(25, Math.min(100, Number(event.target.value) || 100)),
+              })}
+            />
+            <small>%</small>
+          </label>
+        )}
+
+        <label>
+          <span>{ru ? 'Поля страницы' : 'Page margins'}</span>
+          <input
+            data-testid="print-margin"
+            type="number"
+            min="0"
+            max="30"
+            step="1"
+            value={settings.marginMm}
+            onChange={(event) => patch({
+              marginMm: Math.max(0, Math.min(30, Number(event.target.value) || 0)),
+            })}
+          />
+          <small>mm</small>
         </label>
 
         <label>
@@ -205,15 +239,15 @@ export function PrintPanel({ locale, bounds, legendBounds, onPrint }: Props) {
       {settings.mode === 'fit-one' && (
         <small className="muted-text print-mode-hint">
           {ru
-            ? `Редактор автоматически выбрал: ${orientationLabel}, масштаб ${scaleLabel(layout.resolvedScalePercent)}%.`
-            : `Automatically selected: ${orientationLabel}, ${scaleLabel(layout.resolvedScalePercent)}% scale.`}
+            ? `Редактор автоматически выбрал: ${orientationLabel}, итоговый масштаб ${scaleLabel(layout.resolvedScalePercent)}%. Заполнение 100% — максимальный размер без обрезки.`
+            : `Automatically selected: ${orientationLabel}, ${scaleLabel(layout.resolvedScalePercent)}% resolved scale. 100% page fill is the largest size without cropping.`}
         </small>
       )}
       {settings.mode === 'fixed-grid' && (
         <small className="muted-text print-mode-hint">
           {ru
-            ? `Схема будет автоматически масштабирована ровно на ${settings.pageColumns} × ${settings.pageRows} листов.`
-            : `The chart will be scaled to exactly ${settings.pageColumns} × ${settings.pageRows} pages.`}
+            ? `Схема будет размещена на ${settings.pageColumns} × ${settings.pageRows} листах. Заполнение листа позволяет сделать её меньше, сохраняя выбранную сетку страниц.`
+            : `The chart will use a ${settings.pageColumns} × ${settings.pageRows} page grid. Page fill can make it smaller while keeping that grid.`}
         </small>
       )}
 
@@ -331,12 +365,12 @@ export function PrintPanel({ locale, bounds, legendBounds, onPrint }: Props) {
           : `${layout.columns} × ${layout.rows} pages · ${layout.tiles.length} total · ${orientationLabel} · ${scaleLabel(layout.resolvedScalePercent)}% scale${!singlePage ? ` · ${settings.overlapMm} mm overlap` : ''}${legendHostIndex >= 0 ? ` · legend: page ${legendHostIndex + 1}` : ''}`}
       </p>
       <button className="primary-button print-button" onClick={() => onPrint(settings)}>
-        {ru ? 'Открыть печать' : 'Open print view'}
+        {ru ? 'Открыть PDF / печать' : 'Open PDF / print'}
       </button>
       <small className="muted-text">
         {ru
-          ? 'Предпросмотр показывает реальное разбиение. В диалоге браузера оставьте масштаб 100% — редактор уже учитывает выбранный режим и число листов.'
-          : 'The preview shows the actual page split. Keep the browser print dialog at 100% — the editor already accounts for the selected mode and page count.'}
+          ? 'PDF формируется из векторного SVG без потери качества. В системном диалоге выберите «Сохранить как PDF» и оставьте масштаб 100% — размер, поля и разбиение уже рассчитаны редактором.'
+          : 'The PDF is produced from vector SVG without quality loss. Choose “Save as PDF” in the system dialog and keep its scale at 100% — size, margins, and tiling are already calculated by the editor.'}
       </small>
     </section>
   )
