@@ -21,21 +21,7 @@ type Props = {
   onAttachGuide: (id: string, guideId: string) => void
   onDetachGuide: (id: string) => void
   onDelete: (id: string) => void
-}
-
-function guideName(guide: Guide, ru: boolean, index: number) {
-  const name = guide.type === 'arc'
-    ? ru ? 'Дуга' : 'Arc'
-    : guide.type === 'line'
-      ? ru ? 'Линия' : 'Line'
-      : guide.type === 'curve'
-        ? ru ? 'Кривая' : 'Curve'
-        : guide.type === 'parabola'
-          ? ru ? 'Парабола' : 'Parabola'
-          : guide.type === 'grid'
-            ? ru ? 'Сетка' : 'Grid'
-            : ru ? 'Радиальная сетка' : 'Radial grid'
-  return `${index + 1}. ${name}`
+  guideLabel: (guide: Guide) => string
 }
 
 export function RowMarkersPanel({
@@ -51,9 +37,9 @@ export function RowMarkersPanel({
   onAttachGuide,
   onDetachGuide,
   onDelete,
+  guideLabel,
 }: Props) {
   const selected = markers.find((marker) => marker.id === selectedId) ?? null
-  const markerGuides = guides.slice().reverse()
   const ru = locale === 'ru'
 
   return (
@@ -69,8 +55,8 @@ export function RowMarkersPanel({
       </button>
       <small className="muted-text">
         {ru
-          ? 'Размер, направление номера и цвет запоминаются для следующих маркеров. Выбранный маркер можно привязать к направляющей.'
-          : 'Size, label direction, and color are remembered for new markers. A selected marker can also be attached to a guide.'}
+          ? 'Размер, направление, цвет и выбранная направляющая используются для следующих маркеров, пока их не изменить.'
+          : 'Size, direction, color, and the selected guide are reused for new markers until changed.'}
       </small>
 
       {markers.length > 0 && (
@@ -172,8 +158,8 @@ export function RowMarkersPanel({
               }}
             >
               <option value="">{ru ? 'Без привязки' : 'Not attached'}</option>
-              {markerGuides.map((guide, index) => (
-                <option key={guide.id} value={guide.id}>{guideName(guide, ru, index)}</option>
+              {guides.map((guide, index) => (
+                <option key={guide.id} value={guide.id}>{index + 1}. {guideLabel(guide)}</option>
               ))}
             </select>
           </label>

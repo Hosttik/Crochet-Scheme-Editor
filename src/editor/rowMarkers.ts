@@ -358,6 +358,16 @@ function markerFromAttachment(
   }
 }
 
+export function attachRowMarkerToDefaultGuide(
+  marker: RowMarker,
+  guides: Guide[],
+  guideId: string | null,
+): RowMarker {
+  if (!guideId) return marker
+  const guide = guides.find((candidate) => candidate.id === guideId)
+  return guide ? attachRowMarkerToGuide(marker, guide) : marker
+}
+
 export function attachRowMarkerToGuide(marker: RowMarker, guide: Guide): RowMarker {
   let attachment: RowMarkerGuideAttachment
   if (isPathGuide(guide)) {

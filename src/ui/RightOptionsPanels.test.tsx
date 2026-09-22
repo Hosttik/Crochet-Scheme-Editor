@@ -63,6 +63,7 @@ function createProps(locale: 'ru' | 'en' = 'en'): RightOptionsPanelsProps {
       onAttachGuide: noop,
       onDetachGuide: noop,
       onDelete: noop,
+      guideLabel: () => 'Guide',
     },
     legendPanelProps: {
       elements: [],

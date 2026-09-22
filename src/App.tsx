@@ -30,6 +30,7 @@ import { chainBundleLayout, createChainBundle, type ChainBundleCount } from './e
 import { buildTiledPrintHtml, parseLegendPrintBounds, parseSvgViewBox, type PrintSettings } from './editor/printLayout'
 import { usedLegendItems } from './editor/legend'
 import {
+  attachRowMarkerToDefaultGuide,
   attachRowMarkerToGuide,
   deleteRowMarkerAndRenumber,
   detachRowMarkerFromGuide,
@@ -467,6 +468,7 @@ function App() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectedGuideId, setSelectedGuideId] = useState<string | null>(null)
   const [selectedRowMarkerId, setSelectedRowMarkerId] = useState<string | null>(null)
+  const [rowMarkerDefaultGuideId, setRowMarkerDefaultGuideId] = useState<string | null>(null)
   const [selectedRulerId, setSelectedRulerId] = useState<string | null>(null)
   const [selectedTopologyParentId, setSelectedTopologyParentId] = useState<string | null>(null)
   const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT)
@@ -498,6 +500,12 @@ function App() {
   }, [hydrated, locale])
 
   useEffect(() => saveFavorites(favorites), [favorites])
+
+  useEffect(() => {
+    if (rowMarkerDefaultGuideId && !guides.some((guide) => guide.id === rowMarkerDefaultGuideId)) {
+      setRowMarkerDefaultGuideId(null)
+    }
+  }, [guides, rowMarkerDefaultGuideId])
 
   useEffect(() => {
     let cancelled = false
@@ -1565,7 +1573,7 @@ function App() {
     }
     if (tool.type === 'row-marker') {
       const preferences = loadAuthoringPreferences()
-      const marker: RowMarker = {
+      const baseMarker: RowMarker = {
         id: createId(),
         number: nextRowNumber,
         x: point.x,
@@ -1576,6 +1584,7 @@ function App() {
         visible: true,
         locked: false,
       }
+      const marker = attachRowMarkerToDefaultGuide(baseMarker, guides, rowMarkerDefaultGuideId)
       commitRowMarkers([...rowMarkers, marker])
       setSelectedRowMarkerId(marker.id)
       clearElementSelection()
@@ -2115,6 +2124,7 @@ function App() {
     if (!marker || isRowMarkerLocked(marker) || !guide) return
     const attached = attachRowMarkerToGuide(marker, guide)
     commitRowMarkers(rowMarkers.map((item) => item.id === id ? attached : item))
+    setRowMarkerDefaultGuideId(guideId)
     setStatus(locale === 'ru' ? 'Маркер привязан к направляющей' : 'Row marker attached to guide')
   }, [commitRowMarkers, guides, locale, rowMarkers])
 
@@ -2122,6 +2132,7 @@ function App() {
     const marker = rowMarkers.find((item) => item.id === id)
     if (!marker || isRowMarkerLocked(marker) || !marker.guideAttachment) return
     commitRowMarkers(rowMarkers.map((item) => item.id === id ? detachRowMarkerFromGuide(item) : item))
+    setRowMarkerDefaultGuideId(null)
     setStatus(locale === 'ru' ? 'Привязка маркера снята' : 'Row marker detached from guide')
   }, [commitRowMarkers, locale, rowMarkers])
 
@@ -2514,6 +2525,7 @@ function App() {
     clearElementSelection()
     setSelectedGuideId(null)
     setSelectedRowMarkerId(null)
+    setRowMarkerDefaultGuideId(null)
     setSelectedRulerId(null)
     setRulerDraft(null)
     setRulerDrag(null)
@@ -2686,6 +2698,7 @@ function App() {
       clearElementSelection()
       setSelectedGuideId(null)
       setSelectedRowMarkerId(null)
+      setRowMarkerDefaultGuideId(null)
       setSelectedRulerId(null)
       setRulerDraft(null)
       setRulerDrag(null)
@@ -3316,6 +3329,7 @@ function App() {
             onAttachGuide: attachRowMarkerGuide,
             onDetachGuide: detachRowMarkerGuide,
             onDelete: deleteRowMarker,
+            guideLabel: (guide) => guideLabel(guide, locale),
           }}
           legendPanelProps={{
             elements,
