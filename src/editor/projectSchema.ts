@@ -11,6 +11,7 @@ import type {
   RowProgram,
   RowMarker,
   RowMarkerGuideAttachment,
+  RowMarkerGuideTrack,
   SnappingSettings,
   StitchElement,
   StitchGeometry,
@@ -297,10 +298,20 @@ function parseRowMarkerGuideAttachment(value: unknown): RowMarkerGuideAttachment
     !finite(value.t) || value.t < 0 || value.t > 1 ||
     !finite(value.normalOffset)
   ) throw new ProjectValidationError('Invalid row marker guide attachment')
+
+  const track = value.track
+  const validTrack = track === undefined || ['row', 'column', 'ring', 'sector'].includes(String(track))
+  const validTrackIndex = track === undefined
+    ? value.trackIndex === undefined
+    : finite(value.trackIndex) && Number.isInteger(value.trackIndex) && value.trackIndex >= 0
+  if (!validTrack || !validTrackIndex) throw new ProjectValidationError('Invalid row marker guide attachment')
+
   return {
     guideId: value.guideId,
     t: value.t,
     normalOffset: value.normalOffset,
+    track: track as RowMarkerGuideTrack | undefined,
+    trackIndex: value.trackIndex as number | undefined,
   }
 }
 
