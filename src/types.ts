@@ -252,6 +252,10 @@ export type RowMarker = {
   number: number
   x: number
   y: number
+  /** Optional independent numbering group. Markers without a group share the default sequence. */
+  groupId?: string
+  /** When true, this marker's numbering group starts at zero instead of one. */
+  startAtZero?: boolean
   /** Overall dot/label scale. Legacy markers default to 1. */
   size?: number
   /** Direction from the marker dot to the upright number label, in degrees. Legacy markers default to 0 (right). */

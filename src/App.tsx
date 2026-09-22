@@ -30,6 +30,7 @@ import { chainBundleLayout, createChainBundle, type ChainBundleCount } from './e
 import { buildTiledPrintHtml, parseLegendPrintBounds, parseSvgViewBox, type PrintSettings } from './editor/printLayout'
 import { usedLegendItems } from './editor/legend'
 import {
+  assignRowMarkerToGroup,
   attachRowMarkerToDefaultGuide,
   attachRowMarkerToGuide,
   deleteRowMarkerAndRenumber,
@@ -42,8 +43,10 @@ import {
   normalizedRowMarkerSize,
   reconcileRowMarkerAttachments,
   remapRowMarkerAttachmentsForReversedGuide,
+  rowMarkerGroupStartsAtZero,
   rowMarkerLabelGeometry,
   rowMarkerVisualBounds,
+  setRowMarkerGroupStartAtZero,
 } from './editor/rowMarkers'
 import type { GuideManipulationMode } from './editor/guideManipulation'
 import { fitLineGuideToRect, reverseGuide } from './editor/guideGeometry'
@@ -469,6 +472,7 @@ function App() {
   const [selectedGuideId, setSelectedGuideId] = useState<string | null>(null)
   const [selectedRowMarkerId, setSelectedRowMarkerId] = useState<string | null>(null)
   const [rowMarkerDefaultGuideId, setRowMarkerDefaultGuideId] = useState<string | null>(null)
+  const [rowMarkerDefaultGroupId, setRowMarkerDefaultGroupId] = useState<string | null>(null)
   const [selectedRulerId, setSelectedRulerId] = useState<string | null>(null)
   const [selectedTopologyParentId, setSelectedTopologyParentId] = useState<string | null>(null)
   const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT)
@@ -506,6 +510,15 @@ function App() {
       setRowMarkerDefaultGuideId(null)
     }
   }, [guides, rowMarkerDefaultGuideId])
+
+  useEffect(() => {
+    if (
+      rowMarkerDefaultGroupId &&
+      !rowMarkers.some((marker) => marker.groupId === rowMarkerDefaultGroupId)
+    ) {
+      setRowMarkerDefaultGroupId(null)
+    }
+  }, [rowMarkerDefaultGroupId, rowMarkers])
 
   useEffect(() => {
     let cancelled = false
@@ -626,7 +639,14 @@ function App() {
   useEffect(() => {
     if (selectedRulerId && !selectedRuler) setSelectedRulerId(null)
   }, [selectedRuler, selectedRulerId])
-  const nextRowNumber = useMemo(() => nextRowMarkerNumber(rowMarkers), [rowMarkers])
+  const nextRowNumber = useMemo(
+    () => nextRowMarkerNumber(
+      rowMarkers,
+      rowMarkerDefaultGroupId,
+      rowMarkerGroupStartsAtZero(rowMarkers, rowMarkerDefaultGroupId),
+    ),
+    [rowMarkerDefaultGroupId, rowMarkers],
+  )
   const selectedParametricRow = useMemo(
     () => parametricRowFromSelection(elements, selectedIds),
     [elements, selectedIds],
@@ -1573,11 +1593,14 @@ function App() {
     }
     if (tool.type === 'row-marker') {
       const preferences = loadAuthoringPreferences()
+      const groupStartAtZero = rowMarkerGroupStartsAtZero(rowMarkers, rowMarkerDefaultGroupId)
       const baseMarker: RowMarker = {
         id: createId(),
         number: nextRowNumber,
         x: point.x,
         y: point.y,
+        groupId: rowMarkerDefaultGroupId ?? undefined,
+        startAtZero: groupStartAtZero,
         size: normalizedRowMarkerSize(preferences.rowMarkerSize),
         labelAngle: normalizedRowMarkerLabelAngle(preferences.rowMarkerLabelAngle),
         color: normalizedRowMarkerColor(preferences.rowMarkerColor),
@@ -2098,8 +2121,12 @@ function App() {
     const current = rowMarkers.find((marker) => marker.id === id)
     if (!current) return
     const nextNumber = patch.number === undefined ? current.number : normalizedRowMarkerNumber(patch.number)
-    if (rowMarkers.some((marker) => marker.id !== id && marker.number === nextNumber)) {
-      setStatus(locale === 'ru' ? `Ряд №${nextNumber} уже существует` : `Row #${nextNumber} already exists`)
+    if (rowMarkers.some((marker) =>
+      marker.id !== id &&
+      marker.number === nextNumber &&
+      (marker.groupId ?? null) === (current.groupId ?? null)
+    )) {
+      setStatus(locale === 'ru' ? `Ряд №${nextNumber} уже существует в этой группе` : `Row #${nextNumber} already exists in this group`)
       return
     }
     const normalizedPatch: Partial<RowMarker> = { ...patch }
@@ -2116,6 +2143,35 @@ function App() {
       saveAuthoringPreferences({ rowMarkerColor: normalizedPatch.color })
     }
     commitRowMarkers(rowMarkers.map((marker) => marker.id === id ? { ...marker, ...normalizedPatch, number: nextNumber } : marker))
+  }, [commitRowMarkers, locale, rowMarkers])
+
+  const assignRowMarkerGroup = useCallback((id: string, groupId: string | null) => {
+    const marker = rowMarkers.find((item) => item.id === id)
+    if (!marker || isRowMarkerLocked(marker)) return
+    commitRowMarkers(assignRowMarkerToGroup(rowMarkers, id, groupId))
+    setRowMarkerDefaultGroupId(groupId)
+    setStatus(locale === 'ru'
+      ? groupId ? 'Маркер добавлен в группу нумерации' : 'Маркер исключён из группы'
+      : groupId ? 'Row marker assigned to numbering group' : 'Row marker removed from numbering group')
+  }, [commitRowMarkers, locale, rowMarkers])
+
+  const createRowMarkerGroup = useCallback((id: string) => {
+    const marker = rowMarkers.find((item) => item.id === id)
+    if (!marker || isRowMarkerLocked(marker)) return
+    const groupId = createId()
+    commitRowMarkers(assignRowMarkerToGroup(rowMarkers, id, groupId, marker.startAtZero === true))
+    setRowMarkerDefaultGroupId(groupId)
+    setStatus(locale === 'ru' ? 'Создана новая группа маркеров' : 'Created new row marker group')
+  }, [commitRowMarkers, locale, rowMarkers])
+
+  const setRowMarkerStartAtZero = useCallback((id: string, enabled: boolean) => {
+    const marker = rowMarkers.find((item) => item.id === id)
+    if (!marker || isRowMarkerLocked(marker)) return
+    commitRowMarkers(setRowMarkerGroupStartAtZero(rowMarkers, id, enabled))
+    setRowMarkerDefaultGroupId(marker.groupId ?? null)
+    setStatus(locale === 'ru'
+      ? enabled ? 'Нумерация группы начинается с 0' : 'Нумерация группы начинается с 1'
+      : enabled ? 'Group numbering starts at 0' : 'Group numbering starts at 1')
   }, [commitRowMarkers, locale, rowMarkers])
 
   const attachRowMarkerGuide = useCallback((id: string, guideId: string) => {
@@ -2526,6 +2582,7 @@ function App() {
     setSelectedGuideId(null)
     setSelectedRowMarkerId(null)
     setRowMarkerDefaultGuideId(null)
+    setRowMarkerDefaultGroupId(null)
     setSelectedRulerId(null)
     setRulerDraft(null)
     setRulerDrag(null)
@@ -2699,6 +2756,7 @@ function App() {
       setSelectedGuideId(null)
       setSelectedRowMarkerId(null)
       setRowMarkerDefaultGuideId(null)
+      setRowMarkerDefaultGroupId(null)
       setSelectedRulerId(null)
       setRulerDraft(null)
       setRulerDrag(null)
@@ -3328,6 +3386,9 @@ function App() {
             onChange: updateRowMarker,
             onAttachGuide: attachRowMarkerGuide,
             onDetachGuide: detachRowMarkerGuide,
+            onAssignGroup: assignRowMarkerGroup,
+            onCreateGroup: createRowMarkerGroup,
+            onGroupStartAtZeroChange: setRowMarkerStartAtZero,
             onDelete: deleteRowMarker,
             guideLabel: (guide) => guideLabel(guide, locale),
           }}

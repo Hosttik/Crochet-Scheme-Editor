@@ -6,6 +6,7 @@ import {
   normalizedRowMarkerColor,
   normalizedRowMarkerLabelAngle,
   normalizedRowMarkerSize,
+  rowMarkerGroupIds,
 } from './rowMarkers'
 
 type Props = {
@@ -20,6 +21,9 @@ type Props = {
   onChange: (id: string, patch: Partial<RowMarker>) => void
   onAttachGuide: (id: string, guideId: string) => void
   onDetachGuide: (id: string) => void
+  onAssignGroup: (id: string, groupId: string | null) => void
+  onCreateGroup: (id: string) => void
+  onGroupStartAtZeroChange: (id: string, enabled: boolean) => void
   onDelete: (id: string) => void
   guideLabel: (guide: Guide) => string
 }
@@ -36,11 +40,19 @@ export function RowMarkersPanel({
   onChange,
   onAttachGuide,
   onDetachGuide,
+  onAssignGroup,
+  onCreateGroup,
+  onGroupStartAtZeroChange,
   onDelete,
   guideLabel,
 }: Props) {
   const selected = markers.find((marker) => marker.id === selectedId) ?? null
   const ru = locale === 'ru'
+  const groupIds = rowMarkerGroupIds(markers)
+  const groupLabel = (groupId: string) => {
+    const index = groupIds.indexOf(groupId)
+    return `${ru ? 'Группа' : 'Group'} ${index >= 0 ? index + 1 : groupIds.length + 1}`
+  }
 
   return (
     <div className="row-markers-panel">
@@ -55,15 +67,19 @@ export function RowMarkersPanel({
       </button>
       <small className="muted-text">
         {ru
-          ? 'Размер, направление, цвет и выбранная направляющая используются для следующих маркеров, пока их не изменить.'
-          : 'Size, direction, color, and the selected guide are reused for new markers until changed.'}
+          ? 'Размер, направление, цвет, группа и выбранная направляющая используются для следующих маркеров, пока их не изменить.'
+          : 'Size, direction, color, group, and the selected guide are reused for new markers until changed.'}
       </small>
 
       {markers.length > 0 && (
         <div className="row-marker-list">
           {markers
             .slice()
-            .sort((a, b) => a.number - b.number)
+            .sort((a, b) => {
+              const aGroup = a.groupId ? groupIds.indexOf(a.groupId) + 1 : 0
+              const bGroup = b.groupId ? groupIds.indexOf(b.groupId) + 1 : 0
+              return aGroup - bGroup || a.number - b.number
+            })
             .map((marker) => (
               <button key={marker.id} className={marker.id === selectedId ? 'active' : ''} onClick={() => onSelect(marker.id)}>
                 <span
@@ -73,6 +89,7 @@ export function RowMarkersPanel({
                   ●
                 </span>
                 <span>{ru ? 'Ряд' : 'Row'} {marker.number}</span>
+                {marker.groupId && <span className="muted-text">{groupLabel(marker.groupId)}</span>}
                 {marker.guideAttachment && <span aria-label={ru ? 'Привязан к направляющей' : 'Attached to guide'}>⌁</span>}
                 {isRowMarkerLocked(marker) && <span aria-label={ru ? 'Заблокирован' : 'Locked'}>🔒</span>}
               </button>
@@ -86,10 +103,41 @@ export function RowMarkersPanel({
             <span>{ru ? 'Номер' : 'Number'}</span>
             <DraftNumberInput
               value={selected.number}
-              min={1}
+              min={0}
               max={999}
               ariaLabel={ru ? 'Номер ряда' : 'Row number'}
-              onChange={(value) => onChange(selected.id, { number: Math.max(1, Math.round(value)) })}
+              onChange={(value) => onChange(selected.id, { number: Math.max(0, Math.round(value)) })}
+            />
+          </label>
+
+          <label className="number-field">
+            <span>{ru ? 'Группа нумерации' : 'Numbering group'}</span>
+            <select
+              value={selected.groupId ?? ''}
+              onChange={(event) => onAssignGroup(selected.id, event.target.value || null)}
+            >
+              <option value="">{ru ? 'Без группы' : 'No group'}</option>
+              {groupIds.map((groupId) => (
+                <option key={groupId} value={groupId}>{groupLabel(groupId)}</option>
+              ))}
+            </select>
+          </label>
+          <button type="button" onClick={() => onCreateGroup(selected.id)}>
+            {ru ? 'Создать новую группу' : 'Create new group'}
+          </button>
+          <label className="toggle-row compact-toggle">
+            <span>
+              <strong>{ru ? 'Начинать отсчёт с 0' : 'Start numbering at 0'}</strong>
+              <small>
+                {ru
+                  ? 'Перенумерует маркеры этой группы последовательно: 0, 1, 2…'
+                  : 'Renumbers this group sequentially: 0, 1, 2…'}
+              </small>
+            </span>
+            <input
+              type="checkbox"
+              checked={selected.startAtZero === true}
+              onChange={(event) => onGroupStartAtZeroChange(selected.id, event.target.checked)}
             />
           </label>
 

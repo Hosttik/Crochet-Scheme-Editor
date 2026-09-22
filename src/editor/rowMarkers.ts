@@ -35,30 +35,130 @@ function distanceSquared(left: Point, right: Point) {
   return (left.x - right.x) ** 2 + (left.y - right.y) ** 2
 }
 
-export function nextRowMarkerNumber(markers: RowMarker[]) {
+function rowMarkerGroupId(marker: RowMarker) {
+  return marker.groupId ?? null
+}
+
+function sameRowMarkerGroup(marker: RowMarker, groupId: string | null) {
+  return rowMarkerGroupId(marker) === groupId
+}
+
+export function rowMarkerGroupIds(markers: RowMarker[]) {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const marker of markers) {
+    if (!marker.groupId || seen.has(marker.groupId)) continue
+    seen.add(marker.groupId)
+    result.push(marker.groupId)
+  }
+  return result
+}
+
+export function rowMarkerGroupStartsAtZero(markers: RowMarker[], groupId: string | null) {
+  return markers.find((marker) => sameRowMarkerGroup(marker, groupId))?.startAtZero === true
+}
+
+export function nextRowMarkerNumber(
+  markers: RowMarker[],
+  groupId: string | null = null,
+  startAtZero = rowMarkerGroupStartsAtZero(markers, groupId),
+) {
+  const start = startAtZero ? 0 : 1
   const used = new Set(
     markers
+      .filter((marker) => sameRowMarkerGroup(marker, groupId))
       .map((marker) => Math.round(marker.number))
-      .filter((number) => Number.isFinite(number) && number > 0),
+      .filter((number) => Number.isFinite(number) && number >= start),
   )
-  let candidate = 1
+  let candidate = start
   while (used.has(candidate)) candidate += 1
   return candidate
+}
+
+function closeRowMarkerNumberGap(
+  markers: RowMarker[],
+  groupId: string | null,
+  removedNumber: number,
+) {
+  return markers.map((marker) =>
+    sameRowMarkerGroup(marker, groupId) && marker.number > removedNumber
+      ? { ...marker, number: marker.number - 1 }
+      : marker,
+  )
+}
+
+function renumberGroupSequentially(
+  markers: RowMarker[],
+  groupId: string | null,
+  startAtZero: boolean,
+) {
+  const members = markers
+    .map((marker, index) => ({ marker, index }))
+    .filter(({ marker }) => sameRowMarkerGroup(marker, groupId))
+    .sort((left, right) => left.marker.number - right.marker.number || left.index - right.index)
+  const start = startAtZero ? 0 : 1
+  const numberById = new Map(members.map(({ marker }, index) => [marker.id, start + index]))
+  return markers.map((marker) =>
+    sameRowMarkerGroup(marker, groupId)
+      ? { ...marker, number: numberById.get(marker.id) ?? marker.number, startAtZero }
+      : marker,
+  )
+}
+
+export function assignRowMarkerToGroup(
+  markers: RowMarker[],
+  id: string,
+  groupId: string | null,
+  targetStartAtZero?: boolean,
+) {
+  const current = markers.find((marker) => marker.id === id)
+  if (!current) return markers
+  const sourceGroupId = rowMarkerGroupId(current)
+  const targetHasMembers = markers.some((marker) =>
+    marker.id !== id && sameRowMarkerGroup(marker, groupId),
+  )
+  const startAtZero = targetStartAtZero
+    ?? (targetHasMembers ? rowMarkerGroupStartsAtZero(markers, groupId) : current.startAtZero === true)
+  const withoutCurrent = markers.filter((marker) => marker.id !== id)
+  const nextNumber = nextRowMarkerNumber(withoutCurrent, groupId, startAtZero)
+  if (sourceGroupId === groupId) return markers
+  const next = markers.map((marker) =>
+    marker.id === id
+      ? {
+          ...marker,
+          groupId: groupId ?? undefined,
+          startAtZero,
+          number: nextNumber,
+        }
+      : marker,
+  )
+  return closeRowMarkerNumberGap(next, sourceGroupId, current.number)
+}
+
+export function setRowMarkerGroupStartAtZero(
+  markers: RowMarker[],
+  id: string,
+  startAtZero: boolean,
+) {
+  const marker = markers.find((item) => item.id === id)
+  if (!marker) return markers
+  return renumberGroupSequentially(markers, rowMarkerGroupId(marker), startAtZero)
 }
 
 export function deleteRowMarkerAndRenumber(markers: RowMarker[], id: string) {
   const removed = markers.find((marker) => marker.id === id)
   if (!removed) return markers
-  return markers
-    .filter((marker) => marker.id !== id)
-    .map((marker) =>
-      marker.number > removed.number ? { ...marker, number: marker.number - 1 } : marker,
-    )
+  const groupId = rowMarkerGroupId(removed)
+  return closeRowMarkerNumberGap(
+    markers.filter((marker) => marker.id !== id),
+    groupId,
+    removed.number,
+  )
 }
 
 export function normalizedRowMarkerNumber(value: number) {
-  if (!Number.isFinite(value)) return 1
-  return Math.max(1, Math.round(value))
+  if (!Number.isFinite(value)) return 0
+  return Math.max(0, Math.round(value))
 }
 
 export function normalizedRowMarkerSize(value: unknown) {
