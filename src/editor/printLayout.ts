@@ -1,10 +1,14 @@
 export type PrintPaper = 'a4' | 'letter'
 export type PrintOrientation = 'portrait' | 'landscape'
+export type PrintMode = 'actual-size' | 'fit-one' | 'fixed-grid'
 
 export type PrintSettings = {
   paper: PrintPaper
   orientation: PrintOrientation
+  mode: PrintMode
   scalePercent: number
+  pageColumns: number
+  pageRows: number
   overlapMm: number
   marginMm: number
   pageFrames: boolean
@@ -32,6 +36,8 @@ export type PrintLayout = {
   paperHeightMm: number
   printableWidthMm: number
   printableHeightMm: number
+  resolvedOrientation: PrintOrientation
+  resolvedScalePercent: number
   rows: number
   columns: number
   tiles: PrintTile[]
@@ -40,7 +46,10 @@ export type PrintLayout = {
 export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   paper: 'a4',
   orientation: 'portrait',
+  mode: 'actual-size',
   scalePercent: 100,
+  pageColumns: 2,
+  pageRows: 1,
   overlapMm: 5,
   marginMm: 10,
   pageFrames: true,
