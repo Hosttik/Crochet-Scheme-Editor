@@ -75,7 +75,11 @@ export function RowMarkersPanel({
         <div className="row-marker-list">
           {markers
             .slice()
-            .sort((a, b) => a.number - b.number)
+            .sort((a, b) => {
+              const aGroup = a.groupId ? groupIds.indexOf(a.groupId) + 1 : 0
+              const bGroup = b.groupId ? groupIds.indexOf(b.groupId) + 1 : 0
+              return aGroup - bGroup || a.number - b.number
+            })
             .map((marker) => (
               <button key={marker.id} className={marker.id === selectedId ? 'active' : ''} onClick={() => onSelect(marker.id)}>
                 <span
