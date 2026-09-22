@@ -30,6 +30,7 @@ import { chainBundleLayout, createChainBundle, type ChainBundleCount } from './e
 import { buildTiledPrintHtml, parseLegendPrintBounds, parseSvgViewBox, type PrintSettings } from './editor/printLayout'
 import { usedLegendItems } from './editor/legend'
 import {
+  attachRowMarkerToDefaultGuide,
   attachRowMarkerToGuide,
   deleteRowMarkerAndRenumber,
   detachRowMarkerFromGuide,
@@ -1583,10 +1584,7 @@ function App() {
         visible: true,
         locked: false,
       }
-      const defaultGuide = rowMarkerDefaultGuideId
-        ? guides.find((guide) => guide.id === rowMarkerDefaultGuideId)
-        : undefined
-      const marker = defaultGuide ? attachRowMarkerToGuide(baseMarker, defaultGuide) : baseMarker
+      const marker = attachRowMarkerToDefaultGuide(baseMarker, guides, rowMarkerDefaultGuideId)
       commitRowMarkers([...rowMarkers, marker])
       setSelectedRowMarkerId(marker.id)
       clearElementSelection()
