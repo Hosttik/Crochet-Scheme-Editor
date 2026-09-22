@@ -218,16 +218,48 @@ export function projectIntegrityIssue(project: CrochetProject, strictReferences 
     if (marker.labelAngle !== undefined && !bounded(marker.labelAngle)) return 'Row marker direction is out of bounds'
     if (marker.color !== undefined && !isStitchColor(marker.color)) return 'Row marker color is invalid'
     if (marker.guideAttachment) {
-      const guide = guideById.get(marker.guideAttachment.guideId)
-      if (guide && guide.type !== 'arc' && guide.type !== 'line' && guide.type !== 'curve' && guide.type !== 'parabola') {
-        return 'Row marker attachment references an incompatible guide'
-      }
+      const attachment = marker.guideAttachment
+      const guide = guideById.get(attachment.guideId)
       if (!guide && strictReferences) return 'Row marker attachment references an incompatible guide'
       if (
-        !Number.isFinite(marker.guideAttachment.t) ||
-        marker.guideAttachment.t < 0 || marker.guideAttachment.t > 1 ||
-        !bounded(marker.guideAttachment.normalOffset)
+        !Number.isFinite(attachment.t) ||
+        attachment.t < 0 || attachment.t > 1 ||
+        !bounded(attachment.normalOffset)
       ) return 'Row marker attachment is out of bounds'
+
+      if (guide) {
+        if (
+          (guide.type === 'arc' || guide.type === 'line' || guide.type === 'curve' || guide.type === 'parabola') &&
+          (attachment.track !== undefined || attachment.trackIndex !== undefined)
+        ) return 'Row marker attachment references an incompatible guide'
+
+        if (guide.type === 'grid') {
+          if (
+            (attachment.track !== 'row' && attachment.track !== 'column') ||
+            !Number.isInteger(attachment.trackIndex)
+          ) return 'Row marker attachment references an incompatible guide'
+          const trackIndex = attachment.trackIndex as number
+          const trackCount = attachment.track === 'row'
+            ? Math.max(1, Math.round(guide.rows))
+            : Math.max(1, Math.round(guide.columns))
+          if (trackIndex < 0 || trackIndex >= trackCount) return 'Row marker attachment is out of bounds'
+        }
+
+        if (guide.type === 'radial-grid') {
+          if (
+            (attachment.track !== 'ring' && attachment.track !== 'sector') ||
+            !Number.isInteger(attachment.trackIndex)
+          ) return 'Row marker attachment references an incompatible guide'
+          const trackIndex = attachment.trackIndex as number
+          if (attachment.track === 'ring') {
+            const ringCount = Math.max(1, Math.round(guide.ringCount))
+            if (trackIndex < 1 || trackIndex > ringCount) return 'Row marker attachment is out of bounds'
+          } else {
+            const sectorCount = Math.max(2, Math.round(guide.sectorCount))
+            if (trackIndex < 0 || trackIndex >= sectorCount) return 'Row marker attachment is out of bounds'
+          }
+        }
+      }
     }
   }
   const background = project.backgroundImage
