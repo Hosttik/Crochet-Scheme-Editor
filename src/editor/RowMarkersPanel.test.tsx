@@ -6,7 +6,7 @@ import { RowMarkersPanel } from './RowMarkersPanel'
 const noop = () => undefined
 
 describe('RowMarkersPanel guide options', () => {
-  it('shows every guide type and puts the newest guide first', () => {
+  it('uses the same guide order, numbering and labels as the main guide list', () => {
     const marker: RowMarker = {
       id: 'marker-1',
       number: 1,
@@ -51,12 +51,12 @@ describe('RowMarkersPanel guide options', () => {
         onAttachGuide={noop}
         onDetachGuide={noop}
         onDelete={noop}
+        guideLabel={(guide) => guide.type === 'line' ? 'Линия' : 'Прямоугольная сетка'}
       />,
     )
 
-    expect(markup).toContain('value="new-grid"')
-    expect(markup).toContain('value="old-line"')
-    expect(markup).toContain('Сетка')
-    expect(markup.indexOf('value="new-grid"')).toBeLessThan(markup.indexOf('value="old-line"'))
+    expect(markup).toContain('<option value="old-line">1. Линия</option>')
+    expect(markup).toContain('<option value="new-grid">2. Прямоугольная сетка</option>')
+    expect(markup.indexOf('value="old-line"')).toBeLessThan(markup.indexOf('value="new-grid"'))
   })
 })
