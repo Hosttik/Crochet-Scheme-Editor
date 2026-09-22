@@ -6,8 +6,10 @@ import {
   isRowMarkerVisible,
   normalizedRowMarkerColor,
   normalizedRowMarkerLabelAngle,
+  nextRowMarkerNumber,
   normalizedRowMarkerSize,
   rowMarkerGroupIds,
+  rowMarkerGroupStartsAtZero,
 } from './rowMarkers'
 
 type Props = {
@@ -16,7 +18,9 @@ type Props = {
   guides: Guide[]
   selectedId: string | null
   nextNumber: number
+  placementGroupId: string | null
   placing: boolean
+  onPlacementGroupChange: (groupId: string | null) => void
   onStartPlacement: () => void
   onSelect: (id: string) => void
   onChange: (id: string, patch: Partial<RowMarker>) => void
@@ -37,7 +41,9 @@ export function RowMarkersPanel({
   guides,
   selectedId,
   nextNumber,
+  placementGroupId,
   placing,
+  onPlacementGroupChange,
   onStartPlacement,
   onSelect,
   onChange,
@@ -58,6 +64,30 @@ export function RowMarkersPanel({
     const index = groupIds.indexOf(groupId)
     return `${ru ? 'Группа' : 'Group'} ${index >= 0 ? index + 1 : groupIds.length + 1}`
   }
+  const placementOptions = [
+    {
+      id: null as string | null,
+      label: ru ? 'Без группы' : 'No group',
+      color: normalizedRowMarkerColor(
+        markers.filter((marker) => !marker.groupId).at(-1)?.color,
+      ),
+      nextNumber: nextRowMarkerNumber(markers, null, rowMarkerGroupStartsAtZero(markers, null)),
+      startAtZero: rowMarkerGroupStartsAtZero(markers, null),
+    },
+    ...groupIds.map((groupId) => {
+      const groupMarkers = markers.filter((marker) => marker.groupId === groupId)
+      const startAtZero = rowMarkerGroupStartsAtZero(markers, groupId)
+      return {
+        id: groupId,
+        label: groupLabel(groupId),
+        color: normalizedRowMarkerColor(groupMarkers.at(-1)?.color),
+        nextNumber: nextRowMarkerNumber(markers, groupId, startAtZero),
+        startAtZero,
+      }
+    }),
+  ]
+  const activePlacementOption = placementOptions.find((option) => option.id === placementGroupId)
+    ?? placementOptions[0]
   const sortedMarkers = markers
     .slice()
     .sort((a, b) => {
@@ -109,9 +139,40 @@ export function RowMarkersPanel({
         <h2>{ru ? 'Нумерация рядов' : 'Row numbers'}</h2>
         <span className="muted-text">{markers.length}</span>
       </div>
-      <button className={`tool-button row-marker-tool ${placing ? 'active' : ''}`} onClick={onStartPlacement}>
-        <span className="row-marker-tool-dot">●</span>
-        {ru ? `Поставить ряд №${nextNumber}` : `Place row #${nextNumber}`}
+      {groupIds.length > 0 && (
+        <div className="row-marker-placement-group">
+          <span className="row-marker-editor-label">
+            {ru ? 'Группа для нового маркера' : 'Group for new marker'}
+          </span>
+          <div className="row-marker-placement-group-options" data-testid="row-marker-placement-groups">
+            {placementOptions.map((option) => (
+              <button
+                key={option.id ?? 'ungrouped'}
+                type="button"
+                data-testid="row-marker-placement-group"
+                className={option.id === placementGroupId ? 'active' : ''}
+                onClick={() => onPlacementGroupChange(option.id)}
+                title={option.startAtZero
+                  ? (ru ? 'Счёт этой группы начинается с 0' : 'This group starts at 0')
+                  : undefined}
+              >
+                <span className="row-marker-placement-group-dot" style={{ color: option.color }}>●</span>
+                <span>{option.label}</span>
+                <strong>№{option.nextNumber}</strong>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <button
+        className={`tool-button row-marker-tool ${placing ? 'active' : ''}`}
+        data-testid="row-marker-place-button"
+        onClick={onStartPlacement}
+      >
+        <span className="row-marker-tool-dot" style={{ color: activePlacementOption.color }}>●</span>
+        {ru
+          ? `Поставить ${groupIds.length ? `${activePlacementOption.label} · ` : ''}ряд №${nextNumber}`
+          : `Place ${groupIds.length ? `${activePlacementOption.label} · ` : ''}row #${nextNumber}`}
         <kbd>Esc</kbd>
       </button>
       <small className="muted-text">
