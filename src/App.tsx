@@ -31,6 +31,7 @@ import { buildTiledPrintHtml, parseLegendPrintBounds, parsePrintViewBox, type Pr
 import { usedLegendItems } from './editor/legend'
 import {
   assignRowMarkerToGroup,
+  assignRowMarkersToGroup,
   attachRowMarkerToDefaultGuide,
   attachRowMarkerToGuide,
   deleteRowMarkerAndRenumber,
@@ -2172,6 +2173,43 @@ function App() {
     setStatus(locale === 'ru' ? 'Создана новая группа маркеров' : 'Created new row marker group')
   }, [commitRowMarkers, locale, rowMarkers])
 
+  const assignRowMarkerGroupMany = useCallback((ids: string[], groupId: string | null) => {
+    const movableIds = ids.filter((id) => {
+      const marker = rowMarkers.find((item) => item.id === id)
+      return marker && !isRowMarkerLocked(marker)
+    })
+    if (!movableIds.length) return
+    commitRowMarkers(assignRowMarkersToGroup(rowMarkers, movableIds, groupId))
+    setRowMarkerDefaultGroupId(groupId)
+    setStatus(locale === 'ru'
+      ? groupId
+        ? `${movableIds.length} марк. перенесено в группу`
+        : `${movableIds.length} марк. исключено из групп`
+      : groupId
+        ? `${movableIds.length} markers assigned to group`
+        : `${movableIds.length} markers removed from groups`)
+  }, [commitRowMarkers, locale, rowMarkers])
+
+  const createRowMarkerGroupMany = useCallback((ids: string[]) => {
+    const movableIds = ids.filter((id) => {
+      const marker = rowMarkers.find((item) => item.id === id)
+      return marker && !isRowMarkerLocked(marker)
+    })
+    if (!movableIds.length) return
+    const groupId = createId()
+    const first = rowMarkers.find((marker) => marker.id === movableIds[0])
+    commitRowMarkers(assignRowMarkersToGroup(
+      rowMarkers,
+      movableIds,
+      groupId,
+      first?.startAtZero === true,
+    ))
+    setRowMarkerDefaultGroupId(groupId)
+    setStatus(locale === 'ru'
+      ? `Создана группа из ${movableIds.length} марк.`
+      : `Created a group with ${movableIds.length} markers`)
+  }, [commitRowMarkers, locale, rowMarkers])
+
   const setRowMarkerStartAtZero = useCallback((id: string, enabled: boolean) => {
     const marker = rowMarkers.find((item) => item.id === id)
     if (!marker || isRowMarkerLocked(marker)) return
@@ -3396,6 +3434,8 @@ function App() {
             onDetachGuide: detachRowMarkerGuide,
             onAssignGroup: assignRowMarkerGroup,
             onCreateGroup: createRowMarkerGroup,
+            onAssignGroupMany: assignRowMarkerGroupMany,
+            onCreateGroupMany: createRowMarkerGroupMany,
             onGroupStartAtZeroChange: setRowMarkerStartAtZero,
             onDelete: deleteRowMarker,
             guideLabel: (guide) => guideLabel(guide, locale),
