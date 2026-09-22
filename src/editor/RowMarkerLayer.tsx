@@ -1,6 +1,5 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { Guide, Point, RowMarker } from '../types'
-import { isPathGuide } from './pathGuides'
 import {
   isRowMarkerLocked,
   isRowMarkerVisible,
@@ -73,7 +72,7 @@ export function RowMarkerLayer({
       }
       const attachment = marker.guideAttachment
       const guide = attachment ? guides.find((item) => item.id === attachment.guideId) : undefined
-      previewMarker = attachment && guide && isPathGuide(guide)
+      previewMarker = attachment && guide
         ? moveAttachedRowMarker(marker, guide, target)
         : { ...marker, ...target }
       onMovePreview(previewMarker)
