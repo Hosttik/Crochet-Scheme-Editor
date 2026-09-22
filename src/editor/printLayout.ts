@@ -215,6 +215,16 @@ export function layoutPrintTiles(bounds: PrintBounds, rawSettings: PrintSettings
   }
 }
 
+export function parsePrintViewBox(markup: string): PrintBounds {
+  const match = markup.match(/data-print-view-box=["']\s*([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s*["']/)
+  if (!match) return parseSvgViewBox(markup)
+  const [, left, top, width, height] = match.map(Number)
+  if (![left, top, width, height].every(Number.isFinite) || width <= 0 || height <= 0) {
+    return parseSvgViewBox(markup)
+  }
+  return { left, top, width, height }
+}
+
 export function parseSvgViewBox(markup: string): PrintBounds {
   const match = markup.match(/viewBox=["']\s*([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s*["']/)
   if (!match) return { left: 0, top: 0, width: 640, height: 480 }
