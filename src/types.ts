@@ -235,10 +235,16 @@ export type RadialGridGuide = {
 
 export type Guide = ArcGuide | LineGuide | CurveGuide | ParabolaGuide | GridGuide | RadialGridGuide
 
+export type RowMarkerGuideTrack = 'row' | 'column' | 'ring' | 'sector'
+
 export type RowMarkerGuideAttachment = {
   guideId: string
   t: number
   normalOffset: number
+  /** Sub-track for grid/radial-grid guides. Omitted for path guides. */
+  track?: RowMarkerGuideTrack
+  /** Zero-based row/column/sector index, or one-based ring index. */
+  trackIndex?: number
 }
 
 export type RowMarker = {
