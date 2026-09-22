@@ -332,7 +332,7 @@ function parseRowMarker(value: unknown): RowMarker {
     x: value.x,
     y: value.y,
     groupId: value.groupId as string | undefined,
-    startAtZero: value.startAtZero === true,
+    startAtZero: value.startAtZero === true ? true : undefined,
     size: value.size as number | undefined,
     labelAngle: value.labelAngle as number | undefined,
     color: typeof value.color === 'string' ? value.color.toLowerCase() : undefined,
