@@ -105,8 +105,10 @@ test('shows print assembly order overlap registration marks and legend placement
   await openGlobalPanel(page, 'print-global-panel')
 
   const panel = page.getByTestId('print-panel')
-  await panel.getByTestId('print-scale').fill('400')
-  await expect.poll(async () => Number(await panel.getByTestId('print-page-count').textContent())).toBeGreaterThan(1)
+  await panel.getByTestId('print-mode').selectOption('fixed-grid')
+  await panel.getByTestId('print-page-columns').fill('2')
+  await panel.getByTestId('print-page-rows').fill('1')
+  await expect(panel.getByTestId('print-page-count')).toHaveText('2')
   await expect(panel.getByTestId('print-preview-overlap').first()).toBeAttached()
   await expect(panel.getByTestId('print-preview-registration-mark').first()).toBeAttached()
   await expect(panel.getByTestId('print-preview-assembly-arrow').first()).toBeAttached()
