@@ -102,9 +102,11 @@ export function assignRowMarkerToGroup(
   const current = markers.find((marker) => marker.id === id)
   if (!current) return markers
   const sourceGroupId = rowMarkerGroupId(current)
+  const targetHasMembers = markers.some((marker) =>
+    marker.id !== id && sameRowMarkerGroup(marker, groupId),
+  )
   const startAtZero = targetStartAtZero
-    ?? rowMarkerGroupStartsAtZero(markers, groupId)
-    ?? current.startAtZero === true
+    ?? (targetHasMembers ? rowMarkerGroupStartsAtZero(markers, groupId) : current.startAtZero === true)
   const withoutCurrent = markers.filter((marker) => marker.id !== id)
   const nextNumber = nextRowMarkerNumber(withoutCurrent, groupId, startAtZero)
   let next = markers.map((marker) =>
