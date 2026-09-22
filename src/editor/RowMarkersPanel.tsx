@@ -157,7 +157,12 @@ export function RowMarkersPanel({
                   : undefined}
               >
                 <span className="row-marker-placement-group-dot" style={{ color: option.color }}>●</span>
-                <span>{option.label}</span>
+                <span>
+                  {option.label}
+                  {option.startAtZero && (
+                    <small className="row-marker-placement-zero-badge">{ru ? 'с 0' : 'from 0'}</small>
+                  )}
+                </span>
                 <strong>№{option.nextNumber}</strong>
               </button>
             ))}
@@ -177,8 +182,8 @@ export function RowMarkersPanel({
       </button>
       <small className="muted-text">
         {ru
-          ? 'Размер, направление, цвет, группа и выбранная направляющая используются для следующих маркеров, пока их не изменить.'
-          : 'Size, direction, color, group, and the selected guide are reused for new markers until changed.'}
+          ? 'Перед постановкой выберите нужную группу. Её счётчик продолжится независимо от остальных; остальные параметры сохраняются как раньше.'
+          : 'Choose the target group before placing. Its numbering continues independently; the other marker settings remain sticky as before.'}
       </small>
 
       {markers.length > 0 && (
