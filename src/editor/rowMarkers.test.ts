@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { GridGuide, LineGuide, RadialGridGuide, RowMarker } from '../types'
 import {
   assignRowMarkerToGroup,
+  assignRowMarkersToGroup,
   attachRowMarkerToDefaultGuide,
   attachRowMarkerToGuide,
   deleteRowMarkerAndRenumber,
@@ -66,6 +67,33 @@ describe('row marker numbering', () => {
     expect(moved.find((item) => item.id === 'a-2')?.number).toBe(1)
     expect(moved.find((item) => item.id === 'a-1')).toMatchObject({ groupId: 'b', number: 2 })
     expect(moved.find((item) => item.id === 'b-1')?.number).toBe(1)
+  })
+
+  it('moves multiple selected markers into a new group atomically and preserves selection order', () => {
+    const rows: RowMarker[] = [
+      { ...marker(1), id: 'plain-1', number: 1 },
+      { ...marker(2), id: 'plain-2', number: 2 },
+      { ...marker(3), id: 'plain-3', number: 3 },
+      { ...marker(4), id: 'plain-4', number: 4 },
+    ]
+    const moved = assignRowMarkersToGroup(rows, ['plain-2', 'plain-4'], 'bulk')
+    expect(moved.find((item) => item.id === 'plain-2')).toMatchObject({ groupId: 'bulk', number: 1 })
+    expect(moved.find((item) => item.id === 'plain-4')).toMatchObject({ groupId: 'bulk', number: 2 })
+    expect(moved.filter((item) => !item.groupId).map((item) => item.number)).toEqual([1, 2])
+  })
+
+  it('appends a bulk selection to an existing group without renumbering existing members', () => {
+    const rows: RowMarker[] = [
+      { ...marker(1), id: 'a-1', number: 1, groupId: 'a' },
+      { ...marker(2), id: 'a-2', number: 2, groupId: 'a' },
+      { ...marker(1), id: 'plain-1', number: 1 },
+      { ...marker(2), id: 'plain-2', number: 2 },
+    ]
+    const moved = assignRowMarkersToGroup(rows, ['plain-2', 'plain-1'], 'a')
+    expect(moved.find((item) => item.id === 'a-1')?.number).toBe(1)
+    expect(moved.find((item) => item.id === 'a-2')?.number).toBe(2)
+    expect(moved.find((item) => item.id === 'plain-2')).toMatchObject({ groupId: 'a', number: 3 })
+    expect(moved.find((item) => item.id === 'plain-1')).toMatchObject({ groupId: 'a', number: 4 })
   })
 
   it('can renumber a complete group from zero without changing other groups', () => {
