@@ -1,6 +1,5 @@
 import type { Guide, RowMarker } from '../types'
 import { DraftNumberInput } from './DraftNumberInput'
-import { isPathGuide } from './pathGuides'
 import {
   isRowMarkerLocked,
   isRowMarkerVisible,
@@ -31,7 +30,11 @@ function guideName(guide: Guide, ru: boolean, index: number) {
       ? ru ? 'Линия' : 'Line'
       : guide.type === 'curve'
         ? ru ? 'Кривая' : 'Curve'
-        : ru ? 'Парабола' : 'Parabola'
+        : guide.type === 'parabola'
+          ? ru ? 'Парабола' : 'Parabola'
+          : guide.type === 'grid'
+            ? ru ? 'Сетка' : 'Grid'
+            : ru ? 'Радиальная сетка' : 'Radial grid'
   return `${index + 1}. ${name}`
 }
 
@@ -50,7 +53,7 @@ export function RowMarkersPanel({
   onDelete,
 }: Props) {
   const selected = markers.find((marker) => marker.id === selectedId) ?? null
-  const pathGuides = guides.filter(isPathGuide)
+  const markerGuides = guides.slice().reverse()
   const ru = locale === 'ru'
 
   return (
@@ -169,7 +172,7 @@ export function RowMarkersPanel({
               }}
             >
               <option value="">{ru ? 'Без привязки' : 'Not attached'}</option>
-              {pathGuides.map((guide, index) => (
+              {markerGuides.map((guide, index) => (
                 <option key={guide.id} value={guide.id}>{guideName(guide, ru, index)}</option>
               ))}
             </select>

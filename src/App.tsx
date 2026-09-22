@@ -2112,7 +2112,7 @@ function App() {
   const attachRowMarkerGuide = useCallback((id: string, guideId: string) => {
     const marker = rowMarkers.find((item) => item.id === id)
     const guide = guides.find((item) => item.id === guideId)
-    if (!marker || isRowMarkerLocked(marker) || !guide || !isPathGuide(guide)) return
+    if (!marker || isRowMarkerLocked(marker) || !guide) return
     const attached = attachRowMarkerToGuide(marker, guide)
     commitRowMarkers(rowMarkers.map((item) => item.id === id ? attached : item))
     setStatus(locale === 'ru' ? 'Маркер привязан к направляющей' : 'Row marker attached to guide')

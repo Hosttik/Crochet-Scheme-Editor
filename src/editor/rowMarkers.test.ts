@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { LineGuide, RowMarker } from '../types'
+import type { GridGuide, LineGuide, RadialGridGuide, RowMarker } from '../types'
 import {
   attachRowMarkerToGuide,
   deleteRowMarkerAndRenumber,
@@ -48,11 +48,14 @@ describe('row marker appearance and guide attachment', () => {
     expect(normalizedRowMarkerColor('#AABBCC')).toBe('#aabbcc')
     expect(normalizedRowMarkerColor('red')).toBe('#c2413b')
 
-    const layout = rowMarkerLabelGeometry({ ...marker(1), size: 2, labelAngle: 90 })
-    expect(layout.dotRadius).toBe(10)
-    expect(layout.fontSize).toBe(26)
-    expect(layout.textAnchor).toBe('middle')
-    expect(layout.y).toBeCloseTo(28, 6)
+    const below = rowMarkerLabelGeometry({ ...marker(1), size: 2, labelAngle: 90 })
+    expect(below.dotRadius).toBe(10)
+    expect(below.fontSize).toBe(26)
+    expect(below.textAnchor).toBe('middle')
+    expect(below.y - below.fontSize * 0.8).toBeCloseTo(below.dotRadius + 8, 6)
+
+    const above = rowMarkerLabelGeometry({ ...marker(12), size: 2, labelAngle: 270 })
+    expect(above.y + above.fontSize * 0.25).toBeCloseTo(-above.dotRadius - 8, 6)
   })
 
   it('attaches a marker to a line and slides it along that line', () => {
@@ -73,6 +76,48 @@ describe('row marker appearance and guide attachment', () => {
     expect(moved.x).toBeCloseTo(150, 2)
     expect(moved.y).toBeCloseTo(20, 6)
     expect(moved.guideAttachment?.t).toBeCloseTo(0.75, 2)
+  })
+
+  it('attaches to the nearest rectangular grid line and stays on that line while moving', () => {
+    const guide: GridGuide = {
+      id: 'grid',
+      type: 'grid',
+      origin: { x: 100, y: 100 },
+      rows: 3,
+      columns: 5,
+      spacingX: 20,
+      spacingY: 30,
+      rotation: 0,
+      visible: true,
+    }
+    const attached = attachRowMarkerToGuide({ ...marker(1), x: 118, y: 132 }, guide)
+    expect(attached.guideAttachment?.track).toBe('row')
+    expect(attached.guideAttachment?.trackIndex).toBe(2)
+    expect(attached.y).toBeCloseTo(130, 6)
+
+    const moved = moveAttachedRowMarker(attached, guide, { x: 155, y: 180 })
+    expect(moved.y).toBeCloseTo(130, 6)
+    expect(moved.x).toBeCloseTo(140, 6)
+  })
+
+  it('attaches to radial-grid tracks and follows radial-grid edits', () => {
+    const guide: RadialGridGuide = {
+      id: 'radial',
+      type: 'radial-grid',
+      center: { x: 0, y: 0 },
+      ringCount: 3,
+      ringSpacing: 20,
+      sectorCount: 8,
+      startAngle: 0,
+      visible: true,
+    }
+    const attached = attachRowMarkerToGuide({ ...marker(1), x: 42, y: 5 }, guide)
+    expect(['ring', 'sector']).toContain(attached.guideAttachment?.track)
+
+    const shifted: RadialGridGuide = { ...guide, center: { x: 50, y: 25 } }
+    const [followed] = reconcileRowMarkerAttachments([attached], [shifted])
+    expect(followed.x - shifted.center.x).toBeCloseTo(attached.x - guide.center.x, 5)
+    expect(followed.y - shifted.center.y).toBeCloseTo(attached.y - guide.center.y, 5)
   })
 
   it('follows guide edits and preserves world position when guide direction is reversed', () => {
