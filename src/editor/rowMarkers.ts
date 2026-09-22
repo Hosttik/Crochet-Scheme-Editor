@@ -135,6 +135,73 @@ export function assignRowMarkerToGroup(
   return closeRowMarkerNumberGap(next, sourceGroupId, current.number)
 }
 
+export function assignRowMarkersToGroup(
+  markers: RowMarker[],
+  ids: string[],
+  groupId: string | null,
+  targetStartAtZero?: boolean,
+) {
+  const movingIds = ids.filter((id) => {
+    const marker = markers.find((item) => item.id === id)
+    return marker && rowMarkerGroupId(marker) !== groupId
+  })
+  if (!movingIds.length) return markers
+
+  const sourceRemoved = new Map<string | null, number[]>()
+  for (const id of movingIds) {
+    const marker = markers.find((item) => item.id === id)
+    if (!marker) continue
+    const sourceGroupId = rowMarkerGroupId(marker)
+    const numbers = sourceRemoved.get(sourceGroupId) ?? []
+    numbers.push(marker.number)
+    sourceRemoved.set(sourceGroupId, numbers)
+  }
+
+  let next = markers
+  for (const [sourceGroupId, numbers] of sourceRemoved) {
+    for (const number of numbers.slice().sort((left, right) => right - left)) {
+      next = closeRowMarkerNumberGap(next, sourceGroupId, number)
+    }
+  }
+
+  const movingIdSet = new Set(movingIds)
+  const targetHasMembers = next.some((marker) =>
+    !movingIdSet.has(marker.id) && sameRowMarkerGroup(marker, groupId),
+  )
+  const firstMoving = movingIds
+    .map((id) => markers.find((marker) => marker.id === id))
+    .find((marker): marker is RowMarker => Boolean(marker))
+  const startAtZero = targetStartAtZero
+    ?? (targetHasMembers
+      ? rowMarkerGroupStartsAtZero(next, groupId)
+      : firstMoving?.startAtZero === true)
+
+  const targetUsed = new Set(
+    next
+      .filter((marker) => sameRowMarkerGroup(marker, groupId) && !movingIdSet.has(marker.id))
+      .map((marker) => marker.number),
+  )
+  let candidate = startAtZero ? 0 : 1
+  const numberById = new Map<string, number>()
+  for (const id of movingIds) {
+    while (targetUsed.has(candidate)) candidate += 1
+    numberById.set(id, candidate)
+    targetUsed.add(candidate)
+    candidate += 1
+  }
+
+  return next.map((marker) =>
+    numberById.has(marker.id)
+      ? {
+          ...marker,
+          groupId: groupId ?? undefined,
+          startAtZero,
+          number: numberById.get(marker.id) ?? marker.number,
+        }
+      : marker,
+  )
+}
+
 export function setRowMarkerGroupStartAtZero(
   markers: RowMarker[],
   id: string,

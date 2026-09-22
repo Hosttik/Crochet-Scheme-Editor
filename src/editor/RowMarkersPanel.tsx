@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { Guide, RowMarker } from '../types'
 import { DraftNumberInput } from './DraftNumberInput'
 import {
@@ -23,6 +24,8 @@ type Props = {
   onDetachGuide: (id: string) => void
   onAssignGroup: (id: string, groupId: string | null) => void
   onCreateGroup: (id: string) => void
+  onAssignGroupMany: (ids: string[], groupId: string | null) => void
+  onCreateGroupMany: (ids: string[]) => void
   onGroupStartAtZeroChange: (id: string, enabled: boolean) => void
   onDelete: (id: string) => void
   guideLabel: (guide: Guide) => string
@@ -42,6 +45,8 @@ export function RowMarkersPanel({
   onDetachGuide,
   onAssignGroup,
   onCreateGroup,
+  onAssignGroupMany,
+  onCreateGroupMany,
   onGroupStartAtZeroChange,
   onDelete,
   guideLabel,
@@ -52,6 +57,50 @@ export function RowMarkersPanel({
   const groupLabel = (groupId: string) => {
     const index = groupIds.indexOf(groupId)
     return `${ru ? 'Группа' : 'Group'} ${index >= 0 ? index + 1 : groupIds.length + 1}`
+  }
+  const sortedMarkers = markers
+    .slice()
+    .sort((a, b) => {
+      const aGroup = a.groupId ? groupIds.indexOf(a.groupId) + 1 : 0
+      const bGroup = b.groupId ? groupIds.indexOf(b.groupId) + 1 : 0
+      return aGroup - bGroup || a.number - b.number
+    })
+  const selectableIds = sortedMarkers
+    .filter((marker) => !isRowMarkerLocked(marker))
+    .map((marker) => marker.id)
+  const [bulkSelectedIds, setBulkSelectedIds] = useState<string[]>([])
+  const [bulkTargetGroupId, setBulkTargetGroupId] = useState('')
+
+  useEffect(() => {
+    const validIds = new Set(selectableIds)
+    setBulkSelectedIds((current) => {
+      const next = current.filter((id) => validIds.has(id))
+      return next.length === current.length && next.every((id, index) => id === current[index]) ? current : next
+    })
+  }, [markers])
+
+  useEffect(() => {
+    if (bulkTargetGroupId && !groupIds.includes(bulkTargetGroupId)) setBulkTargetGroupId('')
+  }, [bulkTargetGroupId, groupIds])
+
+  const toggleBulkMarker = (id: string, checked: boolean) => {
+    setBulkSelectedIds((current) => (
+      checked
+        ? current.includes(id) ? current : [...current, id]
+        : current.filter((selectedId) => selectedId !== id)
+    ))
+  }
+
+  const applyBulkGroup = () => {
+    if (!bulkSelectedIds.length) return
+    onAssignGroupMany(bulkSelectedIds, bulkTargetGroupId || null)
+    setBulkSelectedIds([])
+  }
+
+  const createBulkGroup = () => {
+    if (!bulkSelectedIds.length) return
+    onCreateGroupMany(bulkSelectedIds)
+    setBulkSelectedIds([])
   }
 
   return (
@@ -72,29 +121,102 @@ export function RowMarkersPanel({
       </small>
 
       {markers.length > 0 && (
-        <div className="row-marker-list">
-          {markers
-            .slice()
-            .sort((a, b) => {
-              const aGroup = a.groupId ? groupIds.indexOf(a.groupId) + 1 : 0
-              const bGroup = b.groupId ? groupIds.indexOf(b.groupId) + 1 : 0
-              return aGroup - bGroup || a.number - b.number
-            })
-            .map((marker) => (
-              <button key={marker.id} className={marker.id === selectedId ? 'active' : ''} onClick={() => onSelect(marker.id)}>
-                <span
-                  className={`row-marker-list-dot ${isRowMarkerVisible(marker) ? '' : 'hidden'}`}
-                  style={{ color: normalizedRowMarkerColor(marker.color) }}
-                >
-                  ●
-                </span>
-                <span>{ru ? 'Ряд' : 'Row'} {marker.number}</span>
-                {marker.groupId && <span className="muted-text">{groupLabel(marker.groupId)}</span>}
-                {marker.guideAttachment && <span aria-label={ru ? 'Привязан к направляющей' : 'Attached to guide'}>⌁</span>}
-                {isRowMarkerLocked(marker) && <span aria-label={ru ? 'Заблокирован' : 'Locked'}>🔒</span>}
+        <>
+          <div className="row-marker-bulk-toolbar" data-testid="row-marker-bulk-toolbar">
+            <div className="row-marker-bulk-selection-actions">
+              <button
+                type="button"
+                data-testid="row-marker-select-all"
+                disabled={!selectableIds.length}
+                onClick={() => setBulkSelectedIds(selectableIds)}
+              >
+                {ru ? 'Выбрать все' : 'Select all'}
               </button>
-            ))}
-        </div>
+              <button
+                type="button"
+                disabled={!bulkSelectedIds.length}
+                onClick={() => setBulkSelectedIds([])}
+              >
+                {ru ? 'Снять' : 'Clear'}
+              </button>
+              <span className="muted-text">
+                {ru ? `Выбрано: ${bulkSelectedIds.length}` : `Selected: ${bulkSelectedIds.length}`}
+              </span>
+            </div>
+
+            {bulkSelectedIds.length > 0 && (
+              <div className="row-marker-bulk-group-actions">
+                <label>
+                  <span>{ru ? 'Группа для выделенных' : 'Group selected markers'}</span>
+                  <select
+                    data-testid="row-marker-bulk-group-target"
+                    value={bulkTargetGroupId}
+                    onChange={(event) => setBulkTargetGroupId(event.target.value)}
+                  >
+                    <option value="">{ru ? 'Без группы' : 'No group'}</option>
+                    {groupIds.map((groupId) => (
+                      <option key={groupId} value={groupId}>{groupLabel(groupId)}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="row-marker-bulk-group-buttons">
+                  <button
+                    type="button"
+                    data-testid="row-marker-bulk-assign"
+                    onClick={applyBulkGroup}
+                  >
+                    {ru ? 'Перенести' : 'Assign'}
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="row-marker-bulk-create"
+                    onClick={createBulkGroup}
+                  >
+                    {ru ? 'Новая группа' : 'New group'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="row-marker-list">
+            {sortedMarkers.map((marker) => {
+              const bulkSelected = bulkSelectedIds.includes(marker.id)
+              const locked = isRowMarkerLocked(marker)
+              return (
+                <div
+                  key={marker.id}
+                  className={`row-marker-list-item ${bulkSelected ? 'bulk-selected' : ''}`}
+                >
+                  <input
+                    data-testid="row-marker-bulk-select"
+                    type="checkbox"
+                    aria-label={ru ? `Выбрать ряд ${marker.number}` : `Select row ${marker.number}`}
+                    checked={bulkSelected}
+                    disabled={locked}
+                    onChange={(event) => toggleBulkMarker(marker.id, event.target.checked)}
+                  />
+                  <button
+                    type="button"
+                    className={marker.id === selectedId ? 'active' : ''}
+                    onClick={() => onSelect(marker.id)}
+                  >
+                    <span
+                      className={`row-marker-list-dot ${isRowMarkerVisible(marker) ? '' : 'hidden'}`}
+                      style={{ color: normalizedRowMarkerColor(marker.color) }}
+                    >
+                      ●
+                    </span>
+                    <span>{ru ? 'Ряд' : 'Row'} {marker.number}</span>
+                    {marker.groupId && <span className="muted-text">{groupLabel(marker.groupId)}</span>}
+                    {marker.guideAttachment && <span aria-label={ru ? 'Привязан к направляющей' : 'Attached to guide'}>⌁</span>}
+                    {locked && <span aria-label={ru ? 'Заблокирован' : 'Locked'}>🔒</span>}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </>
       )}
 
       {selected && (

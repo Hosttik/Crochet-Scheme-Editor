@@ -52,6 +52,8 @@ describe('RowMarkersPanel guide options', () => {
         onDetachGuide={noop}
         onAssignGroup={noop}
         onCreateGroup={noop}
+        onAssignGroupMany={noop}
+        onCreateGroupMany={noop}
         onGroupStartAtZeroChange={noop}
         onDelete={noop}
         guideLabel={(guide) => guide.type === 'line' ? 'Линия' : 'Прямоугольная сетка'}
@@ -103,6 +105,8 @@ describe('RowMarkersPanel guide options', () => {
         onDetachGuide={noop}
         onAssignGroup={noop}
         onCreateGroup={noop}
+        onAssignGroupMany={noop}
+        onCreateGroupMany={noop}
         onGroupStartAtZeroChange={noop}
         onDelete={noop}
         guideLabel={(guide) => labels[guide.type]}
@@ -113,6 +117,43 @@ describe('RowMarkersPanel guide options', () => {
       expect(markup).toContain(`<option value="${guide.id}">${index + 1}. ${labels[guide.type]}</option>`)
     })
   })
+  it('exposes point selection and whole-list bulk grouping controls', () => {
+    const markers: RowMarker[] = [
+      { id: 'row-1', number: 1, x: 0, y: 0, visible: true, locked: false },
+      { id: 'row-2', number: 2, x: 20, y: 0, visible: true, locked: false },
+      { id: 'row-3', number: 3, x: 40, y: 0, visible: true, locked: true },
+    ]
+    const markup = renderToStaticMarkup(
+      <RowMarkersPanel
+        locale="ru"
+        markers={markers}
+        guides={[]}
+        selectedId={null}
+        nextNumber={4}
+        placing={false}
+        onStartPlacement={noop}
+        onSelect={noop}
+        onChange={noop}
+        onAttachGuide={noop}
+        onDetachGuide={noop}
+        onAssignGroup={noop}
+        onCreateGroup={noop}
+        onAssignGroupMany={noop}
+        onCreateGroupMany={noop}
+        onGroupStartAtZeroChange={noop}
+        onDelete={noop}
+        guideLabel={() => 'Направляющая'}
+      />,
+    )
+
+    expect(markup).toContain('data-testid="row-marker-bulk-toolbar"')
+    expect(markup).toContain('data-testid="row-marker-select-all"')
+    expect((markup.match(/data-testid="row-marker-bulk-select"/g) ?? [])).toHaveLength(3)
+    expect(markup).toContain('Выбрать все')
+    expect(markup).toContain('Выбрано: 0')
+    expect(markup).toContain('aria-label="Выбрать ряд 3" disabled=""')
+  })
+
   it('shows numbering group controls and zero-based mode', () => {
     const markers: RowMarker[] = [
       { id: 'a-0', number: 0, x: 0, y: 0, groupId: 'group-a', startAtZero: true, visible: true },
@@ -133,6 +174,8 @@ describe('RowMarkersPanel guide options', () => {
         onDetachGuide={noop}
         onAssignGroup={noop}
         onCreateGroup={noop}
+        onAssignGroupMany={noop}
+        onCreateGroupMany={noop}
         onGroupStartAtZeroChange={noop}
         onDelete={noop}
         guideLabel={() => 'Направляющая'}
