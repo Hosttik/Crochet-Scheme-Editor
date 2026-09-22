@@ -43,6 +43,16 @@
   color: #777169;
 }
 
+.print-settings-grid .print-mode-field {
+  grid-column: 1 / -1;
+}
+
+.print-mode-hint {
+  display: block;
+  margin-top: 7px;
+  line-height: 1.35;
+}
+
 .print-summary {
   margin: 8px 0;
   font-size: 12px;
