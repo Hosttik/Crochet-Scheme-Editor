@@ -50,6 +50,9 @@ describe('RowMarkersPanel guide options', () => {
         onChange={noop}
         onAttachGuide={noop}
         onDetachGuide={noop}
+        onAssignGroup={noop}
+        onCreateGroup={noop}
+        onGroupStartAtZeroChange={noop}
         onDelete={noop}
         guideLabel={(guide) => guide.type === 'line' ? 'Линия' : 'Прямоугольная сетка'}
       />,
@@ -98,6 +101,9 @@ describe('RowMarkersPanel guide options', () => {
         onChange={noop}
         onAttachGuide={noop}
         onDetachGuide={noop}
+        onAssignGroup={noop}
+        onCreateGroup={noop}
+        onGroupStartAtZeroChange={noop}
         onDelete={noop}
         guideLabel={(guide) => labels[guide.type]}
       />,
@@ -106,5 +112,38 @@ describe('RowMarkersPanel guide options', () => {
     guides.forEach((guide, index) => {
       expect(markup).toContain(`<option value="${guide.id}">${index + 1}. ${labels[guide.type]}</option>`)
     })
+  })
+  it('shows numbering group controls and zero-based mode', () => {
+    const markers: RowMarker[] = [
+      { id: 'a-0', number: 0, x: 0, y: 0, groupId: 'group-a', startAtZero: true, visible: true },
+      { id: 'b-1', number: 1, x: 20, y: 0, groupId: 'group-b', visible: true },
+    ]
+    const markup = renderToStaticMarkup(
+      <RowMarkersPanel
+        locale="ru"
+        markers={markers}
+        guides={[]}
+        selectedId="a-0"
+        nextNumber={1}
+        placing={false}
+        onStartPlacement={noop}
+        onSelect={noop}
+        onChange={noop}
+        onAttachGuide={noop}
+        onDetachGuide={noop}
+        onAssignGroup={noop}
+        onCreateGroup={noop}
+        onGroupStartAtZeroChange={noop}
+        onDelete={noop}
+        guideLabel={() => 'Направляющая'}
+      />,
+    )
+
+    expect(markup).toContain('Группа нумерации')
+    expect(markup).toContain('<option value="group-a" selected="">Группа 1</option>')
+    expect(markup).toContain('<option value="group-b">Группа 2</option>')
+    expect(markup).toContain('Начинать отсчёт с 0')
+    expect(markup).toContain('type="checkbox" checked=""')
+    expect(markup).toContain('Создать новую группу')
   })
 })
