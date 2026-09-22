@@ -212,6 +212,13 @@ export function projectIntegrityIssue(project: CrochetProject, strictReferences 
 
   for (const marker of markers) {
     if (!bounded(marker.x) || !bounded(marker.y)) return 'Row marker geometry is out of bounds'
+    if (!Number.isInteger(marker.number) || marker.number < 0 || marker.number > MAX_PROJECT_ROW_MARKERS) {
+      return 'Row marker number is out of bounds'
+    }
+    if (marker.groupId !== undefined && marker.groupId.length === 0) return 'Row marker group is invalid'
+    if (marker.startAtZero !== undefined && typeof marker.startAtZero !== 'boolean') {
+      return 'Row marker group start is invalid'
+    }
     if (marker.size !== undefined && (!Number.isFinite(marker.size) || marker.size < 0.5 || marker.size > 3)) {
       return 'Row marker size is out of bounds'
     }
