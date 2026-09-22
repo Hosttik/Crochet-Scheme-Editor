@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GridGuide, LineGuide, RadialGridGuide, RowMarker } from '../types'
 import {
+  attachRowMarkerToDefaultGuide,
   attachRowMarkerToGuide,
   deleteRowMarkerAndRenumber,
   moveAttachedRowMarker,
@@ -56,6 +57,32 @@ describe('row marker appearance and guide attachment', () => {
 
     const above = rowMarkerLabelGeometry({ ...marker(12), size: 2, labelAngle: 270 })
     expect(above.y + above.fontSize * 0.25).toBeCloseTo(-above.dotRadius - 8, 6)
+  })
+
+  it('reuses the selected guide id for subsequently placed markers', () => {
+    const guide: LineGuide = {
+      id: 'sticky-line',
+      type: 'line',
+      start: { x: 0, y: 20 },
+      end: { x: 200, y: 20 },
+      divisions: 10,
+      visible: true,
+    }
+    const placed = attachRowMarkerToDefaultGuide(
+      { ...marker(2), x: 80, y: 75 },
+      [guide],
+      guide.id,
+    )
+    expect(placed.guideAttachment?.guideId).toBe('sticky-line')
+    expect(placed.y).toBeCloseTo(20, 6)
+
+    const withoutGuide = attachRowMarkerToDefaultGuide(
+      { ...marker(3), x: 80, y: 75 },
+      [guide],
+      null,
+    )
+    expect(withoutGuide.guideAttachment).toBeUndefined()
+    expect(withoutGuide.y).toBe(75)
   })
 
   it('attaches a marker to a line and slides it along that line', () => {
