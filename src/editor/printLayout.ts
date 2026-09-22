@@ -7,6 +7,8 @@ export type PrintSettings = {
   orientation: PrintOrientation
   mode: PrintMode
   scalePercent: number
+  /** Relative fill for automatic fit modes. 100% is the largest size without cropping. */
+  pageFillPercent: number
   pageColumns: number
   pageRows: number
   overlapMm: number
@@ -48,10 +50,11 @@ export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   orientation: 'portrait',
   mode: 'actual-size',
   scalePercent: 100,
+  pageFillPercent: 100,
   pageColumns: 2,
   pageRows: 1,
   overlapMm: 5,
-  marginMm: 10,
+  marginMm: 5,
   pageFrames: true,
   alignmentMarks: true,
 }
@@ -75,13 +78,14 @@ export function normalizedPrintSettings(settings: PrintSettings): PrintSettings 
   const width = orientation === 'landscape' ? base.height : base.width
   const height = orientation === 'landscape' ? base.width : base.height
   const maxMargin = Math.max(0, Math.min(width, height) / 2 - 5)
-  const marginMm = clamp(Number.isFinite(settings.marginMm) ? settings.marginMm : 10, 0, maxMargin)
+  const marginMm = clamp(Number.isFinite(settings.marginMm) ? settings.marginMm : 5, 0, maxMargin)
   const printableMin = Math.min(width - marginMm * 2, height - marginMm * 2)
   return {
     paper,
     orientation,
     mode,
     scalePercent: clamp(Number.isFinite(settings.scalePercent) ? settings.scalePercent : 100, 1, 400),
+    pageFillPercent: clamp(Number.isFinite(settings.pageFillPercent) ? settings.pageFillPercent : 100, 25, 100),
     pageColumns: Math.round(clamp(Number.isFinite(settings.pageColumns) ? settings.pageColumns : 2, 1, 12)),
     pageRows: Math.round(clamp(Number.isFinite(settings.pageRows) ? settings.pageRows : 1, 1, 12)),
     overlapMm: clamp(Number.isFinite(settings.overlapMm) ? settings.overlapMm : 5, 0, Math.max(0, printableMin - 1)),
@@ -137,7 +141,7 @@ export function resolvePrintSettings(bounds: PrintBounds, rawSettings: PrintSett
     return {
       ...settings,
       orientation,
-      scalePercent: Math.max(portraitScale, landscapeScale),
+      scalePercent: Math.max(portraitScale, landscapeScale) * settings.pageFillPercent / 100,
       pageColumns: 1,
       pageRows: 1,
     }
@@ -151,7 +155,7 @@ export function resolvePrintSettings(bounds: PrintBounds, rawSettings: PrintSett
         settings.pageColumns,
         settings.pageRows,
         settings.orientation,
-      ),
+      ) * settings.pageFillPercent / 100,
     }
   }
   return settings
