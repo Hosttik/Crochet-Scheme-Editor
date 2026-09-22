@@ -75,6 +75,18 @@ export function nextRowMarkerNumber(
   return candidate
 }
 
+function closeRowMarkerNumberGap(
+  markers: RowMarker[],
+  groupId: string | null,
+  removedNumber: number,
+) {
+  return markers.map((marker) =>
+    sameRowMarkerGroup(marker, groupId) && marker.number > removedNumber
+      ? { ...marker, number: marker.number - 1 }
+      : marker,
+  )
+}
+
 function renumberGroupSequentially(
   markers: RowMarker[],
   groupId: string | null,
@@ -109,7 +121,8 @@ export function assignRowMarkerToGroup(
     ?? (targetHasMembers ? rowMarkerGroupStartsAtZero(markers, groupId) : current.startAtZero === true)
   const withoutCurrent = markers.filter((marker) => marker.id !== id)
   const nextNumber = nextRowMarkerNumber(withoutCurrent, groupId, startAtZero)
-  let next = markers.map((marker) =>
+  if (sourceGroupId === groupId) return markers
+  const next = markers.map((marker) =>
     marker.id === id
       ? {
           ...marker,
@@ -119,14 +132,7 @@ export function assignRowMarkerToGroup(
         }
       : marker,
   )
-  if (sourceGroupId !== groupId) {
-    const sourceStart = rowMarkerGroupStartsAtZero(
-      withoutCurrent,
-      sourceGroupId,
-    )
-    next = renumberGroupSequentially(next, sourceGroupId, sourceStart)
-  }
-  return next
+  return closeRowMarkerNumberGap(next, sourceGroupId, current.number)
 }
 
 export function setRowMarkerGroupStartAtZero(
@@ -143,9 +149,11 @@ export function deleteRowMarkerAndRenumber(markers: RowMarker[], id: string) {
   const removed = markers.find((marker) => marker.id === id)
   if (!removed) return markers
   const groupId = rowMarkerGroupId(removed)
-  const filtered = markers.filter((marker) => marker.id !== id)
-  const startAtZero = rowMarkerGroupStartsAtZero(filtered, groupId)
-  return renumberGroupSequentially(filtered, groupId, startAtZero)
+  return closeRowMarkerNumberGap(
+    markers.filter((marker) => marker.id !== id),
+    groupId,
+    removed.number,
+  )
 }
 
 export function normalizedRowMarkerNumber(value: number) {
