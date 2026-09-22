@@ -322,7 +322,7 @@ export function buildTiledPrintHtml(
   title: string,
   locale: 'ru' | 'en',
 ) {
-  const settings = normalizedPrintSettings(rawSettings)
+  const settings = resolvePrintSettings(bounds, rawSettings)
   const layout = layoutPrintTiles(bounds, settings)
   const inner = svgInner(svgMarkup)
   const frame = settings.pageFrames ? '<div class="page-frame" aria-hidden="true"></div>' : ''
@@ -368,8 +368,8 @@ export function buildTiledPrintHtml(
     </section>`
   }).join('')
   const instruction = locale === 'ru'
-    ? 'Для точного масштаба оставьте масштаб печати браузера 100%. Кресты в зоне перекрытия совпадают на соседних листах; совмещайте их при склейке.'
-    : 'For exact sizing, keep the browser print scale at 100%. Registration crosses in the overlap represent the same points on adjacent sheets.'
+    ? 'Оставьте масштаб печати браузера 100%: нужный масштаб уже рассчитан редактором. Кресты в зоне перекрытия совпадают на соседних листах; совмещайте их при склейке.'
+    : 'Keep the browser print scale at 100%: the editor has already calculated the required chart scale. Registration crosses in the overlap represent the same points on adjacent sheets.'
   return `<!doctype html>
 <html lang="${locale}">
 <head>
