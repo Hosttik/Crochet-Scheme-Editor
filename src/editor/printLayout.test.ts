@@ -4,6 +4,7 @@ import {
   buildTiledPrintHtml,
   layoutPrintTiles,
   parseLegendPrintBounds,
+  parsePrintViewBox,
   parseSvgViewBox,
 } from './printLayout'
 
@@ -47,6 +48,35 @@ describe('tiled print layout', () => {
     expect(layout.resolvedOrientation).toBe('portrait')
   })
 
+  it('lets automatic fit use less than the maximum page fill', () => {
+    const bounds = { left: 0, top: 0, width: 1200, height: 800 }
+    const full = layoutPrintTiles(
+      bounds,
+      { ...DEFAULT_PRINT_SETTINGS, mode: 'fit-one', pageFillPercent: 100 },
+    )
+    const reduced = layoutPrintTiles(
+      bounds,
+      { ...DEFAULT_PRINT_SETTINGS, mode: 'fit-one', pageFillPercent: 75 },
+    )
+    expect(reduced.resolvedScalePercent).toBeCloseTo(full.resolvedScalePercent * 0.75, 6)
+    expect(reduced.tiles).toHaveLength(1)
+  })
+
+  it('uses user-controlled page margins when calculating the available A4 area', () => {
+    const bounds = { left: 0, top: 0, width: 1200, height: 800 }
+    const compact = layoutPrintTiles(
+      bounds,
+      { ...DEFAULT_PRINT_SETTINGS, mode: 'fit-one', marginMm: 2 },
+    )
+    const roomy = layoutPrintTiles(
+      bounds,
+      { ...DEFAULT_PRINT_SETTINGS, mode: 'fit-one', marginMm: 20 },
+    )
+    expect(compact.printableWidthMm).toBeGreaterThan(roomy.printableWidthMm)
+    expect(compact.printableHeightMm).toBeGreaterThan(roomy.printableHeightMm)
+    expect(compact.resolvedScalePercent).toBeGreaterThan(roomy.resolvedScalePercent)
+  })
+
   it('creates exactly the requested custom page grid', () => {
     const layout = layoutPrintTiles(
       { left: -100, top: 20, width: 2400, height: 1400 },
@@ -82,6 +112,21 @@ describe('tiled print layout', () => {
     })
   })
 
+  it('prefers tight print bounds over the padded export SVG viewBox', () => {
+    const svg = '<svg viewBox="-40 -40 900 700" data-print-view-box="10 20 500 300"></svg>'
+    expect(parsePrintViewBox(svg)).toEqual({
+      left: 10,
+      top: 20,
+      width: 500,
+      height: 300,
+    })
+  })
+
+  it('falls back to the SVG viewBox when tight print bounds are absent', () => {
+    const svg = '<svg viewBox="-20 10 640 480"></svg>'
+    expect(parsePrintViewBox(svg)).toEqual(parseSvgViewBox(svg))
+  })
+
   it('builds printable HTML with complete page frames and registration crosses', () => {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 1500"><circle cx="10" cy="10" r="5"/></svg>'
     const html = buildTiledPrintHtml(svg, parseSvgViewBox(svg), DEFAULT_PRINT_SETTINGS, 'Chart', 'en')
@@ -91,6 +136,8 @@ describe('tiled print layout', () => {
     expect(html).not.toContain('class="crop ')
     expect(html).toContain('Chart · 1/')
     expect(html).toContain('@page')
+    expect(html).toContain('shape-rendering: geometricPrecision')
+    expect(html).toContain('print-color-adjust: exact')
   })
 
   it('renders exactly one printable section in fit-one mode', () => {

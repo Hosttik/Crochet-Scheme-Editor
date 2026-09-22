@@ -7,6 +7,8 @@ export type PrintSettings = {
   orientation: PrintOrientation
   mode: PrintMode
   scalePercent: number
+  /** Relative fill for automatic fit modes. 100% is the largest size without cropping. */
+  pageFillPercent: number
   pageColumns: number
   pageRows: number
   overlapMm: number
@@ -48,10 +50,11 @@ export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   orientation: 'portrait',
   mode: 'actual-size',
   scalePercent: 100,
+  pageFillPercent: 100,
   pageColumns: 2,
   pageRows: 1,
   overlapMm: 5,
-  marginMm: 10,
+  marginMm: 5,
   pageFrames: true,
   alignmentMarks: true,
 }
@@ -75,13 +78,14 @@ export function normalizedPrintSettings(settings: PrintSettings): PrintSettings 
   const width = orientation === 'landscape' ? base.height : base.width
   const height = orientation === 'landscape' ? base.width : base.height
   const maxMargin = Math.max(0, Math.min(width, height) / 2 - 5)
-  const marginMm = clamp(Number.isFinite(settings.marginMm) ? settings.marginMm : 10, 0, maxMargin)
+  const marginMm = clamp(Number.isFinite(settings.marginMm) ? settings.marginMm : 5, 0, maxMargin)
   const printableMin = Math.min(width - marginMm * 2, height - marginMm * 2)
   return {
     paper,
     orientation,
     mode,
     scalePercent: clamp(Number.isFinite(settings.scalePercent) ? settings.scalePercent : 100, 1, 400),
+    pageFillPercent: clamp(Number.isFinite(settings.pageFillPercent) ? settings.pageFillPercent : 100, 25, 100),
     pageColumns: Math.round(clamp(Number.isFinite(settings.pageColumns) ? settings.pageColumns : 2, 1, 12)),
     pageRows: Math.round(clamp(Number.isFinite(settings.pageRows) ? settings.pageRows : 1, 1, 12)),
     overlapMm: clamp(Number.isFinite(settings.overlapMm) ? settings.overlapMm : 5, 0, Math.max(0, printableMin - 1)),
@@ -137,7 +141,7 @@ export function resolvePrintSettings(bounds: PrintBounds, rawSettings: PrintSett
     return {
       ...settings,
       orientation,
-      scalePercent: Math.max(portraitScale, landscapeScale),
+      scalePercent: Math.max(portraitScale, landscapeScale) * settings.pageFillPercent / 100,
       pageColumns: 1,
       pageRows: 1,
     }
@@ -151,7 +155,7 @@ export function resolvePrintSettings(bounds: PrintBounds, rawSettings: PrintSett
         settings.pageColumns,
         settings.pageRows,
         settings.orientation,
-      ),
+      ) * settings.pageFillPercent / 100,
     }
   }
   return settings
@@ -209,6 +213,16 @@ export function layoutPrintTiles(bounds: PrintBounds, rawSettings: PrintSettings
     columns: xs.length,
     tiles,
   }
+}
+
+export function parsePrintViewBox(markup: string): PrintBounds {
+  const match = markup.match(/data-print-view-box=["']\s*([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s*["']/)
+  if (!match) return parseSvgViewBox(markup)
+  const [, left, top, width, height] = match.map(Number)
+  if (![left, top, width, height].every(Number.isFinite) || width <= 0 || height <= 0) {
+    return parseSvgViewBox(markup)
+  }
+  return { left, top, width, height }
 }
 
 export function parseSvgViewBox(markup: string): PrintBounds {
@@ -368,8 +382,8 @@ export function buildTiledPrintHtml(
     </section>`
   }).join('')
   const instruction = locale === 'ru'
-    ? 'Оставьте масштаб печати браузера 100%: нужный масштаб уже рассчитан редактором. Кресты в зоне перекрытия совпадают на соседних листах; совмещайте их при склейке.'
-    : 'Keep the browser print scale at 100%: the editor has already calculated the required chart scale. Registration crosses in the overlap represent the same points on adjacent sheets.'
+    ? 'Для PDF выберите «Сохранить как PDF» и оставьте масштаб системной печати 100%: размер и поля уже рассчитаны редактором. Схема остаётся векторной. Кресты в зоне перекрытия совпадают на соседних листах.'
+    : 'For PDF, choose “Save as PDF” and keep the system print scale at 100%: size and margins are already calculated by the editor. The chart stays vector. Registration crosses match on adjacent sheets.'
   return `<!doctype html>
 <html lang="${locale}">
 <head>
@@ -382,7 +396,7 @@ export function buildTiledPrintHtml(
   .screen-note { padding: 10px 14px; font-size: 12px; color: #555; background: white; position: sticky; top: 0; z-index: 5; }
   .print-page { position: relative; width: ${layout.paperWidthMm}mm; height: ${layout.paperHeightMm}mm; margin: 8px auto; background: white; break-after: page; page-break-after: always; overflow: hidden; }
   .printable { position: absolute; left: ${settings.marginMm}mm; top: ${settings.marginMm}mm; width: ${layout.printableWidthMm}mm; height: ${layout.printableHeightMm}mm; overflow: hidden; }
-  .printable > .chart-svg { display: block; width: 100%; height: 100%; }
+  .printable > .chart-svg { display: block; width: 100%; height: 100%; shape-rendering: geometricPrecision; text-rendering: geometricPrecision; }
   .chart-svg .crochet-legend { display: none; }
   .page-frame { position: absolute; left: ${settings.marginMm}mm; top: ${settings.marginMm}mm; width: ${layout.printableWidthMm}mm; height: ${layout.printableHeightMm}mm; border: .25mm solid #222; pointer-events: none; }
   .page-label { position: absolute; right: ${Math.max(2, settings.marginMm / 2)}mm; bottom: ${Math.max(2, settings.marginMm / 2)}mm; font-size: 8pt; color: #666; }
@@ -395,9 +409,10 @@ export function buildTiledPrintHtml(
   .print-legend-overlay svg { display: block; width: 100%; height: 100%; }
   .print-legend-overlay svg > :not(.crochet-legend) { display: none; }
   @media print {
-    html, body { background: white; }
+    html, body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .screen-note { display: none; }
     .print-page { margin: 0; }
+    svg { shape-rendering: geometricPrecision; text-rendering: geometricPrecision; }
   }
 </style>
 </head>

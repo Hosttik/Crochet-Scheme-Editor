@@ -27,7 +27,7 @@ import { clampBackgroundOpacity, prepareBackgroundImage } from './editor/backgro
 import { backgroundImageBounds } from './editor/backgroundGeometry'
 import { loadAuthoringPreferences, saveAuthoringPreferences } from './editor/authoringPreferences'
 import { chainBundleLayout, createChainBundle, type ChainBundleCount } from './editor/chainBundle'
-import { buildTiledPrintHtml, parseLegendPrintBounds, parseSvgViewBox, type PrintSettings } from './editor/printLayout'
+import { buildTiledPrintHtml, parseLegendPrintBounds, parsePrintViewBox, type PrintSettings } from './editor/printLayout'
 import { usedLegendItems } from './editor/legend'
 import {
   assignRowMarkerToGroup,
@@ -316,6 +316,14 @@ function serializeSvg(
     })
   }
 
+  const printPadding = 6
+  const printLeft = Math.min(...bounds.map((item) => item.left)) - printPadding
+  const printRight = Math.max(...bounds.map((item) => item.right)) + printPadding
+  const printTop = Math.min(...bounds.map((item) => item.top)) - printPadding
+  const printBottom = Math.max(...bounds.map((item) => item.bottom)) + printPadding
+  const printWidth = Math.max(1, printRight - printLeft)
+  const printHeight = Math.max(1, printBottom - printTop)
+
   const padding = 36
   let left = Math.min(...bounds.map((item) => item.left)) - padding
   let right = Math.max(...bounds.map((item) => item.right)) + padding
@@ -361,7 +369,7 @@ function serializeSvg(
 
   const width = Math.max(1, right - left)
   const height = Math.max(1, bottom - top)
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" width="${width}" height="${height}"><rect x="${left}" y="${top}" width="${width}" height="${height}" fill="white"/>${backgroundContent}${content}${markerContent}${legendContent}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" data-print-view-box="${printLeft} ${printTop} ${printWidth} ${printHeight}" width="${width}" height="${height}"><rect x="${left}" y="${top}" width="${width}" height="${height}" fill="white"/>${backgroundContent}${content}${markerContent}${legendContent}</svg>`
 }
 
 function buildProject(
@@ -683,7 +691,7 @@ function App() {
     () => serializeSvg(outputVisibleElements, outputRowMarkers, outputBackgroundImage, legendVisible, locale, t.emptySvg),
     [legendVisible, locale, outputBackgroundImage, outputRowMarkers, outputVisibleElements, t.emptySvg],
   )
-  const outputBounds = useMemo(() => parseSvgViewBox(outputSvg), [outputSvg])
+  const outputBounds = useMemo(() => parsePrintViewBox(outputSvg), [outputSvg])
   const outputLegendBounds = useMemo(() => parseLegendPrintBounds(outputSvg), [outputSvg])
   const lockedSelectedCount = useMemo(() => elements.filter(
     (element) => selectedIds.includes(element.id) && isElementLocked(element),
