@@ -3,6 +3,7 @@ import {
   DEFAULT_PRINT_SETTINGS,
   layoutPrintTiles,
   type PrintBounds,
+  type PrintMode,
   type PrintOrientation,
   type PrintPaper,
   type PrintSettings,
@@ -67,6 +68,11 @@ function contains(tile: PrintTile, point: { x: number; y: number }) {
   return point.x >= tile.x && point.x <= tile.x + tile.width && point.y >= tile.y && point.y <= tile.y + tile.height
 }
 
+function scaleLabel(value: number) {
+  const rounded = Math.round(value * 10) / 10
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
+}
+
 export function PrintPanel({ locale, bounds, legendBounds, onPrint }: Props) {
   const [settings, setSettings] = useState<PrintSettings>(DEFAULT_PRINT_SETTINGS)
   const ru = locale === 'ru'
@@ -88,14 +94,33 @@ export function PrintPanel({ locale, bounds, legendBounds, onPrint }: Props) {
   }, [layout.tiles, legendBounds])
 
   const patch = (next: Partial<PrintSettings>) => setSettings((current) => ({ ...current, ...next }))
+  const autoScale = settings.mode !== 'actual-size'
+  const singlePage = layout.tiles.length === 1
+  const orientationLabel = layout.resolvedOrientation === 'landscape'
+    ? ru ? 'альбомная' : 'landscape'
+    : ru ? 'книжная' : 'portrait'
 
   return (
     <section className="panel-section print-panel" data-testid="print-panel">
       <div className="section-title-row">
-        <h2>{ru ? 'Печать по страницам' : 'Tiled print'}</h2>
+        <h2>{ru ? 'Печать' : 'Print'}</h2>
         <span className="badge" data-testid="print-page-count">{layout.tiles.length}</span>
       </div>
+
       <div className="print-settings-grid">
+        <label className="print-mode-field">
+          <span>{ru ? 'Режим' : 'Mode'}</span>
+          <select
+            data-testid="print-mode"
+            value={settings.mode}
+            onChange={(event) => patch({ mode: event.target.value as PrintMode })}
+          >
+            <option value="actual-size">{ru ? 'Заданный масштаб' : 'Fixed scale'}</option>
+            <option value="fit-one">{ru ? 'Уместить на 1 лист' : 'Fit on one page'}</option>
+            <option value="fixed-grid">{ru ? 'Задать число листов' : 'Choose page grid'}</option>
+          </select>
+        </label>
+
         <label>
           <span>{ru ? 'Бумага' : 'Paper'}</span>
           <select value={settings.paper} onChange={(event) => patch({ paper: event.target.value as PrintPaper })}>
@@ -103,24 +128,95 @@ export function PrintPanel({ locale, bounds, legendBounds, onPrint }: Props) {
             <option value="letter">Letter</option>
           </select>
         </label>
+
         <label>
-          <span>{ru ? 'Ориентация' : 'Orientation'}</span>
-          <select value={settings.orientation} onChange={(event) => patch({ orientation: event.target.value as PrintOrientation })}>
+          <span>{settings.mode === 'fit-one' ? (ru ? 'Ориентация · авто' : 'Orientation · auto') : (ru ? 'Ориентация' : 'Orientation')}</span>
+          <select
+            data-testid="print-orientation"
+            disabled={settings.mode === 'fit-one'}
+            value={settings.mode === 'fit-one' ? layout.resolvedOrientation : settings.orientation}
+            onChange={(event) => patch({ orientation: event.target.value as PrintOrientation })}
+          >
             <option value="portrait">{ru ? 'Книжная' : 'Portrait'}</option>
             <option value="landscape">{ru ? 'Альбомная' : 'Landscape'}</option>
           </select>
         </label>
+
+        {settings.mode === 'fixed-grid' && (
+          <>
+            <label>
+              <span>{ru ? 'Листов по горизонтали' : 'Pages horizontally'}</span>
+              <input
+                data-testid="print-page-columns"
+                type="number"
+                min="1"
+                max="12"
+                step="1"
+                value={settings.pageColumns}
+                onChange={(event) => patch({ pageColumns: Math.max(1, Math.min(12, Math.round(Number(event.target.value) || 1))) })}
+              />
+            </label>
+            <label>
+              <span>{ru ? 'Листов по вертикали' : 'Pages vertically'}</span>
+              <input
+                data-testid="print-page-rows"
+                type="number"
+                min="1"
+                max="12"
+                step="1"
+                value={settings.pageRows}
+                onChange={(event) => patch({ pageRows: Math.max(1, Math.min(12, Math.round(Number(event.target.value) || 1))) })}
+              />
+            </label>
+          </>
+        )}
+
         <label>
-          <span>{ru ? 'Масштаб' : 'Scale'}</span>
-          <input data-testid="print-scale" type="number" min="10" max="400" step="5" value={settings.scalePercent} onChange={(event) => patch({ scalePercent: Number(event.target.value) || 100 })} />
+          <span>{autoScale ? (ru ? 'Масштаб · авто' : 'Scale · auto') : (ru ? 'Масштаб' : 'Scale')}</span>
+          <input
+            data-testid="print-scale"
+            type="number"
+            min="1"
+            max="400"
+            step="5"
+            disabled={autoScale}
+            value={autoScale ? scaleLabel(layout.resolvedScalePercent) : settings.scalePercent}
+            onChange={(event) => patch({ scalePercent: Number(event.target.value) || 100 })}
+          />
           <small>%</small>
         </label>
+
         <label>
           <span>{ru ? 'Перекрытие' : 'Overlap'}</span>
-          <input data-testid="print-overlap" type="number" min="0" max="30" step="1" value={settings.overlapMm} onChange={(event) => patch({ overlapMm: Math.max(0, Number(event.target.value) || 0) })} />
+          <input
+            data-testid="print-overlap"
+            type="number"
+            min="0"
+            max="30"
+            step="1"
+            disabled={settings.mode === 'fit-one'}
+            value={settings.overlapMm}
+            onChange={(event) => patch({ overlapMm: Math.max(0, Number(event.target.value) || 0) })}
+          />
           <small>mm</small>
         </label>
       </div>
+
+      {settings.mode === 'fit-one' && (
+        <small className="muted-text print-mode-hint">
+          {ru
+            ? `Редактор автоматически выбрал: ${orientationLabel}, масштаб ${scaleLabel(layout.resolvedScalePercent)}%.`
+            : `Automatically selected: ${orientationLabel}, ${scaleLabel(layout.resolvedScalePercent)}% scale.`}
+        </small>
+      )}
+      {settings.mode === 'fixed-grid' && (
+        <small className="muted-text print-mode-hint">
+          {ru
+            ? `Схема будет автоматически масштабирована ровно на ${settings.pageColumns} × ${settings.pageRows} листов.`
+            : `The chart will be scaled to exactly ${settings.pageColumns} × ${settings.pageRows} pages.`}
+        </small>
+      )}
+
       <label className="toggle-row compact-toggle">
         <span>{ru ? 'Печатать рамки страниц' : 'Print page frames'}</span>
         <input data-testid="print-page-frames" type="checkbox" checked={settings.pageFrames} onChange={(event) => patch({ pageFrames: event.target.checked })} />
@@ -134,10 +230,11 @@ export function PrintPanel({ locale, bounds, legendBounds, onPrint }: Props) {
           data-testid="print-alignment-marks"
           type="checkbox"
           checked={settings.alignmentMarks}
-          disabled={settings.overlapMm <= 0}
+          disabled={singlePage || settings.overlapMm <= 0}
           onChange={(event) => patch({ alignmentMarks: event.target.checked })}
         />
       </label>
+
       <div className="print-tile-preview" data-testid="print-tile-preview">
         <svg viewBox={previewBox} aria-label={ru ? 'Предпросмотр сборки страниц' : 'Page assembly preview'}>
           <defs>
@@ -227,15 +324,20 @@ export function PrintPanel({ locale, bounds, legendBounds, onPrint }: Props) {
           })}
         </svg>
       </div>
+
       <p className="print-summary">
         {ru
-          ? `${layout.columns} × ${layout.rows} стр. · ${layout.tiles.length} всего · перекрытие ${settings.overlapMm} мм${legendHostIndex >= 0 ? ` · легенда: стр. ${legendHostIndex + 1}` : ''}`
-          : `${layout.columns} × ${layout.rows} pages · ${layout.tiles.length} total · ${settings.overlapMm} mm overlap${legendHostIndex >= 0 ? ` · legend: page ${legendHostIndex + 1}` : ''}`}
+          ? `${layout.columns} × ${layout.rows} стр. · ${layout.tiles.length} всего · ${orientationLabel} · масштаб ${scaleLabel(layout.resolvedScalePercent)}%${!singlePage ? ` · перекрытие ${settings.overlapMm} мм` : ''}${legendHostIndex >= 0 ? ` · легенда: стр. ${legendHostIndex + 1}` : ''}`
+          : `${layout.columns} × ${layout.rows} pages · ${layout.tiles.length} total · ${orientationLabel} · ${scaleLabel(layout.resolvedScalePercent)}% scale${!singlePage ? ` · ${settings.overlapMm} mm overlap` : ''}${legendHostIndex >= 0 ? ` · legend: page ${legendHostIndex + 1}` : ''}`}
       </p>
       <button className="primary-button print-button" onClick={() => onPrint(settings)}>
         {ru ? 'Открыть печать' : 'Open print view'}
       </button>
-      <small className="muted-text">{ru ? 'Предпросмотр показывает порядок сборки, зоны перекрытия, метки совмещения и страницу легенды. Для физически точного масштаба в диалоге браузера оставьте 100%.' : 'The preview shows assembly order, overlap zones, registration marks and legend placement. Keep the browser print dialog at 100% for physical scale fidelity.'}</small>
+      <small className="muted-text">
+        {ru
+          ? 'Предпросмотр показывает реальное разбиение. В диалоге браузера оставьте масштаб 100% — редактор уже учитывает выбранный режим и число листов.'
+          : 'The preview shows the actual page split. Keep the browser print dialog at 100% — the editor already accounts for the selected mode and page count.'}
+      </small>
     </section>
   )
 }
