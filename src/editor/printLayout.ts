@@ -382,8 +382,8 @@ export function buildTiledPrintHtml(
     </section>`
   }).join('')
   const instruction = locale === 'ru'
-    ? 'Оставьте масштаб печати браузера 100%: нужный масштаб уже рассчитан редактором. Кресты в зоне перекрытия совпадают на соседних листах; совмещайте их при склейке.'
-    : 'Keep the browser print scale at 100%: the editor has already calculated the required chart scale. Registration crosses in the overlap represent the same points on adjacent sheets.'
+    ? 'Для PDF выберите «Сохранить как PDF» и оставьте масштаб системной печати 100%: размер и поля уже рассчитаны редактором. Схема остаётся векторной. Кресты в зоне перекрытия совпадают на соседних листах.'
+    : 'For PDF, choose “Save as PDF” and keep the system print scale at 100%: size and margins are already calculated by the editor. The chart stays vector. Registration crosses match on adjacent sheets.'
   return `<!doctype html>
 <html lang="${locale}">
 <head>
@@ -396,7 +396,7 @@ export function buildTiledPrintHtml(
   .screen-note { padding: 10px 14px; font-size: 12px; color: #555; background: white; position: sticky; top: 0; z-index: 5; }
   .print-page { position: relative; width: ${layout.paperWidthMm}mm; height: ${layout.paperHeightMm}mm; margin: 8px auto; background: white; break-after: page; page-break-after: always; overflow: hidden; }
   .printable { position: absolute; left: ${settings.marginMm}mm; top: ${settings.marginMm}mm; width: ${layout.printableWidthMm}mm; height: ${layout.printableHeightMm}mm; overflow: hidden; }
-  .printable > .chart-svg { display: block; width: 100%; height: 100%; }
+  .printable > .chart-svg { display: block; width: 100%; height: 100%; shape-rendering: geometricPrecision; text-rendering: geometricPrecision; }
   .chart-svg .crochet-legend { display: none; }
   .page-frame { position: absolute; left: ${settings.marginMm}mm; top: ${settings.marginMm}mm; width: ${layout.printableWidthMm}mm; height: ${layout.printableHeightMm}mm; border: .25mm solid #222; pointer-events: none; }
   .page-label { position: absolute; right: ${Math.max(2, settings.marginMm / 2)}mm; bottom: ${Math.max(2, settings.marginMm / 2)}mm; font-size: 8pt; color: #666; }
@@ -409,9 +409,10 @@ export function buildTiledPrintHtml(
   .print-legend-overlay svg { display: block; width: 100%; height: 100%; }
   .print-legend-overlay svg > :not(.crochet-legend) { display: none; }
   @media print {
-    html, body { background: white; }
+    html, body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .screen-note { display: none; }
     .print-page { margin: 0; }
+    svg { shape-rendering: geometricPrecision; text-rendering: geometricPrecision; }
   }
 </style>
 </head>
