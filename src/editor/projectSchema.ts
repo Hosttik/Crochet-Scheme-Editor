@@ -318,7 +318,9 @@ function parseRowMarkerGuideAttachment(value: unknown): RowMarkerGuideAttachment
 function parseRowMarker(value: unknown): RowMarker {
   if (
     !isRecord(value) || !nonEmptyString(value.id) ||
-    !positiveInteger(value.number, MAX_PROJECT_ROW_MARKERS) || !finite(value.x) || !finite(value.y) ||
+    !nonNegativeInteger(value.number, MAX_PROJECT_ROW_MARKERS) || !finite(value.x) || !finite(value.y) ||
+    !(value.groupId === undefined || nonEmptyString(value.groupId)) ||
+    !optionalBoolean(value.startAtZero) ||
     !(value.size === undefined || (finite(value.size) && value.size >= 0.5 && value.size <= 3)) ||
     !(value.labelAngle === undefined || finite(value.labelAngle)) ||
     !(value.color === undefined || isStitchColor(value.color)) ||
@@ -329,6 +331,8 @@ function parseRowMarker(value: unknown): RowMarker {
     number: value.number as number,
     x: value.x,
     y: value.y,
+    groupId: value.groupId as string | undefined,
+    startAtZero: value.startAtZero === true,
     size: value.size as number | undefined,
     labelAngle: value.labelAngle as number | undefined,
     color: typeof value.color === 'string' ? value.color.toLowerCase() : undefined,
