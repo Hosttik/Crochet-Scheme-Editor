@@ -59,4 +59,52 @@ describe('RowMarkersPanel guide options', () => {
     expect(markup).toContain('<option value="new-grid">2. Прямоугольная сетка</option>')
     expect(markup.indexOf('value="old-line"')).toBeLessThan(markup.indexOf('value="new-grid"'))
   })
+  it('renders every supplied guide without filtering', () => {
+    const marker: RowMarker = {
+      id: 'marker-1',
+      number: 1,
+      x: 0,
+      y: 0,
+      visible: true,
+      locked: false,
+    }
+    const guides: Guide[] = [
+      { id: 'arc', type: 'arc', center: { x: 0, y: 0 }, radius: 100, startAngle: 0, endAngle: 180, divisions: 8, visible: true },
+      { id: 'line', type: 'line', start: { x: 0, y: 0 }, end: { x: 100, y: 0 }, divisions: 8, visible: true },
+      { id: 'curve', type: 'curve', start: { x: 0, y: 0 }, control1: { x: 25, y: -20 }, control2: { x: 75, y: 20 }, end: { x: 100, y: 0 }, divisions: 8, visible: true },
+      { id: 'parabola', type: 'parabola', start: { x: 0, y: 20 }, control: { x: 50, y: -20 }, end: { x: 100, y: 20 }, divisions: 8, visible: true },
+      { id: 'grid', type: 'grid', origin: { x: 0, y: 0 }, rows: 3, columns: 3, spacingX: 20, spacingY: 20, rotation: 0, visible: true },
+      { id: 'radial', type: 'radial-grid', center: { x: 0, y: 0 }, ringCount: 3, ringSpacing: 20, sectorCount: 8, startAngle: 0, visible: true },
+    ]
+
+    const labels: Record<Guide['type'], string> = {
+      arc: 'Дуга',
+      line: 'Линия',
+      curve: 'Кривая',
+      parabola: 'Парабола',
+      grid: 'Прямоугольная сетка',
+      'radial-grid': 'Радиальная сетка',
+    }
+    const markup = renderToStaticMarkup(
+      <RowMarkersPanel
+        locale="ru"
+        markers={[marker]}
+        guides={guides}
+        selectedId={marker.id}
+        nextNumber={2}
+        placing={false}
+        onStartPlacement={noop}
+        onSelect={noop}
+        onChange={noop}
+        onAttachGuide={noop}
+        onDetachGuide={noop}
+        onDelete={noop}
+        guideLabel={(guide) => labels[guide.type]}
+      />,
+    )
+
+    guides.forEach((guide, index) => {
+      expect(markup).toContain(`<option value="${guide.id}">${index + 1}. ${labels[guide.type]}</option>`)
+    })
+  })
 })
