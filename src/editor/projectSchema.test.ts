@@ -300,6 +300,42 @@ describe('parseProject', () => {
     expect(parsed.settings.legend).toEqual({ visible: false })
   })
 
+  it('preserves zero-based row marker numbering groups', () => {
+    const raw = legacyProject() as any
+    raw.schemaVersion = 22
+    raw.rowMarkers = [
+      {
+        id: 'group-a-zero',
+        number: 0,
+        x: 0,
+        y: 0,
+        groupId: 'group-a',
+        startAtZero: true,
+        visible: true,
+        locked: false,
+      },
+      {
+        id: 'group-b-one',
+        number: 1,
+        x: 20,
+        y: 0,
+        groupId: 'group-b',
+        visible: true,
+        locked: false,
+      },
+    ]
+    const parsed = parseProject(raw, fallback)
+    expect(parsed.rowMarkers?.[0]).toMatchObject({
+      number: 0,
+      groupId: 'group-a',
+      startAtZero: true,
+    })
+    expect(parsed.rowMarkers?.[1]).toMatchObject({
+      number: 1,
+      groupId: 'group-b',
+    })
+  })
+
   it('preserves row marker appearance and path-guide attachment metadata', () => {
     const raw = legacyProject() as any
     raw.schemaVersion = 22
@@ -384,12 +420,17 @@ describe('parseProject', () => {
       guideAttachment: { guideId: 'grid-1', t: 0.5, normalOffset: 0, track: 'row' },
     }
     expect(() => parseProject(raw, fallback)).toThrow('Invalid row marker guide attachment')
+
+    raw.rowMarkers[0] = {
+      id: 'row-number-1', number: 1, x: 0, y: 0, groupId: '',
+    }
+    expect(() => parseProject(raw, fallback)).toThrow('Invalid row marker')
   })
 
   it('rejects malformed schema v15 row numbers and legend settings', () => {
     const raw = legacyProject() as any
     raw.schemaVersion = 15
-    raw.rowMarkers = [{ id: 'bad', number: 0, x: 0, y: 0 }]
+    raw.rowMarkers = [{ id: 'bad', number: -1, x: 0, y: 0 }]
     expect(() => parseProject(raw, fallback)).toThrow('Invalid row marker')
     raw.rowMarkers = []
     raw.settings.legend = { visible: 'yes' }
