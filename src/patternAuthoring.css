@@ -106,6 +106,46 @@
   pointer-events: none;
 }
 
+.row-marker-placement-group {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 8px;
+}
+
+.row-marker-placement-group-options {
+  display: grid;
+  gap: 5px;
+}
+
+.row-marker-placement-group-options button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--line, #dedbd4);
+  background: #fff;
+  text-align: left;
+  font-size: 10px;
+}
+
+.row-marker-placement-group-options button.active {
+  border-color: #5c8b75;
+  background: #eaf3ee;
+  box-shadow: inset 0 0 0 1px #5c8b75;
+}
+
+.row-marker-placement-group-options strong {
+  color: #315e4c;
+  font-size: 10px;
+}
+
+.row-marker-placement-group-dot {
+  font-size: 12px;
+  line-height: 1;
+}
+
 .row-marker-bulk-toolbar {
   display: grid;
   gap: 7px;
