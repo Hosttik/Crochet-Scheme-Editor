@@ -163,9 +163,8 @@ export function RowMarkerLayer({
         const label = rowMarkerLabelGeometry(marker)
         const color = normalizedRowMarkerColor(marker.color)
         const handleAngle = label.angle * Math.PI / 180
-        const handleDistance = 26 * label.size
-        const handleX = Math.cos(handleAngle) * handleDistance
-        const handleY = Math.sin(handleAngle) * handleDistance
+        const handleX = Math.cos(handleAngle) * label.handleDistance
+        const handleY = Math.sin(handleAngle) * label.handleDistance
         const hitRadius = Math.max(18 / zoom, 22 * label.size)
         return (
           <g
