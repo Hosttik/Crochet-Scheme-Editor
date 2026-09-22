@@ -25,6 +25,46 @@ describe('tiled print layout', () => {
     expect(second.x - first.x).toBeLessThan(first.width)
   })
 
+  it('fits a wide chart on one page and automatically chooses landscape', () => {
+    const layout = layoutPrintTiles(
+      { left: 0, top: 0, width: 1600, height: 500 },
+      { ...DEFAULT_PRINT_SETTINGS, mode: 'fit-one', orientation: 'portrait' },
+    )
+    expect(layout.columns).toBe(1)
+    expect(layout.rows).toBe(1)
+    expect(layout.tiles).toHaveLength(1)
+    expect(layout.resolvedOrientation).toBe('landscape')
+    expect(layout.resolvedScalePercent).toBeGreaterThan(0)
+  })
+
+  it('fits a tall chart on one page and automatically chooses portrait', () => {
+    const layout = layoutPrintTiles(
+      { left: 0, top: 0, width: 500, height: 1600 },
+      { ...DEFAULT_PRINT_SETTINGS, mode: 'fit-one', orientation: 'landscape' },
+    )
+    expect(layout.columns).toBe(1)
+    expect(layout.rows).toBe(1)
+    expect(layout.resolvedOrientation).toBe('portrait')
+  })
+
+  it('creates exactly the requested custom page grid', () => {
+    const layout = layoutPrintTiles(
+      { left: -100, top: 20, width: 2400, height: 1400 },
+      {
+        ...DEFAULT_PRINT_SETTINGS,
+        mode: 'fixed-grid',
+        pageColumns: 3,
+        pageRows: 2,
+        orientation: 'landscape',
+        overlapMm: 8,
+      },
+    )
+    expect(layout.columns).toBe(3)
+    expect(layout.rows).toBe(2)
+    expect(layout.tiles).toHaveLength(6)
+    expect(layout.resolvedOrientation).toBe('landscape')
+  })
+
   it('uses landscape dimensions when requested', () => {
     const layout = layoutPrintTiles(
       { left: 0, top: 0, width: 1000, height: 400 },
@@ -51,6 +91,26 @@ describe('tiled print layout', () => {
     expect(html).not.toContain('class="crop ')
     expect(html).toContain('Chart · 1/')
     expect(html).toContain('@page')
+  })
+
+  it('renders exactly one printable section in fit-one mode', () => {
+    const svg = '<svg viewBox="0 0 1800 600"></svg>'
+    const settings = { ...DEFAULT_PRINT_SETTINGS, mode: 'fit-one' as const }
+    const html = buildTiledPrintHtml(svg, parseSvgViewBox(svg), settings, 'Chart', 'en')
+    expect((html.match(/<section class="print-page">/g) ?? [])).toHaveLength(1)
+    expect(html).toContain('@page')
+  })
+
+  it('renders the requested number of printable sections for a custom grid', () => {
+    const svg = '<svg viewBox="0 0 2400 1400"></svg>'
+    const settings = {
+      ...DEFAULT_PRINT_SETTINGS,
+      mode: 'fixed-grid' as const,
+      pageColumns: 2,
+      pageRows: 3,
+    }
+    const html = buildTiledPrintHtml(svg, parseSvgViewBox(svg), settings, 'Chart', 'en')
+    expect((html.match(/<section class="print-page">/g) ?? [])).toHaveLength(6)
   })
 
   it('can omit printed page frames without changing the page grid', () => {

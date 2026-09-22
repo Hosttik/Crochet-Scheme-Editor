@@ -1,10 +1,14 @@
 export type PrintPaper = 'a4' | 'letter'
 export type PrintOrientation = 'portrait' | 'landscape'
+export type PrintMode = 'actual-size' | 'fit-one' | 'fixed-grid'
 
 export type PrintSettings = {
   paper: PrintPaper
   orientation: PrintOrientation
+  mode: PrintMode
   scalePercent: number
+  pageColumns: number
+  pageRows: number
   overlapMm: number
   marginMm: number
   pageFrames: boolean
@@ -32,6 +36,8 @@ export type PrintLayout = {
   paperHeightMm: number
   printableWidthMm: number
   printableHeightMm: number
+  resolvedOrientation: PrintOrientation
+  resolvedScalePercent: number
   rows: number
   columns: number
   tiles: PrintTile[]
@@ -40,7 +46,10 @@ export type PrintLayout = {
 export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   paper: 'a4',
   orientation: 'portrait',
+  mode: 'actual-size',
   scalePercent: 100,
+  pageColumns: 2,
+  pageRows: 1,
   overlapMm: 5,
   marginMm: 10,
   pageFrames: true,
@@ -59,21 +68,93 @@ function clamp(value: number, min: number, max: number) {
 }
 
 export function normalizedPrintSettings(settings: PrintSettings): PrintSettings {
-  const base = PAPER_MM[settings.paper] ?? PAPER_MM.a4
-  const width = settings.orientation === 'landscape' ? base.height : base.width
-  const height = settings.orientation === 'landscape' ? base.width : base.height
+  const paper = settings.paper === 'letter' ? 'letter' : 'a4'
+  const orientation = settings.orientation === 'landscape' ? 'landscape' : 'portrait'
+  const mode = settings.mode === 'fit-one' || settings.mode === 'fixed-grid' ? settings.mode : 'actual-size'
+  const base = PAPER_MM[paper]
+  const width = orientation === 'landscape' ? base.height : base.width
+  const height = orientation === 'landscape' ? base.width : base.height
   const maxMargin = Math.max(0, Math.min(width, height) / 2 - 5)
   const marginMm = clamp(Number.isFinite(settings.marginMm) ? settings.marginMm : 10, 0, maxMargin)
   const printableMin = Math.min(width - marginMm * 2, height - marginMm * 2)
   return {
-    paper: settings.paper === 'letter' ? 'letter' : 'a4',
-    orientation: settings.orientation === 'landscape' ? 'landscape' : 'portrait',
-    scalePercent: clamp(Number.isFinite(settings.scalePercent) ? settings.scalePercent : 100, 10, 400),
+    paper,
+    orientation,
+    mode,
+    scalePercent: clamp(Number.isFinite(settings.scalePercent) ? settings.scalePercent : 100, 1, 400),
+    pageColumns: Math.round(clamp(Number.isFinite(settings.pageColumns) ? settings.pageColumns : 2, 1, 12)),
+    pageRows: Math.round(clamp(Number.isFinite(settings.pageRows) ? settings.pageRows : 1, 1, 12)),
     overlapMm: clamp(Number.isFinite(settings.overlapMm) ? settings.overlapMm : 5, 0, Math.max(0, printableMin - 1)),
     marginMm,
     pageFrames: settings.pageFrames !== false,
     alignmentMarks: settings.alignmentMarks !== false,
   }
+}
+
+function safePrintBounds(bounds: PrintBounds): PrintBounds {
+  return {
+    left: Number.isFinite(bounds.left) ? bounds.left : 0,
+    top: Number.isFinite(bounds.top) ? bounds.top : 0,
+    width: Math.max(1, Number.isFinite(bounds.width) ? bounds.width : 1),
+    height: Math.max(1, Number.isFinite(bounds.height) ? bounds.height : 1),
+  }
+}
+
+function paperMetrics(settings: PrintSettings, orientation: PrintOrientation) {
+  const base = PAPER_MM[settings.paper]
+  const paperWidthMm = orientation === 'landscape' ? base.height : base.width
+  const paperHeightMm = orientation === 'landscape' ? base.width : base.height
+  return {
+    paperWidthMm,
+    paperHeightMm,
+    printableWidthMm: paperWidthMm - settings.marginMm * 2,
+    printableHeightMm: paperHeightMm - settings.marginMm * 2,
+  }
+}
+
+function fittedScalePercent(
+  bounds: PrintBounds,
+  settings: PrintSettings,
+  columns: number,
+  rows: number,
+  orientation: PrintOrientation,
+) {
+  const metrics = paperMetrics(settings, orientation)
+  const totalWidthMm = columns * metrics.printableWidthMm - Math.max(0, columns - 1) * settings.overlapMm
+  const totalHeightMm = rows * metrics.printableHeightMm - Math.max(0, rows - 1) * settings.overlapMm
+  const widthPercent = totalWidthMm * PX_PER_MM / bounds.width * 100
+  const heightPercent = totalHeightMm * PX_PER_MM / bounds.height * 100
+  return Math.max(0.01, Math.min(400, widthPercent, heightPercent))
+}
+
+export function resolvePrintSettings(bounds: PrintBounds, rawSettings: PrintSettings): PrintSettings {
+  const settings = normalizedPrintSettings(rawSettings)
+  const safeBounds = safePrintBounds(bounds)
+  if (settings.mode === 'fit-one') {
+    const portraitScale = fittedScalePercent(safeBounds, settings, 1, 1, 'portrait')
+    const landscapeScale = fittedScalePercent(safeBounds, settings, 1, 1, 'landscape')
+    const orientation = landscapeScale > portraitScale ? 'landscape' : 'portrait'
+    return {
+      ...settings,
+      orientation,
+      scalePercent: Math.max(portraitScale, landscapeScale),
+      pageColumns: 1,
+      pageRows: 1,
+    }
+  }
+  if (settings.mode === 'fixed-grid') {
+    return {
+      ...settings,
+      scalePercent: fittedScalePercent(
+        safeBounds,
+        settings,
+        settings.pageColumns,
+        settings.pageRows,
+        settings.orientation,
+      ),
+    }
+  }
+  return settings
 }
 
 function axisPositions(start: number, contentSize: number, tileSize: number, overlap: number) {
@@ -85,25 +166,33 @@ function axisPositions(start: number, contentSize: number, tileSize: number, ove
 }
 
 export function layoutPrintTiles(bounds: PrintBounds, rawSettings: PrintSettings): PrintLayout {
-  const settings = normalizedPrintSettings(rawSettings)
-  const base = PAPER_MM[settings.paper]
-  const paperWidthMm = settings.orientation === 'landscape' ? base.height : base.width
-  const paperHeightMm = settings.orientation === 'landscape' ? base.width : base.height
-  const printableWidthMm = paperWidthMm - settings.marginMm * 2
-  const printableHeightMm = paperHeightMm - settings.marginMm * 2
+  const safeBounds = safePrintBounds(bounds)
+  const settings = resolvePrintSettings(safeBounds, rawSettings)
+  const metrics = paperMetrics(settings, settings.orientation)
   const scale = settings.scalePercent / 100
   const docUnitsPerMm = PX_PER_MM / scale
-  const tileWidth = printableWidthMm * docUnitsPerMm
-  const tileHeight = printableHeightMm * docUnitsPerMm
+  const tileWidth = metrics.printableWidthMm * docUnitsPerMm
+  const tileHeight = metrics.printableHeightMm * docUnitsPerMm
   const overlap = settings.overlapMm * docUnitsPerMm
-  const safeBounds = {
-    left: Number.isFinite(bounds.left) ? bounds.left : 0,
-    top: Number.isFinite(bounds.top) ? bounds.top : 0,
-    width: Math.max(1, Number.isFinite(bounds.width) ? bounds.width : 1),
-    height: Math.max(1, Number.isFinite(bounds.height) ? bounds.height : 1),
+
+  let xs: number[]
+  let ys: number[]
+  if (settings.mode === 'actual-size') {
+    xs = axisPositions(safeBounds.left, safeBounds.width, tileWidth, overlap)
+    ys = axisPositions(safeBounds.top, safeBounds.height, tileHeight, overlap)
+  } else {
+    const columns = settings.mode === 'fit-one' ? 1 : settings.pageColumns
+    const rows = settings.mode === 'fit-one' ? 1 : settings.pageRows
+    const coverageWidth = columns * tileWidth - Math.max(0, columns - 1) * overlap
+    const coverageHeight = rows * tileHeight - Math.max(0, rows - 1) * overlap
+    const startX = safeBounds.left - Math.max(0, coverageWidth - safeBounds.width) / 2
+    const startY = safeBounds.top - Math.max(0, coverageHeight - safeBounds.height) / 2
+    const strideX = tileWidth - overlap
+    const strideY = tileHeight - overlap
+    xs = Array.from({ length: columns }, (_, index) => startX + index * strideX)
+    ys = Array.from({ length: rows }, (_, index) => startY + index * strideY)
   }
-  const xs = axisPositions(safeBounds.left, safeBounds.width, tileWidth, overlap)
-  const ys = axisPositions(safeBounds.top, safeBounds.height, tileHeight, overlap)
+
   const tiles = ys.flatMap((y, row) => xs.map((x, column) => ({
     row,
     column,
@@ -113,10 +202,9 @@ export function layoutPrintTiles(bounds: PrintBounds, rawSettings: PrintSettings
     height: tileHeight,
   })))
   return {
-    paperWidthMm,
-    paperHeightMm,
-    printableWidthMm,
-    printableHeightMm,
+    ...metrics,
+    resolvedOrientation: settings.orientation,
+    resolvedScalePercent: settings.scalePercent,
     rows: ys.length,
     columns: xs.length,
     tiles,
@@ -234,7 +322,7 @@ export function buildTiledPrintHtml(
   title: string,
   locale: 'ru' | 'en',
 ) {
-  const settings = normalizedPrintSettings(rawSettings)
+  const settings = resolvePrintSettings(bounds, rawSettings)
   const layout = layoutPrintTiles(bounds, settings)
   const inner = svgInner(svgMarkup)
   const frame = settings.pageFrames ? '<div class="page-frame" aria-hidden="true"></div>' : ''
@@ -280,8 +368,8 @@ export function buildTiledPrintHtml(
     </section>`
   }).join('')
   const instruction = locale === 'ru'
-    ? 'Для точного масштаба оставьте масштаб печати браузера 100%. Кресты в зоне перекрытия совпадают на соседних листах; совмещайте их при склейке.'
-    : 'For exact sizing, keep the browser print scale at 100%. Registration crosses in the overlap represent the same points on adjacent sheets.'
+    ? 'Оставьте масштаб печати браузера 100%: нужный масштаб уже рассчитан редактором. Кресты в зоне перекрытия совпадают на соседних листах; совмещайте их при склейке.'
+    : 'Keep the browser print scale at 100%: the editor has already calculated the required chart scale. Registration crosses in the overlap represent the same points on adjacent sheets.'
   return `<!doctype html>
 <html lang="${locale}">
 <head>
