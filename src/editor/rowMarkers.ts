@@ -141,7 +141,6 @@ export function assignRowMarkersToGroup(
   groupId: string | null,
   targetStartAtZero?: boolean,
 ) {
-  const selectedIds = new Set(ids)
   const movingIds = ids.filter((id) => {
     const marker = markers.find((item) => item.id === id)
     return marker && rowMarkerGroupId(marker) !== groupId
@@ -165,8 +164,9 @@ export function assignRowMarkersToGroup(
     }
   }
 
+  const movingIdSet = new Set(movingIds)
   const targetHasMembers = next.some((marker) =>
-    !selectedIds.has(marker.id) && sameRowMarkerGroup(marker, groupId),
+    !movingIdSet.has(marker.id) && sameRowMarkerGroup(marker, groupId),
   )
   const firstMoving = movingIds
     .map((id) => markers.find((marker) => marker.id === id))
@@ -178,7 +178,7 @@ export function assignRowMarkersToGroup(
 
   const targetUsed = new Set(
     next
-      .filter((marker) => sameRowMarkerGroup(marker, groupId) && !movingIds.includes(marker.id))
+      .filter((marker) => sameRowMarkerGroup(marker, groupId) && !movingIdSet.has(marker.id))
       .map((marker) => marker.number),
   )
   let candidate = startAtZero ? 0 : 1
