@@ -385,12 +385,12 @@ export function buildTiledPrintHtml(
 
   const pages = layout.tiles.map((tile, index) => {
     const legendOverlay = legendBounds && legendOverlaySize && index === legendHostIndex
-      ? `<div class="print-legend-overlay" style="width:${legendOverlaySize.width}mm;height:${legendOverlaySize.height}mm"><svg xmlns="http://www.w3.org/2000/svg" viewBox="${legendBounds.left} ${legendBounds.top} ${legendBounds.width} ${legendBounds.height}" preserveAspectRatio="xMidYMid meet">${chartInner}</svg></div>`
+      ? `<div class="print-legend-overlay" style="width:${legendOverlaySize.width}mm;height:${legendOverlaySize.height}mm"><svg xmlns="http://www.w3.org/2000/svg" viewBox="${legendBounds.left} ${legendBounds.top} ${legendBounds.width} ${legendBounds.height}" preserveAspectRatio="xMinYMin meet">${inner}</svg></div>`
       : ''
     return `
     <section class="print-page">
       <div class="printable">
-        <svg class="chart-svg" xmlns="http://www.w3.org/2000/svg" viewBox="${tile.x} ${tile.y} ${tile.width} ${tile.height}" preserveAspectRatio="xMinYMin meet">${inner}</svg>
+        <svg class="chart-svg" xmlns="http://www.w3.org/2000/svg" viewBox="${tile.x} ${tile.y} ${tile.width} ${tile.height}" preserveAspectRatio="xMidYMid meet">${chartInner}</svg>
         ${legendOverlay}
         ${registrationMarks(tile, layout, settings)}
       </div>
