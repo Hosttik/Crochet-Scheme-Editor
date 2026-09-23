@@ -245,6 +245,22 @@ function svgInner(markup: string) {
   return markup.replace(/^\s*<svg\b[^>]*>/i, '').replace(/<\/svg>\s*$/i, '')
 }
 
+function scaledPrintStrokeMarkup(markup: string, scalePercent: number) {
+  const scale = Math.max(0.0001, scalePercent / 100)
+  return markup.replace(/<(?:path|circle|ellipse)\b[^>]*>/gi, (tag) => {
+    if (!/\bvector-effect=["']non-scaling-stroke["']/i.test(tag)) return tag
+    return tag.replace(
+      /\bstroke-width=(["'])([-+\d.eE]+)\1/i,
+      (_match, quote: string, rawWidth: string) => {
+        const width = Number(rawWidth)
+        if (!Number.isFinite(width)) return _match
+        const scaledWidth = Math.max(0.01, width * scale)
+        return `stroke-width=${quote}${Number(scaledWidth.toFixed(4))}${quote}`
+      },
+    )
+  })
+}
+
 function numberAttribute(fragment: string, name: string) {
   const match = fragment.match(new RegExp(`\\b${name}=["']([-+\\d.eE]+)["']`, 'i'))
   const value = match ? Number(match[1]) : Number.NaN
@@ -339,6 +355,7 @@ export function buildTiledPrintHtml(
   const settings = resolvePrintSettings(bounds, rawSettings)
   const layout = layoutPrintTiles(bounds, settings)
   const inner = svgInner(svgMarkup)
+  const chartInner = scaledPrintStrokeMarkup(inner, settings.scalePercent)
   const frame = settings.pageFrames ? '<div class="page-frame" aria-hidden="true"></div>' : ''
   const legendBounds = parseLegendPrintBounds(svgMarkup)
   const legendCenter = legendBounds
@@ -368,7 +385,7 @@ export function buildTiledPrintHtml(
 
   const pages = layout.tiles.map((tile, index) => {
     const legendOverlay = legendBounds && legendOverlaySize && index === legendHostIndex
-      ? `<div class="print-legend-overlay" style="width:${legendOverlaySize.width}mm;height:${legendOverlaySize.height}mm"><svg xmlns="http://www.w3.org/2000/svg" viewBox="${legendBounds.left} ${legendBounds.top} ${legendBounds.width} ${legendBounds.height}" preserveAspectRatio="xMidYMid meet">${inner}</svg></div>`
+      ? `<div class="print-legend-overlay" style="width:${legendOverlaySize.width}mm;height:${legendOverlaySize.height}mm"><svg xmlns="http://www.w3.org/2000/svg" viewBox="${legendBounds.left} ${legendBounds.top} ${legendBounds.width} ${legendBounds.height}" preserveAspectRatio="xMidYMid meet">${chartInner}</svg></div>`
       : ''
     return `
     <section class="print-page">
@@ -397,7 +414,6 @@ export function buildTiledPrintHtml(
   .print-page { position: relative; width: ${layout.paperWidthMm}mm; height: ${layout.paperHeightMm}mm; margin: 8px auto; background: white; break-after: page; page-break-after: always; overflow: hidden; }
   .printable { position: absolute; left: ${settings.marginMm}mm; top: ${settings.marginMm}mm; width: ${layout.printableWidthMm}mm; height: ${layout.printableHeightMm}mm; overflow: hidden; }
   .printable > .chart-svg { display: block; width: 100%; height: 100%; shape-rendering: geometricPrecision; text-rendering: geometricPrecision; }
-  .chart-svg [vector-effect="non-scaling-stroke"] { vector-effect: none; }
   .chart-svg .crochet-legend { display: none; }
   .page-frame { position: absolute; left: ${settings.marginMm}mm; top: ${settings.marginMm}mm; width: ${layout.printableWidthMm}mm; height: ${layout.printableHeightMm}mm; border: .25mm solid #222; pointer-events: none; }
   .page-label { position: absolute; right: ${Math.max(2, settings.marginMm / 2)}mm; bottom: ${Math.max(2, settings.marginMm / 2)}mm; font-size: 8pt; color: #666; }
@@ -414,7 +430,6 @@ export function buildTiledPrintHtml(
     .screen-note { display: none; }
     .print-page { margin: 0; }
     svg { shape-rendering: geometricPrecision; text-rendering: geometricPrecision; }
-    .chart-svg [vector-effect="non-scaling-stroke"] { vector-effect: none; }
   }
 </style>
 </head>
