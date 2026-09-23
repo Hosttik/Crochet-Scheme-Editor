@@ -368,7 +368,7 @@ export function buildTiledPrintHtml(
 
   const pages = layout.tiles.map((tile, index) => {
     const legendOverlay = legendBounds && legendOverlaySize && index === legendHostIndex
-      ? `<div class="print-legend-overlay" style="width:${legendOverlaySize.width}mm;height:${legendOverlaySize.height}mm"><svg xmlns="http://www.w3.org/2000/svg" viewBox="${legendBounds.left} ${legendBounds.top} ${legendBounds.width} ${legendBounds.height}" preserveAspectRatio="xMinYMin meet">${inner}</svg></div>`
+      ? `<div class="print-legend-overlay" style="width:${legendOverlaySize.width}mm;height:${legendOverlaySize.height}mm"><svg xmlns="http://www.w3.org/2000/svg" viewBox="${legendBounds.left} ${legendBounds.top} ${legendBounds.width} ${legendBounds.height}" preserveAspectRatio="xMidYMid meet">${inner}</svg></div>`
       : ''
     return `
     <section class="print-page">
@@ -397,6 +397,7 @@ export function buildTiledPrintHtml(
   .print-page { position: relative; width: ${layout.paperWidthMm}mm; height: ${layout.paperHeightMm}mm; margin: 8px auto; background: white; break-after: page; page-break-after: always; overflow: hidden; }
   .printable { position: absolute; left: ${settings.marginMm}mm; top: ${settings.marginMm}mm; width: ${layout.printableWidthMm}mm; height: ${layout.printableHeightMm}mm; overflow: hidden; }
   .printable > .chart-svg { display: block; width: 100%; height: 100%; shape-rendering: geometricPrecision; text-rendering: geometricPrecision; }
+  .chart-svg [vector-effect="non-scaling-stroke"] { vector-effect: none; }
   .chart-svg .crochet-legend { display: none; }
   .page-frame { position: absolute; left: ${settings.marginMm}mm; top: ${settings.marginMm}mm; width: ${layout.printableWidthMm}mm; height: ${layout.printableHeightMm}mm; border: .25mm solid #222; pointer-events: none; }
   .page-label { position: absolute; right: ${Math.max(2, settings.marginMm / 2)}mm; bottom: ${Math.max(2, settings.marginMm / 2)}mm; font-size: 8pt; color: #666; }
@@ -413,6 +414,7 @@ export function buildTiledPrintHtml(
     .screen-note { display: none; }
     .print-page { margin: 0; }
     svg { shape-rendering: geometricPrecision; text-rendering: geometricPrecision; }
+    .chart-svg [vector-effect="non-scaling-stroke"] { vector-effect: none; }
   }
 </style>
 </head>
