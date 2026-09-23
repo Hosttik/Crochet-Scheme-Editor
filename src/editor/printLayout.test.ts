@@ -154,11 +154,14 @@ describe('tiled print layout', () => {
     expect(html).toContain('print-color-adjust: exact')
   })
 
-  it('scales non-scaling editor strokes with the chart in print output', () => {
+  it('scales non-scaling editor stroke widths with the resolved one-page scale', () => {
     const svg = '<svg viewBox="0 0 1800 1200"><path d="M 0 0 L 100 100" stroke="black" stroke-width="2.4" vector-effect="non-scaling-stroke"/></svg>'
     const settings = { ...DEFAULT_PRINT_SETTINGS, mode: 'fit-one' as const }
-    const html = buildTiledPrintHtml(svg, parseSvgViewBox(svg), settings, 'Chart', 'en')
-    expect(html).toContain('.chart-svg [vector-effect="non-scaling-stroke"] { vector-effect: none; }')
+    const bounds = parseSvgViewBox(svg)
+    const layout = layoutPrintTiles(bounds, settings)
+    const html = buildTiledPrintHtml(svg, bounds, settings, 'Chart', 'en')
+    const expectedWidth = Number((2.4 * layout.resolvedScalePercent / 100).toFixed(4))
+    expect(html).toContain(`stroke-width="${expectedWidth}" vector-effect="non-scaling-stroke"`)
     expect(html).toContain('preserveAspectRatio="xMidYMid meet"')
   })
 
