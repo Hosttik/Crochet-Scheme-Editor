@@ -245,6 +245,22 @@ function svgInner(markup: string) {
   return markup.replace(/^\s*<svg\b[^>]*>/i, '').replace(/<\/svg>\s*$/i, '')
 }
 
+function scaledPrintStrokeMarkup(markup: string, scalePercent: number) {
+  const scale = Math.max(0.0001, scalePercent / 100)
+  return markup.replace(/<(?:path|circle|ellipse)\b[^>]*>/gi, (tag) => {
+    if (!/\bvector-effect=["']non-scaling-stroke["']/i.test(tag)) return tag
+    return tag.replace(
+      /\bstroke-width=(["'])([-+\d.eE]+)\1/i,
+      (_match, quote: string, rawWidth: string) => {
+        const width = Number(rawWidth)
+        if (!Number.isFinite(width)) return _match
+        const scaledWidth = Math.max(0.01, width * scale)
+        return `stroke-width=${quote}${Number(scaledWidth.toFixed(4))}${quote}`
+      },
+    )
+  })
+}
+
 function numberAttribute(fragment: string, name: string) {
   const match = fragment.match(new RegExp(`\\b${name}=["']([-+\\d.eE]+)["']`, 'i'))
   const value = match ? Number(match[1]) : Number.NaN
@@ -339,6 +355,7 @@ export function buildTiledPrintHtml(
   const settings = resolvePrintSettings(bounds, rawSettings)
   const layout = layoutPrintTiles(bounds, settings)
   const inner = svgInner(svgMarkup)
+  const chartInner = scaledPrintStrokeMarkup(inner, settings.scalePercent)
   const frame = settings.pageFrames ? '<div class="page-frame" aria-hidden="true"></div>' : ''
   const legendBounds = parseLegendPrintBounds(svgMarkup)
   const legendCenter = legendBounds
@@ -373,7 +390,7 @@ export function buildTiledPrintHtml(
     return `
     <section class="print-page">
       <div class="printable">
-        <svg class="chart-svg" xmlns="http://www.w3.org/2000/svg" viewBox="${tile.x} ${tile.y} ${tile.width} ${tile.height}" preserveAspectRatio="xMinYMin meet">${inner}</svg>
+        <svg class="chart-svg" xmlns="http://www.w3.org/2000/svg" viewBox="${tile.x} ${tile.y} ${tile.width} ${tile.height}" preserveAspectRatio="xMidYMid meet">${chartInner}</svg>
         ${legendOverlay}
         ${registrationMarks(tile, layout, settings)}
       </div>

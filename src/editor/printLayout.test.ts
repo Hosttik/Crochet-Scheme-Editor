@@ -38,6 +38,20 @@ describe('tiled print layout', () => {
     expect(layout.resolvedScalePercent).toBeGreaterThan(0)
   })
 
+  it('keeps the complete chart inside the single fit-to-page tile', () => {
+    const bounds = { left: -420, top: 135, width: 2870, height: 1640 }
+    const layout = layoutPrintTiles(
+      bounds,
+      { ...DEFAULT_PRINT_SETTINGS, mode: 'fit-one', pageFillPercent: 100, marginMm: 2 },
+    )
+    const [tile] = layout.tiles
+    expect(tile).toBeDefined()
+    expect(tile.x).toBeLessThanOrEqual(bounds.left)
+    expect(tile.y).toBeLessThanOrEqual(bounds.top)
+    expect(tile.x + tile.width).toBeGreaterThanOrEqual(bounds.left + bounds.width)
+    expect(tile.y + tile.height).toBeGreaterThanOrEqual(bounds.top + bounds.height)
+  })
+
   it('fits a tall chart on one page and automatically chooses portrait', () => {
     const layout = layoutPrintTiles(
       { left: 0, top: 0, width: 500, height: 1600 },
@@ -138,6 +152,17 @@ describe('tiled print layout', () => {
     expect(html).toContain('@page')
     expect(html).toContain('shape-rendering: geometricPrecision')
     expect(html).toContain('print-color-adjust: exact')
+  })
+
+  it('scales non-scaling editor stroke widths with the resolved one-page scale', () => {
+    const svg = '<svg viewBox="0 0 1800 1200"><path d="M 0 0 L 100 100" stroke="black" stroke-width="2.4" vector-effect="non-scaling-stroke"/></svg>'
+    const settings = { ...DEFAULT_PRINT_SETTINGS, mode: 'fit-one' as const }
+    const bounds = parseSvgViewBox(svg)
+    const layout = layoutPrintTiles(bounds, settings)
+    const html = buildTiledPrintHtml(svg, bounds, settings, 'Chart', 'en')
+    const expectedWidth = Number((2.4 * layout.resolvedScalePercent / 100).toFixed(4))
+    expect(html).toContain(`stroke-width="${expectedWidth}" vector-effect="non-scaling-stroke"`)
+    expect(html).toContain('preserveAspectRatio="xMidYMid meet"')
   })
 
   it('renders exactly one printable section in fit-one mode', () => {
